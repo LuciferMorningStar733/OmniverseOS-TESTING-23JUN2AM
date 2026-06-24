@@ -301,25 +301,12 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         response = gemini_client.models.generate_images(
             model="imagen-3.0-generate-002",
             prompt=req.prompt,
-            number_of_images=1,
-            safety_filter_level="block_only_high",
-            person_generation="allow_adult"
-        )
-        image_bytes = response.images[0]._pil_image.tobytes() if hasattr(response.images[0], '_pil_image') else response.images[0].image.read()
         
-        # Get PIL Image and convert to base64
-        from PIL import Image
-        import io
-        
-        if hasattr(response.images[0], '_pil_image'):
-            img = response.images[0]._pil_image
-        else:
-            img = response.images[0].image
-        
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        image_b64 = base64.b64encode(buffered.getvalue()).decode()
-        
+                        number_of_images=1,
+                        output_mime_type="image/png"
+                    ))
+        image_bytes = response.generated_images[0].image.image_bytes        
+                image_b64 = base64.b64encode(image_bytes).decode()
         doc = await db.ai_images.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
