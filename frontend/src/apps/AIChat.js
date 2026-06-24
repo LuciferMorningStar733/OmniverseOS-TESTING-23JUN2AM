@@ -8,7 +8,7 @@ export default function AIChat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [model, setModel] = useState({ provider: "anthropic", model: "claude-sonnet-4-6" });
+  const [model, setModel] = useState({ provider: "gemini", model: "gemini-2.5-flash" });
   const endRef = useRef();
   const mountedRef = useRef(true);
   const abortRef = useRef(null);
@@ -62,9 +62,9 @@ export default function AIChat() {
           className="input-cyber !py-1 !w-auto text-xs"
           data-testid="model-select"
         >
-          <option value="anthropic|claude-sonnet-4-6">Claude Sonnet 4.6</option>
-          <option value="openai|gpt-5.4">GPT-5.4</option>
-          <option value="gemini|gemini-3-flash-preview">Gemini 3 Flash</option>
+          <option value="gemini|gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini|gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
         </select>
       </div>
 
