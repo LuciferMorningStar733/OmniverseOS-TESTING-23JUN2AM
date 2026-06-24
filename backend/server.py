@@ -19,7 +19,6 @@ from datetime import datetime, timezone, timedelta
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
-
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -28,15 +27,11 @@ JWT_ALG = "HS256"
 JWT_EXP_HOURS = 24 * 7
 MAX_PROMPT_LEN = 4000
 MAX_MESSAGE_LEN = 8000
-
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
-
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
 
 from contextlib import asynccontextmanager
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # startup
@@ -48,20 +43,16 @@ async def lifespan(_app: FastAPI):
     # shutdown
     client.close()
 
-
 app = FastAPI(title="OmniverseOS API", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
-
 
 # ---------- Rate limiting (in-process token bucket) ----------
 import time
 import asyncio
 from collections import defaultdict
-
 _RATE_BUCKETS: dict[str, list[float]] = defaultdict(list)
 _RATE_LOCK = asyncio.Lock()
-
 
 async def rate_limit(key: str, max_per_min: int = 20):
     now = time.monotonic()
@@ -73,11 +64,9 @@ async def rate_limit(key: str, max_per_min: int = 20):
             raise HTTPException(429, "Rate limit exceeded. Try again shortly.")
         bucket.append(now)
 
-
 # ---------- Helpers ----------
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
-
 
 def make_token(user_id: str, email: str) -> str:
     payload = {
@@ -86,7 +75,6 @@ def make_token(user_id: str, email: str) -> str:
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXP_HOURS),
     }
     return pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
-
 
 async def get_current_user(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -102,18 +90,15 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
-
 # ---------- Models ----------
 class SignupReq(BaseModel):
     email: EmailStr
     password: str
     name: str
 
-
 class LoginReq(BaseModel):
     email: EmailStr
     password: str
-
 
 class ChatReq(BaseModel):
     session_id: str = Field(..., max_length=120)
@@ -122,58 +107,49 @@ class ChatReq(BaseModel):
     model: str = "gemini-2.5-flash"
     system: Optional[str] = Field(default=None, max_length=4000)
 
-
 class ImageGenReq(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=MAX_PROMPT_LEN)
-
 
 class NoteReq(BaseModel):
     title: str = "Untitled"
     content: str = ""
     color: str = "#00F0FF"
 
-
 class TaskReq(BaseModel):
     title: str
     description: str = ""
-    status: str = "todo"  # todo, doing, done
+    status: str = "todo"
     priority: str = "medium"
-
 
 class EventReq(BaseModel):
     title: str
-    date: str  # ISO date
+    date: str
     time: str = "09:00"
     color: str = "#00F0FF"
     description: str = ""
-
 
 class TxnReq(BaseModel):
     title: str
     amount: float
     category: str = "general"
-    type: str = "expense"  # income / expense
+    type: str = "expense"
     date: str
-
 
 class MemoryReq(BaseModel):
     content: str
     tag: str = "general"
 
-
 class FileReq(BaseModel):
     name: str
-    type: str = "file"  # file | folder
+    type: str = "file"
     parent: str = "root"
     content: str = ""
     size: int = 0
-
 
 # ---------- Routes: Auth ----------
 @api.get("/")
 async def root():
     return {"status": "ok", "service": "OmniverseOS"}
-
 
 @api.get("/health")
 async def health():
@@ -182,7 +158,6 @@ async def health():
         return {"status": "healthy", "db": "ok", "time": now_iso()}
     except Exception as e:
         raise HTTPException(503, f"DB unhealthy: {e}")
-
 
 @api.post("/auth/signup")
 async def signup(req: SignupReq):
@@ -208,7 +183,6 @@ async def signup(req: SignupReq):
     user.pop("_id", None)
     return {"token": token, "user": user}
 
-
 @api.post("/auth/login")
 async def login(req: LoginReq):
     user = await db.users.find_one({"email": req.email})
@@ -221,22 +195,18 @@ async def login(req: LoginReq):
     user.pop("_id", None)
     return {"token": token, "user": user}
 
-
 @api.get("/auth/me")
 async def me(user=Depends(get_current_user)):
     return user
-
 
 # ---------- Routes: AI Chat (Streaming SSE) ----------
 ALLOWED_MODELS = {
     "gemini": {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"},
 }
 
-
 def _validate_model(provider: str, model: str) -> None:
     if provider not in ALLOWED_MODELS or model not in ALLOWED_MODELS[provider]:
         raise HTTPException(400, "Unsupported provider/model")
-
 
 @api.post("/ai/chat/stream")
 async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
@@ -244,7 +214,6 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
         raise HTTPException(500, "LLM key not configured")
     _validate_model(req.provider, req.model)
     await rate_limit(f"chat:{user['id']}", max_per_min=30)
-
     user_msg = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
@@ -254,12 +223,10 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
         "created_at": now_iso(),
     }
     await db.chat_messages.insert_one(user_msg)
-
     system_msg = req.system or (
         "You are OmniverseOS Assistant — a friendly, witty cyberpunk AI living "
         "inside an operating system. Be concise, helpful, and creative."
     )
-
     async def event_gen():
         full = []
         try:
@@ -274,9 +241,13 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                 piece = chunk.text or ""
                 if piece:
                     full.append(piece)
-                    yield f"data: {piece}\n\n"
+                    yield f"data: {piece}\\n\\n"
         except Exception as e:
-            yield f"data: [error: {str(e)}]\n\n"
+            error_str = str(e)
+            if "RESOURCE_EXHAUSTED" in error_str or "429" in error_str:
+                yield "data: [quota_exceeded]\\n\\n"
+            else:
+                yield f"data: [error: {error_str}]\\n\\n"
         await db.chat_messages.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
@@ -285,18 +256,15 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
             "content": "".join(full),
             "created_at": now_iso(),
         })
-        yield "data: [DONE]\n\n"
-
+        yield "data: [DONE]\\n\\n"
     return StreamingResponse(
         event_gen(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
-
 @api.post("/ai/chat")
 async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
-    """Non-streaming fallback"""
     if not gemini_client:
         raise HTTPException(500, "LLM key not configured")
     _validate_model(req.provider, req.model)
@@ -317,7 +285,6 @@ async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
     ])
     return {"response": text}
 
-
 @api.get("/ai/chat/history/{session_id}")
 async def chat_history(session_id: str, user=Depends(get_current_user)):
     msgs = await db.chat_messages.find(
@@ -325,12 +292,10 @@ async def chat_history(session_id: str, user=Depends(get_current_user)):
     ).sort("created_at", 1).to_list(500)
     return msgs
 
-
 # ---------- Routes: AI Image Generation ----------
 @api.post("/ai/image")
 async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
     raise HTTPException(501, "Image generation not configured")
-
 
 @api.get("/ai/image/history")
 async def image_history(user=Depends(get_current_user)):
@@ -338,7 +303,6 @@ async def image_history(user=Depends(get_current_user)):
         "created_at", -1
     ).to_list(50)
     return items
-
 
 # ---------- Generic CRUD factory ----------
 async def list_for_user(coll_name: str, user_id: str, limit: int = 200, skip: int = 0):
@@ -354,7 +318,6 @@ async def list_for_user(coll_name: str, user_id: str, limit: int = 200, skip: in
     )
     return docs
 
-
 async def create_for_user(coll_name: str, user_id: str, data: dict):
     doc = {
         "id": str(uuid.uuid4()),
@@ -367,7 +330,6 @@ async def create_for_user(coll_name: str, user_id: str, data: dict):
     doc.pop("_id", None)
     return doc
 
-
 async def update_for_user(coll_name: str, user_id: str, item_id: str, data: dict):
     data["updated_at"] = now_iso()
     res = await db[coll_name].update_one(
@@ -378,119 +340,97 @@ async def update_for_user(coll_name: str, user_id: str, item_id: str, data: dict
     doc = await db[coll_name].find_one({"id": item_id}, {"_id": 0})
     return doc
 
-
 async def delete_for_user(coll_name: str, user_id: str, item_id: str):
     res = await db[coll_name].delete_one({"id": item_id, "user_id": user_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Not found")
     return {"ok": True}
 
-
 # Notes
 @api.get("/notes")
 async def list_notes(user=Depends(get_current_user)):
     return await list_for_user("notes", user["id"])
 
-
 @api.post("/notes")
 async def create_note(req: NoteReq, user=Depends(get_current_user)):
     return await create_for_user("notes", user["id"], req.model_dump())
-
 
 @api.put("/notes/{nid}")
 async def update_note(nid: str, req: NoteReq, user=Depends(get_current_user)):
     return await update_for_user("notes", user["id"], nid, req.model_dump())
 
-
 @api.delete("/notes/{nid}")
 async def delete_note(nid: str, user=Depends(get_current_user)):
     return await delete_for_user("notes", user["id"], nid)
-
 
 # Tasks
 @api.get("/tasks")
 async def list_tasks(user=Depends(get_current_user)):
     return await list_for_user("tasks", user["id"])
 
-
 @api.post("/tasks")
 async def create_task(req: TaskReq, user=Depends(get_current_user)):
     return await create_for_user("tasks", user["id"], req.model_dump())
-
 
 @api.put("/tasks/{tid}")
 async def update_task(tid: str, req: TaskReq, user=Depends(get_current_user)):
     return await update_for_user("tasks", user["id"], tid, req.model_dump())
 
-
 @api.delete("/tasks/{tid}")
 async def delete_task(tid: str, user=Depends(get_current_user)):
     return await delete_for_user("tasks", user["id"], tid)
-
 
 # Events
 @api.get("/events")
 async def list_events(user=Depends(get_current_user)):
     return await list_for_user("events", user["id"])
 
-
 @api.post("/events")
 async def create_event(req: EventReq, user=Depends(get_current_user)):
     return await create_for_user("events", user["id"], req.model_dump())
 
-
 @api.delete("/events/{eid}")
 async def delete_event(eid: str, user=Depends(get_current_user)):
     return await delete_for_user("events", user["id"], eid)
-
 
 # Transactions
 @api.get("/transactions")
 async def list_txns(user=Depends(get_current_user)):
     return await list_for_user("transactions", user["id"])
 
-
 @api.post("/transactions")
 async def create_txn(req: TxnReq, user=Depends(get_current_user)):
     return await create_for_user("transactions", user["id"], req.model_dump())
 
-
 @api.delete("/transactions/{tid}")
 async def delete_txn(tid: str, user=Depends(get_current_user)):
     return await delete_for_user("transactions", user["id"], tid)
-
 
 # Memory
 @api.get("/memories")
 async def list_memories(user=Depends(get_current_user)):
     return await list_for_user("memories", user["id"])
 
-
 @api.post("/memories")
 async def create_memory(req: MemoryReq, user=Depends(get_current_user)):
     return await create_for_user("memories", user["id"], req.model_dump())
 
-
 @api.delete("/memories/{mid}")
 async def delete_memory(mid: str, user=Depends(get_current_user)):
     return await delete_for_user("memories", user["id"], mid)
-
 
 # Files (virtual file manager)
 @api.get("/files")
 async def list_files(user=Depends(get_current_user)):
     return await list_for_user("files", user["id"])
 
-
 @api.post("/files")
 async def create_file(req: FileReq, user=Depends(get_current_user)):
     return await create_for_user("files", user["id"], req.model_dump())
 
-
 @api.delete("/files/{fid}")
 async def delete_file(fid: str, user=Depends(get_current_user)):
     return await delete_for_user("files", user["id"], fid)
-
 
 # Analytics summary
 @api.get("/analytics/summary")
@@ -519,11 +459,8 @@ async def analytics_summary(user=Depends(get_current_user)):
         "net": income - expense,
     }
 
-
 app.include_router(api)
 
-# CORS: with wildcard origins, browsers reject credentials. Use regex when wildcard
-# requested, else explicit list with credentials.
 _cors_env = os.environ.get("CORS_ORIGINS", "*")
 if _cors_env.strip() == "*":
     app.add_middleware(
