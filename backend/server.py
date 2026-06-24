@@ -306,7 +306,7 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
                         output_mime_type="image/png"
                     )
         image_bytes = response.generated_images[0].image.image_bytes        
-                image_b64 = base64.b64encode(image_bytes).decode()
+        image_b64 = base64.b64encode(image_bytes).decode()
         doc = await db.ai_images.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
