@@ -50,7 +50,11 @@ export default function AIChat() {
         });
       }, ctrl.signal);
     } catch (e) {
-      if (e?.name !== "AbortError") toast.error("Chat failed");
+      if (e?.name === "QuotaExceededError") {
+        toast.error(e.message);
+      } else if (e?.name !== "AbortError") {
+        toast.error("Chat failed");
+      }
     } finally {
       if (mountedRef.current) setStreaming(false);
     }
