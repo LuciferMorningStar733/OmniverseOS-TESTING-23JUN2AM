@@ -4,6 +4,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from google import genai
+from google.genai import types as genai_types
 import os
 import logging
 import base64
@@ -20,12 +22,14 @@ load_dotenv(ROOT_DIR / ".env")
 
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
-JWT_SECRET = os.environ.get("JWT_SECRET") or os.environ.get("EMERGENT_LLM_KEY") or "omniverseos-dev-do-not-use-in-prod"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+JWT_SECRET = os.environ.get("JWT_SECRET") or "omniverseos-dev-do-not-use-in-prod"
 JWT_ALG = "HS256"
 JWT_EXP_HOURS = 24 * 7
 MAX_PROMPT_LEN = 4000
 MAX_MESSAGE_LEN = 8000
+
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -114,8 +118,8 @@ class LoginReq(BaseModel):
 class ChatReq(BaseModel):
     session_id: str = Field(..., max_length=120)
     message: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LEN)
-    provider: str = "anthropic"
-    model: str = "claude-sonnet-4-6"
+    provider: str = "gemini"
+    model: str = "gemini-2.5-flash"
     system: Optional[str] = Field(default=None, max_length=4000)
 
 
@@ -198,7 +202,6 @@ async def signup(req: SignupReq):
     try:
         await db.users.insert_one(user)
     except Exception:
-        # Unique-index race: another request inserted same email concurrently.
         raise HTTPException(400, "Email already registered")
     token = make_token(user_id, req.email)
     user.pop("password")
@@ -226,9 +229,7 @@ async def me(user=Depends(get_current_user)):
 
 # ---------- Routes: AI Chat (Streaming SSE) ----------
 ALLOWED_MODELS = {
-    "anthropic": {"claude-sonnet-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"},
-    "openai": {"gpt-5.4", "gpt-5.4-mini", "gpt-5.2"},
-    "gemini": {"gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.5-flash"},
+    "gemini": {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"},
 }
 
 
@@ -239,12 +240,11 @@ def _validate_model(provider: str, model: str) -> None:
 
 @api.post("/ai/chat/stream")
 async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
+    if not gemini_client:
         raise HTTPException(500, "LLM key not configured")
     _validate_model(req.provider, req.model)
     await rate_limit(f"chat:{user['id']}", max_per_min=30)
 
-    # Save user message
     user_msg = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
@@ -260,24 +260,23 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
         "inside an operating system. Be concise, helpful, and creative."
     )
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"{user['id']}-{req.session_id}",
-        system_message=system_msg,
-    ).with_model(req.provider, req.model)
-
     async def event_gen():
         full = []
         try:
-            async for ev in chat.stream_message(UserMessage(text=req.message)):
-                if isinstance(ev, TextDelta):
-                    full.append(ev.content)
-                    yield f"data: {ev.content}\n\n"
-                elif isinstance(ev, StreamDone):
-                    break
+            response = await gemini_client.aio.models.generate_content_stream(
+                model=req.model,
+                contents=req.message,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=system_msg,
+                ),
+            )
+            async for chunk in response:
+                piece = chunk.text or ""
+                if piece:
+                    full.append(piece)
+                    yield f"data: {piece}\n\n"
         except Exception as e:
             yield f"data: [error: {str(e)}]\n\n"
-        # Save assistant message
         await db.chat_messages.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
@@ -298,24 +297,18 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
 @api.post("/ai/chat")
 async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
     """Non-streaming fallback"""
-    if not EMERGENT_LLM_KEY:
+    if not gemini_client:
         raise HTTPException(500, "LLM key not configured")
     _validate_model(req.provider, req.model)
     system_msg = req.system or "You are OmniverseOS Assistant. Be concise and helpful."
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"{user['id']}-{req.session_id}",
-        system_message=system_msg,
-    ).with_model(req.provider, req.model)
-
-    full = []
-    async for ev in chat.stream_message(UserMessage(text=req.message)):
-        if isinstance(ev, TextDelta):
-            full.append(ev.content)
-        elif isinstance(ev, StreamDone):
-            break
-    text = "".join(full)
-
+    response = await gemini_client.aio.models.generate_content(
+        model=req.model,
+        contents=req.message,
+        config=genai_types.GenerateContentConfig(
+            system_instruction=system_msg,
+        ),
+    )
+    text = response.text or ""
     await db.chat_messages.insert_many([
         {"id": str(uuid.uuid4()), "user_id": user["id"], "session_id": req.session_id,
          "role": "user", "content": req.message, "created_at": now_iso()},
@@ -336,26 +329,7 @@ async def chat_history(session_id: str, user=Depends(get_current_user)):
 # ---------- Routes: AI Image Generation ----------
 @api.post("/ai/image")
 async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(500, "LLM key not configured")
-    await rate_limit(f"image:{user['id']}", max_per_min=8)
-    try:
-        gen = OpenAIImageGeneration(api_key=EMERGENT_LLM_KEY)
-        images = await gen.generate_images(
-            prompt=req.prompt, model="gpt-image-1", number_of_images=1
-        )
-        b64 = base64.b64encode(images[0]).decode()
-        record = {
-            "id": str(uuid.uuid4()),
-            "user_id": user["id"],
-            "prompt": req.prompt,
-            "image_b64": b64,
-            "created_at": now_iso(),
-        }
-        await db.images.insert_one(record)
-        return {"id": record["id"], "prompt": req.prompt, "image_b64": b64}
-    except Exception as e:
-        raise HTTPException(500, f"Image gen failed: {e}")
+    raise HTTPException(501, "Image generation not configured")
 
 
 @api.get("/ai/image/history")
@@ -417,13 +391,16 @@ async def delete_for_user(coll_name: str, user_id: str, item_id: str):
 async def list_notes(user=Depends(get_current_user)):
     return await list_for_user("notes", user["id"])
 
+
 @api.post("/notes")
 async def create_note(req: NoteReq, user=Depends(get_current_user)):
     return await create_for_user("notes", user["id"], req.model_dump())
 
+
 @api.put("/notes/{nid}")
 async def update_note(nid: str, req: NoteReq, user=Depends(get_current_user)):
     return await update_for_user("notes", user["id"], nid, req.model_dump())
+
 
 @api.delete("/notes/{nid}")
 async def delete_note(nid: str, user=Depends(get_current_user)):
@@ -435,13 +412,16 @@ async def delete_note(nid: str, user=Depends(get_current_user)):
 async def list_tasks(user=Depends(get_current_user)):
     return await list_for_user("tasks", user["id"])
 
+
 @api.post("/tasks")
 async def create_task(req: TaskReq, user=Depends(get_current_user)):
     return await create_for_user("tasks", user["id"], req.model_dump())
 
+
 @api.put("/tasks/{tid}")
 async def update_task(tid: str, req: TaskReq, user=Depends(get_current_user)):
     return await update_for_user("tasks", user["id"], tid, req.model_dump())
+
 
 @api.delete("/tasks/{tid}")
 async def delete_task(tid: str, user=Depends(get_current_user)):
@@ -453,9 +433,11 @@ async def delete_task(tid: str, user=Depends(get_current_user)):
 async def list_events(user=Depends(get_current_user)):
     return await list_for_user("events", user["id"])
 
+
 @api.post("/events")
 async def create_event(req: EventReq, user=Depends(get_current_user)):
     return await create_for_user("events", user["id"], req.model_dump())
+
 
 @api.delete("/events/{eid}")
 async def delete_event(eid: str, user=Depends(get_current_user)):
@@ -467,9 +449,11 @@ async def delete_event(eid: str, user=Depends(get_current_user)):
 async def list_txns(user=Depends(get_current_user)):
     return await list_for_user("transactions", user["id"])
 
+
 @api.post("/transactions")
 async def create_txn(req: TxnReq, user=Depends(get_current_user)):
     return await create_for_user("transactions", user["id"], req.model_dump())
+
 
 @api.delete("/transactions/{tid}")
 async def delete_txn(tid: str, user=Depends(get_current_user)):
@@ -481,9 +465,11 @@ async def delete_txn(tid: str, user=Depends(get_current_user)):
 async def list_memories(user=Depends(get_current_user)):
     return await list_for_user("memories", user["id"])
 
+
 @api.post("/memories")
 async def create_memory(req: MemoryReq, user=Depends(get_current_user)):
     return await create_for_user("memories", user["id"], req.model_dump())
+
 
 @api.delete("/memories/{mid}")
 async def delete_memory(mid: str, user=Depends(get_current_user)):
@@ -495,9 +481,11 @@ async def delete_memory(mid: str, user=Depends(get_current_user)):
 async def list_files(user=Depends(get_current_user)):
     return await list_for_user("files", user["id"])
 
+
 @api.post("/files")
 async def create_file(req: FileReq, user=Depends(get_current_user)):
     return await create_for_user("files", user["id"], req.model_dump())
+
 
 @api.delete("/files/{fid}")
 async def delete_file(fid: str, user=Depends(get_current_user)):
