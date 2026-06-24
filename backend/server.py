@@ -13,6 +13,7 @@ from pathlib import Path
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import uuid
+import traceback
 import bcrypt
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
@@ -331,14 +332,7 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         return result
     except Exception as e:
         err_str = str(e)
-                import traceback
-                print("=" * 80)
-        print("IMAGE GENERATION FAILURE - FULL TRACEBACK:")
-        print(traceback.format_exc())
-        print("=" * 80)
-        if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
-            raise HTTPException(429, "AI quota exceeded. Try again later")
-        if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
+        logging.exception("IMAGE GENERATION FAILURE")        if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
             raise HTTPException(400, "Prompt blocked by safety filters")
         raise HTTPException(500, "Image generation failed")
 
