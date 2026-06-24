@@ -17,6 +17,13 @@ export const authApi = {
   me: () => api.get("/auth/me").then((r) => r.data),
 };
 
+class QuotaExceededError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "QuotaExceededError";
+  }
+}
+
 export const aiApi = {
   chat: (data) => api.post("/ai/chat", data).then((r) => r.data),
   history: (sid) => api.get(`/ai/chat/history/${sid}`).then((r) => r.data),
@@ -39,12 +46,17 @@ export const aiApi = {
         const { done, value } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n\n");
+        const lines = buf.split("\\n\\n");
         buf = lines.pop() || "";
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6);
           if (payload === "[DONE]") return;
+          if (payload === "[quota_exceeded]") {
+            throw new QuotaExceededError(
+              "Gemini quota exceeded for the selected model. Switch to Gemini 2.5 Flash or try again later."
+            );
+          }
           onDelta(payload);
         }
       }
