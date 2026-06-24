@@ -301,9 +301,10 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         response = gemini_client.models.generate_images(
             model="imagen-3.0-generate-002",
             prompt=req.prompt,
-        
-                        number_of_images=1,
-                        output_mime_type="image/png"
+            config=genai_types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/png"
+            )
                     )
         image_bytes = response.generated_images[0].image.image_bytes        
         image_b64 = base64.b64encode(image_bytes).decode()
