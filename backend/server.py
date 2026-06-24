@@ -318,6 +318,56 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         result = await db.ai_images.find_one({"_id": doc.inserted_id})
         result.pop("_id")
         return result
+
+# --------- Diagnostic: Image Model Test Endpoint ---------
+@api.post("/api/ai/image-test")
+async def image_test():
+    """Test multiple Google image generation models"""
+    models_to_test = [
+        "imagen-4.0-generate-001",
+        "gemini-2.5-flash-image",
+        "gemini-2.5-flash-image-preview",
+        "gemini-2.0-flash-preview-image-generation",
+    ]
+    
+    test_prompt = "A simple red circle"
+    results = []
+    
+    for model_name in models_to_test:
+        test_result = {
+            "model": model_name,
+            "success": False,
+            "http_status": None,
+            "error": None
+        }
+        
+        try:
+            response = gemini_client.models.generate_images(
+                model=model_name,
+                prompt=test_prompt,
+                config=genai_types.GenerateImagesConfig(
+                    number_of_images=1,
+                    output_mime_type="image/png"
+                )
+            )
+            test_result["success"] = True
+            test_result["http_status"] = 200
+            logging.info(f"✓ {model_name}: SUCCESS")
+        except Exception as e:
+            test_result["error"] = str(e)
+            if "404" in str(e) or "NOT_FOUND" in str(e):
+                test_result["http_status"] = 404
+            elif "400" in str(e) or "INVALID_ARGUMENT" in str(e):
+                test_result["http_status"] = 400
+            elif "403" in str(e) or "PERMISSION_DENIED" in str(e):
+                test_result["http_status"] = 403
+            else:
+                test_result["http_status"] = 500
+            logging.error(f"✗ {model_name}: {str(e)}")
+        
+        results.append(test_result)
+    
+    return {"tested_models": results}
     except Exception as e:
         err_str = str(e)
         logging.exception("IMAGE GENERATION FAILURE")
