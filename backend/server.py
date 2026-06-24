@@ -295,7 +295,47 @@ async def chat_history(session_id: str, user=Depends(get_current_user)):
 # ---------- Routes: AI Image Generation ----------
 @api.post("/ai/image")
 async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
-    raise HTTPException(501, "Image generation not configured")
+    await rate_limit(user["id"])
+    try:
+        response = gemini_client.models.generate_images(
+            model="imagen-3.0-generate-002",
+            prompt=req.prompt,
+            number_of_images=1,
+            safety_filter_level="block_only_high",
+            person_generation="allow_adult"
+        )
+        image_bytes = response.images[0]._pil_image.tobytes() if hasattr(response.images[0], '_pil_image') else response.images[0].image.read()
+        
+        # Get PIL Image and convert to base64
+        from PIL import Image
+        import io
+        
+        if hasattr(response.images[0], '_pil_image'):
+            img = response.images[0]._pil_image
+        else:
+            img = response.images[0].image
+        
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        image_b64 = base64.b64encode(buffered.getvalue()).decode()
+        
+        doc = await db.ai_images.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "prompt": req.prompt,
+            "image_b64": image_b64,
+            "created_at": datetime.now(timezone.utc)
+        })
+        result = await db.ai_images.find_one({"_id": doc.inserted_id})
+        result.pop("_id")
+        return result
+    except Exception as e:
+        err_str = str(e)
+        if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
+            raise HTTPException(429, "AI quota exceeded. Try again later")
+        if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
+            raise HTTPException(400, "Prompt blocked by safety filters")
+        raise HTTPException(500, "Image generation failed")
 
 @api.get("/ai/image/history")
 async def image_history(user=Depends(get_current_user)):
