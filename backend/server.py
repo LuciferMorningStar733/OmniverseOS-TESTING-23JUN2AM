@@ -299,7 +299,7 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
     await rate_limit(user["id"])
     try:
         response = gemini_client.models.generate_images(
-            model="imagen-3.0-generate-002",
+            model="imagen-4.0-generate-001",
             prompt=req.prompt,
             config=genai_types.GenerateImagesConfig(
                 number_of_images=1,
