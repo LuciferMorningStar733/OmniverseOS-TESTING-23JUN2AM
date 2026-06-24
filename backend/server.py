@@ -331,6 +331,11 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         return result
     except Exception as e:
         err_str = str(e)
+                import traceback
+                print("=" * 80)
+        print("IMAGE GENERATION FAILURE - FULL TRACEBACK:")
+        print(traceback.format_exc())
+        print("=" * 80)
         if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
             raise HTTPException(429, "AI quota exceeded. Try again later")
         if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
