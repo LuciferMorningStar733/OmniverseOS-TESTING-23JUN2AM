@@ -22,7 +22,14 @@ export default function AIChat() {
   }, []);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!endRef.current) return;
+    const container = endRef.current.parentElement;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages]);
 
   const send = async () => {
@@ -67,7 +74,6 @@ export default function AIChat() {
           <option value="gemini|gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
         </select>
       </div>
-
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-slate-500 pt-10">
@@ -85,7 +91,6 @@ export default function AIChat() {
         ))}
         <div ref={endRef} />
       </div>
-
       <div className="p-3 border-t border-white/10 flex items-center gap-2">
         <input
           data-testid="chat-input"
