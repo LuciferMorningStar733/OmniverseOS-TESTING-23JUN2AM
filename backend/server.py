@@ -318,6 +318,14 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         result = await db.ai_images.find_one({"_id": doc.inserted_id})
         result.pop("_id")
         return result
+    except Exception as e:
+        err_str = str(e)
+        logging.exception("IMAGE GENERATION FAILURE")
+        if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
+            raise HTTPException(429, "AI quota exceeded. Try again later")
+        if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
+            raise HTTPException(400, "Prompt blocked by safety filters")
+        raise HTTPException(500, f"Image generation failed: {err_str}")
 
 # --------- Diagnostic: Image Model Test Endpoint ---------
 @api.post("/api/ai/image-test")
