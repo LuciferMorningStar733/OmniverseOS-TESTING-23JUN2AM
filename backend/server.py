@@ -332,10 +332,13 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
         return result
     except Exception as e:
         err_str = str(e)
-        logging.exception("IMAGE GENERATION FAILURE")        if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
+        logging.exception("IMAGE GENERATION FAILURE")
+        if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
+                        raise HTTPException(429, "AI quota exceeded. Try again later")
+            
+        if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
             raise HTTPException(400, "Prompt blocked by safety filters")
-        raise HTTPException(500, "Image generation failed")
-
+        raise HTTPException(500, f"Image generation failed: {err_str}")
 @api.get("/ai/image/history")
 async def image_history(user=Depends(get_current_user)):
     items = await db.images.find({"user_id": user["id"]}, {"_id": 0}).sort(
