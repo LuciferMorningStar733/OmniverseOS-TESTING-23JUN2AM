@@ -11,7 +11,7 @@ export default function Dock() {
       initial={{ y: 120, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.3 }}
-      className="absolute left-1/2 -translate-x-1/2 bottom-3 z-40"
+      className="fixed left-1/2 -translate-x-1/2 bottom-3 z-40"
       data-testid="dock-root"
     >
       <div className="glass rounded-2xl px-3 py-2 flex items-center gap-1.5 window-shadow">
