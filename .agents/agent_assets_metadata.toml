@@ -12,3 +12,9 @@ id = "IKBbqyZ6WEcmAlkCOLOUt"
 uri = "file://omniverseos-all-changes.tar.gz"
 type = "unspecified"
 title = "OmniverseOS — Complete Polish (15 files, 53.5 KB)"
+
+[[outputs]]
+id = "Y9ohY694_dKhpsE74RVw-"
+uri = "file://omniverseos-full-changes.tar.gz"
+type = "unspecified"
+title = "OmniverseOS — All Changes + Wallpaper Fix (15 files, 55.5 KB)"
