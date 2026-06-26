@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "oElZnMKDe-YbBDogh2xMi"
+uri = "file://omniverseos-changes.tar.gz"
+type = "unspecified"
+title = "OmniverseOS — All Changes (tar.gz)"
