@@ -62,7 +62,8 @@ export default function WidgetShell({ item, def, canvasRef }) {
     <motion.div
       drag={!item.pinned}
       dragMomentum={false}
-      dragElastic={0}
+      dragElastic={0.08}
+      dragTransition={{ bounceStiffness: 520, bounceDamping: 36 }}
       dragConstraints={canvasRef}
       onDragStart={() => setDragging(true)}
       onDragEnd={handleDragEnd}
