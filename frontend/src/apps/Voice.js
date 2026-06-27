@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { aiApi, ttsApi, getVoicePrefs, setVoicePrefs } from "../lib/api";
+import { aiApi, ttsApi, getVoicePrefs, setVoicePrefs, GEMINI_VOICE_FEMALE, GEMINI_VOICE_MALE, GEMINI_VOICES } from "../lib/api";
 import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
@@ -399,9 +399,13 @@ export default function Voice() {
   const [interimText, setInterimText] = useState("");
   const [response, setResponse]       = useState("");
   const [voiceGender, setVoiceGender] = useState("female");
+  const [geminiVoice, setGeminiVoice] = useState("Kore"); // selected Gemini voice name
   const [actionsLog, setActionsLog]   = useState([]);
   const [detectedEmotion, setDetectedEmotion] = useState("neutral");
   const [usingFallback, setUsingFallback]     = useState(false);
+
+  const geminiVoiceRef = useRef("Kore");
+  useEffect(() => { geminiVoiceRef.current = geminiVoice; }, [geminiVoice]);
 
   const { openApp } = useOS();
 
@@ -496,45 +500,45 @@ export default function Voice() {
     speakTimerRef.current = setTimeout(speakChunk, 80);
   }, []);
 
-  // ── Google Cloud TTS speak (primary) ──────────────────────────────────────
-  // Pipeline: chunk → fetch TTS for chunk N → play chunk N → fetch chunk N+1
-  const speakGoogle = useCallback(async (cleanText, emotion, gender, prefs) => {
+  // ── Gemini TTS speak (primary voice provider) ─────────────────────────────
+  // Pipeline: chunk → fetch Gemini TTS for chunk N → play chunk N → fetch chunk N+1
+  // Uses your existing GEMINI_API_KEY — no Google Cloud credentials needed.
+  // Voice is driven by geminiVoiceRef (user-selected) with gender default as fallback.
+  const speakGemini = useCallback(async (cleanText, gender, prefs) => {
     if (!cleanText) return;
     const chunks = chunkText(cleanText);
     if (!chunks.length) return;
 
     if (mountedRef.current) setPhase("speaking");
 
-    const voiceName = gender === "male" ? GOOGLE_VOICE_MALE : GOOGLE_VOICE_FEMALE;
-    const prosody   = getGoogleProsody(emotion, gender);
+    // Use the user-selected Gemini voice, falling back to gender default
+    const selectedVoice = geminiVoiceRef.current;
+    const genderDefault = gender === "male" ? GEMINI_VOICE_MALE : GEMINI_VOICE_FEMALE;
+    const voiceName = selectedVoice || genderDefault;
     const ctrl      = new AbortController();
     speakAbortRef.current = ctrl;
 
-    // Pre-fetch first chunk immediately for low latency
+    // Fetch one chunk from Gemini TTS
     async function fetchChunk(text) {
       if (ctrl.signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const ssml = buildSsml(text, prosody);
-      return ttsApi.synthesize({
-        text: ssml,
-        voiceName,
-        speakingRate: prefs.rate,
-        pitch: 0.0,        // prosody pitch is baked into SSML
-        volumeGainDb: 0.0,
-        useSsml: true,
+      return ttsApi.synthesizeGemini({
+        text,
+        voice: voiceName,
+        signal: ctrl.signal,
       });
     }
 
     try {
-      // Kick off first fetch
+      // Pre-fetch first chunk immediately for low latency
       let nextFetchPromise = fetchChunk(chunks[0]);
 
       for (let i = 0; i < chunks.length; i++) {
         if (!mountedRef.current || ctrl.signal.aborted) break;
 
-        // Await the audio for this chunk
-        const audioB64 = await nextFetchPromise;
+        // Await audio URL for this chunk
+        const audioUrl = await nextFetchPromise;
 
-        // Pre-fetch the next chunk while we play this one
+        // Pre-fetch next chunk while playing this one
         if (i + 1 < chunks.length) {
           nextFetchPromise = fetchChunk(chunks[i + 1]);
         }
@@ -542,13 +546,17 @@ export default function Voice() {
         if (!mountedRef.current || ctrl.signal.aborted) break;
 
         // Play this chunk — passes analyserRef so WaveVisualizer gets live FFT data
-        await playAudioUrl(audioB64, prefs.volume, analyserRef);
+        await playAudioUrl(audioUrl, prefs.volume, analyserRef);
       }
     } catch (err) {
       if (err?.name === "AbortError") {
-        return; // interrupted intentionally
+        return; // interrupted intentionally — not an error
       }
-      throw err; // bubble up to caller for fallback
+      // Log exact failure reason before bubbling up to speak() for fallback
+      console.error(
+        `[GeminiTTS] Failed | voice=${voiceName} | status=${err?.status ?? "network"} | reason=${err?.message}`
+      );
+      throw err;
     } finally {
       if (mountedRef.current && !ctrl.signal.aborted) {
         setPhase("idle");
@@ -557,7 +565,7 @@ export default function Voice() {
     }
   }, []);
 
-  // ── speak() — Voice Manager: Google TTS → Browser SpeechSynthesis ─────────
+  // ── speak() — Voice Manager: Gemini TTS → Browser SpeechSynthesis ─────────
   const speak = useCallback(async (rawText) => {
     if (!rawText?.trim()) return;
 
@@ -582,14 +590,14 @@ export default function Voice() {
       return;
     }
 
-    // Try Google TTS first
+    // Try Gemini TTS first (uses existing GEMINI_API_KEY — no Google Cloud needed)
     try {
       setUsingFallback(false);
-      await speakGoogle(cleanText, emotion, gender, prefs);
+      await speakGemini(cleanText, gender, prefs);
     } catch (err) {
       if (!mountedRef.current) return;
-      // Google TTS failed — fall back to browser SpeechSynthesis
-      console.warn("[TTS] Google Cloud TTS failed, falling back to browser:", err?.message);
+      // Gemini TTS failed — fall back to browser SpeechSynthesis
+      console.warn("[TTS] Gemini TTS failed, falling back to browser SpeechSynthesis:", err?.message);
       setUsingFallback(true);
       toast.info("Using local voice", {
         duration: 2500,
@@ -597,7 +605,7 @@ export default function Voice() {
       });
       speakBrowser(cleanText, emotion, gender, prefs.volume);
     }
-  }, [speakGoogle, speakBrowser]);
+  }, [speakGemini, speakBrowser]);
 
   const stopSpeaking = useCallback(() => {
     speakAbortRef.current?.abort();
@@ -807,7 +815,12 @@ export default function Voice() {
       <div className="flex items-center gap-2 mb-8 sm:mb-10">
         <span className="text-[10px] text-slate-600 font-mono uppercase tracking-widest">voice</span>
         <button
-          onClick={() => setVoiceGender((g) => (g === "male" ? "female" : "male"))}
+          onClick={() => {
+            const next = voiceGender === "male" ? "female" : "male";
+            setVoiceGender(next);
+            // Reset to default voice for the new gender
+            setGeminiVoice(next === "male" ? GEMINI_VOICE_MALE : GEMINI_VOICE_FEMALE);
+          }}
           disabled={isSpeaking}
           title="Toggle voice gender"
           className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-mono transition-all duration-200
@@ -817,7 +830,7 @@ export default function Voice() {
             } ${isSpeaking ? "opacity-40 cursor-not-allowed" : ""}`}
         >
           <i className={`fa-solid ${voiceGender === "male" ? "fa-mars" : "fa-venus"} text-[10px]`} />
-          {voiceGender === "male" ? "Male · JARVIS" : "Female · ARIA"}
+          {voiceGender === "male" ? "Male" : "Female"}
         </button>
 
         {/* Fallback indicator */}
@@ -842,6 +855,41 @@ export default function Voice() {
             {emotionMeta.label}
           </div>
         )}
+      </div>
+
+      {/* ── Gemini voice selector ─────────────────────────────────────────────── */}
+      <div className="flex flex-col items-center gap-2 mb-6 w-full max-w-sm">
+        <div className="flex items-center gap-2 w-full justify-center">
+          <span className="text-[10px] text-slate-600 font-mono uppercase tracking-widest">
+            gemini voice
+          </span>
+          <span className="text-[10px] font-mono text-[#00F0FF]/30">·</span>
+          <span className="text-[10px] font-mono text-[#00F0FF]/50">{geminiVoice}</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5 justify-center">
+          {(GEMINI_VOICES[voiceGender] || []).map((v) => {
+            const isActive = geminiVoice === v.name;
+            return (
+              <button
+                key={v.name}
+                disabled={isSpeaking}
+                onClick={() => setGeminiVoice(v.name)}
+                title={v.desc}
+                className={`flex flex-col items-center px-3 py-1.5 rounded-lg border text-[10px] font-mono transition-all duration-150
+                  ${isSpeaking ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+                  ${isActive
+                    ? voiceGender === "male"
+                      ? "border-[#00F0FF] bg-[#00F0FF]/15 text-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+                      : "border-purple-400 bg-purple-500/15 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                    : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-slate-200"
+                  }`}
+              >
+                <span className="font-semibold tracking-wide">{v.label}</span>
+                <span className="text-[9px] opacity-60 mt-0.5">{v.desc}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Equaliser bars */}
