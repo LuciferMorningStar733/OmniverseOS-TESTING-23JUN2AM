@@ -315,3 +315,97 @@ export const crud = (resource) => ({
 });
 
 export const analytics = () => api.get("/analytics/summary").then((r) => r.data);
+
+// ── Voice preferences (localStorage) ──────────────────────────────────────
+const VOICE_PREFS_KEY = "omniverse_voice_prefs";
+const DEFAULT_VOICE_PREFS = { provider: "gemini", volume: 1.0 };
+
+export function getVoicePrefs() {
+  try {
+    const stored = localStorage.getItem(VOICE_PREFS_KEY);
+    return stored ? { ...DEFAULT_VOICE_PREFS, ...JSON.parse(stored) } : { ...DEFAULT_VOICE_PREFS };
+  } catch {
+    return { ...DEFAULT_VOICE_PREFS };
+  }
+}
+
+export function setVoicePrefs(prefs) {
+  localStorage.setItem(VOICE_PREFS_KEY, JSON.stringify(prefs));
+}
+
+// ── Gemini TTS voice catalogue ─────────────────────────────────────────────
+// All voices available via gemini-2.5-flash-preview-tts with standard API key.
+// No Google Cloud credentials required.
+export const GEMINI_VOICES = {
+  female: [
+    { name: "Kore",    label: "Kore",    desc: "Warm · expressive" },
+    { name: "Aoede",   label: "Aoede",   desc: "Bright · clear"    },
+    { name: "Zephyr",  label: "Zephyr",  desc: "Airy · soft"       },
+    { name: "Leda",    label: "Leda",    desc: "Smooth · refined"  },
+    { name: "Schedar", label: "Schedar", desc: "Bold · confident"  },
+  ],
+  male: [
+    { name: "Puck",   label: "Puck",   desc: "Lively · playful" },
+    { name: "Charon", label: "Charon", desc: "Deep · resonant"  },
+    { name: "Fenrir", label: "Fenrir", desc: "Strong · bold"    },
+    { name: "Orus",   label: "Orus",   desc: "Clear · steady"  },
+  ],
+};
+
+export const GEMINI_VOICE_FEMALE = "Kore";
+export const GEMINI_VOICE_MALE   = "Puck";
+
+// ── TTS API ────────────────────────────────────────────────────────────────
+export const ttsApi = {
+  /**
+   * Synthesize text via Gemini TTS backend proxy.
+   * Uses GEMINI_API_KEY — no Google Cloud credentials needed.
+   * Returns a Blob Object URL for direct use in HTMLAudioElement.
+   * Caller (playAudioUrl) revokes the URL after playback.
+   *
+   * @param {string}       text   - Plain text (max 5000 chars)
+   * @param {string}       voice  - Gemini voice name (see GEMINI_VOICES above)
+   * @param {AbortSignal}  signal - Optional cancellation signal
+   * @returns {Promise<string>}   - Object URL pointing to audio/wav blob
+   */
+  synthesizeGemini: async ({ text, voice = "Kore", signal }) => {
+    const token = localStorage.getItem("omniverse_token");
+
+    // Manual timeout (20s) — compatible with all modern browsers
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(new DOMException("TTS timeout", "TimeoutError")), 20_000);
+    // Chain outer signal if provided
+    const onOuter = () => ctrl.abort();
+    signal?.addEventListener("abort", onOuter, { once: true });
+
+    let res;
+    try {
+      res = await fetch(`${API}/ai/tts-gemini`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text, voice }),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onOuter);
+    }
+
+    if (!res.ok) {
+      const err = new Error(`Gemini TTS HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+
+    const voiceUsed = res.headers.get("X-Voice-Used") || voice;
+    const model     = res.headers.get("X-TTS-Model")  || "gemini-tts";
+    const mime      = res.headers.get("Content-Type")  || "audio/wav";
+    console.log(`[GeminiTTS] OK | voice=${voiceUsed} | model=${model} | mime=${mime}`);
+
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+};

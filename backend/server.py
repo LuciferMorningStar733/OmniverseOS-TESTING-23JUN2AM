@@ -313,7 +313,7 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
     if not GEMINI_API_KEY:
         raise HTTPException(503, "Gemini API key not configured on this server")
 
-    await rate_limit(f"tts:{user['id']}", max_per_min=30)
+    await rate_limit(f"tts_gemini:{user['id']}", max_per_min=60)
 
     voice_name = req.voice if req.voice in _GEMINI_TTS_ALL_VOICES else "Kore"
 
@@ -369,8 +369,8 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
         audio_bytes = base64.b64decode(audio_b64)
         logger.info("Gemini TTS OK | voice=%s | mime=%s | bytes=%d", voice_name, mime_type, len(audio_bytes))
 
-        from fastapi.responses import Response as FastAPIResponse
-        return FastAPIResponse(
+        from fastapi.responses import Response as _FastAPIResponse
+        return _FastAPIResponse(
             content=audio_bytes,
             media_type=mime_type,
             headers={
@@ -385,16 +385,18 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
         raise
     except Exception as exc:
         logger.error("Gemini TTS unexpected error: %s", exc, exc_info=True)
-        raise HTTPException(502, f"Gemini TTS failed: {str(exc)[:200]}")
+        # Sanitize: httpx errors can embed the full request URL (which carries
+        # GEMINI_API_KEY as a query param). Never reflect raw exception text.
+        raise HTTPException(502, "Gemini TTS request failed. Please try again.")
 
 
 @api.get("/ai/tts-gemini/test")
-async def ai_tts_gemini_test():
+async def ai_tts_gemini_test(user=Depends(get_current_user)):
     """
-    Public diagnostic endpoint — no auth required.
-    Open in any browser tab to verify the full Gemini TTS pipeline.
-    Returns JSON with HTTP status, voice, mime type, and byte count.
+    Authenticated diagnostic — verifies the full Gemini TTS pipeline.
+    Rate-limited to 5/min to prevent accidental quota drain.
     """
+    await rate_limit(f"tts_gemini_test:{user['id']}", max_per_min=5)
     if not GEMINI_API_KEY:
         return {
             "ok": False,

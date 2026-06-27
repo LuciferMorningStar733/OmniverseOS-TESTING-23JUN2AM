@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, Response as FastAPIResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -10,6 +10,7 @@ from google.genai import types as genai_types
 import os
 import logging
 import base64
+import httpx
 from pathlib import Path
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
@@ -153,6 +154,163 @@ class FileReq(BaseModel):
 class ClipboardReq(BaseModel):
     content: str = Field(..., min_length=1, max_length=20000)
     label: str = ""
+
+# ── Gemini TTS constants ───────────────────────────────────────────────────
+_GEMINI_TTS_FEMALE_VOICES = ["Kore", "Aoede", "Zephyr", "Leda", "Schedar"]
+_GEMINI_TTS_MALE_VOICES   = ["Puck", "Charon", "Fenrir", "Orus"]
+_GEMINI_TTS_ALL_VOICES    = set(_GEMINI_TTS_FEMALE_VOICES + _GEMINI_TTS_MALE_VOICES)
+_GEMINI_TTS_MODEL         = "gemini-2.5-flash-preview-tts"
+
+class GeminiTtsReq(BaseModel):
+    text: str = Field(..., min_length=1, max_length=5000)
+    voice: str = Field(default="Kore", max_length=30)
+
+@api.post("/ai/tts-gemini")
+async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
+    """
+    Gemini TTS via direct REST API — uses GEMINI_API_KEY (same key as chat).
+    No Google Cloud credentials needed. Returns raw WAV bytes (audio/wav).
+    Available voices: Kore, Aoede, Zephyr, Leda, Schedar (female);
+                      Puck, Charon, Fenrir, Orus (male).
+    """
+    if not GEMINI_API_KEY:
+        raise HTTPException(503, "Gemini API key not configured on this server")
+
+    await rate_limit(f"tts_gemini:{user['id']}", max_per_min=60)
+
+    voice_name = req.voice if req.voice in _GEMINI_TTS_ALL_VOICES else "Kore"
+
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{_GEMINI_TTS_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": req.text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": voice_name,
+                    }
+                }
+            },
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as http:
+            resp = await http.post(url, json=payload)
+
+        logging.info("Gemini TTS response: HTTP %s | voice=%s", resp.status_code, voice_name)
+
+        if resp.status_code == 400:
+            raise HTTPException(400, f"Gemini TTS bad request: {resp.text[:300]}")
+        if resp.status_code == 403:
+            raise HTTPException(403, "Gemini API key invalid or TTS access denied")
+        if resp.status_code == 404:
+            raise HTTPException(404, f"Gemini TTS model not found: {_GEMINI_TTS_MODEL}")
+        if resp.status_code == 429:
+            raise HTTPException(429, "Gemini TTS quota exceeded. Try again shortly.")
+        if not resp.is_success:
+            raise HTTPException(502, f"Gemini TTS HTTP {resp.status_code}: {resp.text[:200]}")
+
+        data = resp.json()
+
+        # Response shape:
+        # { "candidates": [{ "content": { "parts": [{ "inlineData": {
+        #     "mimeType": "audio/wav", "data": "<base64>" } }] } }] }
+        try:
+            inline    = data["candidates"][0]["content"]["parts"][0]["inlineData"]
+            audio_b64 = inline["data"]
+            mime_type = inline.get("mimeType", "audio/wav")
+        except (KeyError, IndexError) as e:
+            logging.error("Gemini TTS unexpected response shape: %s | body: %s", e, str(data)[:400])
+            raise HTTPException(502, "Gemini TTS returned unexpected response — no audio data")
+
+        audio_bytes = base64.b64decode(audio_b64)
+        logging.info("Gemini TTS OK | voice=%s | mime=%s | bytes=%d", voice_name, mime_type, len(audio_bytes))
+
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used": voice_name,
+                "X-TTS-Provider": "gemini",
+                "X-TTS-Model": _GEMINI_TTS_MODEL,
+                "Cache-Control": "no-store",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logging.error("Gemini TTS unexpected error: %s", exc, exc_info=True)
+        # Sanitize exception message — httpx errors can contain the full request
+        # URL (which embeds the API key as a query parameter). Never reflect
+        # raw exception text to the client.
+        raise HTTPException(502, "Gemini TTS request failed. Please try again.")
+
+
+@api.get("/ai/tts-gemini/test")
+async def ai_tts_gemini_test(user=Depends(get_current_user)):
+    """
+    Authenticated diagnostic — verifies the full Gemini TTS pipeline.
+    Rate-limited to 5/min to prevent accidental quota drain.
+    """
+    await rate_limit(f"tts_gemini_test:{user['id']}", max_per_min=5)
+    if not GEMINI_API_KEY:
+        return {"ok": False, "step": "config", "error": "GEMINI_API_KEY not set"}
+
+    voice_name  = "Kore"
+    sample_text = "Hello! Gemini TTS is working. Cortex voice is online."
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{_GEMINI_TTS_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": sample_text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": voice_name}
+                }
+            },
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as http:
+            resp = await http.post(url, json=payload)
+
+        if not resp.is_success:
+            return {
+                "ok": False, "step": "gemini_api",
+                "http_status": resp.status_code, "error": resp.text[:400],
+                "model": _GEMINI_TTS_MODEL, "voice": voice_name,
+            }
+
+        data = resp.json()
+        try:
+            inline     = data["candidates"][0]["content"]["parts"][0]["inlineData"]
+            audio_b64  = inline["data"]
+            mime_type  = inline.get("mimeType", "audio/wav")
+            byte_count = len(base64.b64decode(audio_b64))
+        except (KeyError, IndexError) as e:
+            return {"ok": False, "step": "parse_response", "error": str(e),
+                    "raw_keys": list(data.keys())}
+
+        return {
+            "ok": True, "model": _GEMINI_TTS_MODEL, "voice": voice_name,
+            "mime_type": mime_type, "audio_bytes": byte_count,
+            "gemini_http_status": resp.status_code,
+            "message": "Gemini TTS pipeline is fully operational.",
+        }
+
+    except Exception as exc:
+        return {"ok": False, "step": "request", "error": str(exc)}
+
 
 # ---------- Routes: Auth ----------
 @api.get("/")
