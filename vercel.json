@@ -1,5 +1,6 @@
 {
-  "installCommand": "true",
-  "buildCommand": "cd omniverseos-source/frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "omniverseos-source/frontend/build"
+  "rootDirectory": "omniverseos-source/frontend",
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build"
 }
