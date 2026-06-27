@@ -1,6 +1,6 @@
 """
 OmniverseOS — AI Provider Manager
-Gemini → Groq → Cerebras → OpenRouter
+Gemini → DeepSeek → Groq → Cerebras → OpenRouter
 """
 
 import asyncio
@@ -27,6 +27,7 @@ CORTEX_SYSTEM = (
 # ── Provider default models ────────────────────────────────────────────────
 PROVIDER_DEFAULTS = {
     "gemini":     "gemini-2.5-flash",
+    "deepseek":   "deepseek-chat",           # DeepSeek V3
     "groq":       "llama-3.3-70b-versatile",
     "cerebras":   "llama-3.3-70b",
     "openrouter": "meta-llama/llama-3.3-70b-instruct",
@@ -34,6 +35,7 @@ PROVIDER_DEFAULTS = {
 
 PROVIDER_DISPLAY = {
     "gemini":     "Gemini Flash",
+    "deepseek":   "DeepSeek V3",
     "groq":       "Groq",
     "cerebras":   "Cerebras",
     "openrouter": "OpenRouter",
@@ -153,13 +155,14 @@ async def _stream_openai_compat(
 # ── Provider Manager ───────────────────────────────────────────────────────
 
 class ProviderManager:
-    PROVIDER_ORDER = ["gemini", "groq", "cerebras", "openrouter"]
+    PROVIDER_ORDER = ["gemini", "deepseek", "groq", "cerebras", "openrouter"]
 
     def __init__(self):
         self.health: dict[str, ProviderHealth] = {
             p: ProviderHealth(p) for p in self.PROVIDER_ORDER
         }
         self._gemini_client: Optional[genai.Client] = None
+        self._deepseek_key: str = ""
         self._groq_key: str = ""
         self._cerebras_key: str = ""
         self._openrouter_key: str = ""
@@ -171,6 +174,7 @@ class ProviderManager:
         gemini_key = os.environ.get("GEMINI_API_KEY", "")
         if gemini_key:
             self._gemini_client = genai.Client(api_key=gemini_key)
+        self._deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
         self._groq_key = os.environ.get("GROQ_API_KEY", "")
         self._cerebras_key = os.environ.get("CEREBRAS_API_KEY", "")
         self._openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
@@ -184,6 +188,8 @@ class ProviderManager:
     def _has_key(self, provider: str) -> bool:
         if provider == "gemini":
             return self._gemini_client is not None
+        if provider == "deepseek":
+            return bool(self._deepseek_key)
         if provider == "groq":
             return bool(self._groq_key)
         if provider == "cerebras":
@@ -211,6 +217,14 @@ class ProviderManager:
     ) -> AsyncGenerator[str, None]:
         if provider == "gemini":
             async for chunk in _stream_gemini(self._gemini_client, gemini_model, message, system):
+                yield chunk
+        elif provider == "deepseek":
+            async for chunk in _stream_openai_compat(
+                "https://api.deepseek.com/v1",
+                self._deepseek_key,
+                PROVIDER_DEFAULTS["deepseek"],
+                message, system,
+            ):
                 yield chunk
         elif provider == "groq":
             async for chunk in _stream_openai_compat(
@@ -323,10 +337,10 @@ class ProviderManager:
         self.init()
         return {
             p: {
-                "status": self.health[p].status,
+                "status":    self.health[p].status,
                 "available": self.health[p].is_available(),
-                "hasKey": self._has_key(p),
-                "display": PROVIDER_DISPLAY.get(p, p),
+                "hasKey":    self._has_key(p),
+                "display":   PROVIDER_DISPLAY.get(p, p),
             }
             for p in self.PROVIDER_ORDER
         }

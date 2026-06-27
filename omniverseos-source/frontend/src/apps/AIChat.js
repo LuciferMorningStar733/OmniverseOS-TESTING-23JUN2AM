@@ -13,12 +13,14 @@ const MODEL_OPTIONS = [
   { value: "gemini|gemini-2.5-flash",      label: "Gemini 2.5 Flash",      badge: "FAST"    },
   { value: "gemini|gemini-2.5-pro",        label: "Gemini 2.5 Pro",        badge: "SMART"   },
   { value: "gemini|gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", badge: "LITE"    },
+  { value: "deepseek|deepseek-chat",       label: "DeepSeek V3",           badge: "V3"      },
 ];
 
 const BADGE_COLORS = {
   FAST:  { bg: "rgba(0,240,255,0.12)",  border: "rgba(0,240,255,0.35)",  text: "#00F0FF"  },
   SMART: { bg: "rgba(207,158,255,0.12)",border: "rgba(207,158,255,0.35)",text: "#CF9EFF"  },
   LITE:  { bg: "rgba(57,255,20,0.10)",  border: "rgba(57,255,20,0.35)",  text: "#39FF14"  },
+  V3:    { bg: "rgba(255,160,0,0.12)",  border: "rgba(255,160,0,0.35)",  text: "#FFA000"  },
 };
 
 function ModelSelect({ value, onChange, disabled }) {
@@ -186,14 +188,26 @@ function FallbackBadge({ modelId }) {
 /* ── Active provider badge ───────────────────────────────────────────────────── */
 const PROVIDER_ICONS = {
   gemini:     "fa-google",
+  deepseek:   "fa-brain",
   groq:       "fa-bolt",
   cerebras:   "fa-microchip",
   openrouter: "fa-route",
 };
 
-function ActiveProviderBadge({ provider }) {
+const PROVIDER_DISPLAY_LABELS = {
+  gemini:     "Using Gemini",
+  deepseek:   "Switched to DeepSeek",
+  groq:       "Using Groq",
+  cerebras:   "Using Cerebras",
+  openrouter: "Using OpenRouter",
+};
+
+function ActiveProviderBadge({ provider, prevProvider }) {
   if (!provider) return null;
-  const label = PROVIDER_LABELS[provider] || provider;
+  const switched = prevProvider && prevProvider !== provider;
+  const label = switched
+    ? (PROVIDER_DISPLAY_LABELS[provider] || `Switched to ${provider}`)
+    : (PROVIDER_DISPLAY_LABELS[provider] || `Using ${provider}`);
   const icon  = PROVIDER_ICONS[provider] || "fa-circle-nodes";
   return (
     <div
@@ -314,6 +328,7 @@ export default function AIChat() {
   const [streaming, setStreaming]           = useState(false);
   const [streamStatus, setStreamStatus]     = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
+  const [prevProvider,  setPrevProvider]    = useState(null);
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
   const endRef    = useRef();
   const mountedRef = useRef(true);
@@ -463,7 +478,10 @@ export default function AIChat() {
         ctrl.signal,
         (providerName) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
-          setActiveProvider(providerName);
+          setActiveProvider((prev) => {
+            setPrevProvider(prev);
+            return providerName;
+          });
         },
       );
 
@@ -526,7 +544,7 @@ export default function AIChat() {
           <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
         </div>
         <div className="flex items-center gap-2">
-          {activeProvider && <ActiveProviderBadge provider={activeProvider} />}
+          {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
           <ModelSelect
             value={modelValue}
             onChange={setModelValue}
