@@ -292,6 +292,83 @@ async def ai_tts(req: TtsReq, user=Depends(get_current_user)):
         logger.error("Google TTS proxy error: %s", exc)
         raise HTTPException(502, "Google TTS request failed")
 
+# ---------- Routes: Gemini TTS (primary voice provider) ----------
+# Supported voices: Kore/Aoede/Zephyr/Leda (female), Puck/Charon/Fenrir (male)
+_GEMINI_TTS_FEMALE_VOICES = ["Kore", "Aoede", "Zephyr", "Leda"]
+_GEMINI_TTS_MALE_VOICES   = ["Puck", "Charon", "Fenrir"]
+_GEMINI_TTS_ALL_VOICES    = set(_GEMINI_TTS_FEMALE_VOICES + _GEMINI_TTS_MALE_VOICES)
+_GEMINI_TTS_MODEL         = "gemini-2.5-flash-preview-tts"
+
+class GeminiTtsReq(BaseModel):
+    text: str = Field(..., min_length=1, max_length=5000)
+    voice: str = Field(default="Kore", max_length=30)
+
+@api.post("/ai/tts-gemini")
+async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
+    """
+    Gemini TTS endpoint — uses the caller's existing GEMINI_API_KEY.
+    No Google Cloud credentials required.
+    Returns raw WAV bytes (audio/wav).
+    """
+    if not gemini_client:
+        raise HTTPException(503, "Gemini API key not configured on this server")
+
+    await rate_limit(f"tts:{user['id']}", max_per_min=30)
+
+    voice_name = req.voice if req.voice in _GEMINI_TTS_ALL_VOICES else "Kore"
+
+    try:
+        response = await gemini_client.aio.models.generate_content(
+            model=_GEMINI_TTS_MODEL,
+            contents=req.text,
+            config=genai_types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=genai_types.SpeechConfig(
+                    voice_config=genai_types.VoiceConfig(
+                        prebuilt_voice_config=genai_types.PrebuiltVoiceConfig(
+                            voice_name=voice_name,
+                        )
+                    )
+                ),
+            ),
+        )
+
+        # Extract raw audio data from the response
+        audio_data = None
+        mime_type = "audio/wav"
+        for part in response.candidates[0].content.parts:
+            if part.inline_data and part.inline_data.data:
+                audio_data = part.inline_data.data
+                mime_type = part.inline_data.mime_type or "audio/wav"
+                break
+
+        if not audio_data:
+            raise HTTPException(502, "Gemini TTS returned no audio data")
+
+        from fastapi.responses import Response as FastAPIResponse
+        return FastAPIResponse(
+            content=audio_data,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used": voice_name,
+                "X-TTS-Provider": "gemini",
+                "X-TTS-Model": _GEMINI_TTS_MODEL,
+                "Cache-Control": "no-store",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        err_str = str(exc)
+        logger.error("Gemini TTS error: %s", exc)
+        if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
+            raise HTTPException(429, "Gemini TTS quota exceeded. Try again shortly.")
+        if "404" in err_str or "NOT_FOUND" in err_str:
+            raise HTTPException(404, f"Gemini TTS model not found: {_GEMINI_TTS_MODEL}")
+        raise HTTPException(502, f"Gemini TTS failed: {err_str[:200]}")
+
+
 # ---------- Routes: AI Chat (Streaming SSE) ----------
 ALLOWED_GEMINI_MODELS = {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"}
 ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "groq", "cerebras", "openrouter"}
