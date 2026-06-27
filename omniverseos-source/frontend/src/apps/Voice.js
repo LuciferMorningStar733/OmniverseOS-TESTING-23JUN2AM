@@ -355,22 +355,47 @@ export default function Voice() {
   const previewingVoiceRef = useRef(null);
 
   useEffect(() => { voiceGenderRef.current  = voiceGender;  }, [voiceGender]);
-  useEffect(() => { geminiVoiceRef.current  = geminiVoice;  }, [geminiVoice]);
+
+  // [VOICE-TRACE] Log every time the ref is synced from state.
+  // This fires AFTER paint (useEffect is async). Any speakGemini() call
+  // that happens between setGeminiVoice() and this effect firing will read
+  // the OLD ref value — that is the race window this log exposes.
+  useEffect(() => {
+    console.log(
+      `[VoiceSync] geminiVoiceRef: "${geminiVoiceRef.current}" → "${geminiVoice}"` +
+      ` | AFTER paint — ref was stale until now`
+    );
+    geminiVoiceRef.current = geminiVoice;
+  }, [geminiVoice]);
 
   // On mount: restore saved voice preference + preload browser voices
   useEffect(() => {
     mountedRef.current = true;
 
     // Restore persisted voice
+    // [VOICE-TRACE] Log initial ref value and what localStorage holds.
+    // geminiVoiceRef is hardcoded to GEMINI_VOICE_FEMALE on every mount,
+    // regardless of what was saved. The ref only gets the correct saved value
+    // AFTER this effect fires AND React re-renders AND the sync effect fires.
     const saved = getVoicePrefs();
+    console.log(
+      `[VoiceMount] geminiVoiceRef.current at mount = "${geminiVoiceRef.current}"` +
+      ` | localStorage.selectedVoice = "${saved.selectedVoice || "(none)"}"` +
+      ` | REF IS STALE until VoiceSync fires below`
+    );
     if (saved.selectedVoice) {
       const allVoices = [...GEMINI_VOICES.female, ...GEMINI_VOICES.male];
       const match = allVoices.find((v) => v.name === saved.selectedVoice);
       if (match) {
+        console.log(`[VoiceMount] Restoring saved voice "${match.name}" via setGeminiVoice — ref still "${geminiVoiceRef.current}" until next render+effect`);
         setGeminiVoice(match.name);
         const isMale = GEMINI_VOICES.male.some((v) => v.name === match.name);
         setVoiceGender(isMale ? "male" : "female");
+      } else {
+        console.warn(`[VoiceMount] Saved voice "${saved.selectedVoice}" not found in GEMINI_VOICES — using default "${geminiVoiceRef.current}"`);
       }
+    } else {
+      console.log(`[VoiceMount] No saved voice in localStorage — using default "${geminiVoiceRef.current}"`);
     }
 
     // Preload browser voices — Chrome fires voiceschanged asynchronously
@@ -538,6 +563,14 @@ export default function Voice() {
     const gender = voiceGenderRef.current;
     const prefs  = getVoicePrefs();
 
+    // [VOICE-TRACE] Log what the ref holds at the exact moment speak() is called.
+    // This is the value that speakGemini() will use for the TTS request.
+    // If this differs from what the UI shows as selected, the ref is stale.
+    console.log(
+      `[Speak] speak() called | geminiVoiceRef.current = "${geminiVoiceRef.current}"` +
+      ` | gender = "${gender}" | provider = "${prefs.provider || "gemini"}"`
+    );
+
     // Developer/debug override: explicit browser provider skips Gemini entirely.
     // Disabled by default — not exposed in the Settings UI.
     if (prefs.provider === "browser") {
@@ -677,11 +710,25 @@ export default function Voice() {
     const next = voiceGender === "male" ? "female" : "male";
     setVoiceGender(next);
     const defaultVoice = next === "male" ? GEMINI_VOICE_MALE : GEMINI_VOICE_FEMALE;
+    // [VOICE-TRACE] Gender toggle RESETS the selected voice to the gender default.
+    // Any custom voice the user had chosen (e.g. "Aoede") is overwritten here.
+    console.log(
+      `[GenderToggle] gender: "${voiceGender}" → "${next}"` +
+      ` | geminiVoice RESET: "${geminiVoiceRef.current}" → "${defaultVoice}"` +
+      ` | custom selection is DISCARDED`
+    );
     setGeminiVoice(defaultVoice);
   }, [voiceGender]);
 
   // ── Handle voice selection ────────────────────────────────────────────────
   const handleVoiceSelect = useCallback((name) => {
+    // [VOICE-TRACE] Log the selection. Note: geminiVoiceRef.current is NOT
+    // updated here — it stays on the old value until useEffect fires after
+    // React re-renders + browser paint. This is the race window.
+    console.log(
+      `[VoiceSelect] Selected: "${name}"` +
+      ` | geminiVoiceRef.current still = "${geminiVoiceRef.current}" (will sync AFTER paint)`
+    );
     setGeminiVoice(name);
     setVoicePrefs({ ...getVoicePrefs(), selectedVoice: name });
   }, []);
