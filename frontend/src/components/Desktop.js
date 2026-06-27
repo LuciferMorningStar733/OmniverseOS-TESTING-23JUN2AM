@@ -8,6 +8,7 @@ import TopBar from "./TopBar";
 import LockScreen from "./LockScreen";
 import CommandPalette from "./CommandPalette";
 import NotificationCenter from "./NotificationCenter";
+import ContextBar from "./ContextBar";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
@@ -338,6 +339,7 @@ export default function Desktop() {
       )}
 
       <Dock />
+      {!isMobile && <ContextBar />}
       <CommandPalette />
       <NotificationCenter />
 
