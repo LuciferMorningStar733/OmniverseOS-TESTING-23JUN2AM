@@ -387,8 +387,9 @@ export default function Voice() {
       const allVoices = [...GEMINI_VOICES.female, ...GEMINI_VOICES.male];
       const match = allVoices.find((v) => v.name === saved.selectedVoice);
       if (match) {
-        console.log(`[VoiceMount] Restoring saved voice "${match.name}" via setGeminiVoice — ref still "${geminiVoiceRef.current}" until next render+effect`);
+        console.log(`[VoiceMount] Restoring saved voice "${match.name}" | ref synced immediately (was "${geminiVoiceRef.current}")`);
         setGeminiVoice(match.name);
+        geminiVoiceRef.current = match.name; // FIX: sync ref immediately, don't wait for useEffect
         const isMale = GEMINI_VOICES.male.some((v) => v.name === match.name);
         setVoiceGender(isMale ? "male" : "female");
       } else {
@@ -714,22 +715,17 @@ export default function Voice() {
     // Any custom voice the user had chosen (e.g. "Aoede") is overwritten here.
     console.log(
       `[GenderToggle] gender: "${voiceGender}" → "${next}"` +
-      ` | geminiVoice RESET: "${geminiVoiceRef.current}" → "${defaultVoice}"` +
-      ` | custom selection is DISCARDED`
+      ` | voice reset: "${geminiVoiceRef.current}" → "${defaultVoice}" | ref synced immediately`
     );
     setGeminiVoice(defaultVoice);
+    geminiVoiceRef.current = defaultVoice; // FIX: sync ref immediately after gender reset
   }, [voiceGender]);
 
   // ── Handle voice selection ────────────────────────────────────────────────
   const handleVoiceSelect = useCallback((name) => {
-    // [VOICE-TRACE] Log the selection. Note: geminiVoiceRef.current is NOT
-    // updated here — it stays on the old value until useEffect fires after
-    // React re-renders + browser paint. This is the race window.
-    console.log(
-      `[VoiceSelect] Selected: "${name}"` +
-      ` | geminiVoiceRef.current still = "${geminiVoiceRef.current}" (will sync AFTER paint)`
-    );
+    console.log(`[VoiceSelect] Selected: "${name}" | ref synced immediately (was "${geminiVoiceRef.current}")`);
     setGeminiVoice(name);
+    geminiVoiceRef.current = name; // FIX: sync ref immediately, don't wait for useEffect
     setVoicePrefs({ ...getVoicePrefs(), selectedVoice: name });
   }, []);
 
