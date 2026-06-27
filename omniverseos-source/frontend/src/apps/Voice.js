@@ -86,9 +86,11 @@ function getBrowserProsody(emotion, gender) {
 
 // ── Smart semantic text chunker ────────────────────────────────────────────
 // Chunks on paragraph → sentence → clause boundaries.
-// Target: 1-3 complete sentences per chunk (~280 chars soft limit).
-const SOFT_MAX = 280;
-const HARD_MAX = 400;
+// SOFT_MAX raised from 280 → 800 to reduce TTS requests per response.
+// Each Gemini TTS request counts against the 20-req/min quota; fewer chunks
+// means fewer requests per AI response, so quota lasts longer.
+const SOFT_MAX = 800;
+const HARD_MAX = 1200;
 
 const ABBREV_RE = /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|e\.g|i\.e|approx|est|fig|dept|vol|ave|blvd|st|no|pp|cf)\.\s*$/i;
 
@@ -338,6 +340,20 @@ export default function Voice() {
   // audio.pause() immediately without waiting for the Promise to resolve.
   const activeAudioRef  = useRef(null);
 
+  // ── Preview audio cache ───────────────────────────────────────────────────
+  // Stores synthesized preview audio Object URLs keyed by voice name so
+  // repeat preview clicks reuse the cached audio instead of calling Gemini
+  // again. Each request counts against the 20-req/min quota; caching means
+  // each voice is synthesized at most once per component lifetime.
+  const previewCacheRef = useRef(new Map());
+
+  // ── In-flight guard for preview ───────────────────────────────────────────
+  // Tracks the voice name whose preview is currently being fetched so that
+  // rapid double-clicks on the same button can't race past the stale-closure
+  // check in handleVoicePreview. Using a ref avoids the closure staleness
+  // problem that the state-based check has when React hasn't re-rendered yet.
+  const previewingVoiceRef = useRef(null);
+
   useEffect(() => { voiceGenderRef.current  = voiceGender;  }, [voiceGender]);
   useEffect(() => { geminiVoiceRef.current  = geminiVoice;  }, [geminiVoice]);
 
@@ -447,13 +463,23 @@ export default function Voice() {
     const ctrl      = new AbortController();
     speakAbortRef.current = ctrl;
 
-    async function fetchChunk(text) {
+    // [INSTRUMENTATION] Log chunk count so Render logs show exactly how many
+    // POST /api/ai/tts-gemini requests this response will generate.
+    // Remove this block once quota behaviour is confirmed.
+    console.log(
+      `[GeminiTTS] speak() | voice=${voiceName} | chars=${cleanText.length}` +
+      ` | chunks=${chunks.length} | SOFT_MAX=${800}` +
+      ` | will fire ${chunks.length} POST /api/ai/tts-gemini request(s)`
+    );
+
+    async function fetchChunk(text, idx) {
       if (ctrl.signal.aborted) throw new DOMException("Aborted", "AbortError");
+      console.log(`[GeminiTTS] → POST /api/ai/tts-gemini chunk ${idx + 1}/${chunks.length} | ${text.length} chars`);
       return ttsApi.synthesizeGemini({ text, voice: voiceName, signal: ctrl.signal });
     }
 
     try {
-      let nextFetch = fetchChunk(chunks[0]);
+      let nextFetch = fetchChunk(chunks[0], 0);
 
       for (let i = 0; i < chunks.length; i++) {
         if (!mountedRef.current || ctrl.signal.aborted) break;
@@ -462,7 +488,7 @@ export default function Voice() {
 
         // Start fetching the next chunk while playing this one
         if (i + 1 < chunks.length) {
-          nextFetch = fetchChunk(chunks[i + 1]);
+          nextFetch = fetchChunk(chunks[i + 1], i + 1);
         }
 
         if (!mountedRef.current || ctrl.signal.aborted) {
@@ -486,7 +512,16 @@ export default function Voice() {
     }
   }, []);
 
-  // ── speak() — Gemini TTS → browser fallback ───────────────────────────────
+  // ── speak() — Gemini TTS only; silent on failure ─────────────────────────
+  // Browser SpeechSynthesis is NOT used as an automatic fallback because it
+  // sounds robotic and degrades the experience more than silence does.
+  // If Gemini TTS fails for any reason (429, timeout, network, server error),
+  // playback stops and an informative toast is shown. The text response
+  // remains visible in the UI so the user is never left without context.
+  //
+  // Developer/debug only: set provider = "browser" in voice prefs (via
+  // localStorage key "omniverse_voice_prefs") to re-enable browser speech
+  // explicitly. This path is intentionally undocumented in the UI.
   const speak = useCallback(async (rawText) => {
     if (!rawText?.trim()) return;
 
@@ -503,25 +538,46 @@ export default function Voice() {
     const gender = voiceGenderRef.current;
     const prefs  = getVoicePrefs();
 
+    // Developer/debug override: explicit browser provider skips Gemini entirely.
+    // Disabled by default — not exposed in the Settings UI.
     if (prefs.provider === "browser") {
-      setUsingFallback(false); // user explicitly chose browser — no badge
       speakBrowser(cleanText, emotion, gender, prefs.volume);
       return;
     }
 
-    // Try Gemini TTS first (uses GEMINI_API_KEY — no extra credentials needed)
+    // Gemini TTS — only voice provider in normal operation.
     try {
-      setUsingFallback(false);
       await speakGemini(cleanText, gender, prefs.volume);
     } catch (err) {
       if (!mountedRef.current) return;
-      console.warn("[TTS] Gemini TTS failed — falling back to browser voice:", err?.message);
-      setUsingFallback(true);
-      toast.info("Using local voice — Gemini TTS temporarily unavailable", {
-        duration: 3000,
+      if (err?.name === "AbortError") return; // user stopped playback intentionally
+
+      console.warn("[TTS] Gemini TTS failed | status=%s | %s", err?.status ?? "network", err?.message);
+
+      // Determine the most helpful message based on failure type.
+      const isQuota   = err?.status === 429;
+      const isTimeout = err?.name === "TimeoutError" || err?.message?.includes("timed out") || err?.message?.includes("timeout");
+      const msg = isQuota
+        ? "Gemini voice is temporarily unavailable (quota). Please try again in a moment."
+        : isTimeout
+        ? "Gemini voice timed out. Please try again."
+        : "Gemini voice is temporarily unavailable. Please try again shortly.";
+
+      toast.error(msg, {
+        duration: 6000,
         style: { fontSize: 12, padding: "6px 14px" },
+        action: {
+          label: "Retry voice",
+          onClick: () => speak(rawText),
+        },
       });
-      speakBrowser(cleanText, emotion, gender, prefs.volume);
+
+      // Stop cleanly — phase → idle, no audio output.
+      if (mountedRef.current) {
+        setPhase("idle");
+        setDetectedEmotion("neutral");
+        setUsingFallback(false);
+      }
     }
   }, [speakGemini, speakBrowser]);
 
@@ -545,35 +601,76 @@ export default function Voice() {
   }, []);
 
   // ── Voice preview ─────────────────────────────────────────────────────────
+  // Three-layer protection against quota exhaustion:
+  //
+  // 1. Ref-based in-flight guard (previewingVoiceRef) — eliminates the stale-
+  //    closure race where rapid double-clicks bypass the state-based toggle
+  //    check because React hasn't re-rendered yet. Refs update synchronously.
+  //
+  // 2. Session audio cache (previewCacheRef) — stores the Object URL returned
+  //    by Gemini for each voice. Second and subsequent preview clicks for the
+  //    same voice replay the cached audio: 0 new Gemini requests. The cache
+  //    lives as long as the Voice component is mounted.
+  //
+  // 3. Toggle-off: clicking the currently-previewing voice aborts the fetch
+  //    (if still in-flight) or simply stops; no new request is fired.
   const handleVoicePreview = useCallback(async (voiceName) => {
-    previewAbortRef.current?.abort();
-    if (previewingVoice === voiceName) {
+    // ── Toggle-off: if this voice is already previewing, stop it ────────────
+    // Use the ref for a synchronous, stale-closure-free check.
+    if (previewingVoiceRef.current === voiceName) {
+      previewAbortRef.current?.abort();
+      previewingVoiceRef.current = null;
       if (mountedRef.current) setPreviewingVoice(null);
       return;
     }
 
-    const ctrl = new AbortController();
-    previewAbortRef.current = ctrl;
+    // ── In-flight guard: abort any other voice that is currently fetching ───
+    previewAbortRef.current?.abort();
+
+    // Mark this voice as in-flight immediately (ref = synchronous).
+    previewingVoiceRef.current = voiceName;
     if (mountedRef.current) setPreviewingVoice(voiceName);
 
+    const ctrl = new AbortController();
+    previewAbortRef.current = ctrl;
+
     try {
-      const audioUrl = await ttsApi.synthesizeGemini({
-        text: `Hi, I'm ${voiceName}. I'll be your Cortex voice.`,
-        voice: voiceName,
-        signal: ctrl.signal,
-      });
-      if (ctrl.signal.aborted) { URL.revokeObjectURL(audioUrl); return; }
+      // ── Cache check: serve cached audio without a Gemini request ──────────
+      let audioUrl = previewCacheRef.current.get(voiceName);
+
+      if (!audioUrl) {
+        // Cache miss — synthesize once and store the Object URL.
+        console.log(`[VoicePreview] Cache miss — fetching Gemini TTS for ${voiceName}`);
+        audioUrl = await ttsApi.synthesizeGemini({
+          text: `Hi, I'm ${voiceName}. I'll be your Cortex voice.`,
+          voice: voiceName,
+          signal: ctrl.signal,
+        });
+        // Only cache if not aborted mid-flight.
+        if (!ctrl.signal.aborted) {
+          previewCacheRef.current.set(voiceName, audioUrl);
+          console.log(`[VoicePreview] Cached audio for ${voiceName}`);
+        }
+      } else {
+        console.log(`[VoicePreview] Cache hit — replaying cached audio for ${voiceName}`);
+      }
+
+      if (ctrl.signal.aborted) return;
       await playAudioUrl(audioUrl, 1.0, null);
     } catch (err) {
       if (err?.name === "AbortError") return;
       console.error(`[VoicePreview] Failed for ${voiceName}:`, err?.message);
       toast.error(`Preview failed for ${voiceName}`, { duration: 2000 });
     } finally {
+      // Clear in-flight state only if this specific request is still "current".
+      if (previewingVoiceRef.current === voiceName) {
+        previewingVoiceRef.current = null;
+      }
       if (mountedRef.current && previewAbortRef.current === ctrl) {
         setPreviewingVoice(null);
       }
     }
-  }, [previewingVoice]);
+  }, []);
 
   // ── Handle gender toggle ───────────────────────────────────────────────────
   const handleGenderToggle = useCallback(() => {
