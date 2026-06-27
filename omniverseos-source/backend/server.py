@@ -178,7 +178,15 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
 
     await rate_limit(f"tts_gemini:{user['id']}", max_per_min=60)
 
+    # [VOICE-TRACE] Log received voice and validated voice separately.
+    # If received_voice != forwarded_voice, the frontend sent an invalid name
+    # and the server silently fell back to "Kore". That is the bug.
     voice_name = req.voice if req.voice in _GEMINI_TTS_ALL_VOICES else "Kore"
+    logging.info(
+        "Gemini TTS request | received_voice=%r | forwarded_voice=%s | text_chars=%d | match=%s",
+        req.voice, voice_name, len(req.text),
+        "OK" if req.voice == voice_name else f"MISMATCH — '{req.voice}' not in allowed list, fell back to Kore"
+    )
 
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
