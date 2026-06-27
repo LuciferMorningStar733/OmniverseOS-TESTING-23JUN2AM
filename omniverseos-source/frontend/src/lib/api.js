@@ -369,15 +369,6 @@ export const ttsApi = {
    * @returns {Promise<string>}   - Object URL pointing to audio/wav blob
    */
   synthesizeGemini: async ({ text, voice = "Kore", signal }) => {
-    // [VOICE-TRACE] Log the voice value at the moment the fetch is constructed.
-    // If this differs from what the UI shows as selected, the wrong voice was
-    // passed all the way through the call stack — trace back to speakGemini().
-    // "Kore" here when another voice was expected = stale ref or missing arg.
-    console.log(
-      `[API:synthesizeGemini] voice="${voice}"` +
-      ` | text[0..60]="${text.slice(0, 60).replace(/\n/g, " ")}"`
-    );
-
     const token = localStorage.getItem("omniverse_token");
 
     // Manual timeout (20s) — compatible with all modern browsers
