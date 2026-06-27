@@ -1,0 +1,378 @@
+/* OmniverseOS — handcrafted iconic wallpapers.
+   Pure CSS + inline SVG via data-URI. GPU-friendly. 60fps target.
+   Each wallpaper has OMNIVERSE OS integrated as environmental typography. */
+
+/* Shared base layer */
+.wp-base {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* Shared ambient particles (1 layer for the whole OS) */
+.wp-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 1px at 12% 18%, rgba(0,240,255,0.85), transparent 60%),
+    radial-gradient(circle 1px at 87% 22%, rgba(0,240,255,0.55), transparent 60%),
+    radial-gradient(circle 1.5px at 42% 71%, rgba(0,240,255,0.7), transparent 60%),
+    radial-gradient(circle 1px at 73% 82%, rgba(255,0,60,0.55), transparent 60%),
+    radial-gradient(circle 1px at 8% 64%, rgba(0,240,255,0.6), transparent 60%),
+    radial-gradient(circle 1px at 56% 11%, rgba(0,240,255,0.55), transparent 60%),
+    radial-gradient(circle 1.5px at 28% 88%, rgba(0,240,255,0.4), transparent 60%),
+    radial-gradient(circle 1px at 93% 60%, rgba(255,0,60,0.35), transparent 60%);
+  animation: wpParticleFloat 30s ease-in-out infinite alternate;
+  opacity: 0.7;
+}
+
+/* Optional light beams that sweep diagonally — used by Nexus + Neural */
+.wp-beams {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 38%, rgba(0,240,255,0.06) 49%, transparent 60%),
+    linear-gradient(65deg, transparent 42%, rgba(0,240,255,0.04) 51%, transparent 58%);
+  filter: blur(6px);
+  animation: wpBeamDrift 24s ease-in-out infinite alternate;
+}
+
+/* ================================================================ */
+/* 1. NEURAL CORE                                                    */
+/* Glowing AI core with radial neural pathways and crimson pulses.   */
+/* ================================================================ */
+.wp-neural-core {
+  background: radial-gradient(ellipse at center, #062030 0%, #060812 60%, #05050A 100%);
+}
+.wp-neural-core::before {
+  content: "";
+  position: absolute; inset: 0;
+  /* Pulsing core */
+  background:
+    radial-gradient(circle at 50% 55%, rgba(0,240,255,0.55) 0%, rgba(0,240,255,0.18) 10%, transparent 30%),
+    radial-gradient(circle at 50% 55%, rgba(0,240,255,0.25) 0%, transparent 50%),
+    radial-gradient(circle at 50% 55%, rgba(255,0,60,0.10) 0%, transparent 40%);
+  filter: blur(0.5px);
+  animation: wpBreathe 6s ease-in-out infinite alternate;
+}
+.wp-neural-core::after {
+  content: "";
+  position: absolute; inset: 0;
+  /* Concentric rings + radial pathways via inline SVG */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'><defs><radialGradient id='r' cx='50%25' cy='61%25' r='50%25'><stop offset='0%25' stop-color='%2300F0FF' stop-opacity='0.0'/><stop offset='100%25' stop-color='%2300F0FF' stop-opacity='0.35'/></radialGradient></defs><g fill='none' stroke='url(%23r)' stroke-width='0.8'><circle cx='800' cy='550' r='120'/><circle cx='800' cy='550' r='200'/><circle cx='800' cy='550' r='300'/><circle cx='800' cy='550' r='420'/><circle cx='800' cy='550' r='560'/></g><g stroke='%2300F0FF' stroke-width='0.4' stroke-opacity='0.18'><line x1='800' y1='550' x2='200' y2='150'/><line x1='800' y1='550' x2='1400' y2='150'/><line x1='800' y1='550' x2='100' y2='550'/><line x1='800' y1='550' x2='1500' y2='550'/><line x1='800' y1='550' x2='300' y2='850'/><line x1='800' y1='550' x2='1300' y2='850'/><line x1='800' y1='550' x2='500' y2='100'/><line x1='800' y1='550' x2='1100' y2='100'/></g><g fill='%2300F0FF'><circle cx='200' cy='150' r='2.5' opacity='0.7'/><circle cx='1400' cy='150' r='2.5' opacity='0.7'/><circle cx='300' cy='850' r='2.5' opacity='0.6'/><circle cx='1300' cy='850' r='2.5' opacity='0.6'/><circle cx='500' cy='100' r='2' opacity='0.5'/><circle cx='1100' cy='100' r='2' opacity='0.5'/></g><g fill='%23FF003C'><circle cx='100' cy='550' r='2' opacity='0.6'/><circle cx='1500' cy='550' r='2' opacity='0.6'/></g></svg>");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.9;
+  animation: wpSlowSpin 240s linear infinite;
+  transform-origin: 50% 61%;
+}
+/* Integrated brand: huge outline typography across the upper half */
+.wp-neural-core .wp-typo {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 900;
+  font-size: clamp(72px, 11vw, 180px);
+  letter-spacing: -0.05em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(0,240,255,0.28);
+  text-shadow: 0 0 30px rgba(0,240,255,0.18);
+  white-space: nowrap;
+  mix-blend-mode: screen;
+}
+.wp-neural-core .wp-typo-sub {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: clamp(11px, 1vw, 16px);
+  letter-spacing: 0.5em;
+  color: rgba(255,0,60,0.55);
+  text-shadow: 0 0 14px rgba(255,0,60,0.4);
+}
+
+/* ================================================================ */
+/* 2. BLUEPRINT MATRIX                                               */
+/* Dark engineering blueprint — fine grid + HUD circles + tech labels*/
+/* ================================================================ */
+.wp-blueprint {
+  background: linear-gradient(180deg, #050d18 0%, #061018 50%, #05080F 100%);
+}
+.wp-blueprint::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(0, 240, 255, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.10) 1px, transparent 1px);
+  background-size: 30px 30px, 30px 30px, 150px 150px, 150px 150px;
+  mask-image: radial-gradient(ellipse at center, black 35%, transparent 95%);
+}
+.wp-blueprint::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'><g fill='none' stroke='%2300F0FF' stroke-width='1' stroke-opacity='0.28'><circle cx='1300' cy='200' r='80'/><circle cx='1300' cy='200' r='110' stroke-dasharray='4 6'/><circle cx='1300' cy='200' r='150' stroke-opacity='0.15'/><circle cx='200' cy='720' r='60'/><circle cx='200' cy='720' r='90' stroke-dasharray='4 6'/><line x1='1220' y1='200' x2='1380' y2='200'/><line x1='1300' y1='120' x2='1300' y2='280'/><line x1='140' y1='720' x2='260' y2='720'/><line x1='200' y1='660' x2='200' y2='780'/><rect x='100' y='100' width='200' height='90' stroke-opacity='0.22'/><rect x='105' y='105' width='190' height='80' stroke-opacity='0.10'/></g><g font-family='JetBrains Mono, monospace' font-size='10' fill='%2300F0FF' fill-opacity='0.5' letter-spacing='2'><text x='115' y='130'>SECTION A-04</text><text x='115' y='148'>v.2.6.1 // BUILD 2026</text><text x='115' y='166'>SCHEMATIC</text><text x='1230' y='320'>CORE MODULE</text><text x='1230' y='338'>STATUS: NOMINAL</text><text x='1100' y='200' fill='%23FF003C' fill-opacity='0.7'>● LIVE</text></g><g font-family='JetBrains Mono, monospace' font-size='9' fill='%2300F0FF' fill-opacity='0.35'><text x='100' y='840'>// TELEMETRY 1.21 GW</text><text x='1300' y='840'>// LAT 0.4 MS</text></g></svg>");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+.wp-blueprint .wp-typo {
+  position: absolute;
+  left: 6%;
+  top: 38%;
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 800;
+  font-size: clamp(60px, 8vw, 140px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgba(0,240,255,0.4);
+  text-shadow: 0 0 18px rgba(0,240,255,0.15);
+}
+.wp-blueprint .wp-typo span {
+  display: block;
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgba(255,0,60,0.5);
+  text-shadow: 0 0 14px rgba(255,0,60,0.18);
+}
+.wp-blueprint .wp-typo-sub {
+  position: absolute;
+  left: 6%;
+  bottom: 22%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5em;
+  color: rgba(0,240,255,0.55);
+}
+
+/* ================================================================ */
+/* 3. QUANTUM HORIZON                                                */
+/* Futuristic skyline silhouette + atmospheric fog + warning lights. */
+/* ================================================================ */
+.wp-quantum-horizon {
+  background: linear-gradient(180deg, #05050A 0%, #050e18 50%, #062028 100%);
+}
+.wp-quantum-horizon::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(0,240,255,0.45) 0%, rgba(0,240,255,0.12) 25%, transparent 60%),
+    radial-gradient(ellipse at 85% 80%, rgba(255,0,60,0.10) 0%, transparent 30%),
+    radial-gradient(ellipse at 15% 70%, rgba(255,0,60,0.06) 0%, transparent 30%);
+  animation: wpBreathe 12s ease-in-out infinite alternate;
+}
+.wp-quantum-horizon::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900' preserveAspectRatio='none'><defs><linearGradient id='sky' x1='0' y1='1' x2='0' y2='0'><stop offset='0%25' stop-color='%2305050A' stop-opacity='1'/><stop offset='100%25' stop-color='%2305050A' stop-opacity='0'/></linearGradient></defs><g fill='%2305050A' opacity='0.97'><polygon points='0,900 0,720 60,720 60,640 120,640 120,690 180,690 180,580 240,580 240,650 320,650 320,520 380,520 380,610 440,610 440,560 500,560 500,470 560,470 560,540 620,540 620,500 680,500 680,420 740,420 740,500 800,500 800,440 860,440 860,520 940,520 940,460 1000,460 1000,540 1060,540 1060,500 1140,500 1140,580 1200,580 1200,520 1260,520 1260,610 1320,610 1320,560 1380,560 1380,640 1440,640 1440,600 1520,600 1520,680 1600,680 1600,900'/></g><g fill='%2300F0FF' opacity='0.6'><rect x='80' y='670' width='2' height='2'/><rect x='200' y='620' width='2' height='2'/><rect x='350' y='560' width='2' height='2'/><rect x='510' y='500' width='2' height='2'/><rect x='690' y='470' width='2' height='2'/><rect x='870' y='480' width='2' height='2'/><rect x='1030' y='510' width='2' height='2'/><rect x='1210' y='550' width='2' height='2'/><rect x='1450' y='620' width='2' height='2'/></g><g fill='%23FF003C' opacity='0.75'><rect x='384' y='525' width='3' height='3'/><rect x='742' y='430' width='3' height='3'/><rect x='1062' y='510' width='3' height='3'/></g><rect width='1600' height='900' fill='url(%23sky)' opacity='0.3'/></svg>");
+  background-size: cover;
+  background-position: bottom;
+  background-repeat: no-repeat;
+}
+.wp-quantum-horizon .wp-typo {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 900;
+  font-size: clamp(70px, 10vw, 170px);
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(0,240,255,0.35);
+  text-shadow: 0 0 40px rgba(0,240,255,0.25);
+  mix-blend-mode: screen;
+}
+.wp-quantum-horizon .wp-typo-sub {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(10px, 0.9vw, 13px);
+  letter-spacing: 0.7em;
+  color: rgba(255,0,60,0.6);
+}
+/* Fog band */
+.wp-quantum-horizon .wp-fog {
+  position: absolute;
+  bottom: 0; left: 0; right: 0; height: 40%;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(0,240,255,0.18) 0%, transparent 60%);
+  filter: blur(20px);
+  animation: wpFog 18s ease-in-out infinite alternate;
+}
+
+/* ================================================================ */
+/* 4. AI NEXUS                                                       */
+/* Massive neural network with floating particles + ambient light.   */
+/* ================================================================ */
+.wp-ai-nexus {
+  background: radial-gradient(ellipse at 30% 30%, #051820 0%, #05050A 70%);
+}
+.wp-ai-nexus::before {
+  content: "";
+  position: absolute; inset: -10%;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(0,240,255,0.22), transparent 40%),
+    radial-gradient(circle at 78% 72%, rgba(0,240,255,0.16), transparent 45%),
+    radial-gradient(circle at 50% 90%, rgba(255,0,60,0.07), transparent 40%);
+  filter: blur(50px);
+  animation: wpDrift 60s ease-in-out infinite alternate;
+}
+.wp-ai-nexus::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'><g stroke='%2300F0FF' stroke-width='0.5' stroke-opacity='0.25' fill='none'><line x1='180' y1='200' x2='480' y2='320'/><line x1='180' y1='200' x2='320' y2='460'/><line x1='480' y1='320' x2='320' y2='460'/><line x1='480' y1='320' x2='720' y2='240'/><line x1='480' y1='320' x2='640' y2='520'/><line x1='720' y1='240' x2='960' y2='180'/><line x1='720' y1='240' x2='880' y2='420'/><line x1='960' y1='180' x2='1180' y2='280'/><line x1='960' y1='180' x2='1140' y2='420'/><line x1='1180' y1='280' x2='1380' y2='380'/><line x1='1180' y1='280' x2='1140' y2='420'/><line x1='320' y1='460' x2='540' y2='620'/><line x1='640' y1='520' x2='880' y2='420'/><line x1='640' y1='520' x2='820' y2='700'/><line x1='880' y1='420' x2='1140' y2='420'/><line x1='880' y1='420' x2='1020' y2='680'/><line x1='1140' y1='420' x2='1340' y2='600'/><line x1='540' y1='620' x2='820' y2='700'/><line x1='820' y1='700' x2='1020' y2='680'/><line x1='1020' y1='680' x2='1340' y2='600'/></g><g fill='%2300F0FF'><circle cx='180' cy='200' r='3.5' opacity='0.85'/><circle cx='480' cy='320' r='4' opacity='0.95'/><circle cx='720' cy='240' r='3.5' opacity='0.8'/><circle cx='960' cy='180' r='4' opacity='0.95'/><circle cx='1180' cy='280' r='3.5' opacity='0.8'/><circle cx='1380' cy='380' r='3' opacity='0.7'/><circle cx='320' cy='460' r='3' opacity='0.75'/><circle cx='640' cy='520' r='4' opacity='0.95'/><circle cx='880' cy='420' r='4.5' opacity='1'/><circle cx='1140' cy='420' r='3.5' opacity='0.85'/><circle cx='540' cy='620' r='3' opacity='0.7'/><circle cx='820' cy='700' r='3.5' opacity='0.85'/><circle cx='1020' cy='680' r='3' opacity='0.8'/><circle cx='1340' cy='600' r='3' opacity='0.7'/></g><g fill='%23FF003C'><circle cx='880' cy='420' r='6' opacity='0.0'><animate attributeName='opacity' values='0;0.7;0' dur='4s' repeatCount='indefinite'/></circle><circle cx='480' cy='320' r='5' opacity='0.0'><animate attributeName='opacity' values='0;0.6;0' dur='5s' begin='1s' repeatCount='indefinite'/></circle><circle cx='960' cy='180' r='5' opacity='0.0'><animate attributeName='opacity' values='0;0.6;0' dur='6s' begin='2s' repeatCount='indefinite'/></circle></g></svg>");
+  background-size: cover;
+}
+.wp-ai-nexus .wp-typo {
+  position: absolute;
+  right: 5%;
+  bottom: 18%;
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 900;
+  font-size: clamp(56px, 7.5vw, 130px);
+  line-height: 0.88;
+  letter-spacing: -0.05em;
+  text-align: right;
+  color: transparent;
+  -webkit-text-stroke: 1.3px rgba(0,240,255,0.45);
+  text-shadow: 0 0 26px rgba(0,240,255,0.2);
+}
+.wp-ai-nexus .wp-typo span {
+  display: block;
+  color: transparent;
+  -webkit-text-stroke: 1.3px rgba(255,0,60,0.55);
+  text-shadow: 0 0 22px rgba(255,0,60,0.2);
+}
+.wp-ai-nexus .wp-typo-sub {
+  position: absolute;
+  right: 5%;
+  bottom: 13%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.55em;
+  color: rgba(0,240,255,0.45);
+}
+
+/* ============== Animations ============== */
+@keyframes wpDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-3%, 3%, 0) scale(1.06); }
+}
+@keyframes wpBreathe {
+  0%   { opacity: 0.78; transform: scale(1); }
+  100% { opacity: 1;    transform: scale(1.04); }
+}
+@keyframes wpSlowSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes wpBeamDrift {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0.7; }
+  100% { transform: translate3d(-4%, 2%, 0); opacity: 1; }
+}
+@keyframes wpFog {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0.6; }
+  100% { transform: translate3d(2%, -1%, 0); opacity: 1; }
+}
+@keyframes wpParticleFloat {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(8px, -10px, 0); }
+}
+
+/* ============================================================
+   MOBILE PORTRAIT — wallpaper responsive fixes
+   Targets phones in portrait orientation (≤ 640px wide).
+   Fixes:
+   1. Ensure .wp-base fills full viewport including safe areas
+   2. Scale down + recentre all wp-typo headlines so they fit
+   3. Recentre wp-typo-sub lines that use absolute left/right
+   4. Hide decorative sub-text on very small screens to reduce clutter
+============================================================ */
+@media (max-width: 640px) {
+
+  /* 1. Full-bleed on mobile — cover viewport including iOS notch/home bar */
+  .wp-base {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: -webkit-fill-available;
+  }
+
+  /* 2. Unified headline scaling — all four wallpapers */
+  .wp-neural-core .wp-typo,
+  .wp-blueprint .wp-typo,
+  .wp-quantum-horizon .wp-typo,
+  .wp-ai-nexus .wp-typo {
+    font-size: clamp(32px, 9vw, 56px) !important;
+    white-space: normal !important;
+    word-break: break-word;
+    max-width: 88vw;
+    line-height: 1 !important;
+    /* Centre all headlines regardless of desktop alignment */
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+    text-align: center !important;
+  }
+
+  /* Adjust vertical positions to avoid TopBar chrome */
+  .wp-neural-core .wp-typo   { top: 18% !important; }
+  .wp-blueprint .wp-typo     { top: 20% !important; }
+  .wp-quantum-horizon .wp-typo { top: 18% !important; }
+  .wp-ai-nexus .wp-typo      { top: 16% !important; }
+
+  /* 3. Recentre sub-lines */
+  .wp-neural-core .wp-typo-sub,
+  .wp-blueprint .wp-typo-sub,
+  .wp-quantum-horizon .wp-typo-sub,
+  .wp-ai-nexus .wp-typo-sub {
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+    text-align: center !important;
+    letter-spacing: 0.3em !important;
+    white-space: nowrap;
+  }
+
+  .wp-neural-core .wp-typo-sub    { top: 34% !important; }
+  .wp-blueprint .wp-typo-sub      { top: 36% !important; }
+  .wp-quantum-horizon .wp-typo-sub { top: 34% !important; }
+  .wp-ai-nexus .wp-typo-sub       { top: 32% !important; }
+
+  /* 4. Hide decorative fog + beam overlays on small screens
+        (they add little at this size and cost GPU) */
+  .wp-quantum-horizon .wp-fog,
+  .wp-beams {
+    display: none;
+  }
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .wp-base *, .wp-particles, .wp-beams {
+    animation: none !important;
+  }
+}
+
+/* premium scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.15); border-radius: 4px; transition: background .2s; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.45); }

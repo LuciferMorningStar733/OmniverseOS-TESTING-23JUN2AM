@@ -1,0 +1,483 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Wallpaper engine — must come after Tailwind so wp-* classes can override */
+@import "./styles/wallpapers.css";
+
+/* Responsive layer — must come last so breakpoint overrides win */
+@import "./styles/responsive.css";
+
+/* ============================================================
+   OMNIVERSE OS — UNIFIED THEME SYSTEM
+   Source of truth for all design tokens, utility classes,
+   and global styles. Merges the production token system with
+   the premium UI's component classes.
+============================================================ */
+
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+  /* Core backgrounds */
+  --bg-void:     #05050A;
+  --bg-panel:    #18181B;
+  --bg-elevated: #1F1F23;
+
+  /* Primary identity — Cyan */
+  --cyan-primary:    #00F0FF;
+  --cyan-hover:      #5FF8FF;
+  --cyan-glow:       rgba(0, 240, 255, 0.30);
+  --cyan-glow-strong:rgba(0, 240, 255, 0.50);
+
+  /* Neon aliases used by premium UI components */
+  --neon-cyan:    #00F0FF;
+  --neon-magenta: #FF003C;
+  --neon-yellow:  #FCEE09;
+  --neon-green:   #39FF14;
+
+  /* Secondary accent — Crimson */
+  --crimson-primary: #DC2626;
+  --crimson-hover:   #EF4444;
+  --crimson-glow:    rgba(220, 38, 38, 0.25);
+
+  /* Borders & dividers */
+  --border-subtle: #2A2A2A;
+  --border-medium: #3A3A3A;
+  --border-glow:   rgba(0, 240, 255, 0.15);
+  --border-soft:   rgba(255, 255, 255, 0.08);
+
+  /* Text hierarchy */
+  --text-primary:   #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-muted:     #475569;
+  --text-disabled:  #4B5563;
+
+  /* Glass & blur */
+  --glass-bg:    rgba(8, 10, 16, 0.55);
+  --glass-border:rgba(255, 255, 255, 0.07);
+  --blur-amount: 24px;
+  --blur-strong: 40px;
+
+  /* Shadows & depth */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.30);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.40);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.50);
+  --shadow-premium:
+    0 2px 8px rgba(0, 0, 0, 0.20),
+    0 8px 24px rgba(0, 0, 0, 0.15),
+    0 0 48px rgba(0, 240, 255, 0.08);
+
+  /* Animation timing */
+  --transition-fast: 150ms;
+  --transition-base: 250ms;
+  --transition-slow: 350ms;
+  --ease-out:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+
+  /* Border radius */
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-full: 9999px;
+}
+
+/* ── shadcn / Radix dark-theme vars ─────────────────────────── */
+@layer base {
+  :root {
+    --background:         240 14% 4%;
+    --foreground:         213 27% 87%;
+    --card:               240 14% 6%;
+    --card-foreground:    213 27% 87%;
+    --popover:            240 14% 6%;
+    --popover-foreground: 213 27% 87%;
+    --primary:            187 100% 50%;
+    --primary-foreground: 240 14% 4%;
+    --secondary:          240 5% 12%;
+    --secondary-foreground:213 27% 87%;
+    --muted:              240 5% 12%;
+    --muted-foreground:   215 16% 47%;
+    --accent:             240 5% 14%;
+    --accent-foreground:  213 27% 87%;
+    --destructive:        348 100% 50%;
+    --destructive-foreground: 213 27% 87%;
+    --border: 240 5% 14%;
+    --input:  240 5% 14%;
+    --ring:   187 100% 50%;
+    --radius: 0.75rem;
+  }
+}
+
+/* ── Global resets ───────────────────────────────────────────── */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  overflow: hidden;
+  line-height: 1.6;
+}
+
+* { box-sizing: border-box; }
+
+/* ── Text selection ──────────────────────────────────────────── */
+::selection      { background: rgba(0, 240, 255, 0.3); color: #fff; }
+::-moz-selection { background: rgba(0, 240, 255, 0.3); color: #fff; }
+
+/* ── Custom scrollbars ───────────────────────────────────────── */
+::-webkit-scrollbar            { width: 8px; height: 8px; }
+::-webkit-scrollbar-track      { background: transparent; }
+::-webkit-scrollbar-thumb      { background: rgba(0,240,255,0.15); border-radius: 4px; transition: background .2s; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(0,240,255,0.45); }
+
+/* ── Focus ring ──────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--cyan-primary);
+  outline-offset: 2px;
+}
+
+/* ── Font utility classes ────────────────────────────────────── */
+.font-heading { font-family: 'Unbounded', sans-serif; }
+.font-mono    { font-family: 'JetBrains Mono', monospace; }
+.font-body    { font-family: 'Outfit', sans-serif; }
+
+/* ── Glassmorphism ───────────────────────────────────────────── */
+.glass {
+  background: rgba(8, 10, 16, 0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-strong {
+  background: rgba(8, 10, 16, 0.80);
+  backdrop-filter: blur(var(--blur-strong)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-strong)) saturate(180%);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Neon utility classes ────────────────────────────────────── */
+.neon-text   { color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0,240,255,0.5); }
+.neon-border { border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0,240,255,0.3); }
+.glow-cyan   { box-shadow: 0 0 24px var(--cyan-glow); }
+.glow-crimson{ box-shadow: 0 0 24px var(--crimson-glow); }
+
+/* ── Mono label ──────────────────────────────────────────────── */
+.mono-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--neon-cyan);
+}
+
+/* ── Window shadow ───────────────────────────────────────────── */
+.window-shadow {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 30px 80px rgba(0,0,0,0.6),
+    0 0 0 1px rgba(0,240,255,0.05),
+    0 0 60px rgba(0,240,255,0.04);
+}
+
+/* ── Input — cyber style ─────────────────────────────────────── */
+.input-cyber {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.input-cyber::placeholder { color: rgba(255,255,255,0.25); }
+.input-cyber:focus {
+  border-color: rgba(0,240,255,0.45);
+  box-shadow: 0 0 0 3px rgba(0,240,255,0.08);
+}
+
+/* ── Neon button ─────────────────────────────────────────────── */
+.neon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.65rem;
+  padding: 0.5rem 1rem;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  transition:
+    transform .15s ease,
+    background-color .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.neon-btn:hover {
+  background: rgba(0,240,255,0.06);
+  border-color: rgba(0,240,255,0.35);
+  box-shadow: 0 0 18px rgba(0,240,255,0.15);
+  transform: translateY(-1px);
+}
+.neon-btn:active { transform: translateY(0) scale(0.97); }
+
+.neon-btn.primary {
+  background: rgba(0,240,255,0.10);
+  border-color: rgba(0,240,255,0.40);
+  color: var(--neon-cyan);
+}
+.neon-btn.primary:hover {
+  background: rgba(0,240,255,0.18);
+  box-shadow: 0 0 28px rgba(0,240,255,0.25), 0 0 8px rgba(0,240,255,0.15) inset;
+}
+
+.neon-btn.danger {
+  background: rgba(255,0,60,0.08);
+  border-color: rgba(255,0,60,0.35);
+  color: var(--neon-magenta);
+}
+.neon-btn.danger:hover {
+  background: rgba(255,0,60,0.18);
+  box-shadow: 0 0 20px rgba(255,0,60,0.20);
+}
+
+/* ── Disabled states ─────────────────────────────────────────── */
+button:disabled, .neon-btn:disabled,
+input:disabled, select:disabled, textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Animated grid background ────────────────────────────────── */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridShift 30s linear infinite;
+}
+
+@keyframes gridShift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 60px 60px; }
+}
+
+/* ── Aurora gradient ─────────────────────────────────────────── */
+.bg-aurora::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(0, 240, 255, 0.15), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255, 0, 60, 0.12),  transparent 45%),
+    radial-gradient(circle at 60% 20%, rgba(252, 238, 9, 0.06), transparent 35%);
+  filter: blur(40px);
+  animation: aurora 20s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes aurora {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-5%, 5%) scale(1.1); }
+}
+
+/* ── Scanline sweep ──────────────────────────────────────────── */
+.scanline::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,240,255,0.4), transparent);
+  animation: scanlineMove 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scanlineMove {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+/* ── Pulse glow ──────────────────────────────────────────────── */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(0,240,255,0.25); }
+  50%       { box-shadow: 0 0 28px rgba(0,240,255,0.55); }
+}
+.pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
+
+/* ── Standard animation utilities ────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.05); }
+}
+
+.animate-fade-in  { animation: fadeIn  var(--transition-base) var(--ease-out) forwards; }
+.animate-slide-in { animation: slideIn var(--transition-base) var(--ease-out) forwards; }
+.animate-pulse    { animation: pulse   2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-breathe  { animation: breathe 3s ease-in-out infinite; }
+
+/* ── GPU acceleration helper ─────────────────────────────────── */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ── Smoother transition defaults ────────────────────────────── */
+.transition, .transition-all, .transition-colors,
+.transition-opacity, .transition-transform {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: 200ms;
+}
+
+/* ── Reduced-motion: honour user preference ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .bg-grid, .bg-aurora::before, .scanline::after,
+  .pulse-glow, .animate-fade-in, .animate-slide-in,
+  .animate-pulse, .animate-breathe,
+  .ambient-canvas,
+  [style*="animation"] {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* Framer Motion respects this via its own hook, but belt-and-suspenders: */
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* ── Window module loading bars ──────────────────────────────── */
+@keyframes moduleBar {
+  from { height: 8px;  opacity: 0.4; }
+  to   { height: 22px; opacity: 0.9; }
+}
+
+/* ── Cortex voice wave bars ──────────────────────────────────── */
+@keyframes cortexWave {
+  from { transform: scaleY(0.25); }
+  to   { transform: scaleY(1.15); }
+}
+
+/* ── AI select dropdown slide ────────────────────────────────── */
+@keyframes selectSlide {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Fade slide up — used by action chips and badges ─────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Pop scale — emotion badges, copy success states ────────── */
+@keyframes emotionPop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Ambient desktop particle canvas ─────────────────────────── */
+/* The canvas is rendered by Desktop.js AmbientParticles — these
+   rules ensure it doesn't block interaction or affect layout.   */
+.ambient-canvas {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ── Radix Select portal overrides ───────────────────────────── */
+/* Ensure the Radix dropdown renders above windows */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+/* ── Markdown renderer code blocks ───────────────────────────── */
+.md-code-block {
+  position: relative;
+  margin: 12px 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  overflow: hidden;
+}
+
+.md-code-block pre {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.65;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  color: #C8D3E0;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Dock bounce anim (CSS fallback for useAnimate) ─────────── */
+@keyframes dockBounce {
+  0%   { transform: scale(1)    translateY(0); }
+  15%  { transform: scale(0.82) translateY(5px); }
+  42%  { transform: scale(1.22) translateY(-8px); }
+  65%  { transform: scale(0.95) translateY(2px); }
+  82%  { transform: scale(1.05) translateY(-2px); }
+  100% { transform: scale(1)    translateY(0); }
+}
+
+/* ── Notification badge pulse ────────────────────────────────── */
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.5); }
+  50%       { box-shadow: 0 0 0 5px rgba(255, 0, 60, 0); }
+}
+
+/* ── Hover-reveal copy buttons ───────────────────────────────── */
+.copy-reveal-row {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.group:hover .copy-reveal-row {
+  opacity: 1;
+}
+
+/* ── Scrollbar hide utility ──────────────────────────────────── */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
