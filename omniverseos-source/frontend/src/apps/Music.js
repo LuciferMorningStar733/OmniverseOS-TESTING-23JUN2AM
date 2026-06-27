@@ -497,6 +497,22 @@ export default function Music() {
             Loading player…
           </div>
         )}
+
+        {/* Ad disclaimer */}
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          <i className="fa-brands fa-youtube text-[#FF0000]/50 text-[10px]" />
+          <span className="text-[10px] font-mono text-slate-600">
+            Plays via YouTube · ads depend on your account —{" "}
+            <a
+              href="https://music.youtube.com/premium"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#00F0FF]/40 hover:text-[#00F0FF]/70 underline transition-colors"
+            >
+              go ad-free with Premium
+            </a>
+          </span>
+        </div>
       </div>
     </div>
   );
