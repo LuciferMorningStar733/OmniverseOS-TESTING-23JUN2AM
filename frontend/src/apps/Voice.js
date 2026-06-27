@@ -404,7 +404,10 @@ export default function Voice() {
   const [detectedEmotion, setDetectedEmotion] = useState("neutral");
   const [usingFallback, setUsingFallback]     = useState(false);
 
-  const geminiVoiceRef = useRef("Kore");
+  const [previewingVoice, setPreviewingVoice] = useState(null); // voice name being previewed
+
+  const geminiVoiceRef  = useRef("Kore");
+  const previewAbortRef = useRef(null); // AbortController for in-flight preview requests
   useEffect(() => { geminiVoiceRef.current = geminiVoice; }, [geminiVoice]);
 
   const { openApp } = useOS();
@@ -617,6 +620,50 @@ export default function Voice() {
       setUsingFallback(false);
     }
   }, []);
+
+  // ── Voice preview — plays a short sample for a given Gemini voice name ────
+  // Independent of the main speak() flow — uses its own AbortController.
+  // Tapping the same voice's preview button while it's playing stops it.
+  const handleVoicePreview = useCallback(async (voiceName) => {
+    // Stop any in-flight preview first
+    previewAbortRef.current?.abort();
+
+    if (previewingVoice === voiceName) {
+      // Second tap on the same voice — just stop
+      if (mountedRef.current) setPreviewingVoice(null);
+      return;
+    }
+
+    const ctrl = new AbortController();
+    previewAbortRef.current = ctrl;
+    if (mountedRef.current) setPreviewingVoice(voiceName);
+
+    const SAMPLE = `Hello! I'm ${voiceName}. I'll be your Cortex voice.`;
+
+    try {
+      const audioUrl = await ttsApi.synthesizeGemini({
+        text: SAMPLE,
+        voice: voiceName,
+        signal: ctrl.signal,
+      });
+      if (ctrl.signal.aborted) {
+        URL.revokeObjectURL(audioUrl);
+        return;
+      }
+      await playAudioUrl(audioUrl, 1.0, null); // null = no waveform during preview
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      console.error(`[VoicePreview] Failed for ${voiceName}:`, err?.message);
+      toast.error(`Preview failed for ${voiceName}`, {
+        duration: 2000,
+        style: { fontSize: 12, padding: "6px 12px" },
+      });
+    } finally {
+      if (mountedRef.current && previewAbortRef.current === ctrl) {
+        setPreviewingVoice(null);
+      }
+    }
+  }, [previewingVoice]);
 
   // ── listen ────────────────────────────────────────────────────────────────
   const start = useCallback(() => {
@@ -868,28 +915,86 @@ export default function Voice() {
         </div>
         <div className="flex flex-wrap gap-1.5 justify-center">
           {(GEMINI_VOICES[voiceGender] || []).map((v) => {
-            const isActive = geminiVoice === v.name;
+            const isActive    = geminiVoice === v.name;
+            const isPreviewing = previewingVoice === v.name;
+            const accentColor  = voiceGender === "male" ? "#00F0FF" : "#c084fc";
+
             return (
-              <button
+              <div
                 key={v.name}
-                disabled={isSpeaking}
-                onClick={() => setGeminiVoice(v.name)}
-                title={v.desc}
-                className={`flex flex-col items-center px-3 py-1.5 rounded-lg border text-[10px] font-mono transition-all duration-150
-                  ${isSpeaking ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+                className={`flex items-stretch rounded-lg border overflow-hidden transition-all duration-150
+                  ${isSpeaking ? "opacity-40 pointer-events-none" : ""}
                   ${isActive
                     ? voiceGender === "male"
-                      ? "border-[#00F0FF] bg-[#00F0FF]/15 text-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.2)]"
-                      : "border-purple-400 bg-purple-500/15 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
-                    : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-slate-200"
+                      ? "border-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+                      : "border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                    : "border-white/10 hover:border-white/20"
                   }`}
               >
-                <span className="font-semibold tracking-wide">{v.label}</span>
-                <span className="text-[9px] opacity-60 mt-0.5">{v.desc}</span>
-              </button>
+                {/* Select chip */}
+                <button
+                  onClick={() => setGeminiVoice(v.name)}
+                  disabled={isSpeaking}
+                  title={`Use ${v.label} — ${v.desc}`}
+                  className={`flex flex-col items-start px-3 py-1.5 text-[10px] font-mono transition-colors duration-150
+                    ${isActive
+                      ? voiceGender === "male"
+                        ? "bg-[#00F0FF]/15 text-[#00F0FF]"
+                        : "bg-purple-500/15 text-purple-200"
+                      : "bg-white/5 text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  <span className="font-semibold tracking-wide">{v.label}</span>
+                  <span className="text-[9px] opacity-60 mt-0.5">{v.desc}</span>
+                </button>
+
+                {/* Preview button */}
+                <button
+                  onClick={() => handleVoicePreview(v.name)}
+                  disabled={isSpeaking}
+                  title={isPreviewing ? `Stop ${v.label} preview` : `Preview ${v.label}`}
+                  className={`flex items-center justify-center w-7 border-l text-[10px] transition-all duration-150
+                    ${isSpeaking ? "cursor-not-allowed" : "cursor-pointer"}
+                    ${isPreviewing
+                      ? voiceGender === "male"
+                        ? "border-[#00F0FF]/40 bg-[#00F0FF]/20 text-[#00F0FF]"
+                        : "border-purple-400/40 bg-purple-500/20 text-purple-300"
+                      : isActive
+                        ? voiceGender === "male"
+                          ? "border-[#00F0FF]/30 bg-[#00F0FF]/10 text-[#00F0FF]/60 hover:text-[#00F0FF]"
+                          : "border-purple-400/30 bg-purple-500/10 text-purple-300/60 hover:text-purple-200"
+                        : "border-white/10 bg-white/5 text-slate-600 hover:text-slate-300"
+                    }`}
+                >
+                  <i
+                    className={`fa-solid text-[8px] ${
+                      isPreviewing
+                        ? "fa-stop"
+                        : previewingVoice && previewingVoice !== v.name
+                        ? "fa-play opacity-30"
+                        : "fa-play"
+                    } ${isPreviewing ? "animate-pulse" : ""}`}
+                  />
+                </button>
+              </div>
             );
           })}
         </div>
+
+        {/* Preview status line */}
+        {previewingVoice && (
+          <div className="flex items-center gap-1.5 text-[10px] font-mono mt-1"
+            style={{ color: `${voiceGender === "male" ? "#00F0FF" : "#c084fc"}99` }}>
+            <i className="fa-solid fa-circle-notch fa-spin text-[8px]" />
+            Previewing {previewingVoice}…
+            <button
+              onClick={() => { previewAbortRef.current?.abort(); setPreviewingVoice(null); }}
+              className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
+            >
+              cancel
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Equaliser bars */}
