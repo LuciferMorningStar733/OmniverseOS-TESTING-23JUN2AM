@@ -388,6 +388,84 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
         raise HTTPException(502, f"Gemini TTS failed: {str(exc)[:200]}")
 
 
+@api.get("/ai/tts-gemini/test")
+async def ai_tts_gemini_test():
+    """
+    Public diagnostic endpoint — no auth required.
+    Open in any browser tab to verify the full Gemini TTS pipeline.
+    Returns JSON with HTTP status, voice, mime type, and byte count.
+    """
+    if not GEMINI_API_KEY:
+        return {
+            "ok": False,
+            "step": "config",
+            "error": "GEMINI_API_KEY is not set on this server",
+        }
+
+    voice_name = "Kore"
+    sample_text = "Hello! Gemini TTS is working. Cortex voice is online."
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{_GEMINI_TTS_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": sample_text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {"voiceName": voice_name}
+                }
+            },
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as http:
+            resp = await http.post(url, json=payload)
+
+        if not resp.is_success:
+            return {
+                "ok": False,
+                "step": "gemini_api",
+                "http_status": resp.status_code,
+                "error": resp.text[:400],
+                "model": _GEMINI_TTS_MODEL,
+                "voice": voice_name,
+            }
+
+        data = resp.json()
+        try:
+            inline     = data["candidates"][0]["content"]["parts"][0]["inlineData"]
+            audio_b64  = inline["data"]
+            mime_type  = inline.get("mimeType", "audio/wav")
+            byte_count = len(base64.b64decode(audio_b64))
+        except (KeyError, IndexError) as e:
+            return {
+                "ok": False,
+                "step": "parse_response",
+                "error": str(e),
+                "raw_keys": list(data.keys()),
+            }
+
+        return {
+            "ok": True,
+            "model": _GEMINI_TTS_MODEL,
+            "voice": voice_name,
+            "mime_type": mime_type,
+            "audio_bytes": byte_count,
+            "gemini_http_status": resp.status_code,
+            "message": "Gemini TTS pipeline is fully operational.",
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "step": "request",
+            "error": str(exc),
+        }
+
+
 # ---------- Routes: AI Chat (Streaming SSE) ----------
 ALLOWED_GEMINI_MODELS = {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"}
 ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "groq", "cerebras", "openrouter"}
