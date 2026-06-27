@@ -331,11 +331,31 @@ export function setVoicePrefs(prefs) {
 }
 
 // ── TTS API ───────────────────────────────────────────────────────────────
+
+// Gemini TTS voice catalogue — used by VoiceSelector UI and speakGemini()
+export const GEMINI_VOICES = {
+  female: [
+    { name: "Kore",   label: "Kore",   desc: "Warm · expressive" },
+    { name: "Aoede",  label: "Aoede",  desc: "Bright · clear"    },
+    { name: "Zephyr", label: "Zephyr", desc: "Airy · soft"       },
+    { name: "Leda",   label: "Leda",   desc: "Smooth · refined"  },
+  ],
+  male: [
+    { name: "Puck",   label: "Puck",   desc: "Lively · playful"  },
+    { name: "Charon", label: "Charon", desc: "Deep · resonant"   },
+    { name: "Fenrir", label: "Fenrir", desc: "Strong · bold"     },
+  ],
+};
+
+export const GEMINI_VOICE_FEMALE = "Kore";
+export const GEMINI_VOICE_MALE   = "Puck";
+
 export const ttsApi = {
   /**
    * Synthesize text via the backend Google Cloud TTS proxy.
    * Returns a Blob Object URL pointing to raw MP3 audio.
    * Caller must call URL.revokeObjectURL() after use (playAudioUrl handles this).
+   * NOTE: Kept for backward compatibility — requires GOOGLE_CLOUD_TTS_API_KEY on server.
    */
   synthesize: async ({ text, voiceName, speakingRate = 1.0, pitch = 0.0, volumeGainDb = 0.0, useSsml = false }) => {
     const token = localStorage.getItem("omniverse_token");
@@ -361,6 +381,50 @@ export const ttsApi = {
       throw err;
     }
     // Backend returns raw MP3 bytes (audio/mpeg) — wrap in Blob URL
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
+  /**
+   * Synthesize text via Gemini TTS (primary voice provider).
+   * Uses your existing GEMINI_API_KEY — no Google Cloud credentials needed.
+   * Returns a Blob Object URL pointing to raw WAV audio.
+   * Caller must call URL.revokeObjectURL() after use (playAudioUrl handles this).
+   *
+   * @param {string} text   - Plain text to synthesize (max 5000 chars)
+   * @param {string} voice  - Gemini voice name: "Kore"|"Aoede"|"Zephyr"|"Leda" (female)
+   *                          or "Puck"|"Charon"|"Fenrir" (male). Default: "Kore"
+   * @param {AbortSignal} [signal] - Optional AbortSignal for cancellation
+   */
+  synthesizeGemini: async ({ text, voice = "Kore", signal }) => {
+    const token = localStorage.getItem("omniverse_token");
+    const res = await fetch(`${API}/ai/tts-gemini`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ text, voice }),
+      signal: signal ?? AbortSignal.timeout(20000),
+    });
+    if (!res.ok) {
+      const err = new Error(`Gemini TTS HTTP ${res.status}`);
+      err.status = res.status;
+      // Log diagnostic headers when available
+      const provider = res.headers.get("X-TTS-Provider");
+      const voiceUsed = res.headers.get("X-Voice-Used");
+      console.error(
+        `[GeminiTTS] HTTP ${res.status} | provider=${provider} | voice=${voiceUsed}`
+      );
+      throw err;
+    }
+    // Log which voice/model was used (from response headers)
+    const voiceUsed  = res.headers.get("X-Voice-Used")  || voice;
+    const modelUsed  = res.headers.get("X-TTS-Model")   || "gemini-tts";
+    const mimeType   = res.headers.get("Content-Type")  || "audio/wav";
+    console.log(`[GeminiTTS] OK | voice=${voiceUsed} | model=${modelUsed} | mime=${mimeType}`);
+
+    // Backend returns raw WAV/audio bytes — wrap in Blob URL for HTMLAudioElement
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
