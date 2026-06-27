@@ -1,6 +1,3 @@
 {
-  "rootDirectory": "omniverseos-source/frontend",
-  "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npm run build",
-  "outputDirectory": "build"
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }
