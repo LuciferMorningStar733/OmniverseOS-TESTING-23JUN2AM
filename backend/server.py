@@ -15,6 +15,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import uuid
 import traceback
+import httpx
 import bcrypt
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
@@ -306,48 +307,71 @@ class GeminiTtsReq(BaseModel):
 @api.post("/ai/tts-gemini")
 async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
     """
-    Gemini TTS endpoint — uses the caller's existing GEMINI_API_KEY.
-    No Google Cloud credentials required.
-    Returns raw WAV bytes (audio/wav).
+    Gemini TTS via direct REST API — no SDK version constraints.
+    Uses GEMINI_API_KEY (same key as chat). Returns raw WAV bytes.
     """
-    if not gemini_client:
+    if not GEMINI_API_KEY:
         raise HTTPException(503, "Gemini API key not configured on this server")
 
     await rate_limit(f"tts:{user['id']}", max_per_min=30)
 
     voice_name = req.voice if req.voice in _GEMINI_TTS_ALL_VOICES else "Kore"
 
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{_GEMINI_TTS_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": req.text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": voice_name,
+                    }
+                }
+            },
+        },
+    }
+
     try:
-        response = await gemini_client.aio.models.generate_content(
-            model=_GEMINI_TTS_MODEL,
-            contents=req.text,
-            config=genai_types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=genai_types.SpeechConfig(
-                    voice_config=genai_types.VoiceConfig(
-                        prebuilt_voice_config=genai_types.PrebuiltVoiceConfig(
-                            voice_name=voice_name,
-                        )
-                    )
-                ),
-            ),
+        async with httpx.AsyncClient(timeout=30.0) as http:
+            resp = await http.post(url, json=payload)
+
+        logger.info(
+            "Gemini TTS response: HTTP %s | voice=%s", resp.status_code, voice_name
         )
 
-        # Extract raw audio data from the response
-        audio_data = None
-        mime_type = "audio/wav"
-        for part in response.candidates[0].content.parts:
-            if part.inline_data and part.inline_data.data:
-                audio_data = part.inline_data.data
-                mime_type = part.inline_data.mime_type or "audio/wav"
-                break
+        if resp.status_code == 400:
+            raise HTTPException(400, f"Gemini TTS bad request: {resp.text[:300]}")
+        if resp.status_code == 403:
+            raise HTTPException(403, "Gemini API key invalid or TTS access denied")
+        if resp.status_code == 404:
+            raise HTTPException(404, f"Gemini TTS model not found: {_GEMINI_TTS_MODEL}")
+        if resp.status_code == 429:
+            raise HTTPException(429, "Gemini TTS quota exceeded. Try again shortly.")
+        if not resp.is_success:
+            raise HTTPException(502, f"Gemini TTS HTTP {resp.status_code}: {resp.text[:200]}")
 
-        if not audio_data:
-            raise HTTPException(502, "Gemini TTS returned no audio data")
+        data = resp.json()
+
+        # Response shape:
+        # { "candidates": [{ "content": { "parts": [{ "inlineData": { "mimeType": "audio/wav", "data": "<b64>" } }] } }] }
+        try:
+            inline = data["candidates"][0]["content"]["parts"][0]["inlineData"]
+            audio_b64 = inline["data"]
+            mime_type = inline.get("mimeType", "audio/wav")
+        except (KeyError, IndexError) as e:
+            logger.error("Gemini TTS unexpected response shape: %s | body: %s", e, str(data)[:400])
+            raise HTTPException(502, "Gemini TTS returned unexpected response — no audio data")
+
+        audio_bytes = base64.b64decode(audio_b64)
+        logger.info("Gemini TTS OK | voice=%s | mime=%s | bytes=%d", voice_name, mime_type, len(audio_bytes))
 
         from fastapi.responses import Response as FastAPIResponse
         return FastAPIResponse(
-            content=audio_data,
+            content=audio_bytes,
             media_type=mime_type,
             headers={
                 "X-Voice-Used": voice_name,
@@ -360,13 +384,8 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as exc:
-        err_str = str(exc)
-        logger.error("Gemini TTS error: %s", exc)
-        if "429" in err_str or "quota" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
-            raise HTTPException(429, "Gemini TTS quota exceeded. Try again shortly.")
-        if "404" in err_str or "NOT_FOUND" in err_str:
-            raise HTTPException(404, f"Gemini TTS model not found: {_GEMINI_TTS_MODEL}")
-        raise HTTPException(502, f"Gemini TTS failed: {err_str[:200]}")
+        logger.error("Gemini TTS unexpected error: %s", exc, exc_info=True)
+        raise HTTPException(502, f"Gemini TTS failed: {str(exc)[:200]}")
 
 
 # ---------- Routes: AI Chat (Streaming SSE) ----------
