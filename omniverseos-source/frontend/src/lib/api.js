@@ -355,57 +355,122 @@ export const GEMINI_VOICES = {
 export const GEMINI_VOICE_FEMALE = "Kore";
 export const GEMINI_VOICE_MALE   = "Puck";
 
+// ── TTS blob cache + in-flight deduplication ──────────────────────────────
+// _ttsBlobCache:  voice+text → Blob
+//   Re-creates an ObjectURL from the cached Blob on every replay/re-preview
+//   so playAudioUrl can revoke each URL after use while keeping the Blob alive.
+// _ttsInflight:   voice+text → Promise<Blob>
+//   If a fetch is already in progress for the same key, new callers await the
+//   same Promise instead of firing a duplicate request to the backend.
+const _ttsBlobCache = new Map();
+const _ttsInflight  = new Map();
+const _TTS_CACHE_MAX = 50; // max distinct text+voice combos kept in memory
+
+function _ttsEvictOldest() {
+  if (_ttsBlobCache.size > _TTS_CACHE_MAX) {
+    const oldest = _ttsBlobCache.keys().next().value;
+    _ttsBlobCache.delete(oldest);
+  }
+}
+
 // ── TTS API ────────────────────────────────────────────────────────────────
 export const ttsApi = {
   /**
    * Synthesize text via Gemini TTS backend proxy.
-   * Uses GEMINI_API_KEY — no Google Cloud credentials needed.
    * Returns a Blob Object URL for direct use in HTMLAudioElement.
-   * Caller (playAudioUrl) revokes the URL after playback.
+   * Caller (playAudioUrl) revokes the URL after playback — the underlying
+   * Blob stays cached so replays never hit the backend again.
+   *
+   * Quota-saving optimisations:
+   *  1. Frontend blob cache  — cache hit returns immediately, zero network
+   *  2. In-flight dedup      — concurrent identical requests share one fetch
+   *  3. Backend LRU cache    — server-side cache for cross-session hits
    *
    * @param {string}       text   - Plain text (max 5000 chars)
    * @param {string}       voice  - Gemini voice name (see GEMINI_VOICES above)
    * @param {AbortSignal}  signal - Optional cancellation signal
-   * @returns {Promise<string>}   - Object URL pointing to audio/wav blob
+   * @returns {Promise<string>}   - Object URL pointing to audio blob
    */
   synthesizeGemini: async ({ text, voice = "Kore", signal }) => {
+    const cacheKey = `${voice}:${text}`;
+
+    // ── 1. Frontend blob cache hit — zero network ─────────────────────────
+    if (_ttsBlobCache.has(cacheKey)) {
+      console.log(`[GeminiTTS] Frontend cache HIT | voice=${voice} | chars=${text.length}`);
+      return URL.createObjectURL(_ttsBlobCache.get(cacheKey));
+    }
+
+    // ── 2. In-flight dedup — share an existing fetch ──────────────────────
+    if (_ttsInflight.has(cacheKey)) {
+      console.log(`[GeminiTTS] Dedup — awaiting in-flight | voice=${voice}`);
+      try {
+        const blob = await _ttsInflight.get(cacheKey);
+        // The in-flight promise completed — blob is now in _ttsBlobCache.
+        // Create a fresh URL (the first caller's URL may already be revoked).
+        return URL.createObjectURL(blob);
+      } catch (err) {
+        throw err; // propagate the original failure
+      }
+    }
+
+    // ── 3. New fetch ──────────────────────────────────────────────────────
     const token = localStorage.getItem("omniverse_token");
 
-    // Manual timeout (20s) — compatible with all modern browsers
+    // 20 s timeout — avoids hanging indefinitely on slow cold starts
     const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(new DOMException("TTS timeout", "TimeoutError")), 20_000);
-    // Chain outer signal if provided
+    const timer = setTimeout(
+      () => ctrl.abort(new DOMException("TTS timeout", "TimeoutError")),
+      20_000,
+    );
     const onOuter = () => ctrl.abort();
     signal?.addEventListener("abort", onOuter, { once: true });
 
-    let res;
+    // The blob promise is registered BEFORE the await so any concurrent
+    // caller that arrives mid-fetch is deduplicated immediately.
+    const blobPromise = (async () => {
+      let res;
+      try {
+        res = await fetch(`${API}/ai/tts-gemini`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ text, voice }),
+          signal: ctrl.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", onOuter);
+      }
+
+      if (!res.ok) {
+        const err = new Error(`Gemini TTS HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+
+      const isBackendCacheHit = res.headers.get("X-Cache") === "HIT";
+      const voiceUsed = res.headers.get("X-Voice-Used") || voice;
+      const model     = res.headers.get("X-TTS-Model")  || "gemini-tts";
+      console.log(
+        `[GeminiTTS] ${isBackendCacheHit ? "Backend-cache HIT" : "Live"} | voice=${voiceUsed} | model=${model}`,
+      );
+
+      return res.blob();
+    })();
+
+    _ttsInflight.set(cacheKey, blobPromise);
+
     try {
-      res = await fetch(`${API}/ai/tts-gemini`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ text, voice }),
-        signal: ctrl.signal,
-      });
+      const blob = await blobPromise;
+      // Store blob — future replays create new URLs from this without fetching
+      _ttsBlobCache.set(cacheKey, blob);
+      _ttsEvictOldest();
+      return URL.createObjectURL(blob);
     } finally {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", onOuter);
+      // Always clean up the in-flight entry, success or failure
+      _ttsInflight.delete(cacheKey);
     }
-
-    if (!res.ok) {
-      const err = new Error(`Gemini TTS HTTP ${res.status}`);
-      err.status = res.status;
-      throw err;
-    }
-
-    const voiceUsed = res.headers.get("X-Voice-Used") || voice;
-    const model     = res.headers.get("X-TTS-Model")  || "gemini-tts";
-    const mime      = res.headers.get("Content-Type")  || "audio/wav";
-    console.log(`[GeminiTTS] OK | voice=${voiceUsed} | model=${model} | mime=${mime}`);
-
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
   },
 };

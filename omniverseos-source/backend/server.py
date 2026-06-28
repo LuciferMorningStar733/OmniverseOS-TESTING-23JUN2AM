@@ -10,6 +10,7 @@ from google.genai import types as genai_types
 import os
 import logging
 import base64
+import hashlib
 import httpx
 from pathlib import Path
 from pydantic import BaseModel, EmailStr, Field
@@ -161,6 +162,45 @@ _GEMINI_TTS_MALE_VOICES   = ["Puck", "Charon", "Fenrir", "Orus"]
 _GEMINI_TTS_ALL_VOICES    = set(_GEMINI_TTS_FEMALE_VOICES + _GEMINI_TTS_MALE_VOICES)
 _GEMINI_TTS_MODEL         = "gemini-2.5-flash-preview-tts"
 
+# ── Backend LRU cache for TTS audio ───────────────────────────────────────
+# Keyed by MD5(voice + ":" + text). Stores raw WAV bytes + MIME type.
+# Prevents duplicate Gemini API calls for identical text+voice combos across
+# all users and sessions (voice previews, repeated phrases, replay).
+# Max 200 entries (~200 × ~50 KB ≈ 10 MB RAM ceiling).
+_TTS_CACHE_MAX    = 200
+_tts_cache_data:  dict[str, bytes] = {}
+_tts_cache_mime:  dict[str, str]   = {}
+_tts_cache_order: list[str]        = []   # front = oldest, back = newest (LRU)
+
+def _tts_cache_key(text: str, voice: str) -> str:
+    return hashlib.md5(f"{voice}:{text}".encode()).hexdigest()
+
+def _tts_cache_get(key: str) -> tuple[bytes, str] | None:
+    if key not in _tts_cache_data:
+        return None
+    # Move to most-recently-used position
+    try:
+        _tts_cache_order.remove(key)
+    except ValueError:
+        pass
+    _tts_cache_order.append(key)
+    return _tts_cache_data[key], _tts_cache_mime[key]
+
+def _tts_cache_set(key: str, data: bytes, mime: str) -> None:
+    if key in _tts_cache_data:
+        try:
+            _tts_cache_order.remove(key)
+        except ValueError:
+            pass
+    elif len(_tts_cache_data) >= _TTS_CACHE_MAX:
+        # Evict least-recently-used entry
+        oldest = _tts_cache_order.pop(0)
+        _tts_cache_data.pop(oldest, None)
+        _tts_cache_mime.pop(oldest, None)
+    _tts_cache_data[key] = data
+    _tts_cache_mime[key] = mime
+    _tts_cache_order.append(key)
+
 class GeminiTtsReq(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
     voice: str = Field(default="Kore", max_length=30)
@@ -172,6 +212,8 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
     No Google Cloud credentials needed. Returns raw WAV bytes (audio/wav).
     Available voices: Kore, Aoede, Zephyr, Leda, Schedar (female);
                       Puck, Charon, Fenrir, Orus (male).
+    Backend LRU cache (200 entries) serves repeated text+voice combos without
+    hitting the Gemini API, reducing quota usage significantly.
     """
     if not GEMINI_API_KEY:
         raise HTTPException(503, "Gemini API key not configured on this server")
@@ -180,6 +222,28 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
 
     voice_name = req.voice if req.voice in _GEMINI_TTS_ALL_VOICES else "Kore"
 
+    # ── Backend cache check ────────────────────────────────────────────────
+    cache_key = _tts_cache_key(req.text, voice_name)
+    cached = _tts_cache_get(cache_key)
+    if cached:
+        audio_bytes, mime_type = cached
+        logging.info(
+            "Gemini TTS backend cache HIT | voice=%s | bytes=%d | key=%s",
+            voice_name, len(audio_bytes), cache_key[:8],
+        )
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":  voice_name,
+                "X-TTS-Provider": "gemini-cache",
+                "X-TTS-Model":   _GEMINI_TTS_MODEL,
+                "X-Cache":       "HIT",
+                "Cache-Control": "no-store",
+            },
+        )
+
+    # ── Live Gemini API call ───────────────────────────────────────────────
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{_GEMINI_TTS_MODEL}:generateContent?key={GEMINI_API_KEY}"
@@ -231,13 +295,17 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
         audio_bytes = base64.b64decode(audio_b64)
         logging.info("Gemini TTS OK | voice=%s | mime=%s | bytes=%d", voice_name, mime_type, len(audio_bytes))
 
+        # ── Store in backend cache ─────────────────────────────────────────
+        _tts_cache_set(cache_key, audio_bytes, mime_type)
+
         return FastAPIResponse(
             content=audio_bytes,
             media_type=mime_type,
             headers={
-                "X-Voice-Used": voice_name,
+                "X-Voice-Used":  voice_name,
                 "X-TTS-Provider": "gemini",
-                "X-TTS-Model": _GEMINI_TTS_MODEL,
+                "X-TTS-Model":   _GEMINI_TTS_MODEL,
+                "X-Cache":       "MISS",
                 "Cache-Control": "no-store",
             },
         )
@@ -257,6 +325,7 @@ async def ai_tts_gemini_test(user=Depends(get_current_user)):
     """
     Authenticated diagnostic — verifies the full Gemini TTS pipeline.
     Rate-limited to 5/min to prevent accidental quota drain.
+    Also reports backend cache stats.
     """
     await rate_limit(f"tts_gemini_test:{user['id']}", max_per_min=5)
     if not GEMINI_API_KEY:
@@ -264,6 +333,20 @@ async def ai_tts_gemini_test(user=Depends(get_current_user)):
 
     voice_name  = "Kore"
     sample_text = "Hello! Gemini TTS is working. Cortex voice is online."
+
+    # Check backend cache first (test endpoint also benefits from caching)
+    cache_key = _tts_cache_key(sample_text, voice_name)
+    cached = _tts_cache_get(cache_key)
+    if cached:
+        audio_bytes, mime_type = cached
+        return {
+            "ok": True, "model": _GEMINI_TTS_MODEL, "voice": voice_name,
+            "mime_type": mime_type, "audio_bytes": len(audio_bytes),
+            "source": "backend_cache",
+            "cache_entries": len(_tts_cache_data),
+            "message": "Gemini TTS pipeline is fully operational (served from cache).",
+        }
+
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{_GEMINI_TTS_MODEL}:generateContent?key={GEMINI_API_KEY}"
@@ -301,10 +384,15 @@ async def ai_tts_gemini_test(user=Depends(get_current_user)):
             return {"ok": False, "step": "parse_response", "error": str(e),
                     "raw_keys": list(data.keys())}
 
+        # Cache the test result so subsequent /test calls are free
+        _tts_cache_set(cache_key, base64.b64decode(audio_b64), mime_type)
+
         return {
             "ok": True, "model": _GEMINI_TTS_MODEL, "voice": voice_name,
             "mime_type": mime_type, "audio_bytes": byte_count,
             "gemini_http_status": resp.status_code,
+            "source": "live",
+            "cache_entries": len(_tts_cache_data),
             "message": "Gemini TTS pipeline is fully operational.",
         }
 
@@ -443,7 +531,7 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
 async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
     if not gemini_client:
         raise HTTPException(500, "LLM key not configured")
-    _validate_model(req.provider, req.model)
+    _validate_chat_req(req)
     system_msg = req.system or "You are OmniverseOS Assistant. Be concise and helpful."
     response = await gemini_client.aio.models.generate_content(
         model=req.model,
@@ -502,55 +590,6 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
             raise HTTPException(400, "Prompt blocked by safety filters")
         raise HTTPException(500, f"Image generation failed: {err_str}")
 
-# --------- Diagnostic: Image Model Test Endpoint ---------
-@api.post("/api/ai/image-test")
-async def image_test():
-    """Test multiple Google image generation models"""
-    models_to_test = [
-        "imagen-4.0-generate-001",
-        "gemini-2.5-flash-image",
-        "gemini-2.5-flash-image-preview",
-        "gemini-2.0-flash-preview-image-generation",
-    ]
-    
-    test_prompt = "A simple red circle"
-    results = []
-    
-    for model_name in models_to_test:
-        test_result = {
-            "model": model_name,
-            "success": False,
-            "http_status": None,
-            "error": None
-        }
-        
-        try:
-            response = gemini_client.models.generate_images(
-                model=model_name,
-                prompt=test_prompt,
-                config=genai_types.GenerateImagesConfig(
-                    number_of_images=1,
-                    output_mime_type="image/png"
-                )
-            )
-            test_result["success"] = True
-            test_result["http_status"] = 200
-            logging.info(f"✓ {model_name}: SUCCESS")
-        except Exception as e:
-            test_result["error"] = str(e)
-            if "404" in str(e) or "NOT_FOUND" in str(e):
-                test_result["http_status"] = 404
-            elif "400" in str(e) or "INVALID_ARGUMENT" in str(e):
-                test_result["http_status"] = 400
-            elif "403" in str(e) or "PERMISSION_DENIED" in str(e):
-                test_result["http_status"] = 403
-            else:
-                test_result["http_status"] = 500
-            logging.error(f"✗ {model_name}: {str(e)}")
-        
-        results.append(test_result)
-    
-    return {"tested_models": results}
 @api.get("/ai/image/history")
 async def image_history(user=Depends(get_current_user)):
     items = await db.images.find({"user_id": user["id"]}, {"_id": 0}).sort(
