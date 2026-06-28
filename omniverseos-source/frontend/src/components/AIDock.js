@@ -97,8 +97,10 @@ export default function AIDock() {
   const [clip,       setClip]       = useState({ text: "", type: "empty", sensitive: false });
   const [online,     setOnline]     = useState(() => navigator.onLine);
   const [recentApps, setRecentApps] = useState([]);
+  const [showBadge,  setShowBadge]  = useState(false);
 
-  const copyTimer = useRef(null);
+  const copyTimer  = useRef(null);
+  const badgeTimer = useRef(null);
 
   /* ── Online / offline ─────────────────────────────────────────────────── */
   useEffect(() => {
