@@ -15,6 +15,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  REACT_APP_BACKEND_URL: https://omniverseos-testing-23jun2am.onrender.com
+
 jobs:
   build:
     name: Lint · Build · Test
@@ -43,6 +46,7 @@ jobs:
       # CI=true causes react-scripts (via craco) to:
       #   • treat ESLint warnings as hard errors
       #   • produce an optimised production bundle
+      # REACT_APP_BACKEND_URL is baked into the bundle at compile time (CRA behaviour).
       - name: ESLint + Production build
         run: npm run build
         env:
