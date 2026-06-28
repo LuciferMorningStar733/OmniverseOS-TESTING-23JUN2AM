@@ -396,8 +396,12 @@ export const ttsApi = {
 
     // ── 1. Frontend blob cache hit — zero network ─────────────────────────
     if (_ttsBlobCache.has(cacheKey)) {
+      // Refresh to most-recently-used position (true LRU — Map preserves insertion order)
+      const blob = _ttsBlobCache.get(cacheKey);
+      _ttsBlobCache.delete(cacheKey);
+      _ttsBlobCache.set(cacheKey, blob);
       console.log(`[GeminiTTS] Frontend cache HIT | voice=${voice} | chars=${text.length}`);
-      return URL.createObjectURL(_ttsBlobCache.get(cacheKey));
+      return URL.createObjectURL(blob);
     }
 
     // ── 2. In-flight dedup — share an existing fetch ──────────────────────

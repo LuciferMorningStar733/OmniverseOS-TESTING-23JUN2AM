@@ -168,9 +168,12 @@ _GEMINI_TTS_MODEL         = "gemini-2.5-flash-preview-tts"
 # all users and sessions (voice previews, repeated phrases, replay).
 # Max 200 entries (~200 × ~50 KB ≈ 10 MB RAM ceiling).
 _TTS_CACHE_MAX    = 200
-_tts_cache_data:  dict[str, bytes] = {}
-_tts_cache_mime:  dict[str, str]   = {}
-_tts_cache_order: list[str]        = []   # front = oldest, back = newest (LRU)
+_tts_cache_data:  dict[str, bytes]          = {}
+_tts_cache_mime:  dict[str, str]            = {}
+_tts_cache_order: list[str]                 = []   # front = oldest, back = newest (LRU)
+# In-flight dedup: prevents concurrent identical requests from all hitting Gemini.
+# Each entry is an asyncio.Future that resolves to (bytes, mime_str) on success.
+_tts_inflight:    dict[str, asyncio.Future] = {}
 
 def _tts_cache_key(text: str, voice: str) -> str:
     return hashlib.md5(f"{voice}:{text}".encode()).hexdigest()
@@ -243,6 +246,31 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
             },
         )
 
+    # ── In-flight dedup ────────────────────────────────────────────────────
+    # If an identical request is already fetching from Gemini, wait for it
+    # instead of firing a second API call. The future resolves to (bytes, mime).
+    if cache_key in _tts_inflight:
+        logging.info("Gemini TTS in-flight dedup | key=%s", cache_key[:8])
+        try:
+            audio_bytes, mime_type = await asyncio.shield(_tts_inflight[cache_key])
+        except Exception:
+            raise HTTPException(502, "Gemini TTS request failed. Please try again.")
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":  voice_name,
+                "X-TTS-Provider": "gemini-dedup",
+                "X-TTS-Model":   _GEMINI_TTS_MODEL,
+                "X-Cache":       "HIT",
+                "Cache-Control": "no-store",
+            },
+        )
+
+    # Register a future so concurrent identical requests can piggyback
+    inflight_fut: asyncio.Future = asyncio.get_event_loop().create_future()
+    _tts_inflight[cache_key] = inflight_fut
+
     # ── Live Gemini API call ───────────────────────────────────────────────
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -295,8 +323,10 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
         audio_bytes = base64.b64decode(audio_b64)
         logging.info("Gemini TTS OK | voice=%s | mime=%s | bytes=%d", voice_name, mime_type, len(audio_bytes))
 
-        # ── Store in backend cache ─────────────────────────────────────────
+        # ── Store in backend cache + resolve in-flight future ──────────────
         _tts_cache_set(cache_key, audio_bytes, mime_type)
+        if not inflight_fut.done():
+            inflight_fut.set_result((audio_bytes, mime_type))
 
         return FastAPIResponse(
             content=audio_bytes,
@@ -310,14 +340,22 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
             },
         )
 
-    except HTTPException:
+    except HTTPException as http_exc:
+        if not inflight_fut.done():
+            inflight_fut.set_exception(http_exc)
         raise
     except Exception as exc:
         logging.error("Gemini TTS unexpected error: %s", exc, exc_info=True)
         # Sanitize exception message — httpx errors can contain the full request
         # URL (which embeds the API key as a query parameter). Never reflect
         # raw exception text to the client.
-        raise HTTPException(502, "Gemini TTS request failed. Please try again.")
+        safe_exc = HTTPException(502, "Gemini TTS request failed. Please try again.")
+        if not inflight_fut.done():
+            inflight_fut.set_exception(safe_exc)
+        raise safe_exc
+    finally:
+        # Always remove from in-flight map so future requests go through normally
+        _tts_inflight.pop(cache_key, None)
 
 
 @api.get("/ai/tts-gemini/test")
