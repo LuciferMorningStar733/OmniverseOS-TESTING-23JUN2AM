@@ -488,7 +488,7 @@ export default function Voice() {
     r.lang             = "en-US";
     r.maxAlternatives  = 3;
 
-    transcriptRef.current = "";
+    transcriptRef.current = "";        finalizedUntilRef.current = 0;
     setTranscript("");
     setInterimText("");
     setResponse("");
@@ -501,11 +501,11 @@ export default function Voice() {
     r.onresult = (e) => {
       let finalText = "";
       let interim   = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = Math.max(e.resultIndex, finalizedUntilRef.current); i < e.results.length; i++) {
         const result = e.results[i];
         const best   = Array.from({ length: result.length }, (_, j) => result[j])
           .reduce((a, b) => (a.confidence >= b.confidence ? a : b));
-        if (result.isFinal) finalText += best.transcript;
+        if (result.isFinal) { finalText += best.transcript; finalizedUntilRef.current = i + 1; }
         else interim += best.transcript;
       }
       if (finalText) {
