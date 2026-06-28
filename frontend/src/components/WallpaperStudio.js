@@ -174,6 +174,12 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
     const [random,    setRandom]    = useState(false);
     const fileRef = useRef(null);
 
+    const applyWallpaper = useCallback((id) => {
+      setWallpaper(id);
+      trackRecentWallpaper(id);
+      setRecent(getRecentWallpapers());
+    }, [setWallpaper]);
+
     // Random wallpaper rotation
     useEffect(() => {
       if (!random) return;
@@ -183,13 +189,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
         applyWallpaper(next.id);
       }, 5 * 60 * 1000); // every 5 min
       return () => clearInterval(interval);
-    }, [random, customs]);
-
-    const applyWallpaper = useCallback((id) => {
-      setWallpaper(id);
-      trackRecentWallpaper(id);
-      setRecent(getRecentWallpapers());
-    }, [setWallpaper]);
+    }, [random, customs, applyWallpaper]);
 
     const handleFav = useCallback((id) => {
       setFavs(toggleFavorite(id));
