@@ -57,7 +57,12 @@ export default function CortexWidget() {
         {QUICK_PROMPTS.map((p, i) => (
           <button
             key={i}
-            onClick={() => openApp("chat")}
+            onClick={() => {
+              openApp("chat");
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("cortex:prompt", { detail: { text: p } }));
+              }, 80);
+            }}
             className="text-left text-xs font-mono px-3 py-1.5 rounded-lg transition-all duration-150"
             style={{
               background: "rgba(0,240,255,0.06)",
