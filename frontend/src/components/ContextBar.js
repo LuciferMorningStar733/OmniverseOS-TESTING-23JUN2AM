@@ -14,7 +14,7 @@ const SENSITIVE_RE = [
   /passwd/i,
   /\bsecret\b/i,
   /\bapi[_\-]?key\b/i,
-  /\btoken\b/i,
+  /_?token_?/i,
   /private[_\-]?key/i,
   /bearer\s+[a-z0-9\-._~+/]{8,}/i,
   /eyJ[a-zA-Z0-9\-_]{10,}\.eyJ[a-zA-Z0-9\-_]{5,}/,
@@ -124,8 +124,9 @@ export default function ContextBar() {
   const [online,   setOnline]   = useState(() => navigator.onLine);
   const [query,    setQuery]    = useState("");
 
-  const lastApp   = useRef(null);
-  const searchRef = useRef(null);
+  const lastApp      = useRef(null);
+  const searchRef    = useRef(null);
+  const copyTimerRef = useRef(null);
 
   // ── Open / collapse helpers ───────────────────────────────────────────────
   const doOpen = useCallback(() => {
@@ -138,8 +139,13 @@ export default function ContextBar() {
     setQuery("");
   }, []);
   const toggle = useCallback(() => {
-    collapsed ? doOpen() : doCollapse();
-  }, [collapsed, doOpen, doCollapse]);
+    setCollapsed((c) => {
+      if (c) { localStorage.setItem(LS_KEY, "false"); return false; }
+      localStorage.setItem(LS_KEY, "true");
+      setQuery("");
+      return true;
+    });
+  }, []);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -193,16 +199,21 @@ export default function ContextBar() {
   }, [activeWin]);
 
   // ── Timeline ──────────────────────────────────────────────────────────────
+  // Depend on activeWin?.app (a primitive string) not activeWin (an object reference).
+  // activeWin is a useMemo that produces a new object on every windows change (e.g. drag),
+  // so using [activeWin] would fire this effect on every pixel dragged.
+  const activeAppId = activeWin?.app ?? null;
+
   useEffect(() => {
-    if (!activeWin || activeWin.app === lastApp.current) return;
-    lastApp.current = activeWin.app;
-    const app = getApp(activeWin.app);
+    if (!activeAppId || activeAppId === lastApp.current) return;
+    lastApp.current = activeAppId;
+    const app = getApp(activeAppId);
     if (!app) return;
     setTimeline((prev) => {
       const entry = { appId: app.id, name: app.name, icon: app.icon, color: app.color, ts: Date.now() };
       return [entry, ...prev.filter((e) => e.appId !== app.id)].slice(0, MAX_HISTORY);
     });
-  }, [activeWin]);
+  }, [activeAppId]);
 
   // ── Clipboard ─────────────────────────────────────────────────────────────
   const readClip = useCallback(async () => {
@@ -216,7 +227,10 @@ export default function ContextBar() {
   }, []);
 
   useEffect(() => {
-    const onCopy  = () => setTimeout(readClip, 60);
+    const onCopy = () => {
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(readClip, 60);
+    };
     const onFocus = () => readClip();
     document.addEventListener("copy",  onCopy);
     window.addEventListener("focus", onFocus);
@@ -224,6 +238,7 @@ export default function ContextBar() {
     return () => {
       document.removeEventListener("copy",  onCopy);
       window.removeEventListener("focus", onFocus);
+      clearTimeout(copyTimerRef.current);
     };
   }, [readClip]);
 
