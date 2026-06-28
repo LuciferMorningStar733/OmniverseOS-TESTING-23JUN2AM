@@ -191,7 +191,7 @@ export default function Browser() {
     setCanFwd(false);
 
     clearTimeout(blockTimerRef.current);
-    setCurrentUrl(url);
+    setCurrentUrl(url);     localStorage.setItem("omniverse_browser_url", url);
     setAddressInput(url);
     setFavicon(getFaviconUrl(url));
     setFaviconErr(false);
@@ -253,7 +253,7 @@ export default function Browser() {
     setCanFwd(true);
     const url = list[newIdx];
     clearTimeout(blockTimerRef.current);
-    setCurrentUrl(url); setAddressInput(url);
+    setCurrentUrl(url);     localStorage.setItem("omniverse_browser_url", url); setAddressInput(url);
     setFavicon(getFaviconUrl(url)); setFaviconErr(false);
     if (isKnownBlocked(url)) {
       setIframeUrl(""); setBlocked(true); setLoading(false);
@@ -272,7 +272,7 @@ export default function Browser() {
     setCanFwd(newIdx < list.length - 1);
     const url = list[newIdx];
     clearTimeout(blockTimerRef.current);
-    setCurrentUrl(url); setAddressInput(url);
+    setCurrentUrl(url);     localStorage.setItem("omniverse_browser_url", url); setAddressInput(url);
     setFavicon(getFaviconUrl(url)); setFaviconErr(false);
     if (isKnownBlocked(url)) {
       setIframeUrl(""); setBlocked(true); setLoading(false);
