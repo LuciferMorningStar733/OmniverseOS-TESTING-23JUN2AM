@@ -1,12 +1,12 @@
 /**
- * Smoke test: app registry must expose all 18 expected modules with
+ * Smoke test: app registry must expose all 19 expected modules with
  * required metadata. Pure data — no DOM / axios / router needed.
  */
 import { APPS, getApp } from "../lib/apps";
 
 describe("apps registry", () => {
-  test("exposes exactly 18 apps", () => {
-    expect(APPS).toHaveLength(18);
+  test("exposes exactly 19 apps", () => {
+    expect(APPS).toHaveLength(19);
   });
 
   test("every app has required fields", () => {
