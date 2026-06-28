@@ -80,7 +80,11 @@ function EmptyState({ onNew }) {
     >
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(0,240,255,0.07)", border: "1px solid rgba(0,240,255,0.14)" }}
+        style={{
+            background: "rgba(0,240,255,0.07)",
+            border: "1px solid rgba(0,240,255,0.18)",
+            boxShadow: "0 0 20px rgba(0,240,255,0.06), inset 0 0 20px rgba(0,240,255,0.04)",
+          }}
       >
         <i className="fa-solid fa-note-sticky text-[#00F0FF]/60 text-2xl" />
       </div>
@@ -185,7 +189,7 @@ export default function Notes() {
     : 0;
 
   return (
-    <div className="flex flex-col sm:flex-row h-full text-white" data-testid="notes-app">
+    <div className="flex flex-col sm:flex-row h-full text-white" data-testid="notes-app" style={{ background: "rgba(5,5,16,0.6)" }}>
 
       {/* ── Sidebar ──────────────────────────────────────────────── */}
       <div
@@ -262,6 +266,7 @@ export default function Notes() {
                   value={sel.title}
                   onChange={(e) => save({ title: e.target.value })}
                   className="bg-transparent outline-none font-heading text-lg sm:text-xl font-bold flex-1 min-w-0"
+                    style={{ letterSpacing: "-0.01em" }}
                   placeholder="Untitled"
                   style={{ caretColor: sel.color }}
                 />
