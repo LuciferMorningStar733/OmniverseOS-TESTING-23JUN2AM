@@ -10,7 +10,7 @@ const URL_MAP = {
   twitter:          "https://www.twitter.com",
   x:                "https://www.x.com",
   telegram:         "https://web.telegram.org",
-  discord:          "https://discord.com/app",
+  nebula:           "https://discord.com/app",
   netflix:          "https://www.netflix.com",
   spotify:          "https://open.spotify.com",
   wikipedia:        "https://en.wikipedia.org",
@@ -96,7 +96,8 @@ const INTERNAL_APP_MAP = {
   "clipboard":      "clipboard",
   "watchlist":      "watchlist",
   "watch list":     "watchlist",
-  "discord":        "discord",
+  "nebula":         "nebula",
+  "nebula chat":    "nebula",
   "weather":        "browser",
 };
 

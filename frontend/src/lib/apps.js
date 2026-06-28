@@ -18,7 +18,7 @@ export const APPS = [
   { id: "code",       name: "Code",        icon: "fa-code",         color: "#39FF14", Component: lazy(() => import("../apps/CodeEditor")),    group: "system" },
   { id: "finance",    name: "Finance",     icon: "fa-chart-line",   color: "#39FF14", Component: lazy(() => import("../apps/Finance")),       group: "data" },
   { id: "analytics",  name: "Analytics",   icon: "fa-chart-pie",    color: "#FF003C", Component: lazy(() => import("../apps/Finance")),       group: "data" },
-  { id: "discord",    name: "Discord",     icon: "fa-hashtag",      color: "#00F0FF", Component: lazy(() => import("../apps/Browser")),       group: "social" },
+  { id: "nebula",     name: "Nebula Chat", icon: "fa-satellite-dish", color: "#C778DD", Component: lazy(() => import("../apps/Browser")),       group: "social" },
   { id: "browser",    name: "Browser",     icon: "fa-globe",        color: "#FCEE09", Component: lazy(() => import("../apps/Browser")),       group: "system" },
   { id: "settings",   name: "Settings",    icon: "fa-gear",         color: "#94A3B8", Component: lazy(() => import("../apps/Settings")),      group: "system" },
 ];

@@ -60,7 +60,7 @@ const APP_HINTS = {
   analytics: ["Ask AI|chat",             "Open Browser|browser"],
   settings:  ["Open AI Chat|chat",       "Open Browser|browser"],
   memory:    ["Open AI Chat|chat",       "Open Notes|notes"],
-  discord:   ["Open AI Chat|chat",       "Open Browser|browser"],
+  nebula:    ["Open AI Chat|chat",        "Open Browser|browser"],
   watchlist: ["Open Browser|browser",    "Open AI Chat|chat"],
   clipboard: ["Open AI Chat|chat",       "Open Notes|notes"],
   dashboard: ["Open AI Chat|chat",       "Open Browser|browser"],
