@@ -16,11 +16,14 @@ from pathlib import Path
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import uuid
-import traceback
 import bcrypt
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
 from providers import provider_manager
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -827,8 +830,6 @@ else:
         allow_headers=["*"],
     )
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # ── Serve built React frontend (production) ───────────────────────────────
 _FRONTEND_BUILD = Path(__file__).parent.parent / "frontend" / "build"
