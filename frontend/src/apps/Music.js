@@ -143,14 +143,14 @@ export default function Music() {
   const playerRef    = useRef(null);
   const containerRef = useRef(null);
   const timerRef     = useRef(null);       // progress poll
-  const skipRef      = useRef(null);       // auto-skip setTimeout
+  const skipRef      = useRef(null);       // auto-skip setInterval
   const skipCountRef = useRef(0);          // countdown display
   const mountedRef   = useRef(true);
   const autoPlayRef  = useRef(false);      // should new track auto-play?
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; clearInterval(timerRef.current); clearTimeout(skipRef.current); };
+    return () => { mountedRef.current = false; clearInterval(timerRef.current); clearInterval(skipRef.current); };
   }, []);
 
   // ── Current track index (from queue) ─────────────────────────────────────
@@ -194,7 +194,7 @@ export default function Music() {
   }, [queue]);
 
   const goNext = useCallback(() => {
-    clearTimeout(skipRef.current);
+    clearInterval(skipRef.current);
     if (repeat === REPEAT.ONE) {
       // restart same track by incrementing then decrementing (forces useEffect)
       autoPlayRef.current = true;
@@ -217,7 +217,7 @@ export default function Music() {
   }, [queue.length, repeat]);
 
   const goPrev = useCallback(() => {
-    clearTimeout(skipRef.current);
+    clearInterval(skipRef.current);
     autoPlayRef.current = true;
     if (currentSec > 3) {
       // restart current track
@@ -234,7 +234,7 @@ export default function Music() {
     if (!apiReady || !containerRef.current) return;
 
     clearInterval(timerRef.current);
-    clearTimeout(skipRef.current);
+    clearInterval(skipRef.current);
     if (playerRef.current) {
       try { playerRef.current.destroy(); } catch (_) {}
       playerRef.current = null;
@@ -627,7 +627,7 @@ export default function Music() {
                     <i className="fa-solid fa-triangle-exclamation text-[9px]" />
                     Track unavailable — skipping in {skipTimer}s
                     <button
-                      onClick={() => { clearTimeout(skipRef.current); setSkipTimerState(null); }}
+                      onClick={() => { clearInterval(skipRef.current); setSkipTimerState(null); }}
                       className="underline opacity-60 hover:opacity-100"
                     >
                       cancel
