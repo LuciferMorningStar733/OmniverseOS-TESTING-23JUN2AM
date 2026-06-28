@@ -9,6 +9,7 @@ import LockScreen from "./LockScreen";
 import CommandPalette from "./CommandPalette";
 import NotificationCenter from "./NotificationCenter";
 import MissionControl from "./MissionControl";
+import AIDock from "./AIDock";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
@@ -345,6 +346,7 @@ export default function Desktop() {
       )}
 
       <Dock />
+      {!isMobile && <AIDock />}
       <CommandPalette />
       <NotificationCenter />
       {!isMobile && (
