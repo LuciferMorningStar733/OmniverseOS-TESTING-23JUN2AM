@@ -39,12 +39,12 @@ function detectType(text) {
 
 /* — Orb colour map ————————————————————————————————————— */
 const ORB = {
-  idle:     { a: "#00F0FF", b: "#0055CC", glow: "rgba(0,240,255,0.50)"   },
-  thinking: { a: "#CF9FFF", b: "#7B2FFF", glow: "rgba(207,158,255,0.50)" },
-  working:  { a: "#39FF14", b: "#008800A", glow: "rgba(57,255,20,0.50)"  },
-  offline:  { a: "#FF003C", b: "#880020",  glow: "rgba(255,60,0,0.50)"   },
-  error:    { a: "#FF8C00", b: "#CC5500",  glow: "rgba(255,140,0,0.50)"  },
-  muted:    { a: "#94A3B8", b: "#334155",  glow: "rgba(148,163,184,0.25)"},
+  idle:     { a: "#00F0FF", b: "#0055CC", glow: "rgba(0,240,255,0.50)"    },
+  thinking: { a: "#CF9FFF", b: "#7B2FFF", glow: "rgba(207,158,255,0.50)"  },
+  working:  { a: "#39FF14", b: "#008800", glow: "rgba(57,255,20,0.50)"    },
+  offline:  { a: "#FF003C", b: "#880020", glow: "rgba(255,60,0,0.50)"     },
+  error:    { a: "#FF8C00", b: "#CC5500", glow: "rgba(255,140,0,0.50)"    },
+  muted:    { a: "#94A3B8", b: "#334155", glow: "rgba(148,163,184,0.25)"  },
 };
 
 /* — cortex:prompt dispatcher ——————————————————————————— */
@@ -73,7 +73,6 @@ function isGitHubUrl(url) {
 function buildSuggestions({ clip, activeId, recentApps, time }) {
   const sugs = [];
 
-  /* clipboard-driven */
   if (clip && clip.type !== "empty" && !clip.sensitive) {
     if (clip.type === "url") {
       sugs.push({
@@ -121,7 +120,7 @@ function buildSuggestions({ clip, activeId, recentApps, time }) {
     if (clip.type === "json") {
       sugs.push({
         label: "Parse JSON",
-        icon: "fa-brackets-curly",
+        icon: "fa-list",
         priority: 82,
         app: "chat",
         prompt: `Explain and prettify this JSON:\n\n${clip.text}`,
@@ -138,7 +137,6 @@ function buildSuggestions({ clip, activeId, recentApps, time }) {
     }
   }
 
-  /* current browser page */
   const storedUrl = localStorage.getItem("cortex_current_url");
   if (storedUrl && activeId === "browser") {
     sugs.push({
@@ -150,7 +148,6 @@ function buildSuggestions({ clip, activeId, recentApps, time }) {
     });
   }
 
-  /* recent apps context */
   if (recentApps.includes("notes")) {
     sugs.push({
       label: "Organize notes",
@@ -161,7 +158,6 @@ function buildSuggestions({ clip, activeId, recentApps, time }) {
     });
   }
 
-  /* time-of-day */
   if (time === "morning") {
     sugs.push({
       label: "Plan my day",
@@ -183,7 +179,7 @@ function buildSuggestions({ clip, activeId, recentApps, time }) {
 
   sugs.push({
     label: "What can you do?",
-    icon: "fa-sparkles",
+    icon: "fa-star",
     priority: 10,
     app: "chat",
     prompt:
@@ -195,15 +191,15 @@ function buildSuggestions({ clip, activeId, recentApps, time }) {
 
 /* — Quick actions ————————————————————————————————————— */
 const QUICK = [
-  { label: "AI Chat",   app: "chat",      icon: "fa-comments",       color: "#00F0FF" },
-  { label: "Browser",   app: "browser",   icon: "fa-globe",          color: "#FCEE09" },
-  { label: "Notes",     app: "notes",     icon: "fa-note-sticky",    color: "#FCEE09" },
-  { label: "Music",     app: "music",     icon: "fa-music",          color: "#39FF14" },
-  { label: "Clipboard", app: "clipboard", icon: "fa-clipboard",      color: "#39FF14" },
-  { label: "Tasks",     app: "tasks",     icon: "fa-list-check",     color: "#00F0FF" },
-  { label: "Search",    app: null,        icon: "fa-magnifying-glass",color: "#CF9EFF", action: "palette" },
-  { label: "Calendar",  app: "calendar",  icon: "fa-calendar",       color: "#FF003C" },
-  { label: "Settings",  app: "settings",  icon: "fa-gear",           color: "#94A3B8" },
+  { label: "AI Chat",   app: "chat",      icon: "fa-comments",        color: "#00F0FF" },
+  { label: "Browser",   app: "browser",   icon: "fa-globe",           color: "#FCEE09" },
+  { label: "Notes",     app: "notes",     icon: "fa-note-sticky",     color: "#FCEE09" },
+  { label: "Music",     app: "music",     icon: "fa-music",           color: "#39FF14" },
+  { label: "Clipboard", app: "clipboard", icon: "fa-clipboard",       color: "#39FF14" },
+  { label: "Tasks",     app: "tasks",     icon: "fa-list-check",      color: "#00F0FF" },
+  { label: "Search",    app: null,        icon: "fa-magnifying-glass", color: "#CF9EFF", action: "palette" },
+  { label: "Calendar",  app: "calendar",  icon: "fa-calendar",        color: "#FF003C" },
+  { label: "Settings",  app: "settings",  icon: "fa-gear",            color: "#94A3B8" },
 ];
 
 /* — Shared styles ————————————————————————————————————— */
@@ -222,14 +218,14 @@ const FONT = "'Outfit', ui-sans-serif, sans-serif";
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export default function AIDock() {
   const { activeId, windows, openApp, setPaletteOpen } = useOS();
-  const [expanded, setExpanded]       = useState(false);
-  const [orbStatus, setOrbStatus]     = useState("idle");
-  const [clip, setClip]               = useState({ text: "", type: "empty", sensitive: false });
-  const [online, setOnline]           = useState(() => navigator.onLine);
-  const [recentApps, setRecentApps]   = useState([]);
-  const [showBadge, setShowBadge]     = useState(false);
-  const badgeTimer  = useRef(null);
-  const copyTimer   = useRef(null);
+  const [expanded, setExpanded]     = useState(false);
+  const [orbStatus, setOrbStatus]   = useState("idle");
+  const [clip, setClip]             = useState({ text: "", type: "empty", sensitive: false });
+  const [online, setOnline]         = useState(() => navigator.onLine);
+  const [recentApps, setRecentApps] = useState([]);
+  const [showBadge, setShowBadge]   = useState(false);
+  const badgeTimer = useRef(null);
+  const copyTimer  = useRef(null);
 
   /* online/offline */
   useEffect(() => {
@@ -246,10 +242,9 @@ export default function AIDock() {
   /* track recent apps */
   useEffect(() => {
     if (activeId) {
-      setRecentApps((prev) => {
-        const next = [activeId, ...prev.filter((a) => a !== activeId)].slice(0, 5);
-        return next;
-      });
+      setRecentApps((prev) =>
+        [activeId, ...prev.filter((a) => a !== activeId)].slice(0, 5)
+      );
     }
   }, [activeId]);
 
@@ -273,7 +268,7 @@ export default function AIDock() {
     return () => clearInterval(id);
   }, [clip.text]);
 
-  /* cortex:thinking / cortex:done events */
+  /* cortex:thinking / cortex:done */
   useEffect(() => {
     const onThink = () => setOrbStatus("thinking");
     const onDone  = () => setOrbStatus(online ? "idle" : "offline");
@@ -285,7 +280,7 @@ export default function AIDock() {
     };
   }, [online]);
 
-  /* cleanup timers */
+  /* cleanup */
   useEffect(() => () => {
     clearTimeout(badgeTimer.current);
     clearTimeout(copyTimer.current);
@@ -311,33 +306,123 @@ export default function AIDock() {
     setExpanded(false);
   }, [openApp, setPaletteOpen]);
 
-  /* — sub-components — */
-  const PanelHeader = () => (
-    <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "14px 18px 10px", borderBottom: "1px solid rgba(0,240,255,0.08)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{
-          width: 8, height: 8, borderRadius: "50%",
-          background: orb.a, boxShadow: `0 0 8px ${orb.glow}`,
-        }} />
-        <span style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: FONT }}>
-          Cortex Intelligence
-        </span>
-      </div>
-      <button
-        onClick={() => setExpanded(false)}
-        style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
-        aria-label="Close panel"
-      >×</button>
+  return (
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, fontFamily: FONT }}>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            key="panel"
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0,  scale: 1 }}
+            exit={{    opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            style={{
+              ...GLASS,
+              borderRadius: 20,
+              width: 340,
+              marginBottom: 14,
+              overflow: "hidden",
+            }}
+          >
+            {/* header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 18px 10px",
+              borderBottom: "1px solid rgba(0,240,255,0.08)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: orb.a, boxShadow: `0 0 8px ${orb.glow}`,
+                }} />
+                <span style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600 }}>
+                  Cortex Intelligence
+                </span>
+              </div>
+              <button
+                onClick={() => setExpanded(false)}
+                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+                aria-label="Close"
+              >x</button>
+            </div>
+
+            {/* suggestions */}
+            {suggestions.length > 0 && (
+              <div style={{ padding: "10px 14px 6px" }}>
+                <p style={{ color: "#475569", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 8px" }}>
+                  Suggestions
+                </p>
+                {suggestions.map((s, i) => (
+                  <motion.button
+                    key={i}
+                    whileHover={{ backgroundColor: "rgba(0,240,255,0.08)" }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleSuggestion(s)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      width: "100%", background: "none", border: "none",
+                      borderRadius: 10, padding: "8px 10px", cursor: "pointer",
+                      color: "#cbd5e1", fontSize: 13, textAlign: "left",
+                      marginBottom: 2,
+                    }}
+                  >
+                    <i className={`fas ${s.icon}`} style={{ color: "#00F0FF", width: 16, textAlign: "center" }} />
+                    {s.label}
+                  </motion.button>
+                ))}
+              </div>
+            )}
+
+            {/* quick actions */}
+            <div style={{ padding: "6px 14px 14px", borderTop: "1px solid rgba(0,240,255,0.06)", marginTop: 4 }}>
+              <p style={{ color: "#475569", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "8px 0" }}>
+                Quick Launch
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {QUICK.map((q, i) => (
+                  <motion.button
+                    key={i}
+                    whileHover={{ scale: 1.04, backgroundColor: "rgba(255,255,255,0.06)" }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleQuick(q)}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 10, padding: "9px 4px", cursor: "pointer",
+                    }}
+                  >
+                    <i className={`fas ${q.icon}`} style={{ color: q.color, fontSize: 15 }} />
+                    <span style={{ color: "#94a3b8", fontSize: 10, fontWeight: 500 }}>{q.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* orb button */}
+      <motion.button
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.94 }}
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          width: 52, height: 52, borderRadius: "50%", border: "none", cursor: "pointer",
+          background: `radial-gradient(circle at 35% 35%, ${orb.a}, ${orb.b})`,
+          boxShadow: `0 0 0 2px rgba(0,240,255,0.15), 0 0 24px ${orb.glow}`,
+          position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+        aria-label="Toggle Cortex panel"
+      >
+        <i className="fas fa-atom" style={{ color: "#fff", fontSize: 20, opacity: 0.95 }} />
+        {showBadge && (
+          <span style={{
+            position: "absolute", top: 2, right: 2,
+            width: 10, height: 10, borderRadius: "50%",
+            background: "#00F0FF", border: "2px solid #070910",
+          }} />
+        )}
+      </motion.button>
     </div>
   );
-
-  const SuggChip = ({ s }) => (
-    <motion.button
-      whileHover={{ scale: 1.03, backgroundColor: "rgba(0,240,255,0.10)" }}
-      whileTap={{ scale: 0.97 }}
-      onClick={() => handleSuggestion(s)}
-      style={{
-        display: "flex", align
+}
