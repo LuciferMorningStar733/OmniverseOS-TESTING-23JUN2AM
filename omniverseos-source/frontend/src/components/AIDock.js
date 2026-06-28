@@ -39,12 +39,12 @@ function detectType(text) {
 
 /* ── Orb colour map ──────────────────────────────────────────────────────── */
 const ORB = {
-  idle:     { a: "#00F0FF", b: "#0055CC", glow: "rgba(0,240,255,0.50)"     },
-  thinking: { a: "#CF9EFF", b: "#7B2FFF", glow: "rgba(207,158,255,0.50)"   },
-  working:  { a: "#39FF14", b: "#00880A", glow: "rgba(57,255,20,0.50)"     },
-  offline:  { a: "#FF003C", b: "#880020", glow: "rgba(255,0,60,0.50)"      },
-  error:    { a: "#FF8C00", b: "#CC5500", glow: "rgba(255,140,0,0.50)"     },
-  muted:    { a: "#94A3B8", b: "#334155", glow: "rgba(148,163,184,0.25)"   },
+  idle:     { a: "#00F0FF", b: "#0055CC", glow: "rgba(0,240,255,0.50)"   },
+  thinking: { a: "#CF9EFF", b: "#7B2FFF", glow: "rgba(207,158,255,0.50)" },
+  working:  { a: "#39FF14", b: "#00880A", glow: "rgba(57,255,20,0.50)"   },
+  offline:  { a: "#FF003C", b: "#880020", glow: "rgba(255,0,60,0.50)"    },
+  error:    { a: "#FF8C00", b: "#CC5500", glow: "rgba(255,140,0,0.50)"   },
+  muted:    { a: "#94A3B8", b: "#334155", glow: "rgba(148,163,184,0.25)" },
 };
 
 /* ── cortex:prompt dispatcher ────────────────────────────────────────────── */
@@ -66,19 +66,11 @@ function getTimeOfDay() {
 
 /* ── GitHub URL detector ─────────────────────────────────────────────────── */
 function isGitHubUrl(url) {
-  try { return new URL(url).hostname.includes("github.com"); } catch { return false; }
+  try { return new URL(url).hostname.includes("github.com"); }
+  catch { return false; }
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   buildSuggestions — context-aware, executable workflows
-   Each suggestion has:
-     label    — display text
-     icon     — FA icon class
-     prompt   — pre-filled text to inject into AI Chat (optional)
-     app      — app to open (always "chat" unless override)
-     navigate — URL to navigate Browser to before opening chat (optional)
-     priority — higher = shown first
-   ────────────────────────────────────────────────────────────────────────── */
+/* ── Smart suggestions with executable workflows ────────────────────────── */
 function buildSuggestions(activeApp, clip, windows, online, time) {
   if (!online) {
     return [{ label: "You are offline", icon: "fa-wifi-slash", app: null, disabled: true, priority: 0 }];
@@ -87,14 +79,13 @@ function buildSuggestions(activeApp, clip, windows, online, time) {
   const sugs = [];
   const browserUrl = localStorage.getItem("omniverse_browser_url") || "";
   const openAppIds = windows.map((w) => w.app);
-  const hasMusic    = openAppIds.includes("music");
-  const hasBrowser  = openAppIds.includes("browser");
-  const hasCode     = openAppIds.includes("code");
-  const hasNotes    = openAppIds.includes("notes");
-  const hasTasks    = openAppIds.includes("tasks");
-  const hasFinance  = openAppIds.includes("finance");
+  const hasMusic   = openAppIds.includes("music");
+  const hasCode    = openAppIds.includes("code");
+  const hasNotes   = openAppIds.includes("notes");
+  const hasTasks   = openAppIds.includes("tasks");
+  const hasFinance = openAppIds.includes("finance");
 
-  /* ── 1. Clipboard-driven (highest context signal) ── */
+  /* clipboard-driven */
   if (clip.type === "url" && clip.text) {
     if (isGitHubUrl(clip.text)) {
       sugs.push({
@@ -165,7 +156,7 @@ function buildSuggestions(activeApp, clip, windows, online, time) {
     });
   }
 
-  /* ── 2. Active app context ── */
+  /* active app context */
   if (activeApp?.id === "browser" && browserUrl) {
     sugs.push({
       label: "Summarize current page",
@@ -239,7 +230,6 @@ function buildSuggestions(activeApp, clip, windows, online, time) {
     });
   }
 
-  /* ── 3. Multi-window state ── */
   if (windows.length >= 3) {
     sugs.push({
       label: "Summarize open apps",
@@ -251,16 +241,9 @@ function buildSuggestions(activeApp, clip, windows, online, time) {
   }
 
   if (hasMusic) {
-    sugs.push({
-      label: "What's playing?",
-      icon: "fa-music",
-      priority: 55,
-      app: "music",
-      prompt: null,
-    });
+    sugs.push({ label: "Music is open", icon: "fa-music", priority: 55, app: "music", prompt: null });
   }
 
-  /* ── 4. Time-of-day defaults (only if no high-priority items) ── */
   if (time === "morning") {
     sugs.push({
       label: "Plan my day",
@@ -287,23 +270,20 @@ function buildSuggestions(activeApp, clip, windows, online, time) {
     prompt: "What can Cortex help me with inside OmniverseOS? Give me a complete list of capabilities with examples.",
   });
 
-  /* ── Sort by priority descending, take top 4 ── */
-  return sugs
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, 4);
+  return sugs.sort((a, b) => b.priority - a.priority).slice(0, 4);
 }
 
 /* ── Quick actions ───────────────────────────────────────────────────────── */
 const QUICK = [
-  { label: "AI Chat",   app: "chat",      icon: "fa-comments",          color: "#00F0FF" },
-  { label: "Browser",   app: "browser",   icon: "fa-globe",             color: "#FCEE09" },
-  { label: "Notes",     app: "notes",     icon: "fa-note-sticky",       color: "#FCEE09" },
-  { label: "Music",     app: "music",     icon: "fa-music",             color: "#39FF14" },
-  { label: "Clipboard", app: "clipboard", icon: "fa-clipboard",         color: "#39FF14" },
-  { label: "Tasks",     app: "tasks",     icon: "fa-list-check",        color: "#00F0FF" },
-  { label: "Search",    app: null,        icon: "fa-magnifying-glass",  color: "#CF9EFF", action: "palette" },
-  { label: "Calendar",  app: "calendar",  icon: "fa-calendar",          color: "#FF003C" },
-  { label: "Settings",  app: "settings",  icon: "fa-gear",              color: "#94A3B8" },
+  { label: "AI Chat",   app: "chat",      icon: "fa-comments",         color: "#00F0FF" },
+  { label: "Browser",   app: "browser",   icon: "fa-globe",            color: "#FCEE09" },
+  { label: "Notes",     app: "notes",     icon: "fa-note-sticky",      color: "#FCEE09" },
+  { label: "Music",     app: "music",     icon: "fa-music",            color: "#39FF14" },
+  { label: "Clipboard", app: "clipboard", icon: "fa-clipboard",        color: "#39FF14" },
+  { label: "Tasks",     app: "tasks",     icon: "fa-list-check",       color: "#00F0FF" },
+  { label: "Search",    app: null,        icon: "fa-magnifying-glass", color: "#CF9EFF", action: "palette" },
+  { label: "Calendar",  app: "calendar",  icon: "fa-calendar",         color: "#FF003C" },
+  { label: "Settings",  app: "settings",  icon: "fa-gear",             color: "#94A3B8" },
 ];
 
 /* ── Shared styles ───────────────────────────────────────────────────────── */
@@ -322,5 +302,18 @@ const FONT = "'Outfit', ui-sans-serif, sans-serif";
 ══════════════════════════════════════════════════════════════════════════ */
 export default function AIDock() {
   const { activeId, windows, openApp, setPaletteOpen } = useOS();
-  const [expanded, setExpanded]     = useState(false);
-  const [orbStatus, setOrbStatus]
+  const [expanded, setExpanded]   = useState(false);
+  const [orbStatus, setOrbStatus] = useState("idle");
+  const [clip, setClip]           = useState({ text: "", type: "empty", sensitive: false });
+  const [online, setOnline]       = useState(() => navigator.onLine);
+  const [recentApps, setRecentApps] = useState([]);
+  const [showBadge, setShowBadge] = useState(false);
+  const badgeTimer  = useRef(null);
+  const copyTimer   = useRef(null);
+
+  /* online/offline */
+  useEffect(() => {
+    const on  = () => { setOnline(true);  setOrbStatus("idle");    };
+    const off = () => { setOnline(false); setOrbStatus("offline"); };
+    window.addEventListener("online",  on);
+    window
