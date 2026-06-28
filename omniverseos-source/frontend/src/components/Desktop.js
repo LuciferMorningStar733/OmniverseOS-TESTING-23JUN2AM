@@ -8,15 +8,16 @@ import TopBar from "./TopBar";
 import LockScreen from "./LockScreen";
 import CommandPalette from "./CommandPalette";
 import NotificationCenter from "./NotificationCenter";
+import MissionControl from "./MissionControl";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
 import WidgetCanvas from "../widgets/WidgetCanvas";
 
-/* ── Ambient desktop particle layer ─────────────────────────────────────────
+/* ?? Ambient desktop particle layer ?????????????????????????????????????????
    A lightweight canvas that renders:
-   • Subtle drifting particles (no performance impact)
-   • Occasional corner telemetry blips
+   . Subtle drifting particles (no performance impact)
+   . Occasional corner telemetry blips
    The canvas is pointer-events-none so it never blocks interaction.       */
 
 function AmbientParticles() {
@@ -154,8 +155,9 @@ export default function Desktop() {
   const { isMobile } = useBreakpoint();
   const wp = getWallpaper(wallpaper);
 
-  /* ── Lock screen (mobile only) ──────────────────────────────────────────── */
+  /* ?? Lock screen (mobile only) ???????????????????????????????????????????? */
   const [locked, setLocked]   = useState(false);
+  const [missionOpen, setMissionOpen] = useState(false);
   const idleTimer             = useRef(null);
 
   const getIdleMs = useCallback(() => {
@@ -184,19 +186,24 @@ export default function Desktop() {
     };
   }, [isMobile, resetIdle]);
 
-  /* ── Keyboard shortcut (desktop) ─────────────────────────────────────────── */
+  /* ?? Keyboard shortcut (desktop) ??????????????????????????????????????????? */
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
+        return;
+      }
+      if (!isMobile && e.ctrlKey && e.key === "Tab") {
+        e.preventDefault();
+        setMissionOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [setPaletteOpen]);
+  }, [isMobile, setPaletteOpen]);
 
-  /* ── Swipe left/right to switch apps (mobile) ───────────────────────────── */
+  /* ?? Swipe left/right to switch apps (mobile) ????????????????????????????? */
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);
@@ -241,7 +248,7 @@ export default function Desktop() {
     }
   }, [isMobile, locked, windows, activeId, focusWindow]);
 
-  /* ── Layout ──────────────────────────────────────────────────────────────── */
+  /* ?? Layout ???????????????????????????????????????????????????????????????? */
   const windowLayerStyle = useMemo(() => isMobile
     ? { top: 60, left: 0, right: 0, bottom: 80 }
     : { top: 0,  left: 0, right: 0, bottom: 0  },
@@ -281,7 +288,7 @@ export default function Desktop() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Ambient particle layer — desktop only, performance-safe */}
+      {/* Ambient particle layer - desktop only, performance-safe */}
       {!isMobile && <AmbientParticles />}
 
       {/* Scanline overlay */}
@@ -294,10 +301,10 @@ export default function Desktop() {
         transition={{ delay: 0.35, duration: 0.45, ease: "easeOut" }}
         style={{ zIndex: 50, position: "relative" }}
       >
-        <TopBar />
+        <TopBar onOpenMissionControl={() => setMissionOpen(true)} />
       </motion.div>
 
-      {/* Widget canvas — sits above wallpaper, below windows */}
+      {/* Widget canvas - sits above wallpaper, below windows */}
       {!isMobile && <WidgetCanvas topOffset={60} />}
 
       {/* Window layer */}
@@ -340,6 +347,12 @@ export default function Desktop() {
       <Dock />
       <CommandPalette />
       <NotificationCenter />
+      {!isMobile && (
+        <MissionControl
+          open={missionOpen}
+          onClose={() => setMissionOpen(false)}
+        />
+      )}
 
       {/* Lock screen */}
       <AnimatePresence>

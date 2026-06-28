@@ -3,7 +3,7 @@ import { useOS } from "../context/OSContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useWidgetManager } from "../widgets/WidgetManagerContext";
 
-export default function TopBar() {
+export default function TopBar({ onOpenMissionControl }) {
   const { user, logout, setPaletteOpen, setNotifOpen, notifications } = useOS();
   const { visible: widgetsVisible, toggleVisible: toggleWidgets } = useWidgetManager();
   const [time, setTime] = useState(new Date());
@@ -41,7 +41,7 @@ export default function TopBar() {
           <i className="fa-solid fa-infinity text-black text-xs" />
         </div>
 
-        {/* Search pill — grows to fill space */}
+        {/* Search pill - grows to fill space */}
         <button
           data-testid="open-command-palette"
           onClick={() => setPaletteOpen(true)}
@@ -57,7 +57,7 @@ export default function TopBar() {
         >
           <i className="fa-solid fa-magnifying-glass text-[#00F0FF] text-sm flex-shrink-0" />
           <span className="flex-1 text-left text-sm text-slate-400 font-mono truncate">
-            Search or ask AI…
+            Search or ask AI.
           </span>
           <i className="fa-solid fa-microphone text-slate-500 text-sm flex-shrink-0" />
         </button>
@@ -142,13 +142,34 @@ export default function TopBar() {
       >
         <i className="fa-solid fa-magnifying-glass text-[#00F0FF] text-xs transition-all group-hover:drop-shadow-[0_0_8px_rgba(0,240,255,0.7)] flex-shrink-0" />
         <span className="text-xs text-slate-400 font-mono group-hover:text-slate-200 transition flex-1 text-left truncate">
-          Search apps, files or ask AI…
+          Search apps, files or ask AI.
         </span>
-        <kbd className="px-1.5 py-0.5 text-[10px] bg-white/10 rounded font-mono text-slate-300 flex-shrink-0">⌘K</kbd>
+        <kbd className="px-1.5 py-0.5 text-[10px] bg-white/10 rounded font-mono text-slate-300 flex-shrink-0">?K</kbd>
       </button>
 
       {/* Right cluster */}
       <div className="flex items-center gap-1 flex-1 justify-end min-w-0">
+        <button
+          onClick={onOpenMissionControl}
+          title="Workspace overview"
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition"
+          style={{
+            background: "transparent",
+            border: "1px solid transparent",
+            color: "rgba(255,255,255,0.4)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.color = "#fff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "rgba(255,255,255,0.4)";
+          }}
+        >
+          <i className="fa-solid fa-layer-group text-sm" />
+        </button>
+
         {/* Widget toggle */}
         <button
           onClick={toggleWidgets}
