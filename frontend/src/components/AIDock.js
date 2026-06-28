@@ -163,7 +163,10 @@ export default function AIDock() {
 
   /* ── Keyboard ─────────────────────────────────────────────────────────── */
   useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape" && expanded) setExpanded(false); };
+    const handler = (e) => {
+        if (e.key === "Escape" && expanded) { setExpanded(false); return; }
+        if ((e.ctrlKey || e.metaKey) && e.code === "Space") { e.preventDefault(); setExpanded((v) => !v); }
+      };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [expanded]);
@@ -381,7 +384,7 @@ function CortexOrb({ orb, expanded, onClick }) {
       whileHover={{ scale: 1.14 }}
       whileTap={{ scale: 0.90 }}
       transition={{ type: "spring", stiffness: 380, damping: 16 }}
-      title={expanded ? "Collapse Cortex AI (Esc)" : "Open Cortex AI"}
+      title={expanded ? "Collapse Cortex AI (Esc)" : "Open Cortex AI (Ctrl+Space)"}
       aria-label={expanded ? "Collapse Cortex AI" : "Open Cortex AI"}
       style={{
         width: 52, height: 52, borderRadius: "50%",
