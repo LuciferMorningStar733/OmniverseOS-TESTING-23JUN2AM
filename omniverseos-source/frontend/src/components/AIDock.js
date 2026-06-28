@@ -185,6 +185,21 @@ export default function AIDock() {
     if (action.app)                  { openApp(action.app);  setExpanded(false); return; }
   }, [openApp, setPaletteOpen]);
 
+
+  /* ── Badge: pulse when new suggestion arrives while collapsed ──── */
+  const prevSugCount = useRef(0);
+  useEffect(() => {
+    const count = suggestions.length;
+    if (!expanded && count > 0 && count !== prevSugCount.current) {
+      setShowBadge(true);
+      clearTimeout(badgeTimer.current);
+      badgeTimer.current = setTimeout(() => setShowBadge(false), 3500);
+    }
+    if (expanded) { setShowBadge(false); clearTimeout(badgeTimer.current); }
+    prevSugCount.current = count;
+    return () => clearTimeout(badgeTimer.current);
+  }, [suggestions, expanded]);
+
   /* ── Render ───────────────────────────────────────────────────────────── */
   return (
     <>
@@ -300,8 +315,33 @@ export default function AIDock() {
         </AnimatePresence>
 
         {/* ── Cortex Orb — always visible ────────────────────────────── */}
-        <div style={{ pointerEvents: "auto" }}>
+        <div style={{ pointerEvents: "auto", position: "relative" }}>
           <CortexOrb orb={orb} expanded={expanded} onClick={() => setExpanded((v) => !v)} />
+          <AnimatePresence>
+            {showBadge && !expanded && (
+              <motion.div
+                key="orb-badge"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                transition={{ type: "spring", damping: 16, stiffness: 380 }}
+                style={{
+                  position: "absolute", top: -3, right: -3,
+                  width: 14, height: 14, borderRadius: "50%",
+                  background: "#00F0FF",
+                  boxShadow: "0 0 0 2px rgba(7,9,16,0.9), 0 0 10px rgba(0,240,255,0.8)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.6, 1], opacity: [1, 0.25, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.9)" }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </>
