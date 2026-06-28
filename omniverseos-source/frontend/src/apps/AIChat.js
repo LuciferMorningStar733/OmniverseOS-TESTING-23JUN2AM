@@ -334,10 +334,15 @@ export default function AIChat() {
   const mountedRef = useRef(true);
   const abortRef  = useRef(null);
   const reqIdRef  = useRef(0);
+  const inputRef  = useRef("");
+  const sendRef   = useRef(null);
+  const micBaseRef = useRef("");
+  const micInputSnapshotRef = useRef("");
 
   const { openApp, closeWindow, focusWindow, minimize, windows } = useOS();
   const windowsRef    = useRef([]);
   useEffect(() => { windowsRef.current = windows; }, [windows]);
+  useEffect(() => { inputRef.current = input; }, [input]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
 
   // Derived model object
@@ -361,6 +366,8 @@ export default function AIChat() {
     r.lang            = "en-US";
     r.maxAlternatives = 3;
     micActiveRef.current = true;
+    micBaseRef.current = "";
+    micInputSnapshotRef.current = inputRef.current;
     setIsRecording(true);
 
     r.onresult = (e) => {
@@ -373,11 +380,18 @@ export default function AIChat() {
         if (res.isFinal) finalText += best.transcript;
         else interim += best.transcript;
       }
+      if (finalText) {
+        micBaseRef.current = (micBaseRef.current ? micBaseRef.current + " " : "") + finalText.trim();
+      }
       if (mountedRef.current) {
-        setInput((prev) => {
-          const base = finalText ? (prev + (prev ? " " : "") + finalText) : prev;
-          return interim ? base + (base ? " " : "") + interim : base;
-        });
+        const preBase   = micInputSnapshotRef.current;
+        const committed = preBase
+          ? preBase + (micBaseRef.current ? " " + micBaseRef.current : "")
+          : micBaseRef.current;
+        const display = interim
+          ? committed + (committed ? " " : "") + interim
+          : committed;
+        setInput(display);
       }
     };
 
@@ -413,11 +427,12 @@ export default function AIChat() {
     if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages, streamStatus]);
 
-  const send = useCallback(async () => {
-    if (!input.trim()) return;
+  const send = useCallback(async (forcedText) => {
+    const rawText = typeof forcedText === "string" ? forcedText : input;
+    if (!rawText.trim()) return;
 
     abortRef.current?.abort();
-    const text = input.trim();
+    const text = rawText.trim();
     setInput("");
     setStreamStatus(null);
     const myReqId = ++reqIdRef.current;
@@ -523,6 +538,18 @@ export default function AIChat() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, model]);
+
+  useEffect(() => { sendRef.current = send; }, [send]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const text = e.detail?.text;
+      if (!text?.trim()) return;
+      sendRef.current?.(text);
+    };
+    window.addEventListener("cortex:prompt", handler);
+    return () => window.removeEventListener("cortex:prompt", handler);
+  }, []);
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
