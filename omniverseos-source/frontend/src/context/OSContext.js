@@ -7,6 +7,9 @@ import React, {
 } from "react";
 import { authApi } from "../lib/api";
 import { DEFAULT_WALLPAPER } from "../lib/wallpapers";
+import { trackEvent }  from "../lib/activityTimeline";
+import { autoSave }    from "../lib/workspaceSnapshot";
+import { rememberActiveApp, rememberLastUrl, memClear } from "../lib/memoryEngine";
 
 const OSContext = createContext(null);
 
@@ -23,50 +26,51 @@ const safeJSON = (key, fallback) => {
 };
 
 export const OSProvider = ({ children }) => {
-  // ── auth ──────────────────────────────────────────────────────────────────
+  // ── auth ────────────────────────────────────────────────────────────────────
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ── window manager ────────────────────────────────────────────────────────
+  // ── window manager ──────────────────────────────────────────────────────────
   const [windows,  setWindows]  = useState(() => safeJSON(LS_WINDOWS, []));
   const [activeId, setActiveId] = useState(null);
   const [zCounter, setZCounter] = useState(100);
 
-  // ── UI overlays ───────────────────────────────────────────────────────────
+  // ── UI overlays ─────────────────────────────────────────────────────────────
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen,   setNotifOpen]   = useState(false);
 
-  // ── notifications ─────────────────────────────────────────────────────────
+  // ── notifications ───────────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState(() =>
     safeJSON(LS_NOTIFS, [])
   );
 
-  // ── wallpaper ─────────────────────────────────────────────────────────────
+  // ── wallpaper ───────────────────────────────────────────────────────────────
   const [wallpaper, setWallpaperState] = useState(
     () => localStorage.getItem(LS_WALLPAPER) || DEFAULT_WALLPAPER
   );
-
   const setWallpaper = useCallback((id) => {
     setWallpaperState(id);
     localStorage.setItem(LS_WALLPAPER, id);
   }, []);
 
-  // ── persistence effects ───────────────────────────────────────────────────
+  // ── persistence effects ─────────────────────────────────────────────────────
   useEffect(() => {
-    // Only persist geometry — keep sensitive z / minimized state out of LS
+    // Persist geometry — keep sensitive z / minimized state out of LS
     localStorage.setItem(
       LS_WINDOWS,
       JSON.stringify(
         windows.map(({ id, app, x, y, w, h }) => ({ id, app, x, y, w, h }))
       )
     );
+    // Cortex: auto-save workspace snapshot whenever windows change
+    autoSave(windows);
   }, [windows]);
 
   useEffect(() => {
     localStorage.setItem(LS_NOTIFS, JSON.stringify(notifications.slice(0, 30)));
   }, [notifications]);
 
-  // ── auth init ─────────────────────────────────────────────────────────────
+  // ── auth init ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem(LS_TOKEN);
@@ -83,20 +87,18 @@ export const OSProvider = ({ children }) => {
     init();
   }, []);
 
-  // ── auth actions ──────────────────────────────────────────────────────────
-  // Supports both { token, user } and { access_token } backend response shapes.
+  // ── auth actions ─────────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
-    const res = await authApi.login({ email, password });
+    const res   = await authApi.login({ email, password });
     const token = res.token || res.access_token;
     localStorage.setItem(LS_TOKEN, token);
-    // Use user from response when available; fall back to /me
     const me = res.user ? res.user : await authApi.me();
     setUser(me);
     return me;
   }, []);
 
   const signup = useCallback(async (email, password, name) => {
-    const res = await authApi.signup({ email, password, name });
+    const res   = await authApi.signup({ email, password, name });
     const token = res.token || res.access_token;
     localStorage.setItem(LS_TOKEN, token);
     const me = res.user ? res.user : await authApi.me();
@@ -108,13 +110,14 @@ export const OSProvider = ({ children }) => {
     localStorage.removeItem(LS_TOKEN);
     setUser(null);
     setWindows([]);
+    // Cortex: wipe memory on logout
+    memClear();
   }, []);
 
-  // ── window manager ────────────────────────────────────────────────────────
+  // ── window manager ───────────────────────────────────────────────────────────
   const openApp = useCallback((appId) => {
     let newZ = 0;
     setZCounter((z) => { newZ = z + 1; return newZ; });
-
     setWindows((prev) => {
       const existing = prev.find((w) => w.app === appId);
       if (existing) {
@@ -123,10 +126,8 @@ export const OSProvider = ({ children }) => {
           w.id === existing.id ? { ...w, z: newZ, minimized: false } : w
         );
       }
-
       const id = `${appId}-${Date.now()}`;
       setActiveId(id);
-
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const width  = Math.min(920, vw * 0.85);
@@ -134,16 +135,23 @@ export const OSProvider = ({ children }) => {
       const cascadeOffset = (prev.length * 30) % 120;
       const x = Math.max(0, (vw - width)  / 2) + cascadeOffset;
       const y = Math.max(0, (vh - height) / 2) + cascadeOffset;
-
       return [
         ...prev,
         { id, app: appId, x, y, w: width, h: height, z: newZ, minimized: false, maximized: false },
       ];
     });
+    // Cortex: record open event
+    trackEvent("app_open", { appId });
+    rememberActiveApp(appId);
   }, []);
 
   const closeWindow = useCallback((id) => {
-    setWindows((prev) => prev.filter((w) => w.id !== id));
+    setWindows((prev) => {
+      const win = prev.find((w) => w.id === id);
+      // Cortex: record close event
+      if (win) trackEvent("app_close", { appId: win.app });
+      return prev.filter((w) => w.id !== id);
+    });
   }, []);
 
   const focusWindow = useCallback((id) => {
@@ -173,36 +181,39 @@ export const OSProvider = ({ children }) => {
     );
   }, []);
 
-  // ── notifications ─────────────────────────────────────────────────────────
+  // ── Cortex: URL tracking helper (call this from the Browser app) ─────────────
+  const trackUrl = useCallback((url) => {
+    trackEvent("url_visit", { url });
+    rememberLastUrl(url);
+  }, []);
+
+  // ── notifications ────────────────────────────────────────────────────────────
   const pushNotification = useCallback((title, message, type = "info") => {
     const n = {
-      id:      `n-${Date.now()}`,
+      id:   `n-${Date.now()}`,
       title,
       message,
       type,
-      time:    new Date().toISOString(),
+      time: new Date().toISOString(),
     };
     setNotifications((prev) => [n, ...prev].slice(0, 50));
   }, []);
 
   const clearNotifications = useCallback(() => setNotifications([]), []);
 
-  // ── context value ─────────────────────────────────────────────────────────
+  // ── context value ────────────────────────────────────────────────────────────
   return (
     <OSContext.Provider
       value={{
-        // auth
-        user, loading, login, signup, logout,
-        // windows
+        user, loading,
+        login, signup, logout,
         windows, activeId,
         openApp, closeWindow, focusWindow, updateWindow, toggleMaximize, minimize,
-        // overlays
         paletteOpen, setPaletteOpen,
         notifOpen,   setNotifOpen,
-        // notifications
         notifications, pushNotification, clearNotifications,
-        // wallpaper
         wallpaper, setWallpaper,
+        trackUrl,
       }}
     >
       {children}
