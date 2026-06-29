@@ -2,8 +2,10 @@
  * speechCorrection.js — Context-Aware Speech Correction Engine
  * OmniverseOS Speech Intelligence Layer
  *
- * Corrects STT (speech-to-text) transcript errors using contextual awareness.
- * No AI calls. No network requests. Executes locally in <5ms.
+ * Context-aware speech-to-text transcript normalization.
+ * Corrects common speech-to-text errors without modifying proper names.
+ * Executes entirely locally - no AI calls, no network requests.
+ * Target execution: <5ms
  *
  * Architecture:
  *   normalizeTranscript(rawTranscript, context) → correctedTranscript
@@ -25,7 +27,7 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTEXTUAL DICTIONARIES
-// Each entry: [rawPattern (lowercase), correctedForm]
+// Each entry: [rawPattern, correctedForm]
 // Patterns are matched case-insensitively at word boundaries.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -41,7 +43,6 @@ const DICT_DEVELOPER = [
   ["stack overflow", "Stack Overflow"],
   ["vs code",        "VS Code"],
   ["visual studio code", "Visual Studio Code"],
-
   // Languages & Runtimes
   ["javascript",     "JavaScript"],
   ["java script",    "JavaScript"],
@@ -64,7 +65,6 @@ const DICT_DEVELOPER = [
   ["docker",         "Docker"],
   ["kubernetes",     "Kubernetes"],
   ["open router",    "OpenRouter"],
-
   // Formats & Protocols
   ["jason",          "JSON"],
   ["jay son",        "JSON"],
@@ -77,7 +77,6 @@ const DICT_DEVELOPER = [
   ["graphql",        "GraphQL"],
   ["web hook",       "webhook"],
   ["web hooks",      "webhooks"],
-
   // Developer Terms
   ["api",            "API"],
   ["ui",             "UI"],
@@ -107,8 +106,6 @@ const DICT_DEVELOPER = [
   ["web sockets",    "WebSockets"],
   ["local storage",  "localStorage"],
   ["session storage","sessionStorage"],
-
-  // STT/TTS abbreviations
   ["tts",            "TTS"],
   ["stt",            "STT"],
   ["t t s",          "TTS"],
@@ -124,8 +121,8 @@ const DICT_DEVELOPER = [
 const DICT_AI = [
   ["open a i",       "OpenAI"],
   ["open ai",        "OpenAI"],
-  ["chat g p t",     "ChatGPT"],
   ["chat gpt",       "ChatGPT"],
+  ["chat g p t",     "ChatGPT"],
   ["claud",          "Claude"],
   ["claude",         "Claude"],
   ["anthropic",      "Anthropic"],
@@ -143,7 +140,6 @@ const DICT_AI = [
   ["cerebras",       "Cerebras"],
   ["perplexity",     "Perplexity"],
   ["hugging face",   "Hugging Face"],
-  ["open router",    "OpenRouter"],
   ["lm studio",      "LM Studio"],
   ["ollama",         "Ollama"],
 ];
@@ -171,14 +167,7 @@ const DICT_GENERAL = [
   ["ubuntu",         "Ubuntu"],
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MICROPHONE CONTEXT — "mike" → "mic" only when in audio/voice context
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Words that signal "mike" means "microphone" (not a person's name).
- * If any of these appear within 5 words of "mike", apply the correction.
- */
+// ── Microphone context words ────────────────────────────────────────────────────
 const MIC_CONTEXT_WORDS = new Set([
   "mute", "unmute", "audio", "speaker", "speakers", "microphone",
   "record", "recording", "bluetooth", "headset", "headphone", "headphones",
@@ -188,41 +177,21 @@ const MIC_CONTEXT_WORDS = new Set([
   "gain", "monitor", "studio",
 ]);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// APP DOMAIN CLASSIFICATION
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * App IDs that indicate a technical/developer context.
- * These receive full developer + AI dictionary corrections.
- */
+// ── App domain classification ──────────────────────────────────────────────────
 const TECH_APP_IDS = new Set([
   "chat", "code", "browser", "voice", "image", "memory", "dashboard",
   "analytics", "nebula",
 ]);
 
-/**
- * App IDs that indicate a general/casual context.
- * These receive only general + AI corrections (no aggressive dev rewriting).
- */
 const CASUAL_APP_IDS = new Set([
   "music", "calendar", "notes", "tasks", "finance", "watchlist",
   "videos", "files", "clipboard", "settings",
 ]);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// URL DOMAIN BIASING
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Returns the active dictionary set based on browser URL.
- * @param {string} url
- * @returns {{ dev: boolean, ai: boolean }}
- */
+// ── URL domain biasing ──────────────────────────────────────────────────────────
 function biasFromUrl(url) {
   if (!url) return { dev: false, ai: false };
   const lower = url.toLowerCase();
-
   const devDomains = [
     "github.com", "gitlab.com", "stackoverflow.com", "npmjs.com",
     "developer.", "docs.", "api.", "code.", "dev.", "codesandbox.io",
@@ -232,33 +201,117 @@ function biasFromUrl(url) {
     "openai.com", "anthropic.com", "gemini.google.com", "chat.openai.com",
     "claude.ai", "perplexity.ai", "huggingface.co", "deepseek.com",
   ];
-
   const dev = devDomains.some(d => lower.includes(d));
-  const ai  = aiDomains.some(d => lower.includes(d));
+  const ai = aiDomains.some(d => lower.includes(d));
   return { dev, ai };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CORE CORRECTION ENGINE
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Core correction functions ──────────────────────────────────────────────────
 
-/**
- * Builds a regex from a raw phrase for whole-word matching.
- * Escapes special regex characters.
- * @param {string} phrase
- * @returns {RegExp}
- */
 function buildPattern(phrase) {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(?<![\\w])${escaped}(?![\\w])`, "gi");
 }
 
+function applyDictionary(text, dict) {
+  let result = text;
+  for (const [raw, corrected] of dict) {
+    const pattern = buildPattern(raw);
+    result = result.replace(pattern, corrected);
+  }
+  return result;
+}
+
+function correctMikeToMic(text) {
+  const micKeywords = MIC_CONTEXT_WORDS;
+  const words = text.split(/(\s+)/);
+  const tokens = words.filter(w => w.trim().length > 0);
+  const WINDOW = 5;
+
+  const correctedTokens = tokens.map((token, idx) => {
+    if (!/^mike$/i.test(token)) return token;
+    const start = Math.max(0, idx - WINDOW);
+    const end = Math.min(tokens.length - 1, idx + WINDOW);
+    for (let i = start; i <= end; i++) {
+      if (i === idx) continue;
+      const clean = tokens[i].toLowerCase().replace(/[^a-z]/g, "");
+      if (micKeywords.has(clean)) {
+        if (token === token.toUpperCase()) return "MIC";
+        if (token[0] === token[0].toUpperCase()) return "Mic";
+        return "mic";
+      }
+    }
+    return token;
+  });
+
+  let out = "";
+  let tIdx = 0;
+  for (const part of words) {
+    if (part.trim().length > 0) {
+      out += correctedTokens[tIdx++];
+    } else {
+      out += part;
+    }
+  }
+  return out;
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
 /**
- * Applies a dictionary of corrections to a transcript.
- * Respects word boundaries to avoid partial-word substitutions.
+ * Normalizes a raw speech-to-text transcript using contextual awareness.
  *
- * @param {string} text - Input transcript
- * @param {Array<[string, string]>} dict - Array of [rawPattern, correction]
+ * @param {string} rawTranscript - Raw text from SpeechRecognition API
+ * @param {Object} [context={}] - Context object for intelligent correction
+ * @param {string} [context.browserUrl] - Current browser tab URL
+ * @param {string} [context.activeAppId] - Active OmniverseOS app ID
+ * @param {string} [context.browserTitle] - Current browser page title
  * @returns {string} - Corrected transcript
  */
-function ap
+export function normalizeTranscript(rawTranscript, context = {}) {
+  if (!rawTranscript || !rawTranscript.trim()) return rawTranscript;
+
+  const start = performance.now();
+
+  const { browserUrl = "", activeAppId = "", browserTitle = "" } = context;
+  const urlBias = biasFromUrl(browserUrl);
+  const isDevApp = TECH_APP_IDS.has(activeAppId);
+  const titleLower = browserTitle.toLowerCase();
+
+  // Dev mode: tech app OR dev URL OR dev-related title
+  const devMode = isDevApp || urlBias.dev ||
+    ["github", "code", "api", "docs", "developer", "stack overflow"].some(t =>
+      titleLower.includes(t)
+    );
+  const aiMode = isDevApp || urlBias.ai ||
+    ["openai", "anthropic", "chatgpt", "claude", "gemini", "perplexity", "deepseek"].some(t =>
+      titleLower.includes(t)
+    );
+
+  const useDevDict = devMode;
+  const useAiDict = aiMode || isDevApp;
+
+  let corrected = rawTranscript;
+
+  // Always apply mic correction first
+  corrected = correctMikeToMic(corrected);
+
+  // Apply context-aware dictionaries
+  if (useDevDict) corrected = applyDictionary(corrected, DICT_DEVELOPER);
+  if (useAiDict) corrected = applyDictionary(corrected, DICT_AI);
+  corrected = applyDictionary(corrected, DICT_GENERAL);
+
+  const elapsed = performance.now() - start;
+  if (typeof performance !== "undefined") {
+    console.debug(
+      `[SpeechCorrection] Normalized in ${elapsed.toFixed(2)}ms | ` +
+      `input="${rawTranscript.slice(0, 50)}..." | ` +
+      `output="${corrected.slice(0, 50)}..."`
+    );
+  }
+
+  return corrected;
+}
+
+export { normalizeTranscript };
+export default { normalizeTranscript };
