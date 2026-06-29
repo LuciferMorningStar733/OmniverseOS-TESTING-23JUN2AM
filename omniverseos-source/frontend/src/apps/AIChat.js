@@ -5,6 +5,7 @@ import { parseActions, executeActions, buildActionSummary } from "../lib/cortexA
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import MarkdownRenderer from "../components/MarkdownRenderer";
+import { normalizeTranscript } from "../lib/speechCorrection.js";
 
 const SESSION_ID = "main";
 
@@ -377,7 +378,7 @@ export default function AIChat() {
         const res  = e.results[i];
         const best = Array.from({ length: res.length }, (_, j) => res[j])
           .reduce((a, b) => (a.confidence >= b.confidence ? a : b));
-        if (res.isFinal) finalText += best.transcript;
+        if (res.isFinal) finalText += normalizeTranscript(best.transcript, { browserUrl: window.location.href, activeAppId: "chat" });
         else interim += best.transcript;
       }
       if (finalText) {
