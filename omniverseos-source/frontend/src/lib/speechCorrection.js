@@ -150,5 +150,4 @@ export function normalizeTranscript(rawTranscript, context = {}) {
   return corrected;
 }
 
-export { normalizeTranscript };
 export default { normalizeTranscript };
