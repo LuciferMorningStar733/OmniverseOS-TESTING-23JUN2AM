@@ -152,7 +152,7 @@ function AmbientParticles() {
 }
 
 export default function Desktop() {
-  const { windows, setPaletteOpen, wallpaper, focusWindow, activeId } = useOS();
+  const { windows, setPaletteOpen, wallpaper, focusWindow, activeId , openApp, closeWindow, minimize, updateWindow, toggleMaximize, notifOpen, setNotifOpen, pushNotification, clearNotifications, trackUrl } = useOS();
   const { isMobile } = useBreakpoint();
   const wp = getWallpaper(wallpaper);
 
@@ -160,6 +160,7 @@ export default function Desktop() {
   const [locked, setLocked]   = useState(false);
   const [missionOpen, setMissionOpen] = useState(false);
   const idleTimer             = useRef(null);
+     const [showWelcome, setShowWelcome] = useState(true);
 
   const getIdleMs = useCallback(() => {
     const prefs = loadMobilePrefs();
