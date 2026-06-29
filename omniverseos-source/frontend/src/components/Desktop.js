@@ -1,8 +1,3 @@
-Here is the complete updated `Desktop.js` to copy-paste. This adds the `CortexWelcomeCard` import, wires `rememberActiveApp` + `trackEvent` into `openApp`, and renders the card when no windows are open:
-
-***
-
-```javascript
 import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useOS } from "../context/OSContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
@@ -22,12 +17,6 @@ import { getWallpaper } from "../lib/wallpapers";
 import WidgetCanvas from "../widgets/WidgetCanvas";
 import { rememberActiveApp } from "../lib/memoryEngine";
 import { trackEvent } from "../lib/activityTimeline";
-
-/* 🌌 Ambient desktop particle layer ─────────────────────────────────────────
-   A lightweight canvas that renders:
-     · Subtle drifting particles (no performance impact)
-     · Occasional corner telemetry blips
-   The canvas is pointer-events-none so it never blocks interaction. */
 function AmbientParticles() {
   const canvasRef = useRef(null);
   const frameRef = useRef(null);
@@ -42,7 +31,6 @@ function AmbientParticles() {
     }
     resize();
     window.addEventListener("resize", resize, { passive: true });
-    // Initialise particles
     const COUNT = 28;
     particles.current = Array.from({ length: COUNT }, () => ({
       x: Math.random() * canvas.width,
@@ -53,7 +41,6 @@ function AmbientParticles() {
       alpha: Math.random() * 0.18 + 0.04,
       pulse: Math.random() * Math.PI * 2,
     }));
-    // Telemetry blips (corner decorations that briefly light up)
     const blips = [
       { cx: 0.02, cy: 0.06 },
       { cx: 0.98, cy: 0.06 },
@@ -127,14 +114,13 @@ function AmbientParticles() {
     };
   }, []);
   return (
-    anvas
+    <canvas
       ref={canvasRef}
       className="absolute inset-0 pointer-events-none"
       style={{ zIndex: 1, opacity: 1 }}
     />
   );
 }
-
 export default function Desktop() {
   const {
     windows, setPaletteOpen, wallpaper, focusWindow, activeId,
@@ -143,19 +129,15 @@ export default function Desktop() {
   } = useOS();
   const { isMobile } = useBreakpoint();
   const wp = getWallpaper(wallpaper);
-
-  /* 🔒 Lock screen (mobile only) ─────────────────────────────────────────── */
   const [locked, setLocked] = useState(false);
   const [missionOpen, setMissionOpen] = useState(false);
   const idleTimer = useRef(null);
   const [showWelcome, setShowWelcome] = useState(true);
-
   const getIdleMs = useCallback(() => {
     const prefs = loadMobilePrefs();
     if (!prefs.lockEnabled || prefs.lockTimeout === 0) return 0;
     return prefs.lockTimeout * 1000;
   }, []);
-
   const resetIdle = useCallback(() => {
     if (!isMobile) return;
     const ms = getIdleMs();
@@ -164,7 +146,6 @@ export default function Desktop() {
       idleTimer.current = setTimeout(() => setLocked(true), ms);
     }
   }, [isMobile, getIdleMs]);
-
   useEffect(() => {
     if (!isMobile) return;
     const events = ["touchstart", "touchmove", "mousedown", "keydown", "scroll"];
@@ -175,8 +156,6 @@ export default function Desktop() {
       events.forEach((ev) => window.removeEventListener(ev, resetIdle));
     };
   }, [isMobile, resetIdle]);
-
-  /* ⌨️ Keyboard shortcut (desktop) ────────────────────────────────────────── */
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -192,12 +171,9 @@ export default function Desktop() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [isMobile, setPaletteOpen]);
-
-  /* 👆 Swipe left/right to switch apps (mobile) ───────────────────────────── */
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);
-
   const handleTouchStart = useCallback((e) => {
     if (!isMobile || locked) return;
     const prefs = loadMobilePrefs();
@@ -206,7 +182,6 @@ export default function Desktop() {
     swipeStartY.current = e.touches[0].clientY;
     swipeLocked.current = false;
   }, [isMobile, locked]);
-
   const handleTouchMove = useCallback((e) => {
     if (!isMobile || swipeStartX.current === null) return;
     const dx = Math.abs(e.touches[0].clientX - swipeStartX.current);
@@ -215,7 +190,6 @@ export default function Desktop() {
       swipeLocked.current = dy > dx;
     }
   }, [isMobile]);
-
   const handleTouchEnd = useCallback((e) => {
     if (!isMobile || swipeStartX.current === null || locked) return;
     const dx = e.changedTouches[0].clientX - swipeStartX.current;
@@ -233,33 +207,24 @@ export default function Desktop() {
       focusWindow(openWindows[(currentIdx - 1 + openWindows.length) % openWindows.length].id);
     }
   }, [isMobile, locked, windows, activeId, focusWindow]);
-
-  /* 🧠 Cortex memory helpers ───────────────────────────────────────────────── */
   const handleOpenApp = useCallback((appId) => {
     rememberActiveApp(appId);
     trackEvent({ type: "app_open", appId });
     setShowWelcome(false);
     openApp(appId);
   }, [openApp]);
-
   const handleOpenUrl = useCallback((url) => {
     trackEvent({ type: "url_visit", url });
     setShowWelcome(false);
     if (trackUrl) trackUrl(url);
   }, [trackUrl]);
-
-  /* 🗂 Layout ──────────────────────────────────────────────────────────────── */
   const windowLayerStyle = useMemo(() => isMobile
     ? { top: 60, left: 0, right: 0, bottom: 80 }
     : { top: 0, left: 0, right: 0, bottom: 0 },
   [isMobile]);
-
   const openWindows = useMemo(() => windows.filter((w) => !w.minimized), [windows]);
   const showDots = isMobile && openWindows.length > 1;
-
-  // Show CortexWelcomeCard only on desktop when no windows are open
   const showCortexWelcome = !isMobile && showWelcome && openWindows.length === 0;
-
   return (
     <div
       className="relative w-full h-full overflow-hidden bg-[#05050A]"
@@ -268,7 +233,6 @@ export default function Desktop() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Wallpaper */}
       <AnimatePresence mode="wait">
         <motion.div
           key={wp.id}
@@ -290,14 +254,8 @@ export default function Desktop() {
           {(wp.id === "neural-core" || wp.id === "ai-nexus") && <div className="wp-beams" />}
         </motion.div>
       </AnimatePresence>
-
-      {/* Ambient particle layer - desktop only, performance-safe */}
       {!isMobile && <AmbientParticles />}
-
-      {/* Scanline overlay */}
       <div className="absolute inset-0 scanline opacity-20 pointer-events-none" style={{ zIndex: 2 }} />
-
-      {/* TopBar */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -306,13 +264,78 @@ export default function Desktop() {
       >
         <TopBar onOpenMissionControl={() => setMissionOpen(true)} />
       </motion.div>
-
-      {/* Widget canvas - sits above wallpaper, below windows */}
       {!isMobile && <WidgetCanvas topOffset={60} />}
-
-      {/* Cortex Welcome Card - shown on empty desktop */}
       <AnimatePresence>
         {showCortexWelcome && (
           <motion.div
             key="cortex-welcome"
-            initial={{ opacity: 0, scale: 0
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            style={{ zIndex: 15, position: "absolute", inset: 0, pointerEvents: "none" }}
+          >
+            <div style={{ pointerEvents: "auto" }}>
+              <CortexWelcomeCard
+                onOpenApp={handleOpenApp}
+                onOpenUrl={handleOpenUrl}
+                onDismiss={() => setShowWelcome(false)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="absolute z-10 pointer-events-none" style={windowLayerStyle}>
+        <AnimatePresence>
+          {windows.map((w) => {
+            const app = getApp(w.app);
+            if (!app) return null;
+            return (
+              <div key={w.id} className="pointer-events-auto">
+                <Window win={w}>
+                  <app.Component />
+                </Window>
+              </div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+      {showDots && (
+        <div
+          className="absolute z-30 flex items-center gap-1.5 pointer-events-none"
+          style={{ bottom: 88, left: "50%", transform: "translateX(-50%)" }}
+        >
+          {openWindows.map((w) => (
+            <div
+              key={w.id}
+              style={{
+                width: w.id === activeId ? 20 : 6, height: 6, borderRadius: 3,
+                background: w.id === activeId ? "#00F0FF" : "rgba(255,255,255,0.3)",
+                boxShadow: w.id === activeId ? "0 0 8px rgba(0,240,255,0.7)" : "none",
+                transition: "width 0.25s ease, background 0.25s ease",
+              }}
+            />
+          ))}
+        </div>
+      )}
+      <Dock />
+      {!isMobile && <AIDock />}
+      <CommandPalette />
+      <NotificationCenter />
+      {!isMobile && (
+        <MissionControl
+          open={missionOpen}
+          onClose={() => setMissionOpen(false)}
+        />
+      )}
+      <AnimatePresence>
+        {isMobile && locked && (
+          <LockScreen
+            key="lockscreen"
+            onUnlock={() => { setLocked(false); resetIdle(); }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
