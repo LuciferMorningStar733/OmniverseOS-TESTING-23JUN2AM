@@ -11,6 +11,7 @@ import {
 import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
+import { normalizeTranscript } from "../lib/speechCorrection.js";
 
 // ── Markdown stripper ──────────────────────────────────────────────────────
 function stripMarkdown(text) {
@@ -505,7 +506,7 @@ export default function Voice() {
         const result = e.results[i];
         const best   = Array.from({ length: result.length }, (_, j) => result[j])
           .reduce((a, b) => (a.confidence >= b.confidence ? a : b));
-        if (result.isFinal) { finalText += best.transcript; finalizedUntilRef.current = i + 1; }
+        if (result.isFinal) { finalText += normalizeTranscript(best.transcript, { browserUrl: window.location.href, activeAppId: "voice" }); finalizedUntilRef.current = i + 1; }
         else interim += best.transcript;
       }
       if (finalText) {
