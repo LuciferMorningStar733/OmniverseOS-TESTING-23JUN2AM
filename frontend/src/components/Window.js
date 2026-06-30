@@ -307,7 +307,11 @@ function clampPosition(x, y, w, h, viewW, viewH, topPad = 56, bottomPad = 96) {
 /* ── Window ──────────────────────────────────────────────────────────────── */
 export default function Window({ win, children }) {
   const { closeWindow, focusWindow, updateWindow, toggleMaximize, minimize, activeId } = useOS();
-  const app      = getApp(win.app);
+  /* Guard against stale localStorage app IDs — fall back to a safe sentinel */
+  const app = getApp(win.app) ?? {
+    id: win.app, name: win.app, icon: "fa-window-maximize",
+    color: "#00F0FF", group: "unknown",
+  };
   const isActive = activeId === win.id;
   const { isMobile } = useBreakpoint();
 
@@ -366,10 +370,13 @@ export default function Window({ win, children }) {
   const accentColor = app?.color || "#00F0FF";
 
   /* ── Tight drag constraints: always keep title bar accessible ──────── */
+  /* Framer drag constraints are max pixel offsets from the element's origin.
+     min visible x = -(win.w - KEEP_VISIBLE)  →  offset_left  = -(win.w - KEEP_VISIBLE) - win.x
+     max visible x = viewport.w - KEEP_VISIBLE →  offset_right = viewport.w - KEEP_VISIBLE - win.x  */
   const dragConstraints = dragEnabled ? {
-    top:    -win.y + topPad,
-    left:   -(win.x - KEEP_VISIBLE) + KEEP_VISIBLE - win.w,
-    right:  viewport.w - win.x - KEEP_VISIBLE,
+    top:    topPad - win.y,
+    left:   KEEP_VISIBLE - win.w - win.x,
+    right:  viewport.w - KEEP_VISIBLE - win.x,
     bottom: viewport.h - bottomPad - win.y - 40,
   } : false;
 

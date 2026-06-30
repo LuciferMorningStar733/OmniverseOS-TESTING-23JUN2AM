@@ -210,6 +210,7 @@ export default function WidgetStore({ onClose }) {
         key="ws-panel"
         drag
         dragControls={dragControls}
+        dragListener={false}
         dragMomentum={false}
         dragElastic={0}
         initial={{ opacity: 0, scale: 0.93, y: 20 }}

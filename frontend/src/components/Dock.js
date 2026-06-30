@@ -97,14 +97,28 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
   const [scope, animate] = useAnimate();
   const pressTimerRef  = useRef(null);
   const didLongPress   = useRef(false);
+  const touchActiveRef = useRef(false);
   const [quickMenu, setQuickMenu] = useState(null);
 
   const win      = windows.find((w) => w.app === app.id);
   const open     = Boolean(win);
   const isActive = open && win?.id === activeId;
 
+  /* Shared launch logic — used by both touch and click paths */
+  const launch = useCallback(() => {
+    animate(scope.current, {
+      scale: [1, 0.76, 1.14, 0.94, 1],
+      y:     [0, 5,    -5,   2,    0],
+    }, {
+      duration: 0.44, ease: "easeOut",
+      times: [0, 0.18, 0.52, 0.78, 1],
+    });
+    openApp(app.id);
+  }, [animate, scope, openApp, app.id]);
+
   const handleTouchStart = useCallback((e) => {
     didLongPress.current = false;
+    touchActiveRef.current = true;
     const rect = e.currentTarget.getBoundingClientRect();
     pressTimerRef.current = setTimeout(() => {
       didLongPress.current = true;
@@ -119,21 +133,20 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
 
   const handleTouchEnd = useCallback(() => {
     clearTimeout(pressTimerRef.current);
-    if (!didLongPress.current) {
-      animate(scope.current, {
-        scale: [1, 0.76, 1.14, 0.94, 1],
-        y:     [0, 5,    -5,   2,    0],
-      }, {
-        duration: 0.44, ease: "easeOut",
-        times: [0, 0.18, 0.52, 0.78, 1],
-      });
-      openApp(app.id);
-    }
-  }, [animate, scope, openApp, app.id]);
+    if (!didLongPress.current) launch();
+    // mark that this interaction was touch so the click handler can skip
+    setTimeout(() => { touchActiveRef.current = false; }, 300);
+  }, [launch]);
 
   const handleTouchMove = useCallback(() => {
     clearTimeout(pressTimerRef.current);
   }, []);
+
+  /* Mouse/hybrid click — only fires when no touch event handled it */
+  const handleClick = useCallback(() => {
+    if (touchActiveRef.current) return;
+    launch();
+  }, [launch]);
 
   return (
     <>
@@ -143,7 +156,7 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchMove}
-        onClick={() => {}}
+        onClick={handleClick}
         whileTap={{ scale: 0.76, y: 5 }}
         transition={{ type: "spring", stiffness: 440, damping: 14, mass: 0.22 }}
         className="relative flex-shrink-0 flex flex-col items-center justify-center select-none"
