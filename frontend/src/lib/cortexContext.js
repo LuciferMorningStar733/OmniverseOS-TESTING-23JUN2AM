@@ -104,9 +104,23 @@ export function buildCortexSystemPrompt(osContext = {}) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  // ── User location (stored by AIChat on mount via Geolocation API + Nominatim) ──
+  const userLocation = (() => {
+    try {
+      const raw = localStorage.getItem("cortex_user_location");
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
   
   let prompt = `You are OmniverseOS Cortex — a friendly, witty cyberpunk AI assistant living inside an operating system.\n\n`;
-  prompt += `Current time: ${timeStr}, ${dateStr}\n\n`;
+  prompt += `Current time: ${timeStr}, ${dateStr}\n`;
+  if (userLocation?.city) {
+    const loc = [userLocation.city, userLocation.region, userLocation.country].filter(Boolean).join(", ");
+    prompt += `User location: ${loc}\n`;
+    prompt += `Always tailor answers to this region (prices, availability, local brands, variants) unless the user specifies otherwise.\n`;
+  }
+  prompt += `\n`;
   
   // ── Current state ──────────────────────────────────────────────────────────
   prompt += `=== CURRENT OS STATE ===\n`;
