@@ -1,14 +1,22 @@
 import React, {
-  useState, useEffect, useCallback, useMemo, useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { getApp } from "../lib/apps";
 
-/* ── Clipboard helpers ───────────────────────────────────────────────────── */
+/* — Clipboard helpers ————————————————————————————————— */
 const SENSITIVE_RE = [
-  /password/i, /passwd/i, /\bsecret\b/i,
-  /\bapi[_\-]?key\b/i, /_?token_?/i, /private[_\-]?key/i,
+  /password/i,
+  /passwd/i,
+  /\bsecret\b/i,
+  /\bapi[_\-]?key\b/i,
+  /_?token_?/i,
+  /private[_\-]?key/i,
 ];
 const isSensitive = (t) => SENSITIVE_RE.some((re) => re.test(t));
 
@@ -18,91 +26,208 @@ function detectType(text) {
   if (/^https?:\/\/\S+/.test(t)) return "url";
   if (/^[\w.+\-]+@[\w\-]+\.[a-z]{2,}$/i.test(t)) return "email";
   try {
-    if ((t.startsWith("{") || t.startsWith("[")) && JSON.parse(t)) return "json";
+    if ((t.startsWith("{") || t.startsWith("[")) && JSON.parse(t))
+      return "json";
   } catch { /* not json */ }
   if (
     /\b(function|const|let|var|import|export|class|return|def |public |private |interface )\b/.test(t) ||
     /[{};]/.test(t)
-  ) return "code";
+  )
+    return "code";
   return "text";
 }
 
-/* ── Orb colour map ──────────────────────────────────────────────────────── */
+/* — Orb colour map ————————————————————————————————————— */
 const ORB = {
   idle:     { a: "#00F0FF", b: "#0055CC", glow: "rgba(0,240,255,0.50)"    },
-  thinking: { a: "#CF9EFF", b: "#7B2FFF", glow: "rgba(207,158,255,0.50)"  },
-  working:  { a: "#39FF14", b: "#00880A", glow: "rgba(57,255,20,0.50)"    },
-  offline:  { a: "#FF003C", b: "#880020", glow: "rgba(255,0,60,0.50)"     },
+  thinking: { a: "#CF9FFF", b: "#7B2FFF", glow: "rgba(207,158,255,0.50)"  },
+  working:  { a: "#39FF14", b: "#008800", glow: "rgba(57,255,20,0.50)"    },
+  offline:  { a: "#FF003C", b: "#880020", glow: "rgba(255,60,0,0.50)"     },
   error:    { a: "#FF8C00", b: "#CC5500", glow: "rgba(255,140,0,0.50)"    },
   muted:    { a: "#94A3B8", b: "#334155", glow: "rgba(148,163,184,0.25)"  },
 };
 
-/* ── Smart suggestions ───────────────────────────────────────────────────── */
-function buildSuggestions(activeApp, clip, windows, online) {
-  if (!online) {
-    return [{ label: "You are offline", icon: "fa-wifi-slash", app: null, disabled: true }];
-  }
-  const sugs = [];
-  if (clip.type === "url")   sugs.push({ label: "Open URL in Browser",   icon: "fa-globe",               app: "browser" });
-  if (clip.type === "code")  sugs.push({ label: "Explain this code",     icon: "fa-code",                app: "chat"    });
-  if (clip.type === "json")  sugs.push({ label: "Inspect JSON",          icon: "fa-file-code",           app: "code"    });
-  if (clip.type === "email") sugs.push({ label: "Draft a reply",         icon: "fa-envelope",            app: "chat"    });
-
-  const hasMusic = windows.some((w) => w.app === "music");
-  if (hasMusic) sugs.push({ label: "Music is open", icon: "fa-music", app: "music" });
-
-  if (activeApp?.id === "browser") sugs.push({ label: "Ask AI about page",   icon: "fa-comments",           app: "chat" });
-  if (activeApp?.id === "notes")   sugs.push({ label: "Improve this note",   icon: "fa-wand-magic-sparkles", app: "chat" });
-  if (activeApp?.id === "tasks")   sugs.push({ label: "Summarize my tasks",  icon: "fa-list-check",         app: "chat" });
-  if (activeApp?.id === "code")    sugs.push({ label: "Explain selection",   icon: "fa-lightbulb",          app: "chat" });
-  if (activeApp?.id === "finance") sugs.push({ label: "Analyze my data",     icon: "fa-chart-line",         app: "chat" });
-
-  if (windows.length >= 3) sugs.push({ label: "Summarize open apps", icon: "fa-layer-group", app: "chat" });
-
-  return sugs.slice(0, 4);
+/* — cortex:prompt dispatcher ——————————————————————————— */
+function dispatchPrompt(text) {
+  window.dispatchEvent(
+    new CustomEvent("cortex:prompt", { detail: { text } })
+  );
 }
 
-/* ── Quick actions ───────────────────────────────────────────────────────── */
+/* — Time-of-day helper ————————————————————————————————— */
+function getTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 5)  return "night";
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  if (h < 21) return "evening";
+  return "night";
+}
+
+/* — GitHub URL detector ———————————————————————————————— */
+function isGitHubUrl(url) {
+  return /github\.com/.test(url);
+}
+
+/* — Context-aware suggestion builder ——————————————————— */
+function buildSuggestions({ clip, activeId, recentApps, time }) {
+  const sugs = [];
+
+  if (clip && clip.type !== "empty" && !clip.sensitive) {
+    if (clip.type === "url") {
+      sugs.push({
+        label: "Open URL",
+        icon: "fa-external-link-alt",
+        priority: 90,
+        app: "browser",
+        prompt: `Open this URL in the browser: ${clip.text}`,
+      });
+      if (isGitHubUrl(clip.text)) {
+        sugs.push({
+          label: "Summarize repo",
+          icon: "fa-code-branch",
+          priority: 85,
+          app: "chat",
+          prompt: `Summarize this GitHub repository and its purpose: ${clip.text}`,
+        });
+      }
+    }
+    if (clip.type === "code") {
+      sugs.push({
+        label: "Explain code",
+        icon: "fa-code",
+        priority: 88,
+        app: "chat",
+        prompt: `Explain what this code does:\n\n${clip.text}`,
+      });
+      sugs.push({
+        label: "Review code",
+        icon: "fa-search-plus",
+        priority: 80,
+        app: "chat",
+        prompt: `Review this code for bugs and improvements:\n\n${clip.text}`,
+      });
+    }
+    if (clip.type === "email") {
+      sugs.push({
+        label: "Draft reply",
+        icon: "fa-reply",
+        priority: 85,
+        app: "chat",
+        prompt: `Draft a professional reply to this email address: ${clip.text}`,
+      });
+    }
+    if (clip.type === "json") {
+      sugs.push({
+        label: "Parse JSON",
+        icon: "fa-list",
+        priority: 82,
+        app: "chat",
+        prompt: `Explain and prettify this JSON:\n\n${clip.text}`,
+      });
+    }
+    if (clip.type === "text" && clip.text.length > 30) {
+      sugs.push({
+        label: "Summarize",
+        icon: "fa-compress-alt",
+        priority: 75,
+        app: "chat",
+        prompt: `Summarize this text concisely:\n\n${clip.text}`,
+      });
+    }
+  }
+
+  const storedUrl = localStorage.getItem("cortex_current_url");
+  if (storedUrl && activeId === "browser") {
+    sugs.push({
+      label: "Summarize page",
+      icon: "fa-file-alt",
+      priority: 70,
+      app: "chat",
+      prompt: `Summarize the content of this page: ${storedUrl}`,
+    });
+  }
+
+  if (recentApps.includes("notes")) {
+    sugs.push({
+      label: "Organize notes",
+      icon: "fa-sort-amount-down",
+      priority: 60,
+      app: "chat",
+      prompt: "Help me organize and structure my recent notes.",
+    });
+  }
+
+  if (time === "morning") {
+    sugs.push({
+      label: "Plan my day",
+      icon: "fa-sun",
+      priority: 55,
+      app: "chat",
+      prompt: "Help me plan and prioritize my tasks for today.",
+    });
+  } else if (time === "evening" || time === "night") {
+    sugs.push({
+      label: "Summarize my day",
+      icon: "fa-moon",
+      priority: 50,
+      app: "chat",
+      prompt:
+        "Summarize everything I worked on today using my recent activity, clipboard history, browser activity, tasks and conversations. Give me a clear end-of-day overview.",
+    });
+  }
+
+  sugs.push({
+    label: "What can you do?",
+    icon: "fa-star",
+    priority: 10,
+    app: "chat",
+    prompt:
+      "What can Cortex help me with inside OmniverseOS? Give me a complete list of capabilities with examples.",
+  });
+
+  return sugs.sort((a, b) => b.priority - a.priority).slice(0, 4);
+}
+
+/* — Quick actions ————————————————————————————————————— */
 const QUICK = [
-  { label: "AI Chat",   app: "chat",      icon: "fa-comments",          color: "#00F0FF" },
-  { label: "Browser",   app: "browser",   icon: "fa-globe",             color: "#FCEE09" },
-  { label: "Notes",     app: "notes",     icon: "fa-note-sticky",       color: "#FCEE09" },
-  { label: "Music",     app: "music",     icon: "fa-music",             color: "#39FF14" },
-  { label: "Clipboard", app: "clipboard", icon: "fa-clipboard",         color: "#39FF14" },
-  { label: "Tasks",     app: "tasks",     icon: "fa-list-check",        color: "#00F0FF" },
-  { label: "Search",    app: null,        icon: "fa-magnifying-glass",  color: "#CF9EFF", action: "palette" },
-  { label: "Calendar",  app: "calendar",  icon: "fa-calendar",          color: "#FF003C" },
-  { label: "Settings",  app: "settings",  icon: "fa-gear",              color: "#94A3B8" },
+  { label: "AI Chat",   app: "chat",      icon: "fa-comments",        color: "#00F0FF" },
+  { label: "Browser",   app: "browser",   icon: "fa-globe",           color: "#FCEE09" },
+  { label: "Notes",     app: "notes",     icon: "fa-note-sticky",     color: "#FCEE09" },
+  { label: "Music",     app: "music",     icon: "fa-music",           color: "#39FF14" },
+  { label: "Clipboard", app: "clipboard", icon: "fa-clipboard",       color: "#39FF14" },
+  { label: "Tasks",     app: "tasks",     icon: "fa-list-check",      color: "#00F0FF" },
+  { label: "Search",    app: null,        icon: "fa-magnifying-glass", color: "#CF9EFF", action: "palette" },
+  { label: "Calendar",  app: "calendar",  icon: "fa-calendar",        color: "#FF003C" },
+  { label: "Settings",  app: "settings",  icon: "fa-gear",            color: "#94A3B8" },
 ];
 
-/* ── Shared styles ───────────────────────────────────────────────────────── */
+/* — Shared styles ————————————————————————————————————— */
 const GLASS = {
-  background:           "rgba(7, 9, 16, 0.84)",
-  backdropFilter:       "blur(32px) saturate(200%)",
+  background: "rgba(7, 9, 16, 0.84)",
+  backdropFilter: "blur(32px) saturate(200%)",
   WebkitBackdropFilter: "blur(32px) saturate(200%)",
-  border:               "1px solid rgba(0,240,255,0.13)",
-  boxShadow:            "0 28px 72px rgba(0,0,0,0.70), inset 0 1px 0 rgba(0,240,255,0.08), 0 0 0 1px rgba(0,240,255,0.03)",
+  border: "1px solid rgba(0,240,255,0.13)",
+  boxShadow:
+    "0 28px 72px rgba(0,0,0,0.70), inset 0 1px 0 rgba(0,240,255,0.08), 0 0 1px rgba(0,240,255,0.03)",
 };
-
 const FONT = "'Outfit', ui-sans-serif, sans-serif";
 
-/* ══════════════════════════════════════════════════════════════════════════
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    AIDock — main export
-   ══════════════════════════════════════════════════════════════════════════ */
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export default function AIDock() {
   const { activeId, windows, openApp, setPaletteOpen } = useOS();
-
-  const [expanded,   setExpanded]   = useState(false);
-  const [orbStatus,  setOrbStatus]  = useState("idle");
-  const [clip,       setClip]       = useState({ text: "", type: "empty", sensitive: false });
-  const [online,     setOnline]     = useState(() => navigator.onLine);
+  const [expanded, setExpanded]     = useState(false);
+  const [orbStatus, setOrbStatus]   = useState("idle");
+  const [clip, setClip]             = useState({ text: "", type: "empty", sensitive: false });
+  const [online, setOnline]         = useState(() => navigator.onLine);
   const [recentApps, setRecentApps] = useState([]);
-    const [showBadge,   setShowBadge]   = useState(false);
-    const badgeTimer = useRef(null);
+  const [showBadge, setShowBadge]   = useState(false);
+  const badgeTimer = useRef(null);
+  const copyTimer  = useRef(null);
 
-  const copyTimer = useRef(null);
-
-  /* ── Online / offline ─────────────────────────────────────────────────── */
+  /* online/offline */
   useEffect(() => {
     const on  = () => { setOnline(true);  setOrbStatus("idle");    };
     const off = () => { setOnline(false); setOrbStatus("offline"); };
@@ -114,460 +239,190 @@ export default function AIDock() {
     };
   }, []);
 
-  /* ── Clipboard ────────────────────────────────────────────────────────── */
-  const readClip = useCallback(async () => {
-    try {
-      if (!document.hasFocus()) return;
-      const text = await navigator.clipboard.readText();
-      if (!text) return;
-      const sensitive = isSensitive(text);
-      setClip({
-        text:      sensitive ? "" : text,
-        type:      sensitive ? "sensitive" : detectType(text),
-        sensitive,
-      });
-    } catch { /* permission denied */ }
+  /* track recent apps */
+  useEffect(() => {
+    if (activeId) {
+      setRecentApps((prev) =>
+        [activeId, ...prev.filter((a) => a !== activeId)].slice(0, 5)
+      );
+    }
+  }, [activeId]);
+
+  /* clipboard watcher */
+  useEffect(() => {
+    async function poll() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (!text || text === clip.text) return;
+        const type = detectType(text);
+        const sensitive = isSensitive(text);
+        setClip({ text, type, sensitive });
+        if (!sensitive && type !== "empty") {
+          setShowBadge(true);
+          clearTimeout(badgeTimer.current);
+          badgeTimer.current = setTimeout(() => setShowBadge(false), 4000);
+        }
+      } catch { /* clipboard permission denied */ }
+    }
+    const id = setInterval(poll, 2500);
+    return () => clearInterval(id);
+  }, [clip.text]);
+
+  /* cortex:thinking / cortex:done */
+  useEffect(() => {
+    const onThink = () => setOrbStatus("thinking");
+    const onDone  = () => setOrbStatus(online ? "idle" : "offline");
+    window.addEventListener("cortex:thinking", onThink);
+    window.addEventListener("cortex:done",     onDone);
+    return () => {
+      window.removeEventListener("cortex:thinking", onThink);
+      window.removeEventListener("cortex:done",     onDone);
+    };
+  }, [online]);
+
+  /* cleanup */
+  useEffect(() => () => {
+    clearTimeout(badgeTimer.current);
+    clearTimeout(copyTimer.current);
   }, []);
 
-  useEffect(() => {
-    const onCopy  = () => { clearTimeout(copyTimer.current); copyTimer.current = setTimeout(readClip, 60); };
-    const onFocus = () => readClip();
-    document.addEventListener("copy",  onCopy);
-    window.addEventListener("focus",   onFocus);
-    readClip();
-    return () => {
-      document.removeEventListener("copy",  onCopy);
-      window.removeEventListener("focus",   onFocus);
-      clearTimeout(copyTimer.current);
-    };
-  }, [readClip]);
+  const time = getTimeOfDay();
+  const orb  = ORB[orbStatus] || ORB.idle;
 
-  /* ── Recent apps ──────────────────────────────────────────────────────── */
-  const activeWin = useMemo(
-    () => windows.find((w) => w.id === activeId) ?? null,
-    [windows, activeId],
-  );
-  const activeApp = useMemo(
-    () => (activeWin ? getApp(activeWin.app) : null),
-    [activeWin],
-  );
-  const activeAppId = activeWin?.app ?? null;
-
-  useEffect(() => {
-    if (!activeAppId) return;
-    const app = getApp(activeAppId);
-    if (!app) return;
-    setRecentApps((prev) => {
-      const entry = { id: app.id, name: app.name, icon: app.icon, color: app.color };
-      return [entry, ...prev.filter((e) => e.id !== app.id)].slice(0, 6);
-    });
-  }, [activeAppId]);
-
-  /* ── Keyboard ─────────────────────────────────────────────────────────── */
-  useEffect(() => {
-    const handler = (e) => {
-        if (e.key === "Escape" && expanded) { setExpanded(false); return; }
-        if ((e.ctrlKey || e.metaKey) && e.code === "Space") { e.preventDefault(); setExpanded((v) => !v); }
-      };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [expanded]);
-
-  /* ── Derived ──────────────────────────────────────────────────────────── */
-  const openWindows = useMemo(() => windows.filter((w) => !w.minimized), [windows]);
   const suggestions = useMemo(
-    () => buildSuggestions(activeApp, clip, windows, online),
-    [activeApp, clip, windows, online],
+    () => buildSuggestions({ clip, activeId, recentApps, time }),
+    [clip, activeId, recentApps, time]
   );
-  const orb = ORB[orbStatus] ?? ORB.idle;
 
-  /* ── Actions ──────────────────────────────────────────────────────────── */
-  const handleQuick = useCallback((action) => {
-    if (action.action === "palette") { setPaletteOpen(true); setExpanded(false); return; }
-    if (action.app)                  { openApp(action.app);  setExpanded(false); return; }
+  const handleSuggestion = useCallback((s) => {
+    if (s.app) openApp(s.app);
+    dispatchPrompt(s.prompt);
+    setExpanded(false);
+  }, [openApp]);
+
+  const handleQuick = useCallback((q) => {
+    if (q.action === "palette") { setPaletteOpen(true); return; }
+    if (q.app) openApp(q.app);
+    setExpanded(false);
   }, [openApp, setPaletteOpen]);
 
-
-    /* ── Badge: pulse when new suggestion arrives while collapsed ──────────── */
-    const prevSugCount = useRef(0);
-    useEffect(() => {
-      const count = suggestions.length;
-      if (!expanded && count > 0 && count !== prevSugCount.current) {
-        setShowBadge(true);
-        clearTimeout(badgeTimer.current);
-        badgeTimer.current = setTimeout(() => setShowBadge(false), 3500);
-      }
-      if (expanded) { setShowBadge(false); clearTimeout(badgeTimer.current); }
-      prevSugCount.current = count;
-      return () => clearTimeout(badgeTimer.current);
-    }, [suggestions, expanded]);
-    /* ── Render ───────────────────────────────────────────────────────────── */
   return (
-    <>
-      {/* Click-outside backdrop */}
-      {expanded && (
-        <div
-          onClick={() => setExpanded(false)}
-          style={{ position: "fixed", inset: 0, zIndex: 42 }}
-        />
-      )}
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, fontFamily: FONT }}>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            key="panel"
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0,  scale: 1 }}
+            exit={{    opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            style={{
+              ...GLASS,
+              borderRadius: 20,
+              width: 340,
+              marginBottom: 14,
+              overflow: "hidden",
+            }}
+          >
+            {/* header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 18px 10px",
+              borderBottom: "1px solid rgba(0,240,255,0.08)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: orb.a, boxShadow: `0 0 8px ${orb.glow}`,
+                }} />
+                <span style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600 }}>
+                  Cortex Intelligence
+                </span>
+              </div>
+              <button
+                onClick={() => setExpanded(false)}
+                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+                aria-label="Close"
+              >x</button>
+            </div>
 
-      <div
-        role="complementary"
-        aria-label="Cortex AI Dock"
-        style={{
-          position:      "fixed",
-          bottom:        96,
-          left:          "50%",
-          transform:     "translateX(-50%)",
-          zIndex:        43,
-          display:       "flex",
-          flexDirection: "column",
-          alignItems:    "center",
-          gap:           8,
-          fontFamily:    FONT,
-          pointerEvents: "none",
-        }}
-      >
-        {/* ── Expanded panel ──────────────────────────────────────────── */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              key="ai-dock-panel"
-              initial={{ opacity: 0, y: 18, scale: 0.93 }}
-              animate={{ opacity: 1, y: 0,  scale: 1    }}
-              exit={{    opacity: 0, y: 12, scale: 0.93  }}
-              transition={{ type: "spring", damping: 28, stiffness: 380, mass: 0.35 }}
-              style={{
-                ...GLASS,
-                borderRadius:  24,
-                width:         400,
-                overflow:      "hidden",
-                pointerEvents: "auto",
-              }}
-            >
-              {/* Header */}
-              <PanelHeader
-                orb={orb}
-                activeApp={activeApp}
-                openWindows={openWindows}
-                online={online}
-                clip={clip}
-                onCollapse={() => setExpanded(false)}
-              />
-
-              {/* Smart suggestions */}
-              {suggestions.length > 0 && (
-                <PanelSection label="Smart Suggestions">
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                    {suggestions.map((s, i) => (
-                      <SuggChip
-                        key={i}
-                        s={s}
-                        onAct={() => { if (s.app) { openApp(s.app); setExpanded(false); } }}
-                      />
-                    ))}
-                  </div>
-                </PanelSection>
-              )}
-
-              {/* Quick actions */}
-              <PanelSection label="Quick Actions">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {QUICK.map((a) => (
-                    <QuickBtn key={a.label} action={a} onClick={() => handleQuick(a)} />
-                  ))}
-                </div>
-              </PanelSection>
-
-              {/* Recent apps */}
-              {recentApps.length > 0 && (
-                <PanelSection label="Recent Apps" noBorder>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <AnimatePresence>
-                      {recentApps.map((app) => (
-                        <motion.button
-                          key={app.id}
-                          initial={{ opacity: 0, scale: 0.7 }}
-                          animate={{ opacity: 1, scale: 1   }}
-                          exit={{    opacity: 0, scale: 0.7 }}
-                          transition={{ type: "spring", damping: 20, stiffness: 340 }}
-                          onClick={() => { openApp(app.id); setExpanded(false); }}
-                          title={app.name}
-                          style={{
-                            width: 32, height: 32, borderRadius: 9,
-                            background: `${app.color}14`,
-                            border:     `1px solid ${app.color}28`,
-                            color:      app.color, fontSize: 12,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer", padding: 0,
-                            transition: "background 0.14s",
-                          }}
-                        >
-                          <i className={`fa-solid ${app.icon}`} />
-                        </motion.button>
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                </PanelSection>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Cortex Orb — always visible ────────────────────────────── */}
-        <div style={{ pointerEvents: "auto", position: "relative" }}>
-          <CortexOrb orb={orb} expanded={expanded} onClick={() => setExpanded((v) => !v)} />
-          <AnimatePresence>
-            {showBadge && !expanded && (
-              <motion.div
-                key="orb-badge"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.5 }}
-                transition={{ type: "spring", damping: 16, stiffness: 380 }}
-                style={{
-                  position: "absolute", top: -3, right: -3,
-                  width: 14, height: 14, borderRadius: "50%",
-                  background: "#00F0FF",
-                  boxShadow: "0 0 0 2px rgba(7,9,16,0.9), 0 0 10px rgba(0,240,255,0.8)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  pointerEvents: "none",
-                }}
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.6, 1], opacity: [1, 0.25, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                  style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.9)" }}
-                />
-              </motion.div>
+            {/* suggestions */}
+            {suggestions.length > 0 && (
+              <div style={{ padding: "10px 14px 6px" }}>
+                <p style={{ color: "#475569", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 8px" }}>
+                  Suggestions
+                </p>
+                {suggestions.map((s, i) => (
+                  <motion.button
+                    key={i}
+                    whileHover={{ backgroundColor: "rgba(0,240,255,0.08)" }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleSuggestion(s)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      width: "100%", background: "none", border: "none",
+                      borderRadius: 10, padding: "8px 10px", cursor: "pointer",
+                      color: "#cbd5e1", fontSize: 13, textAlign: "left",
+                      marginBottom: 2,
+                    }}
+                  >
+                    <i className={`fas ${s.icon}`} style={{ color: "#00F0FF", width: 16, textAlign: "center" }} />
+                    {s.label}
+                  </motion.button>
+                ))}
+              </div>
             )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </>
-  );
-}
 
-/* ── Panel header ────────────────────────────────────────────────────────── */
-function PanelHeader({ orb, activeApp, openWindows, online, clip, onCollapse }) {
-  return (
-    <div style={{
-      padding:      "13px 15px 10px",
-      borderBottom: "1px solid rgba(0,240,255,0.07)",
-      display:      "flex",
-      alignItems:   "center",
-      gap:          10,
-    }}>
-      {/* Mini breathing orb */}
-      <motion.div
-        animate={{
-          boxShadow: [
-            `0 0 8px ${orb.glow}`,
-            `0 0 18px ${orb.glow}`,
-            `0 0 8px ${orb.glow}`,
-          ],
-        }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-        style={{
-          width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-          background: `radial-gradient(circle at 38% 35%, ${orb.a}, ${orb.b})`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        <i className="fa-solid fa-brain" style={{ color: "rgba(255,255,255,0.92)", fontSize: 11 }} />
-      </motion.div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: "#00F0FF", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-          Cortex AI
-        </div>
-        <div style={{ color: "rgba(255,255,255,0.28)", fontSize: 9, marginTop: 1 }}>
-          {activeApp ? `Active: ${activeApp.name}` : "Desktop"} · {openWindows.length} window{openWindows.length !== 1 ? "s" : ""}
-        </div>
-      </div>
-
-      {/* Status pills */}
-      <div style={{ display: "flex", gap: 4 }}>
-        <MiniPill
-          icon="fa-wifi"
-          label={online ? "Online" : "Offline"}
-          accent={online ? "#39FF14" : "#FF003C"}
-        />
-        {clip.type !== "empty" && clip.type !== "sensitive" && (
-          <MiniPill icon="fa-clipboard" label={clip.type.toUpperCase()} accent="#00F0FF" />
+            {/* quick actions */}
+            <div style={{ padding: "6px 14px 14px", borderTop: "1px solid rgba(0,240,255,0.06)", marginTop: 4 }}>
+              <p style={{ color: "#475569", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, margin: "8px 0" }}>
+                Quick Launch
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {QUICK.map((q, i) => (
+                  <motion.button
+                    key={i}
+                    whileHover={{ scale: 1.04, backgroundColor: "rgba(255,255,255,0.06)" }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleQuick(q)}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 10, padding: "9px 4px", cursor: "pointer",
+                    }}
+                  >
+                    <i className={`fas ${q.icon}`} style={{ color: q.color, fontSize: 15 }} />
+                    <span style={{ color: "#94a3b8", fontSize: 10, fontWeight: 500 }}>{q.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         )}
-        {openWindows.length > 0 && (
-          <MiniPill icon="fa-window-restore" label={`${openWindows.length}w`} accent="#00F0FF" />
-        )}
-      </div>
+      </AnimatePresence>
 
-      {/* Collapse button */}
-      <button
-        onClick={onCollapse}
-        title="Collapse (Esc)"
+      {/* orb button */}
+      <motion.button
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.94 }}
+        onClick={() => setExpanded((v) => !v)}
         style={{
-          background: "none", border: "none", cursor: "pointer",
-          color: "rgba(255,255,255,0.28)", fontSize: 11, padding: 4, lineHeight: 1,
+          width: 52, height: 52, borderRadius: "50%", border: "none", cursor: "pointer",
+          background: `radial-gradient(circle at 35% 35%, ${orb.a}, ${orb.b})`,
+          boxShadow: `0 0 0 2px rgba(0,240,255,0.15), 0 0 24px ${orb.glow}`,
+          position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
         }}
+        aria-label="Toggle Cortex panel"
       >
-        <i className="fa-solid fa-chevron-down" />
-      </button>
-    </div>
-  );
-}
-
-/* ── Cortex Orb button ───────────────────────────────────────────────────── */
-function CortexOrb({ orb, expanded, onClick }) {
-  return (
-    <motion.button
-      onClick={onClick}
-      whileHover={{ scale: 1.14 }}
-      whileTap={{ scale: 0.90 }}
-      transition={{ type: "spring", stiffness: 380, damping: 16 }}
-      title={expanded ? "Collapse Cortex AI (Esc)" : "Open Cortex AI (Ctrl+Space)"}
-      aria-label={expanded ? "Collapse Cortex AI" : "Open Cortex AI"}
-      style={{
-        width: 52, height: 52, borderRadius: "50%",
-        background: `radial-gradient(circle at 38% 32%, ${orb.a}, ${orb.b})`,
-        boxShadow: [
-          `0 0 0 1.5px ${orb.a}28`,
-          `0 0 22px ${orb.glow}`,
-          `0 0 48px ${orb.glow.replace("0.50", "0.18")}`,
-          "inset 0 1px 0 rgba(255,255,255,0.28)",
-        ].join(", "),
-        border:      "none",
-        cursor:      "pointer",
-        position:    "relative",
-        display:     "flex",
-        alignItems:  "center",
-        justifyContent: "center",
-        overflow:    "hidden",
-      }}
-    >
-      {/* Breathing outer ring */}
-      <motion.div
-        animate={{ scale: [1, 1.45, 1], opacity: [0.55, 0, 0.55] }}
-        transition={{ duration: 3.0, repeat: Infinity, ease: "easeInOut" }}
-        style={{
-          position: "absolute", inset: -6, borderRadius: "50%",
-          border: `1.5px solid ${orb.a}`,
-          pointerEvents: "none",
-        }}
-      />
-      {/* Slow-spinning shimmer */}
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
-        style={{
-          position: "absolute",
-          width: 32, height: 32, borderRadius: "50%",
-          background: `conic-gradient(transparent 0deg, ${orb.a}45 180deg, transparent 360deg)`,
-          pointerEvents: "none",
-        }}
-      />
-      {/* Core icon */}
-      <i
-        className="fa-solid fa-brain"
-        style={{
-          color: "rgba(255,255,255,0.93)", fontSize: 18,
-          position: "relative", zIndex: 1,
-          filter: "drop-shadow(0 0 5px rgba(255,255,255,0.55))",
-        }}
-      />
-    </motion.button>
-  );
-}
-
-/* ── Section wrapper ─────────────────────────────────────────────────────── */
-function PanelSection({ label, children, noBorder = false }) {
-  return (
-    <div style={{
-      padding:      "8px 14px",
-      borderBottom: noBorder ? "none" : "1px solid rgba(255,255,255,0.05)",
-    }}>
-      <div style={{
-        color: "rgba(255,255,255,0.18)", fontSize: 9, fontWeight: 700,
-        letterSpacing: "0.13em", textTransform: "uppercase", marginBottom: 5,
-      }}>
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/* ── Suggestion chip ─────────────────────────────────────────────────────── */
-function SuggChip({ s, onAct }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={s.disabled ? undefined : onAct}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      disabled={s.disabled}
-      style={{
-        background:   hov ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.04)",
-        border:       `1px solid ${hov ? "rgba(0,240,255,0.35)" : "rgba(255,255,255,0.07)"}`,
-        borderRadius: 9, padding: "4px 10px",
-        color:        hov ? "#00F0FF" : "rgba(255,255,255,0.50)",
-        fontSize: 10, fontWeight: 600,
-        cursor:   s.disabled ? "default" : "pointer",
-        display:  "flex", alignItems: "center", gap: 5,
-        transition: "all 0.13s",
-        fontFamily: FONT,
-        opacity:  s.disabled ? 0.45 : 1,
-        border:   `1px solid ${hov ? "rgba(0,240,255,0.35)" : "rgba(255,255,255,0.07)"}`,
-      }}
-    >
-      <i className={`fa-solid ${s.icon}`} style={{ fontSize: 9 }} />
-      {s.label}
-    </button>
-  );
-}
-
-/* ── Quick action button ─────────────────────────────────────────────────── */
-function QuickBtn({ action, onClick }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      title={action.label}
-      style={{
-        background:   hov ? `${action.color}14` : "rgba(255,255,255,0.04)",
-        border:       `1px solid ${hov ? action.color + "42" : "rgba(255,255,255,0.07)"}`,
-        borderRadius: 9, padding: "4px 10px",
-        color:        hov ? action.color : "rgba(255,255,255,0.44)",
-        fontSize:     10, fontWeight: 600, cursor: "pointer",
-        display:      "flex", alignItems: "center", gap: 5,
-        transition:   "all 0.13s",
-        fontFamily:   FONT,
-      }}
-    >
-      <i
-        className={`fa-solid ${action.icon}`}
-        style={{ color: hov ? action.color : "rgba(255,255,255,0.28)", fontSize: 10 }}
-      />
-      {action.label}
-    </button>
-  );
-}
-
-/* ── Mini status pill ────────────────────────────────────────────────────── */
-function MiniPill({ icon, label, accent }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 4,
-      background: `${accent}0A`,
-      border:     `1px solid ${accent}22`,
-      borderRadius: 6, padding: "2px 6px",
-    }}>
-      <i className={`fa-solid ${icon}`} style={{ color: accent, fontSize: 7 }} />
-      <span style={{ color: "rgba(255,255,255,0.44)", fontSize: 8, fontWeight: 600 }}>
-        {label}
-      </span>
+        <i className="fas fa-atom" style={{ color: "#fff", fontSize: 20, opacity: 0.95 }} />
+        {showBadge && (
+          <span style={{
+            position: "absolute", top: 2, right: 2,
+            width: 10, height: 10, borderRadius: "50%",
+            background: "#00F0FF", border: "2px solid #070910",
+          }} />
+        )}
+      </motion.button>
     </div>
   );
 }

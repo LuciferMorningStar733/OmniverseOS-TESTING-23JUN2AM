@@ -1,1 +1,89 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files\n\n# compiled output\ndist\ntmp\nout-tsc\n*.tsbuildinfo\n.expo\n.expo-shared\n\n# dependencies\nnode_modules\n\n# IDEs and editors\n/.idea\n.project\n.classpath\n.c9/\n*.launch\n.settings/\n*.sublime-workspace\n\n# IDE - VSCode\n.vscode/*\n!.vscode/settings.json\n!.vscode/tasks.json\n!.vscode/launch.json\n!.vscode/extensions.json\n\n# misc\n/.sass-cache\n/connect.lock\n/coverage\n/libpeerconnection.log\nnpm-debug.log\nyarn-error.log\ntestem.log\n/typings\n\n# System Files\n.DS_Store\nThumbs.db\n\n# Build artifacts\nbuild/\n*.tar.gz\n*.zip\n\n# Replit workspace files — never commit these\n.replit\n.replitignore\nreplit.md\n.agents/\nartifacts/\nlib/\nscripts/\nsrc/\npnpm-workspace.yaml\npnpm-lock.yaml\ntsconfig.base.json\ntsconfig.json\nattached_assets/\n.cache/\n.local/\n\n# Emergent AI tool files\n.emergent/\nmemory/\n.gitconfig\n\n# pnpm / npm overrides\n.npmrc\n
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# IDE and editors
+.idea/
+.vscode/
+
+# Dependencies
+node_modules/
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Production builds
+/build
+dist/
+dist
+
+# Environment files (comprehensive coverage)
+
+*token.json*
+*credentials.json*
+
+# Logs and debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dump.rdb
+
+# System files
+.DS_Store
+*.pem
+
+# Python
+__pycache__/
+*pyc*
+venv/
+.venv/
+
+# Development tools
+chainlit.md
+.chainlit
+.ipynb_checkpoints/
+.ac
+
+# Deployment
+.vercel
+
+# Data and databases
+agenthub/agents/youtube/db
+
+# Archive files and large assets
+**/*.zip
+**/*.tar.gz
+**/*.tar
+**/*.tgz
+*.pack
+*.deb
+*.dylib
+
+# Build caches
+.cache/
+
+memory/test_credentials.md
+
+# Mobile development
+android-sdk/frontend/node_modules/.cache/default-development/0.pack
+frontend/node_modules/.cache/default-development/0.pack
+.env
+.env.*
+*.env
+credentials.json
+*.key
+.credentials

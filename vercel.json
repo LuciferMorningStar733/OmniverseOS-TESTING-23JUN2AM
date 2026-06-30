@@ -1,6 +1,7 @@
 {
-  "installCommand": "cd omniverseos-source/frontend && npm install --legacy-peer-deps",
-  "buildCommand": "cd omniverseos-source/frontend && npm run build",
-  "outputDirectory": "omniverseos-source/frontend/build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "yarn install --frozen-lockfile",
+  "buildCommand": "CI=false yarn build",
+  "outputDirectory": "build",
   "framework": "create-react-app"
 }

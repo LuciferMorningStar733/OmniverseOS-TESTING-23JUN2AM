@@ -2,9 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { aiApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
+import { buildCortexSystemPrompt } from "../lib/cortexContext";
+import { trackEvent } from "../lib/activityTimeline";
+import { rememberTranscript } from "../lib/memoryEngine";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import MarkdownRenderer from "../components/MarkdownRenderer";
+import { normalizeTranscript } from "../lib/speechCorrection.js";
 
 const SESSION_ID = "main";
 
@@ -334,10 +338,17 @@ export default function AIChat() {
   const mountedRef = useRef(true);
   const abortRef  = useRef(null);
   const reqIdRef  = useRef(0);
+  const inputRef  = useRef("");
+  const sendRef   = useRef(null);
+  const micBaseRef = useRef("");
+  const micInputSnapshotRef = useRef("");
 
-  const { openApp, closeWindow, focusWindow, minimize, windows } = useOS();
+  const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
   const windowsRef    = useRef([]);
+  const activeIdRef   = useRef(null);
   useEffect(() => { windowsRef.current = windows; }, [windows]);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+  useEffect(() => { inputRef.current = input; }, [input]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
 
   // Derived model object
@@ -361,6 +372,8 @@ export default function AIChat() {
     r.lang            = "en-US";
     r.maxAlternatives = 3;
     micActiveRef.current = true;
+    micBaseRef.current = "";
+    micInputSnapshotRef.current = inputRef.current;
     setIsRecording(true);
 
     r.onresult = (e) => {
@@ -370,14 +383,21 @@ export default function AIChat() {
         const res  = e.results[i];
         const best = Array.from({ length: res.length }, (_, j) => res[j])
           .reduce((a, b) => (a.confidence >= b.confidence ? a : b));
-        if (res.isFinal) finalText += best.transcript;
+        if (res.isFinal) finalText += normalizeTranscript(best.transcript, { browserUrl: window.location.href, activeAppId: "chat" });
         else interim += best.transcript;
       }
+      if (finalText) {
+        micBaseRef.current = (micBaseRef.current ? micBaseRef.current + " " : "") + finalText.trim();
+      }
       if (mountedRef.current) {
-        setInput((prev) => {
-          const base = finalText ? (prev + (prev ? " " : "") + finalText) : prev;
-          return interim ? base + (base ? " " : "") + interim : base;
-        });
+        const preBase   = micInputSnapshotRef.current;
+        const committed = preBase
+          ? preBase + (micBaseRef.current ? " " + micBaseRef.current : "")
+          : micBaseRef.current;
+        const display = interim
+          ? committed + (committed ? " " : "") + interim
+          : committed;
+        setInput(display);
       }
     };
 
@@ -413,11 +433,12 @@ export default function AIChat() {
     if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
   }, [messages, streamStatus]);
 
-  const send = useCallback(async () => {
-    if (!input.trim()) return;
+  const send = useCallback(async (forcedText) => {
+    const rawText = typeof forcedText === "string" ? forcedText : input;
+    if (!rawText.trim()) return;
 
     abortRef.current?.abort();
-    const text = input.trim();
+    const text = rawText.trim();
     setInput("");
     setStreamStatus(null);
     const myReqId = ++reqIdRef.current;
@@ -460,8 +481,15 @@ export default function AIChat() {
 
     try {
       const preferredProvider = getPreferredProvider();
+      // ── Cortex Unification: build live OS context system prompt ─────────
+      // Aggregates active app, browser URL, recent apps/URLs, last session,
+      // memory state — gives the LLM real awareness of the user's workspace.
+      const systemPrompt = buildCortexSystemPrompt({
+        windows: windowsRef.current,
+        activeId: activeIdRef.current,
+      });
       const result = await aiApi.chatStreamResilient(
-        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider },
+        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
@@ -523,6 +551,21 @@ export default function AIChat() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, model]);
+
+  useEffect(() => { sendRef.current = send; }, [send]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const text = e.detail?.text;
+      if (!text?.trim()) return;
+      // Cortex unification: record dispatched prompt in timeline + memory.
+      trackEvent("voice_command", { text: text.slice(0, 120) });
+      rememberTranscript(text);
+      sendRef.current?.(text);
+    };
+    window.addEventListener("cortex:prompt", handler);
+    return () => window.removeEventListener("cortex:prompt", handler);
+  }, []);
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
