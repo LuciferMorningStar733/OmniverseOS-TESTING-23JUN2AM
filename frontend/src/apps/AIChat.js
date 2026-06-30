@@ -433,6 +433,42 @@ export default function AIChat() {
     };
   }, []);
 
+  // ── Geolocation: fetch once on mount, cache 24h in localStorage ─────────────
+  // Gives Cortex location context so answers are region-aware (e.g. India not Brazil)
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const LOCATION_KEY = "cortex_user_location";
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+    try {
+      const cached = JSON.parse(localStorage.getItem(LOCATION_KEY) || "null");
+      if (cached?.ts && Date.now() - cached.ts < MAX_AGE_MS) return;
+    } catch { /* corrupt cache — re-fetch */ }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          const location = {
+            city: addr.city || addr.town || addr.village || addr.county || "",
+            region: addr.state || "",
+            country: addr.country || "",
+            lat, lng,
+            ts: Date.now(),
+          };
+          localStorage.setItem(LOCATION_KEY, JSON.stringify(location));
+        } catch { /* location is optional — never block UI */ }
+      },
+      () => { /* user denied / unavailable — ignore */ },
+      { maximumAge: MAX_AGE_MS, timeout: 8000 }
+    );
+  }, []);
+
   useEffect(() => {
     if (!endRef.current) return;
     const container = endRef.current.parentElement;
@@ -505,8 +541,16 @@ export default function AIChat() {
         windows: windowsRef.current,
         activeId: activeIdRef.current,
       });
+      // Build conversation history (last 20 settled messages) so Gemini has
+      // full context. Without this, "Indian variant" after a bike discussion
+      // gets confused with a COVID variant — the "goldfish memory" bug.
+      const history = messagesRef.current
+        .filter((m) => m.content && !m.pending && !m.error)
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+
       const result = await aiApi.chatStreamResilient(
-        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt },
+        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
