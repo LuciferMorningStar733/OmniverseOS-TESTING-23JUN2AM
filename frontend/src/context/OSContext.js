@@ -133,12 +133,47 @@ export const OSProvider = ({ children }) => {
       const vh = window.innerHeight;
       const width  = Math.min(920, vw * 0.85);
       const height = Math.min(600, vh * 0.80);
-      const cascadeOffset = (prev.length * 30) % 120;
-      const x = Math.max(0, (vw - width)  / 2) + cascadeOffset;
-      const y = Math.max(0, (vh - height) / 2) + cascadeOffset;
+
+      // ── Smart cascade: never fully overlap an existing window ────────────
+      const TOP_PAD    = 60;   // topbar height
+      const BOTTOM_PAD = 96;   // dock height
+      const safeH = vh - TOP_PAD - BOTTOM_PAD;
+
+      // Ideal starting position: centered
+      const idealX = Math.max(0, (vw - width)  / 2);
+      const idealY = Math.max(TOP_PAD, (vh - height) / 2);
+
+      // Cascade step: 36px per existing non-minimised window
+      const visible = prev.filter((w) => !w.minimized);
+      const step  = 36;
+      const limit = Math.floor(Math.min(vw * 0.4, safeH * 0.4) / step);
+
+      let bestX = idealX, bestY = idealY;
+
+      // Try cascade offsets and pick the first that doesn't heavily overlap
+      for (let attempt = 0; attempt <= visible.length; attempt++) {
+        const offX = (attempt * step) % (limit * step + 1);
+        const offY = (attempt * step) % (limit * step + 1);
+        const tryX = Math.min(idealX + offX, vw - width  - 8);
+        const tryY = Math.min(idealY + offY, vh - BOTTOM_PAD - height);
+        const clampX = Math.max(0, tryX);
+        const clampY = Math.max(TOP_PAD, tryY);
+
+        // Check overlap: allow the attempt if no window covers the title bar area
+        const overlapsFocus = visible.some((w) => {
+          const ox = Math.abs(w.x - clampX);
+          const oy = Math.abs(w.y - clampY);
+          return ox < step * 0.5 && oy < step * 0.5;
+        });
+
+        bestX = clampX;
+        bestY = clampY;
+        if (!overlapsFocus) break;
+      }
+
       return [
         ...prev,
-        { id, app: appId, x, y, w: width, h: height, z: newZ, minimized: false, maximized: false },
+        { id, app: appId, x: Math.round(bestX), y: Math.round(bestY), w: width, h: height, z: newZ, minimized: false, maximized: false },
       ];
     });
     // Cortex: record open event
