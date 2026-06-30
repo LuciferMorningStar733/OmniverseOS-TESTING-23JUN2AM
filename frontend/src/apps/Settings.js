@@ -6,7 +6,8 @@ import { useMobilePrefs, LOCK_TIMEOUT_OPTIONS } from "../hooks/useMobilePrefs";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs } from "../lib/api";
 import { useBrightnessContext } from "../context/BrightnessContext";
-import LocationSetup, { isLocationSetupDone, getStoredCity, saveCity } from "../components/LocationSetup";
+import LocationSetup, { isLocationSetupDone, getStoredCity } from "../components/LocationSetup";
+import { resetBootFlag } from "../components/BootScreen";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
 function ToggleRow({ label, desc, value, onChange }) {
@@ -386,6 +387,32 @@ export default function Settings() {
             <span className="font-mono text-[#00F0FF] truncate ml-4 text-right">{v}</span>
           </div>
         ))}
+      </div>
+
+      {/* Demo / Debug */}
+      <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+        <div className="mono-label">// Demo</div>
+        <h3 className="font-heading text-base font-bold mb-1">Intro Sequence</h3>
+        <p className="text-xs text-slate-500 mb-3">
+          Replay the JARVIS boot animation and voice greeting on next page load.
+        </p>
+        <button
+          onClick={() => { resetBootFlag(); window.location.reload(); }}
+          style={{
+            width: "100%", padding: "10px 16px", borderRadius: 10,
+            border: "1px solid rgba(0,240,255,0.25)",
+            background: "rgba(0,240,255,0.06)",
+            color: "#00F0FF", cursor: "pointer",
+            fontFamily: "monospace", fontSize: 12,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "all 0.18s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.14)"; e.currentTarget.style.boxShadow = "0 0 18px rgba(0,240,255,0.15)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.06)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          <i className="fa-solid fa-rotate-right" />
+          Replay Boot + Voice Greeting
+        </button>
       </div>
 
       <button onClick={logout} className="neon-btn danger w-full justify-center">

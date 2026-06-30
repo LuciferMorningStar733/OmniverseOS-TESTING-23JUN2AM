@@ -149,15 +149,19 @@ export default function Desktop() {
 
   const handleBootComplete = useCallback(() => {
     setShowBoot(false);
-    // After boot: show welcome panel, and location setup if needed
-    setShowWelcomeP(true);
     if (!isLocationSetupDone()) {
+      // First run: location setup first, welcome panel after
       setShowLocation(true);
+    } else {
+      // Returning user: straight to welcome panel
+      setShowWelcomeP(true);
     }
   }, []);
 
-  const handleLocationComplete = useCallback((city) => {
+  const handleLocationComplete = useCallback(() => {
     setShowLocation(false);
+    // Show welcome panel after location is saved
+    setShowWelcomeP(true);
   }, []);
   const getIdleMs = useCallback(() => {
     const prefs = loadMobilePrefs();
