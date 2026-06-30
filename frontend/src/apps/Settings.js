@@ -5,7 +5,7 @@ import WallpaperStudio from "../components/WallpaperStudio";
 import { useMobilePrefs, LOCK_TIMEOUT_OPTIONS } from "../hooks/useMobilePrefs";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs } from "../lib/api";
-import { useBrightness } from "../components/BrightnessOverlay";
+import { useBrightnessContext } from "../context/BrightnessContext";
 import LocationSetup, { isLocationSetupDone, getStoredCity, saveCity } from "../components/LocationSetup";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
@@ -112,7 +112,7 @@ export default function Settings() {
   const { prefs, setPref } = useMobilePrefs();
   const { isMobile } = useBreakpoint();
   const [preferredProvider, setPreferredProviderState] = useState(getPreferredProvider);
-  const { brightness, setBrightness } = useBrightness();
+  const { brightness, setBrightness } = useBrightnessContext();
   const [showLocationSetup, setShowLocationSetup] = useState(false);
   const currentCity = getStoredCity();
 

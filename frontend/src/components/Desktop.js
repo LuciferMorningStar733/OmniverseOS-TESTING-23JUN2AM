@@ -14,7 +14,8 @@ import CortexWelcomeCard from "./CortexWelcomeCard";
 import BootScreen, { isFirstBoot } from "./BootScreen";
 import WelcomePanel from "./WelcomePanel";
 import LocationSetup, { isLocationSetupDone } from "./LocationSetup";
-import BrightnessOverlay, { useBrightness, BrightnessFilter } from "./BrightnessOverlay";
+import BrightnessOverlay, { BrightnessFilter } from "./BrightnessOverlay";
+import { useBrightnessContext } from "../context/BrightnessContext";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
@@ -143,7 +144,8 @@ export default function Desktop() {
   const [showBoot,     setShowBoot]     = useState(() => isFirstBoot());
   const [showWelcomeP, setShowWelcomeP] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
-  const brightness = useBrightness();
+  const brightness = useBrightnessContext();
+  const { toggleOverlay: toggleBrightness } = brightness;
 
   const handleBootComplete = useCallback(() => {
     setShowBoot(false);
@@ -221,7 +223,7 @@ export default function Desktop() {
       // Ctrl + Shift + B → Brightness
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "b") {
         e.preventDefault();
-        brightness.toggleOverlay();
+        toggleBrightness();
         return;
       }
 
@@ -254,8 +256,7 @@ export default function Desktop() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("om:open-mission", onOpenMission);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen]);
+  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen, toggleBrightness]);
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);

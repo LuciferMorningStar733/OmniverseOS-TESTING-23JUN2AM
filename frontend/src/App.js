@@ -2,6 +2,7 @@ import React from "react";
 import "./App.css";
 import { OSProvider, useOS } from "./context/OSContext";
 import { WidgetManagerProvider } from "./widgets/WidgetManagerContext";
+import { BrightnessProvider } from "./context/BrightnessContext";
 import AuthScreen from "./components/AuthScreen";
 import Desktop from "./components/Desktop";
 import { Toaster } from "sonner";
@@ -24,22 +25,24 @@ function App() {
   return (
     <div className="App">
       <OSProvider>
-        <WidgetManagerProvider>
-        <Shell />
-        <Toaster
-          theme="dark"
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: "rgba(10,10,15,0.85)",
-              border: "1px solid rgba(0,240,255,0.25)",
-              color: "#E2E8F0",
-              backdropFilter: "blur(20px)",
-              fontFamily: "Outfit, sans-serif",
-            },
-          }}
-        />
-        </WidgetManagerProvider>
+        <BrightnessProvider>
+          <WidgetManagerProvider>
+            <Shell />
+            <Toaster
+              theme="dark"
+              position="bottom-right"
+              toastOptions={{
+                style: {
+                  background: "rgba(10,10,15,0.85)",
+                  border: "1px solid rgba(0,240,255,0.25)",
+                  color: "#E2E8F0",
+                  backdropFilter: "blur(20px)",
+                  fontFamily: "Outfit, sans-serif",
+                },
+              }}
+            />
+          </WidgetManagerProvider>
+        </BrightnessProvider>
       </OSProvider>
     </div>
   );
