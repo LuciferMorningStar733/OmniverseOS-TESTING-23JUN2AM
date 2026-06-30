@@ -1,0 +1,570 @@
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const LS_CITY  = "omni_weather_city";
+const LS_FMT   = "omni_clock_24h";
+const DEFAULT_CITY = "New York";
+
+// ── WMO codes ──────────────────────────────────────────────────────────────
+const WMO = {
+  0:  { icon: "fa-sun",                   label: "Clear",           color: "#FCEE09" },
+  1:  { icon: "fa-sun",                   label: "Mainly Clear",    color: "#FCEE09" },
+  2:  { icon: "fa-cloud-sun",             label: "Partly Cloudy",   color: "#94A3B8" },
+  3:  { icon: "fa-cloud",                 label: "Overcast",        color: "#64748B" },
+  45: { icon: "fa-smog",                  label: "Foggy",           color: "#94A3B8" },
+  48: { icon: "fa-smog",                  label: "Icy Fog",         color: "#94A3B8" },
+  51: { icon: "fa-cloud-drizzle",         label: "Light Drizzle",   color: "#7DD3FC" },
+  53: { icon: "fa-cloud-drizzle",         label: "Drizzle",         color: "#7DD3FC" },
+  55: { icon: "fa-cloud-drizzle",         label: "Heavy Drizzle",   color: "#38BDF8" },
+  61: { icon: "fa-cloud-rain",            label: "Light Rain",      color: "#00F0FF" },
+  63: { icon: "fa-cloud-rain",            label: "Rain",            color: "#00F0FF" },
+  65: { icon: "fa-cloud-showers-heavy",   label: "Heavy Rain",      color: "#0EA5E9" },
+  71: { icon: "fa-snowflake",             label: "Light Snow",      color: "#BAE6FD" },
+  73: { icon: "fa-snowflake",             label: "Snow",            color: "#BAE6FD" },
+  75: { icon: "fa-snowflake",             label: "Heavy Snow",      color: "#E0F2FE" },
+  80: { icon: "fa-cloud-rain",            label: "Rain Showers",    color: "#00F0FF" },
+  81: { icon: "fa-cloud-showers-heavy",   label: "Showers",         color: "#0EA5E9" },
+  82: { icon: "fa-cloud-showers-heavy",   label: "Heavy Showers",   color: "#0284C7" },
+  95: { icon: "fa-cloud-bolt",            label: "Thunderstorm",    color: "#A78BFA" },
+  99: { icon: "fa-cloud-bolt",            label: "Severe Storm",    color: "#7C3AED" },
+};
+function wmo(code) {
+  if (WMO[code]) return WMO[code];
+  const k = Object.keys(WMO).map(Number).filter(n => n <= code).pop();
+  return WMO[k] ?? { icon: "fa-cloud", label: "Unknown", color: "#94A3B8" };
+}
+
+// ── Weather fetchers ────────────────────────────────────────────────────────
+async function fetchByCoords(lat, lon) {
+  const [meteoRes, geoRes] = await Promise.all([
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relativehumidity_2m` +
+      `&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`
+    ),
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      { headers: { "Accept-Language": "en" } }),
+  ]);
+  const meteo = await meteoRes.json();
+  const geo   = await geoRes.json();
+  const cur   = meteo.current;
+  const addr  = geo.address ?? {};
+  const city  = addr.city || addr.town || addr.village || addr.county || "Unknown";
+  return {
+    temp:  Math.round(cur.temperature_2m),
+    feels: Math.round(cur.apparent_temperature),
+    wind:  Math.round(cur.windspeed_10m),
+    humidity: cur.relativehumidity_2m ?? null,
+    code:  cur.weathercode,
+    city,
+  };
+}
+async function fetchByCity(cityName) {
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en`
+  );
+  const geoData = await geoRes.json();
+  if (!geoData.results?.length) throw new Error("City not found");
+  const { latitude, longitude, name } = geoData.results[0];
+  const meteoRes = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
+    `&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relativehumidity_2m` +
+    `&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`
+  );
+  const meteo = await meteoRes.json();
+  const cur   = meteo.current;
+  return {
+    temp:  Math.round(cur.temperature_2m),
+    feels: Math.round(cur.apparent_temperature),
+    wind:  Math.round(cur.windspeed_10m),
+    humidity: cur.relativehumidity_2m ?? null,
+    code:  cur.weathercode,
+    city:  name,
+  };
+}
+function savedCity() {
+  try { return localStorage.getItem(LS_CITY) || ""; } catch { return ""; }
+}
+
+// ── SVG Arc for seconds ─────────────────────────────────────────────────────
+function SecondsArc({ seconds }) {
+  const r   = 28;
+  const cx  = 32;
+  const cy  = 32;
+  const circ = 2 * Math.PI * r;
+  const pct  = seconds / 60;
+  const dash = pct * circ;
+  return (
+    <svg width={64} height={64} style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
+      {/* Track */}
+      <circle cx={cx} cy={cy} r={r} fill="none"
+        stroke="rgba(0,240,255,0.07)" strokeWidth={2} />
+      {/* Progress */}
+      <circle cx={cx} cy={cy} r={r} fill="none"
+        stroke="#00F0FF" strokeWidth={2}
+        strokeDasharray={`${dash} ${circ - dash}`}
+        strokeDashoffset={circ / 4}
+        strokeLinecap="round"
+        style={{ filter: "drop-shadow(0 0 3px #00F0FF)" }}
+      />
+    </svg>
+  );
+}
+
+// ── Corner bracket decoration ───────────────────────────────────────────────
+function Brackets({ color = "#00F0FF", size = 10, thickness = 1.5, opacity = 0.4 }) {
+  const s = { position: "absolute", width: size, height: size, opacity };
+  const b = `${thickness}px solid ${color}`;
+  return (
+    <>
+      <div style={{ ...s, top: 0, left: 0,  borderTop: b, borderLeft:  b }} />
+      <div style={{ ...s, top: 0, right: 0, borderTop: b, borderRight: b }} />
+      <div style={{ ...s, bottom: 0, left: 0,  borderBottom: b, borderLeft:  b }} />
+      <div style={{ ...s, bottom: 0, right: 0, borderBottom: b, borderRight: b }} />
+    </>
+  );
+}
+
+// ── Scrolling hex data ticker ───────────────────────────────────────────────
+function HexTicker({ seed }) {
+  const vals = Array.from({ length: 8 }, (_, i) =>
+    ((seed * 7 + i * 31 + Date.now() / 1000) & 0xFF).toString(16).toUpperCase().padStart(2, "0")
+  );
+  return (
+    <span style={{ fontFamily: "monospace", fontSize: 7.5, color: "rgba(0,240,255,0.22)", letterSpacing: "0.08em" }}>
+      {vals.join(" ")}
+    </span>
+  );
+}
+
+// ── Main widget ─────────────────────────────────────────────────────────────
+export default function ChronoWidget() {
+  const [now,        setNow]        = useState(new Date());
+  const [is24h,      setIs24h]      = useState(() => { try { return localStorage.getItem(LS_FMT) !== "false"; } catch { return true; } });
+  const [weather,    setWeather]    = useState(null);
+  const [wxStatus,   setWxStatus]   = useState("loading");
+  const [searching,  setSearching]  = useState(false);
+  const [searchInput,setSearchInput]= useState("");
+  const [searchErr,  setSearchErr]  = useState("");
+  const [tick,       setTick]       = useState(0); // forces hex ticker re-render
+  const inputRef    = useRef(null);
+  const intervalRef = useRef(null);
+
+  // Clock tick
+  useEffect(() => {
+    const t = setInterval(() => {
+      setNow(new Date());
+      setTick(n => n + 1);
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Weather load
+  const loadWeather = useCallback(async () => {
+    setWxStatus("loading");
+    const city = savedCity();
+    if (city) {
+      try { setWeather(await fetchByCity(city)); setWxStatus("ok"); return; } catch {}
+    }
+    if (navigator.geolocation) {
+      await new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+          async pos => {
+            try { setWeather(await fetchByCoords(pos.coords.latitude, pos.coords.longitude)); setWxStatus("ok"); }
+            catch { setWxStatus("error"); }
+            resolve();
+          },
+          () => {
+            fetchByCity(DEFAULT_CITY)
+              .then(d => { setWeather(d); setWxStatus("ok"); })
+              .catch(() => setWxStatus("error"))
+              .finally(resolve);
+          },
+          { timeout: 6000 }
+        );
+      });
+    } else {
+      try { setWeather(await fetchByCity(DEFAULT_CITY)); setWxStatus("ok"); }
+      catch { setWxStatus("error"); }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadWeather();
+    intervalRef.current = setInterval(loadWeather, 10 * 60 * 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [loadWeather]);
+
+  const handleSearch = async () => {
+    if (!searchInput.trim()) return;
+    setSearchErr("");
+    setWxStatus("loading");
+    try {
+      const result = await fetchByCity(searchInput.trim());
+      localStorage.setItem(LS_CITY, searchInput.trim());
+      setWeather(result); setWxStatus("ok");
+      setSearching(false); setSearchInput("");
+    } catch {
+      setSearchErr("LOCATION NOT FOUND");
+      setWxStatus(weather ? "ok" : "error");
+    }
+  };
+
+  const clearCity = () => {
+    localStorage.removeItem(LS_CITY);
+    setSearching(false); setSearchInput(""); setSearchErr("");
+    loadWeather();
+  };
+
+  const toggle24h = () => {
+    setIs24h(v => {
+      const next = !v;
+      try { localStorage.setItem(LS_FMT, String(next)); } catch {}
+      return next;
+    });
+  };
+
+  // Clock values
+  const ss  = now.getSeconds();
+  const mm  = now.getMinutes();
+  const hRaw = now.getHours();
+  const h24 = hRaw.toString().padStart(2, "0");
+  const h12 = ((hRaw % 12) || 12).toString().padStart(2, "0");
+  const ampm = hRaw >= 12 ? "PM" : "AM";
+  const hh  = is24h ? h24 : h12;
+  const min = mm.toString().padStart(2, "0");
+  const sec = ss.toString().padStart(2, "0");
+  const dayStr  = now.toLocaleDateString("en", { weekday: "short" }).toUpperCase();
+  const dateStr = now.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
+  const tzStr   = Intl.DateTimeFormat().resolvedOptions().timeZone.replace("_", " ");
+  const minPct  = mm / 59;
+
+  const cond = weather ? wmo(weather.code) : null;
+
+  return (
+    <div
+      className="w-full h-full select-none"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── Scan line sweep ─────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,240,255,0.012) 3px, rgba(0,240,255,0.012) 4px)",
+        }}
+      />
+
+      {/* ── Header strip ────────────────────────────────── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "6px 10px 4px",
+        borderBottom: "1px solid rgba(0,240,255,0.08)",
+        zIndex: 1, flexShrink: 0,
+      }}>
+        <span style={{ fontFamily: "monospace", fontSize: 7.5, letterSpacing: "0.2em", color: "rgba(0,240,255,0.4)" }}>
+          SYS.CHRONO // ATM.SENSOR
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(0,240,255,0.3)" }}>v2.038</span>
+          <span style={{
+            width: 5, height: 5, borderRadius: "50%", background: "#00F0FF",
+            boxShadow: "0 0 6px #00F0FF",
+            animation: "chrono-blink 2s ease-in-out infinite",
+          }} />
+        </div>
+      </div>
+
+      {/* ── TIME section ─────────────────────────────────── */}
+      <div style={{ padding: "10px 12px 8px", zIndex: 1, flexShrink: 0, position: "relative" }}>
+        <Brackets color="#00F0FF" size={8} opacity={0.3} />
+
+        {/* Clock display */}
+        <div
+          onClick={toggle24h}
+          title={is24h ? "Switch to 12h" : "Switch to 24h"}
+          style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 2, cursor: "pointer", paddingTop: 4 }}
+        >
+          <span style={{
+            fontFamily: "monospace",
+            fontWeight: 800,
+            fontSize: 36,
+            color: "#00F0FF",
+            textShadow: "0 0 20px rgba(0,240,255,0.6), 0 0 40px rgba(0,240,255,0.2)",
+            letterSpacing: "-0.02em",
+            lineHeight: 1,
+          }}>
+            {hh}:{min}
+          </span>
+          {!is24h && (
+            <span style={{ fontFamily: "monospace", fontSize: 10, color: "rgba(0,240,255,0.5)", marginLeft: 3, fontWeight: 700 }}>
+              {ampm}
+            </span>
+          )}
+        </div>
+
+        {/* Seconds + minute progress */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, paddingLeft: 4 }}>
+          <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <SecondsArc seconds={ss} />
+            <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: "rgba(0,240,255,0.7)", zIndex: 1 }}>
+              :{sec}
+            </span>
+          </div>
+          <div style={{ flex: 1 }}>
+            {/* Minute progress bar */}
+            <div style={{ height: 2, background: "rgba(0,240,255,0.08)", borderRadius: 2, marginBottom: 6, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", width: `${minPct * 100}%`,
+                background: "linear-gradient(90deg, rgba(0,240,255,0.4), #00F0FF)",
+                borderRadius: 2,
+                boxShadow: "0 0 6px rgba(0,240,255,0.5)",
+                transition: "width 1s linear",
+              }} />
+            </div>
+            {/* Date + timezone */}
+            <div style={{ fontFamily: "monospace", fontSize: 8.5, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>
+              {dayStr} · {dateStr}
+            </div>
+            <div style={{ fontFamily: "monospace", fontSize: 7.5, color: "rgba(0,240,255,0.3)" }}>
+              {tzStr}
+            </div>
+          </div>
+        </div>
+
+        {/* Hex data stream */}
+        <div style={{ marginTop: 4, paddingLeft: 4 }}>
+          <HexTicker seed={ss} />
+        </div>
+      </div>
+
+      {/* ── Divider ─────────────────────────────────────── */}
+      <div style={{
+        margin: "0 8px",
+        height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(0,240,255,0.2) 30%, rgba(0,240,255,0.2) 70%, transparent)",
+        flexShrink: 0,
+        zIndex: 1,
+        position: "relative",
+      }}>
+        <span style={{
+          position: "absolute", left: "50%", top: "50%",
+          transform: "translate(-50%, -50%)",
+          background: "rgba(6,8,14,0.9)",
+          padding: "0 6px",
+          fontFamily: "monospace", fontSize: 7, letterSpacing: "0.2em",
+          color: "rgba(0,240,255,0.35)",
+          whiteSpace: "nowrap",
+        }}>
+          ── ATM.SENSOR ──
+        </span>
+      </div>
+
+      {/* ── WEATHER section ──────────────────────────────── */}
+      <div style={{ flex: 1, padding: "8px 12px 10px", zIndex: 1, position: "relative", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <Brackets color={cond?.color || "#00F0FF"} size={7} opacity={0.2} thickness={1} />
+
+        <AnimatePresence mode="wait">
+          {searching ? (
+            <motion.div
+              key="search"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              style={{ display: "flex", flexDirection: "column", gap: 6 }}
+            >
+              <div style={{ fontFamily: "monospace", fontSize: 8, color: "rgba(0,240,255,0.5)", letterSpacing: "0.15em" }}>
+                LOCATION.INPUT ▸
+              </div>
+              <input
+                ref={inputRef}
+                autoFocus
+                type="text"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") handleSearch();
+                  if (e.key === "Escape") setSearching(false);
+                }}
+                placeholder="City name…"
+                style={{
+                  width: "100%", height: 26, borderRadius: 6, padding: "0 8px",
+                  background: "rgba(0,240,255,0.05)",
+                  border: "1px solid rgba(0,240,255,0.3)",
+                  outline: "none", color: "#00F0FF",
+                  fontSize: 10, fontFamily: "monospace",
+                  caretColor: "#00F0FF",
+                }}
+              />
+              {searchErr && (
+                <div style={{ fontSize: 8, color: "#FF003C", fontFamily: "monospace", letterSpacing: "0.1em" }}>
+                  ⚠ {searchErr}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 5 }}>
+                {[["EXECUTE", handleSearch, "#00F0FF", "rgba(0,240,255,0.08)", "rgba(0,240,255,0.25)"],
+                  ["CANCEL", () => setSearching(false), "rgba(255,255,255,0.4)", "rgba(255,255,255,0.04)", "rgba(255,255,255,0.1)"]
+                ].map(([label, fn, color, bg, bdr]) => (
+                  <button key={label} onClick={fn} style={{
+                    flex: 1, height: 22, borderRadius: 5,
+                    background: bg, border: `1px solid ${bdr}`,
+                    color, fontSize: 8.5, fontFamily: "monospace",
+                    letterSpacing: "0.1em", cursor: "pointer",
+                  }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          ) : wxStatus === "ok" && weather ? (
+            <motion.div
+              key="data"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              style={{ display: "flex", flexDirection: "column", gap: 6 }}
+            >
+              {/* Main temp + condition */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <i
+                    className={`fa-solid ${cond.icon}`}
+                    style={{
+                      fontSize: 28,
+                      color: cond.color,
+                      filter: `drop-shadow(0 0 10px ${cond.color}90)`,
+                    }}
+                  />
+                  {/* Rotating ring behind icon */}
+                  <div style={{
+                    position: "absolute", inset: -4,
+                    borderRadius: "50%",
+                    border: `1px solid ${cond.color}30`,
+                    animation: "chrono-spin 8s linear infinite",
+                    pointerEvents: "none",
+                  }} />
+                </div>
+                <div>
+                  <div style={{
+                    fontFamily: "monospace", fontWeight: 800, fontSize: 26,
+                    color: "#fff",
+                    textShadow: `0 0 16px ${cond.color}60`,
+                    lineHeight: 1,
+                  }}>
+                    {weather.temp}°
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 400, marginLeft: 2 }}>C</span>
+                  </div>
+                  <div style={{ fontFamily: "monospace", fontSize: 9, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
+                    {cond.label.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Data grid */}
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "4px 6px",
+                padding: "6px 8px",
+                background: "rgba(0,240,255,0.03)",
+                border: "1px solid rgba(0,240,255,0.08)",
+                borderRadius: 8,
+              }}>
+                {[
+                  ["FEELS", `${weather.feels}°C`, "#00F0FF"],
+                  ["WIND",  `${weather.wind}km/h`, "#39FF14"],
+                  ["HUMID", weather.humidity != null ? `${weather.humidity}%` : "N/A", "#A78BFA"],
+                ].map(([label, val, col]) => (
+                  <div key={label} style={{ textAlign: "center" }}>
+                    <div style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(255,255,255,0.25)", letterSpacing: "0.12em" }}>
+                      {label}
+                    </div>
+                    <div style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: col, marginTop: 1 }}>
+                      {val}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Location row */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <button
+                  onClick={() => setSearching(true)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    background: "transparent", border: "none", cursor: "pointer",
+                    color: "rgba(255,255,255,0.4)", fontFamily: "monospace", fontSize: 9,
+                    padding: 0,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = "#00F0FF"}
+                  onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.4)"}
+                >
+                  <i className="fa-solid fa-location-crosshairs" style={{ fontSize: 8 }} />
+                  {weather.city.toUpperCase()}
+                </button>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  {savedCity() && (
+                    <button onClick={clearCity} title="Use auto-location" style={{
+                      background: "transparent", border: "none", cursor: "pointer",
+                      fontFamily: "monospace", fontSize: 8, color: "rgba(255,255,255,0.2)",
+                      padding: "2px 5px",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#00F0FF"}
+                    onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.2)"}
+                    >
+                      ↺ AUTO
+                    </button>
+                  )}
+                  <div style={{
+                    fontFamily: "monospace", fontSize: 7, letterSpacing: "0.12em",
+                    color: "#39FF14", padding: "1px 5px",
+                    border: "1px solid rgba(57,255,20,0.25)",
+                    borderRadius: 4, background: "rgba(57,255,20,0.07)",
+                  }}>
+                    NOMINAL
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, flex: 1 }}
+            >
+              <div style={{ fontFamily: "monospace", fontSize: 8, color: "rgba(0,240,255,0.35)", letterSpacing: "0.2em" }}>
+                {wxStatus === "loading" ? "SCANNING ATMOSPHERE…" : "SENSOR OFFLINE"}
+              </div>
+              {wxStatus === "error" && (
+                <button onClick={() => setSearching(true)} style={{
+                  fontFamily: "monospace", fontSize: 8, color: "rgba(0,240,255,0.5)",
+                  background: "transparent", border: "1px solid rgba(0,240,255,0.2)",
+                  borderRadius: 5, padding: "3px 8px", cursor: "pointer",
+                }}>
+                  SET LOCATION
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── CSS keyframes injected once ─────────────────── */}
+      <style>{`
+        @keyframes chrono-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.2; }
+        }
+        @keyframes chrono-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+}

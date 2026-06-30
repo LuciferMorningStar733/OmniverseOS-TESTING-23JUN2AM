@@ -13,11 +13,10 @@ const GLASS = {
 };
 
 const WIDGET_DESCRIPTIONS = {
-  clock:      "Live clock with date display",
+  chrono:     "Unified clock + live atmospheric sensor — futuristic 2038 panel",
   cortex:     "Cortex AI chat assistant",
   calendar:   "Monthly calendar view",
   todo:       "Task list & to-do manager",
-  weather:    "Current weather & forecast",
   system:     "AI model health status",
   activity:   "Recent OS activity log",
   quicknotes: "Fast sticky note pad",

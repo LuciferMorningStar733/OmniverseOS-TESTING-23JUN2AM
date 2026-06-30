@@ -14,13 +14,13 @@ export const yToRow = (px) => Math.max(0, Math.round(px / (CELL_H + GAP)));
 
 export const WIDGET_REGISTRY = [
   {
-    id: "clock",
-    name: "Clock",
-    icon: "fa-clock",
+    id: "chrono",
+    name: "Chrono-Atmo",
+    icon: "fa-satellite-dish",
     color: "#00F0FF",
-    defaultW: 1, defaultH: 1,
-    minW: 1, minH: 1, maxW: 2, maxH: 2,
-    Component: lazy(() => import("./widgets/ClockWidget")),
+    defaultW: 1, defaultH: 2,
+    minW: 1, minH: 2, maxW: 2, maxH: 3,
+    Component: lazy(() => import("./widgets/ChronoWidget")),
   },
   {
     id: "cortex",
@@ -49,15 +49,7 @@ export const WIDGET_REGISTRY = [
     minW: 2, minH: 1, maxW: 3, maxH: 3,
     Component: lazy(() => import("./widgets/TodoWidget")),
   },
-  {
-    id: "weather",
-    name: "Weather",
-    icon: "fa-cloud-sun",
-    color: "#FCEE09",
-    defaultW: 1, defaultH: 1,
-    minW: 1, minH: 1, maxW: 2, maxH: 2,
-    Component: lazy(() => import("./widgets/WeatherWidget")),
-  },
+
   {
     id: "system",
     name: "System Status",
@@ -109,8 +101,7 @@ export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
 // Default desktop layout — only clock & weather shown by default.
 // All other widgets are added manually via the Widget Store (+).
-export const LAYOUT_VERSION = 2;
+export const LAYOUT_VERSION = 3;
 export const DEFAULT_LAYOUT = [
-  { id: "clock",   x: 0, y: 0, w: 1, h: 1, collapsed: false, pinned: false },
-  { id: "weather", x: 0, y: 1, w: 1, h: 1, collapsed: false, pinned: false },
+  { id: "chrono", x: 0, y: 0, w: 1, h: 2, collapsed: false, pinned: false },
 ];
