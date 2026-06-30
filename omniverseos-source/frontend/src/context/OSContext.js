@@ -10,6 +10,7 @@ import { DEFAULT_WALLPAPER } from "../lib/wallpapers";
 import { trackEvent }  from "../lib/activityTimeline";
 import { autoSave }    from "../lib/workspaceSnapshot";
 import { rememberActiveApp, rememberLastUrl, memClear } from "../lib/memoryEngine";
+import { autoRestore, saveSnapshot, loadSnapshot, getAutoSnapshot } from "../lib/workspaceSnapshot";
 
 const OSContext = createContext(null);
 
@@ -187,6 +188,63 @@ export const OSProvider = ({ children }) => {
     rememberLastUrl(url);
   }, []);
 
+  // ── Workspace Restore (Priority 2) ───────────────────────────────────────────
+  // Rebuilds the window stack from a snapshot.
+  // - Dedupes by appId (a single window per app on restore)
+  // - Clamps positions to the viewport so nothing lands off-screen
+  // - Assigns fresh z-indexes preserving original stack order
+  // - Records a `workspace_restore` event in the activity timeline
+  const restoreFromWindowsList = useCallback((snapWindows) => {
+    if (!Array.isArray(snapWindows) || snapWindows.length === 0) return 0;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const seen = new Set();
+    const sorted = [...snapWindows].sort((a, b) => (a.z ?? a.zIndex ?? 0) - (b.z ?? b.zIndex ?? 0));
+    const rebuilt = [];
+    let baseZ = 100;
+    for (const w of sorted) {
+      if (!w?.app || seen.has(w.app)) continue;
+      seen.add(w.app);
+      const width  = Math.min(Math.max(w.w ?? 800, 320), vw);
+      const height = Math.min(Math.max(w.h ?? 540, 240), vh - 100);
+      const x = Math.max(0, Math.min(w.x ?? 80, vw - 160));
+      const y = Math.max(40, Math.min(w.y ?? 80, vh - 160));
+      baseZ += 1;
+      rebuilt.push({
+        id: `${w.app}-${Date.now()}-${rebuilt.length}`,
+        app: w.app,
+        x, y, w: width, h: height,
+        z: baseZ,
+        minimized: false,
+        maximized: false,
+      });
+    }
+    setWindows(rebuilt);
+    setZCounter(baseZ + 1);
+    setActiveId(rebuilt[rebuilt.length - 1]?.id ?? null);
+    trackEvent("workspace_restore", { count: rebuilt.length });
+    return rebuilt.length;
+  }, []);
+
+  const restoreLastWorkspace = useCallback(() => {
+    const snap = autoRestore();
+    return restoreFromWindowsList(snap);
+  }, [restoreFromWindowsList]);
+
+  const saveCurrentWorkspace = useCallback((name) => {
+    if (!name || !name.trim()) return false;
+    saveSnapshot(windows, name.trim());
+    return true;
+  }, [windows]);
+
+  const restoreNamedWorkspace = useCallback((name) => {
+    const snap = loadSnapshot(name);
+    if (!snap?.windows?.length) return 0;
+    return restoreFromWindowsList(snap.windows);
+  }, [restoreFromWindowsList]);
+
+  const lastWorkspace = useCallback(() => getAutoSnapshot(), []);
+
   // ── notifications ────────────────────────────────────────────────────────────
   const pushNotification = useCallback((title, message, type = "info") => {
     const n = {
@@ -214,6 +272,8 @@ export const OSProvider = ({ children }) => {
         notifications, pushNotification, clearNotifications,
         wallpaper, setWallpaper,
         trackUrl,
+        // Workspace Restore (Priority 2)
+        restoreLastWorkspace, restoreNamedWorkspace, saveCurrentWorkspace, lastWorkspace,
       }}
     >
       {children}

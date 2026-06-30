@@ -15,8 +15,8 @@ import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
 import WidgetCanvas from "../widgets/WidgetCanvas";
-import { rememberActiveApp } from "../lib/memoryEngine";
-import { trackEvent } from "../lib/activityTimeline";
+// rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
+// trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
   const canvasRef = useRef(null);
   const frameRef = useRef(null);
@@ -123,7 +123,7 @@ function AmbientParticles() {
 }
 export default function Desktop() {
   const {
-    windows, setPaletteOpen, wallpaper, focusWindow, activeId,
+    windows, setPaletteOpen, paletteOpen, wallpaper, focusWindow, activeId,
     openApp, closeWindow, minimize, updateWindow, toggleMaximize,
     notifOpen, setNotifOpen, pushNotification, clearNotifications, trackUrl,
   } = useOS();
@@ -157,20 +157,73 @@ export default function Desktop() {
     };
   }, [isMobile, resetIdle]);
   useEffect(() => {
+    // Single global keyboard handler — extend here, never add a parallel listener.
+    const isTypingTarget = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (el.isContentEditable) return true;
+      return false;
+    };
     const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      // ── Esc closes overlays (works even while typing) ─────────────────────
+      if (e.key === "Escape") {
+        if (paletteOpen) { setPaletteOpen(false); return; }
+        if (missionOpen) { setMissionOpen(false); return; }
+        if (showWelcome && windows.filter((w) => !w.minimized).length === 0) { setShowWelcome(false); return; }
+        return;
+      }
+
+      // Suppress all other shortcuts while typing.
+      if (isTypingTarget(e.target)) return;
+
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Ctrl/Cmd + K → Universal Search
+      if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
         return;
       }
+
+      // Ctrl/Cmd + , → Settings
+      if (mod && !e.shiftKey && !e.altKey && e.key === ",") {
+        e.preventDefault();
+        setShowWelcome(false);
+        openApp("settings");
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + A/B/T → App shortcuts
+      if (mod && e.shiftKey && !e.altKey) {
+        const k = e.key.toLowerCase();
+        const target =
+          k === "a" ? "chat"   :
+          k === "b" ? "browser":
+          k === "t" ? "tasks"  : null;
+        if (target) {
+          e.preventDefault();
+          setShowWelcome(false);
+          openApp(target);
+          return;
+        }
+      }
+
+      // Ctrl+Tab → Mission Control (desktop only)
       if (!isMobile && e.ctrlKey && e.key === "Tab") {
         e.preventDefault();
         setMissionOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isMobile, setPaletteOpen]);
+    // Universal Search → Mission Control action dispatches this event
+    const onOpenMission = () => setMissionOpen(true);
+    window.addEventListener("om:open-mission", onOpenMission);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("om:open-mission", onOpenMission);
+    };
+  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen]);
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);
@@ -208,16 +261,18 @@ export default function Desktop() {
     }
   }, [isMobile, locked, windows, activeId, focusWindow]);
   const handleOpenApp = useCallback((appId) => {
-    rememberActiveApp(appId);
-    trackEvent({ type: "app_open", appId });
+    // OSContext.openApp records timeline + memory — no duplicate tracking here.
     setShowWelcome(false);
     openApp(appId);
   }, [openApp]);
   const handleOpenUrl = useCallback((url) => {
-    trackEvent({ type: "url_visit", url });
+    // trackUrl handles both timeline + memory.
     setShowWelcome(false);
     if (trackUrl) trackUrl(url);
-  }, [trackUrl]);
+    openApp("browser");
+    // Browser app listens to this event to navigate.
+    window.dispatchEvent(new CustomEvent("cortex:navigate", { detail: { url } }));
+  }, [trackUrl, openApp]);
   const windowLayerStyle = useMemo(() => isMobile
     ? { top: 60, left: 0, right: 0, bottom: 80 }
     : { top: 0, left: 0, right: 0, bottom: 0 },

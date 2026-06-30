@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOS } from "../context/OSContext";
+import BrowserIntelBar from "../components/BrowserIntelBar";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const HOME_URL = "https://en.wikipedia.org/wiki/Main_Page";
@@ -164,6 +166,7 @@ function BlockedPanel({ currentUrl, hostname, onNavigateHome }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function Browser() {
+  const { trackUrl, openApp } = useOS();
   const [addressInput, setAddressInput] = useState("");
   const [currentUrl,   setCurrentUrl]   = useState("");
   const [iframeUrl,    setIframeUrl]     = useState("");
@@ -191,26 +194,17 @@ export default function Browser() {
     setCanFwd(false);
 
     clearTimeout(blockTimerRef.current);
-    setCurrentUrl(url);     localStorage.setItem("omniverse_browser_url", url);
+    setCurrentUrl(url);
+    // Cortex unification: write canonical key (read by cortexContext + AIDock)
+    // alongside legacy key for back-compat. Track in timeline + memory.
+    localStorage.setItem("cortex_current_url", url);
+    localStorage.setItem("omniverse_browser_url", url);
+    trackUrl?.(url);
     setAddressInput(url);
     setFavicon(getFaviconUrl(url));
     setFaviconErr(false);
 
-    if (isBlocked) {
-      setIframeUrl("");
-      setBlocked(true);
-      setLoading(false);
-    } else {
-      setBlocked(false);
-      setLoading(true);
-      setIframeUrl(url);
-      blockTimerRef.current = setTimeout(() => {
-        setLoading(false);
-        setBlocked(true);
-        setIframeUrl("");
-      }, 6000);
-    }
-  }, []);
+  }, [trackUrl]);
 
   // Listen for Cortex Actions navigation events
   useEffect(() => {
@@ -253,7 +247,11 @@ export default function Browser() {
     setCanFwd(true);
     const url = list[newIdx];
     clearTimeout(blockTimerRef.current);
-    setCurrentUrl(url);     localStorage.setItem("omniverse_browser_url", url); setAddressInput(url);
+    setCurrentUrl(url);
+    localStorage.setItem("cortex_current_url", url);
+    localStorage.setItem("omniverse_browser_url", url);
+    trackUrl?.(url);
+    setAddressInput(url);
     setFavicon(getFaviconUrl(url)); setFaviconErr(false);
     if (isKnownBlocked(url)) {
       setIframeUrl(""); setBlocked(true); setLoading(false);
@@ -272,7 +270,11 @@ export default function Browser() {
     setCanFwd(newIdx < list.length - 1);
     const url = list[newIdx];
     clearTimeout(blockTimerRef.current);
-    setCurrentUrl(url);     localStorage.setItem("omniverse_browser_url", url); setAddressInput(url);
+    setCurrentUrl(url);
+    localStorage.setItem("cortex_current_url", url);
+    localStorage.setItem("omniverse_browser_url", url);
+    trackUrl?.(url);
+    setAddressInput(url);
     setFavicon(getFaviconUrl(url)); setFaviconErr(false);
     if (isKnownBlocked(url)) {
       setIframeUrl(""); setBlocked(true); setLoading(false);
@@ -372,6 +374,7 @@ export default function Browser() {
                 <i className={`fa-solid ${currentUrl ? "fa-lock" : "fa-globe"} text-[9px] flex-shrink-0 ${currentUrl ? "text-[#39FF14]/60" : "text-[#00F0FF]/40"}`} />
               )}
               <input
+                data-testid="browser-url-input"
                 value={addressInput}
                 onChange={(e) => setAddressInput(e.target.value)}
                 onFocus={(e) => e.target.select()}
@@ -425,6 +428,9 @@ export default function Browser() {
             </button>
           ))}
         </div>
+
+        {/* Priority 5 — Contextual Cortex actions for the current site */}
+        <BrowserIntelBar url={currentUrl} onOpenChat={() => openApp("chat")} />
       </div>
 
       {/* ── Content area ── */}
