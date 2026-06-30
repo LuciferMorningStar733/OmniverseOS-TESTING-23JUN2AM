@@ -1,0 +1,123 @@
+{
+  "project_name": "OmniverseOS",
+  "theme": "Dark",
+  "archetype": "7_Electric_and_Neon",
+  "design_philosophy": "A bleeding-edge, futuristic cyberpunk web operating system. UI relies on deep indigo/void gray backgrounds, layered glassmorphic panels, thin glowing borders, and high-contrast neon accents used functionally rather than decoratively.",
+  "colors": {
+    "background": {
+      "base": "#05050A",
+      "surface_level_1": "rgba(255, 255, 255, 0.02)",
+      "surface_level_2": "rgba(255, 255, 255, 0.04)"
+    },
+    "glass": {
+      "panel": "rgba(10, 10, 15, 0.6)",
+      "highlight": "rgba(255, 255, 255, 0.05)"
+    },
+    "accents": {
+      "primary": "#00F0FF",
+      "secondary": "#FF003C",
+      "tertiary": "#FCEE09",
+      "success": "#39FF14"
+    },
+    "text": {
+      "primary": "#E2E8F0",
+      "secondary": "#94A3B8",
+      "muted": "#475569",
+      "inverse": "#05050A"
+    },
+    "borders": {
+      "default": "rgba(255, 255, 255, 0.08)",
+      "focus": "rgba(0, 240, 255, 0.5)"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Unbounded, sans-serif",
+      "body": "Outfit, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "rules": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tighter text-white",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight text-white",
+      "h3": "text-xl sm:text-2xl font-semibold text-slate-200",
+      "body": "text-sm md:text-base leading-relaxed text-slate-200",
+      "mono_accent": "text-xs tracking-[0.2em] uppercase font-mono text-[#00F0FF]"
+    }
+  },
+  "layout_and_spacing": {
+    "grid_system": "Use absolute positioning with Framer Motion for draggable windows, and a CSS Grid bento-box inside windows for dashboard layouts.",
+    "spacing_scale": "Generous inner padding for glassmorphism. p-6 or p-8 for large cards, p-4 for nested elements.",
+    "border_radius": "rounded-2xl for main windows, rounded-lg for internal elements, rounded-full for pills/buttons.",
+    "z_index_hierarchy": {
+      "background": 0,
+      "desktop_icons": 10,
+      "windows": 20,
+      "sidebar_dock": 40,
+      "top_bar": 40,
+      "command_palette": 50,
+      "notifications": 50
+    }
+  },
+  "components": {
+    "window_container": {
+      "description": "Draggable, resizable OS window module using Framer Motion.",
+      "styles": "bg-[#0A0A0F]/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden",
+      "header": "h-10 border-b border-white/10 flex items-center px-4 cursor-grab active:cursor-grabbing bg-white/5"
+    },
+    "sidebar_dock": {
+      "description": "Left-aligned or bottom-aligned app launcher.",
+      "styles": "bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col items-center py-4 gap-4"
+    },
+    "neon_button": {
+      "styles": "relative overflow-hidden rounded-lg bg-white/5 border border-white/10 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[#00F0FF]/20 hover:border-[#00F0FF] hover:text-[#00F0FF] hover:shadow-[0_0_15px_rgba(0,240,255,0.3)]",
+      "active_state": "bg-[#00F0FF] text-[#05050A] border-[#00F0FF] shadow-[0_0_20px_rgba(0,240,255,0.5)]"
+    },
+    "glass_card": {
+      "styles": "bg-white/[0.02] backdrop-blur-md border border-white/[0.05] rounded-xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+    }
+  },
+  "motion_and_interactions": {
+    "window_spawn": "Scale up from 0.95, fade in opacity 0 to 1, easeOut 0.2s",
+    "hover_effects": "Subtle translate-y-[-2px] and border color shift to neon accent",
+    "background_animation": "Use tsparticles for a subtle floating node grid, or a slow CSS gradient mesh shift behind the main desktop."
+  },
+  "media_and_assets": {
+    "backgrounds": [
+      {
+        "url": "https://images.pexels.com/photos/15638268/pexels-photo-15638268.png",
+        "category": "desktop_wallpaper",
+        "description": "Abstract scene with blue neon lights and geometric shapes"
+      }
+    ],
+    "avatars": [
+      {
+        "url": "https://images.pexels.com/photos/8107821/pexels-photo-8107821.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "user_profile",
+        "description": "Futuristic cyber woman with AI-inspired eyewear"
+      }
+    ],
+    "filler_images": [
+      {
+        "url": "https://images.pexels.com/photos/6440018/pexels-photo-6440018.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "media_widget_cover",
+        "description": "Vibrant Tokyo cityscape at night with neon lights"
+      }
+    ]
+  },
+  "testing_attributes": {
+    "rule": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "Initialize React app with Vite, install tailwindcss, framer-motion, lucide-react, recharts, and tsparticles.",
+    "Implement a global store (using Context or Zustand) to manage the OS state: opened windows, active window z-index, pinned apps, user settings, authentication state.",
+    "Create a modular 'Window' component using Framer Motion (<motion.div drag dragConstraints>) that renders content dynamically based on the active app.",
+    "Build the Desktop background with an animated particle grid or gradient mesh.",
+    "Build the Sidebar/Dock mapping to all required apps (Dashboard, AI Chat, Image Gen, Voice Assistant, Memory, Notes, Tasks, Calendar, Music, Video, File Manager, Code, Finance, Analytics, Discord/Chat, Browser).",
+    "Use standard HTML/Tailwind for OS core structure, and integrate custom components for the complex modules.",
+    "Implement Command Palette (Cmd+K) using a library like cmDK, styled with glassmorphism.",
+    "Ensure the application strictly follows the neon cyberpunk aesthetic without becoming overwhelmingly bright; rely heavily on the dark void background (#05050A).",
+    "Include data-testid attributes on all interactive elements as defined in the rules (e.g., data-testid='dock-item-chat', data-testid='window-close-button').",
+    "Apply the requested Unbounded (Headings), Outfit (Body), and JetBrains Mono (Code/Accents) fonts by including them via Google Fonts in index.html.",
+    "Build the complete hybrid full-stack suite of modules as specified in the problem statement."
+  ]
+}
