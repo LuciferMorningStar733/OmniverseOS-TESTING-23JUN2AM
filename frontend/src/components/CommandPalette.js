@@ -146,6 +146,7 @@ export default function CommandPalette() {
   const [loading, setLoading]     = useState(false);
   const [phIdx, setPhIdx]         = useState(0);
   const inputRef                  = useRef(null);
+  const selectedRowRef            = useRef(null);
 
   // ── Cycle placeholder examples ─────────────────────────────────────────
   useEffect(() => {
@@ -353,6 +354,11 @@ export default function CommandPalette() {
     else if (e.key === 'Enter') { e.preventDefault(); activate(results[selected]); }
   }, [results, selected, activate, setPaletteOpen]);
 
+  // Scroll selected item into view on keyboard navigation
+  useEffect(() => {
+    selectedRowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selected]);
+
   if (!paletteOpen) return null;
 
   return (
@@ -371,7 +377,7 @@ export default function CommandPalette() {
           initial={{ y: -20, opacity: 0, scale: 0.97 }}
           animate={{ y: 0,   opacity: 1, scale: 1    }}
           exit={{    y: -14, opacity: 0, scale: 0.98  }}
-          transition={{ type: 'spring', stiffness: 440, damping: 32 }}
+          transition={{ type: 'spring', stiffness: 580, damping: 34 }}
           onClick={e => e.stopPropagation()}
           style={{
             width: 'min(680px, 92vw)',
@@ -474,6 +480,7 @@ export default function CommandPalette() {
               return (
                 <button
                   key={`${row.source}-${row.id}-${idx}`}
+                  ref={isSel ? selectedRowRef : null}
                   data-testid={`palette-result-${row.source}-${idx}`}
                   aria-selected={isSel}
                   onMouseEnter={() => setSelected(idx)}
