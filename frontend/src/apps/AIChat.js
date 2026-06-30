@@ -9,6 +9,8 @@ import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import MarkdownRenderer from "../components/MarkdownRenderer";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
+import { detectAmbiguity } from "../lib/ambiguityDetector";
+import CortexClarificationModal from "../components/CortexClarificationModal";
 
 const SESSION_ID = "main";
 
@@ -334,6 +336,8 @@ export default function AIChat() {
   const [activeProvider, setActiveProvider] = useState(null);
   const [prevProvider,  setPrevProvider]    = useState(null);
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
+  const [clarification, setClarification]   = useState(null);
+  const [pendingMessage, setPendingMessage] = useState("");
   const endRef    = useRef();
   const mountedRef = useRef(true);
   const abortRef  = useRef(null);
@@ -346,9 +350,11 @@ export default function AIChat() {
   const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
   const windowsRef    = useRef([]);
   const activeIdRef   = useRef(null);
+  const messagesRef   = useRef([]);
   useEffect(() => { windowsRef.current = windows; }, [windows]);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { inputRef.current = input; }, [input]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
 
   // Derived model object
@@ -437,8 +443,19 @@ export default function AIChat() {
     const rawText = typeof forcedText === "string" ? forcedText : input;
     if (!rawText.trim()) return;
 
-    abortRef.current?.abort();
     const text = rawText.trim();
+
+    // ── Ambiguity detection — runs before any LLM call ──────────────────────
+    // Uses current conversation history to auto-resolve when context is clear.
+    const ambiguityResult = detectAmbiguity(text, messagesRef.current);
+    if (ambiguityResult.needs_clarification) {
+      setPendingMessage(text);
+      setClarification(ambiguityResult);
+      setInput("");
+      return;
+    }
+
+    abortRef.current?.abort();
     setInput("");
     setStreamStatus(null);
     const myReqId = ++reqIdRef.current;
@@ -554,6 +571,18 @@ export default function AIChat() {
 
   useEffect(() => { sendRef.current = send; }, [send]);
 
+  // ── Clarification modal: user selected an option ──────────────────────────
+  const handleClarificationSelect = useCallback((option) => {
+    setClarification(null);
+    if (!pendingMessage) return;
+    // Build an enriched message that includes the user's clarification so the
+    // LLM answers the right thing, while showing the original text in the chat.
+    const enrichedText = `${pendingMessage}\n[Clarification: ${option.label}]`;
+    // Dispatch through send() bypassing ambiguity check (clarification resolved)
+    sendRef.current?.(enrichedText);
+    setPendingMessage("");
+  }, [pendingMessage]);
+
   useEffect(() => {
     const handler = (e) => {
       const text = e.detail?.text;
@@ -569,6 +598,15 @@ export default function AIChat() {
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
+      {/* Cortex clarification modal — shown before ambiguous requests reach the LLM */}
+      <CortexClarificationModal
+        open={!!clarification}
+        question={clarification?.question}
+        options={clarification?.options || []}
+        onSelect={handleClarificationSelect}
+        onClose={() => { setClarification(null); setPendingMessage(""); }}
+      />
+
       <style>{`
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(6px); }
