@@ -6,13 +6,16 @@ import ErrorBoundary from "./ErrorBoundary";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 /* ── Design tokens ────────────────────────────────────────────────────────── */
-const SHADOW_ACTIVE   = (c) => `0 0 0 1px ${c}22, 0 32px 80px rgba(0,0,0,0.60), 0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.06)`;
-const SHADOW_INACTIVE = `0 0 0 1px rgba(255,255,255,0.07), 0 16px 48px rgba(0,0,0,0.45), 0 4px 16px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.03)`;
-const BLUR            = "blur(32px) saturate(180%)";
+const SHADOW_ACTIVE = (c) =>
+  `0 0 0 1px ${c}28, 0 4px 12px rgba(0,0,0,0.35), 0 24px 60px rgba(0,0,0,0.65), 0 48px 100px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.20)`;
+const SHADOW_INACTIVE =
+  `0 0 0 1px rgba(255,255,255,0.06), 0 4px 8px rgba(0,0,0,0.25), 0 12px 40px rgba(0,0,0,0.45), 0 32px 64px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.04)`;
+const BLUR = "blur(32px) saturate(180%)";
 
 const MIN_W = 340;
 const MIN_H = 220;
-const SNAP_THRESHOLD = 18;
+const SNAP_THRESHOLD = 22;
+const KEEP_VISIBLE   = 90;  // px — min visible title bar width
 
 /* ── Hex window controls ─────────────────────────────────────────────────── */
 const HEX_CLIP     = "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
@@ -30,6 +33,10 @@ function injectHexStyles() {
     @keyframes omni-win-module-bar {
       from { height: 4px; opacity: 0.4; }
       to   { height: 14px; opacity: 1; }
+    }
+    @keyframes omni-win-open {
+      from { opacity: 0; transform: scale(0.88) translateY(16px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
     }
   `;
   document.head.appendChild(el);
@@ -53,10 +60,10 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
         position: "relative", width: 22, height: 22,
         background: "transparent", border: "none", cursor: "pointer", padding: 0,
         filter: hovered
-          ? `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 12px ${color}66)`
+          ? `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${color}66)`
           : "none",
-        transition: "filter 0.15s ease",
-        transform: hovered ? "scale(1.12)" : "scale(1)",
+        transition: "filter 0.15s ease, transform 0.15s cubic-bezier(0.34,1.56,0.64,1)",
+        transform: hovered ? "scale(1.18)" : "scale(1)",
       }}
     >
       <div style={{
@@ -197,23 +204,25 @@ function LoadingModule() {
 
 /* ── Resize handles (desktop only) ──────────────────────────────────────── */
 const RESIZE_HANDLES = [
-  { dir: "n",  style: { top: 0, left: 8, right: 8, height: 6 },          cursor: "n-resize"  },
-  { dir: "s",  style: { bottom: 0, left: 8, right: 8, height: 6 },       cursor: "s-resize"  },
-  { dir: "e",  style: { right: 0, top: 8, bottom: 8, width: 6 },         cursor: "e-resize"  },
-  { dir: "w",  style: { left: 0, top: 8, bottom: 8, width: 6 },          cursor: "w-resize"  },
-  { dir: "ne", style: { top: 0, right: 0, width: 14, height: 14 },       cursor: "ne-resize" },
-  { dir: "nw", style: { top: 0, left: 0, width: 14, height: 14 },        cursor: "nw-resize" },
-  { dir: "se", style: { bottom: 0, right: 0, width: 14, height: 14 },    cursor: "se-resize" },
-  { dir: "sw", style: { bottom: 0, left: 0, width: 14, height: 14 },     cursor: "sw-resize" },
+  { dir: "n",  style: { top: 0, left: 10, right: 10, height: 5 },          cursor: "n-resize"  },
+  { dir: "s",  style: { bottom: 0, left: 10, right: 10, height: 5 },       cursor: "s-resize"  },
+  { dir: "e",  style: { right: 0, top: 10, bottom: 10, width: 5 },         cursor: "e-resize"  },
+  { dir: "w",  style: { left: 0, top: 10, bottom: 10, width: 5 },          cursor: "w-resize"  },
+  { dir: "ne", style: { top: 0, right: 0, width: 16, height: 16 },         cursor: "ne-resize" },
+  { dir: "nw", style: { top: 0, left: 0, width: 16, height: 16 },          cursor: "nw-resize" },
+  { dir: "se", style: { bottom: 0, right: 0, width: 16, height: 16 },      cursor: "se-resize" },
+  { dir: "sw", style: { bottom: 0, left: 0, width: 16, height: 16 },       cursor: "sw-resize" },
 ];
 
 function ResizeHandles({ win, updateWindow, dragEnabled }) {
   const resizeRef = useRef(null);
+  const [activeDir, setActiveDir] = useState(null);
 
   const startResize = useCallback((e, dir) => {
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
+    setActiveDir(dir);
     resizeRef.current = {
       dir,
       startX: e.clientX, startY: e.clientY,
@@ -239,6 +248,7 @@ function ResizeHandles({ win, updateWindow, dragEnabled }) {
 
   const endResize = useCallback(() => {
     resizeRef.current = null;
+    setActiveDir(null);
   }, []);
 
   if (!dragEnabled) return null;
@@ -251,6 +261,9 @@ function ResizeHandles({ win, updateWindow, dragEnabled }) {
           style={{
             position: "absolute", zIndex: 20, cursor,
             ...style,
+            /* Subtle glow on active resize handle */
+            background: activeDir === dir ? "rgba(0,240,255,0.08)" : "transparent",
+            transition: "background 0.15s ease",
           }}
           onPointerDown={(e) => startResize(e, dir)}
           onPointerMove={(e) => onPointerMove(e, dir)}
@@ -263,12 +276,31 @@ function ResizeHandles({ win, updateWindow, dragEnabled }) {
 }
 
 /* ── Snap helper ─────────────────────────────────────────────────────────── */
-function snapPosition(x, y, w, h, viewW, viewH) {
+function snapPosition(x, y, w, h, viewW, viewH, topPad = 56, bottomPad = 96) {
   let nx = x, ny = y;
-  if (Math.abs(x) < SNAP_THRESHOLD)           nx = 0;
-  if (Math.abs(y) < SNAP_THRESHOLD)           ny = 0;
-  if (Math.abs(x + w - viewW) < SNAP_THRESHOLD) nx = viewW - w;
-  if (Math.abs(y + h - viewH) < SNAP_THRESHOLD) ny = viewH - h;
+
+  // Edge snaps
+  if (Math.abs(x) < SNAP_THRESHOLD)               nx = 0;
+  if (Math.abs(y - topPad) < SNAP_THRESHOLD)      ny = topPad;
+  if (Math.abs(x + w - viewW) < SNAP_THRESHOLD)   nx = viewW - w;
+  if (Math.abs(y + h - (viewH - bottomPad)) < SNAP_THRESHOLD) ny = viewH - bottomPad - h;
+
+  // Center snap (horizontal)
+  const centerX = (viewW - w) / 2;
+  if (Math.abs(x - centerX) < SNAP_THRESHOLD * 1.5) nx = Math.round(centerX);
+
+  // Half-screen snaps
+  const halfW = viewW / 2;
+  if (Math.abs(x + w - halfW) < SNAP_THRESHOLD * 1.2) nx = halfW - w;
+  if (Math.abs(x - halfW) < SNAP_THRESHOLD * 1.2)     nx = halfW;
+
+  return { nx, ny };
+}
+
+/* ── Clamp helper ─────────────────────────────────────────────────────────── */
+function clampPosition(x, y, w, h, viewW, viewH, topPad = 56, bottomPad = 96) {
+  const nx = Math.max(-(w - KEEP_VISIBLE), Math.min(viewW - KEEP_VISIBLE, x));
+  const ny = Math.max(topPad, Math.min(viewH - bottomPad - 40, y));
   return { nx, ny };
 }
 
@@ -322,8 +354,8 @@ export default function Window({ win, children }) {
     animW = viewport.w; animH = availH;
     dragEnabled = false;
   } else if (win.maximized) {
-    animX = 8; animY = 0;
-    animW = viewport.w - 16; animH = viewport.h - 96;
+    animX = 8; animY = topPad;
+    animW = viewport.w - 16; animH = viewport.h - topPad - 8;
     dragEnabled = false;
   } else {
     animX = win.x; animY = win.y;
@@ -332,6 +364,14 @@ export default function Window({ win, children }) {
   }
 
   const accentColor = app?.color || "#00F0FF";
+
+  /* ── Tight drag constraints: always keep title bar accessible ──────── */
+  const dragConstraints = dragEnabled ? {
+    top:    -win.y + topPad,
+    left:   -(win.x - KEEP_VISIBLE) + KEEP_VISIBLE - win.w,
+    right:  viewport.w - win.x - KEEP_VISIBLE,
+    bottom: viewport.h - bottomPad - win.y - 40,
+  } : false;
 
   /* ══ MOBILE ══════════════════════════════════════════════════════════════ */
   if (isMobile) {
@@ -377,9 +417,7 @@ export default function Window({ win, children }) {
           background: "rgba(255,255,255,0.22)",
           zIndex: 20, pointerEvents: "none",
         }} />
-
         <MobileHeader app={app} onClose={handleClose} />
-
         <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
           <ErrorBoundary>
             <React.Suspense fallback={<LoadingModule />}>
@@ -395,41 +433,38 @@ export default function Window({ win, children }) {
   return (
     <motion.div
       key={win.id}
-      initial={{ opacity: 0, scale: 0.90, x: animX, y: animY + 20, width: animW, height: animH }}
-      animate={{ opacity: 1, scale: 1,    x: animX, y: animY,       width: animW, height: animH }}
+      initial={{ opacity: 0, scale: 0.88, y: animY + 24, x: animX, width: animW, height: animH }}
+      animate={{ opacity: 1, scale: 1,    y: animY,       x: animX, width: animW, height: animH }}
       exit={{
-        opacity: 0, scale: 0.88, y: animY + 14,
+        opacity: 0, scale: 0.86, y: animY + 18,
         transition: {
-          duration: 0.16, ease: [0.4, 0, 0.8, 0],
-          opacity: { duration: 0.10 },
+          duration: 0.18, ease: [0.4, 0, 0.8, 0],
+          opacity: { duration: 0.12 },
         },
       }}
       transition={{
-        type: "spring", damping: 26, stiffness: 360, mass: 0.45,
-        opacity: { duration: 0.14, ease: "easeOut" },
-        scale: { type: "spring", damping: 26, stiffness: 360 },
-        /* Instant commit after drag — no spring bounce on position */
-        x: isDragging ? { type: "tween", duration: 0 } : { type: "spring", damping: 26, stiffness: 360 },
-        y: isDragging ? { type: "tween", duration: 0 } : { type: "spring", damping: 26, stiffness: 360 },
-        width:  { type: "spring", damping: 28, stiffness: 280 },
-        height: { type: "spring", damping: 28, stiffness: 280 },
+        type: "spring", damping: 24, stiffness: 340, mass: 0.48,
+        opacity: { duration: 0.16, ease: "easeOut" },
+        scale:   { type: "spring", damping: 24, stiffness: 340 },
+        /* Instant commit after drag — no spring bounce on x/y */
+        x: isDragging ? { type: "tween", duration: 0 } : { type: "spring", damping: 24, stiffness: 340 },
+        y: isDragging ? { type: "tween", duration: 0 } : { type: "spring", damping: 24, stiffness: 340 },
+        width:  { type: "spring", damping: 26, stiffness: 260 },
+        height: { type: "spring", damping: 26, stiffness: 260 },
       }}
       drag={dragEnabled}
       dragHandle={dragEnabled ? ".window-handle" : undefined}
       dragMomentum={false}
       dragElastic={0}
-      dragConstraints={dragEnabled ? {
-        top: 0, left: -win.w + 120,
-        right: viewport.w - 120, bottom: viewport.h - 60,
-      } : false}
+      dragConstraints={dragConstraints}
       onDragStart={() => setIsDragging(true)}
       onDragEnd={(_, info) => {
         if (!dragEnabled) return;
         const rawX = win.x + info.offset.x;
         const rawY = win.y + info.offset.y;
-        const { nx, ny } = snapPosition(rawX, rawY, win.w, win.h, viewport.w, viewport.h);
+        const { nx: cx, ny: cy } = clampPosition(rawX, rawY, win.w, win.h, viewport.w, viewport.h, topPad, bottomPad);
+        const { nx, ny } = snapPosition(cx, cy, win.w, win.h, viewport.w, viewport.h, topPad, bottomPad);
         updateWindow(win.id, { x: Math.round(nx), y: Math.round(ny) });
-        /* Tiny delay to let animate commit before re-enabling spring */
         setTimeout(() => setIsDragging(false), 32);
       }}
       onMouseDown={handleFocus}
@@ -442,27 +477,38 @@ export default function Window({ win, children }) {
         boxShadow: isActive ? SHADOW_ACTIVE(accentColor) : SHADOW_INACTIVE,
         backdropFilter: BLUR,
         WebkitBackdropFilter: BLUR,
-        background: "rgba(8,10,18,0.55)",
-        border: `1px solid ${isActive ? `${accentColor}18` : "rgba(255,255,255,0.07)"}`,
-        transition: "box-shadow 0.25s ease, border-color 0.25s ease",
+        background: "rgba(8,10,18,0.52)",
+        border: `1px solid ${isActive ? `${accentColor}20` : "rgba(255,255,255,0.07)"}`,
+        transition: "box-shadow 0.28s ease, border-color 0.28s ease",
       }}
       data-testid={`window-${win.app}`}
     >
+      {/* Glass noise texture layer */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+        borderRadius: "inherit",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.028) 0%, transparent 50%, rgba(0,0,0,0.12) 100%)",
+      }} />
+
       {/* Desktop title bar */}
       <div
-        className="window-handle h-11 flex items-center justify-between px-3 border-b flex-shrink-0"
+        className="window-handle flex items-center justify-between px-3 border-b flex-shrink-0"
         style={{
+          height: 44, minHeight: 44,
           cursor: isDragging ? "grabbing" : dragEnabled ? "grab" : "default",
           background: isActive
-            ? `linear-gradient(to bottom, rgba(255,255,255,0.055), rgba(255,255,255,0.02))`
-            : "rgba(255,255,255,0.02)",
-          borderBottomColor: isActive ? `${accentColor}14` : "rgba(255,255,255,0.08)",
-          transition: "background 0.22s ease, border-color 0.22s ease",
+            ? `linear-gradient(to bottom, rgba(255,255,255,0.065), rgba(255,255,255,0.018))`
+            : "rgba(255,255,255,0.018)",
+          borderBottomColor: isActive ? `${accentColor}18` : "rgba(255,255,255,0.07)",
+          transition: "background 0.25s ease, border-color 0.25s ease",
           userSelect: "none",
+          position: "relative",
+          zIndex: 1,
         }}
         onDoubleClick={handleMaximize}
       >
-        <div className="flex items-center gap-2">
+        {/* Left — window controls */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           <HexBtn
             testId={`window-close-${win.app}`}
             onClick={(e) => { e.stopPropagation(); handleClose(); }}
@@ -476,38 +522,54 @@ export default function Window({ win, children }) {
           <HexBtn
             testId={`window-max-${win.app}`}
             onClick={(e) => { e.stopPropagation(); handleMaximize(); }}
-            color="#39FF14" icon="⤡" label="Maximize"
+            color="#39FF14" icon={win.maximized ? "⤢" : "⤡"} label={win.maximized ? "Restore" : "Maximize"}
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        {/* Center — app identity (absolutely centered) */}
+        <div style={{
+          position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 7, pointerEvents: "none",
+        }}>
           <i
             className={`fa-solid ${app.icon}`}
             style={{
-              color: app.color,
+              color: app.color, fontSize: 12,
               filter: isActive
-                ? `drop-shadow(0 0 5px ${app.color}80)`
+                ? `drop-shadow(0 0 6px ${app.color}90)`
                 : `drop-shadow(0 0 3px ${app.color}40)`,
-              transition: "filter 0.22s ease",
+              transition: "filter 0.25s ease",
             }}
           />
           <span
-            className="font-mono uppercase tracking-widest truncate max-w-[140px] sm:max-w-none"
             style={{
-              color: isActive ? "rgba(255,255,255,0.80)" : "rgba(255,255,255,0.45)",
-              fontSize: 10, letterSpacing: "0.14em",
-              transition: "color 0.22s ease",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              fontSize: 10,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: isActive ? "rgba(255,255,255,0.80)" : "rgba(255,255,255,0.40)",
+              transition: "color 0.25s ease",
+              maxWidth: 140,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {app.name}
           </span>
         </div>
 
-        <div className="w-16" />
+        {/* Right — spacer to balance the hex controls */}
+        <div style={{ width: 78, flexShrink: 0 }} />
       </div>
 
       {/* Window content */}
-      <div className="w-full overflow-hidden" style={{ height: "calc(100% - 44px)" }}>
+      <div
+        className="w-full overflow-hidden"
+        style={{ height: "calc(100% - 44px)", position: "relative", zIndex: 1 }}
+      >
         <ErrorBoundary>
           <React.Suspense fallback={<LoadingModule />}>
             {children}
@@ -522,14 +584,31 @@ export default function Window({ win, children }) {
       <AnimatePresence>
         {isActive && (
           <motion.div
-            initial={{ opacity: 0, scaleX: 0 }}
+            initial={{ opacity: 0, scaleX: 0.3 }}
             animate={{ opacity: 1, scaleX: 1 }}
-            exit={{ opacity: 0, scaleX: 0 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            exit={{ opacity: 0, scaleX: 0.3 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             style={{
-              position: "absolute", top: 0, left: "10%", right: "10%", height: 1,
-              background: `linear-gradient(90deg, transparent, ${accentColor}60, transparent)`,
+              position: "absolute", top: 0, left: "8%", right: "8%", height: 1,
+              background: `linear-gradient(90deg, transparent, ${accentColor}70, ${accentColor}90, ${accentColor}70, transparent)`,
               pointerEvents: "none", zIndex: 25,
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Active inner glow */}
+      <AnimatePresence>
+        {isActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.30, ease: "easeOut" }}
+            style={{
+              position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+              borderRadius: "inherit",
+              boxShadow: `inset 0 0 40px ${accentColor}06, inset 0 0 1px ${accentColor}14`,
             }}
           />
         )}

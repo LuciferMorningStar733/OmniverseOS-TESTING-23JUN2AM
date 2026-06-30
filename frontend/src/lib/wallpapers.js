@@ -33,6 +33,16 @@
     { id: "vector-space",     name: "Vector Space",      className: "wp-vector-space",      accent: "#00F0FF", category: "Minimal",    typo: { main: "OMNIVERSE\u00A0OS", sub: "VECTOR" } },
     { id: "grid-zero",        name: "Grid Zero",         className: "wp-grid-zero",         accent: "#39FF14", category: "Minimal",    typo: { main: "OMNIVERSE\u00A0OS", sub: "GRID ZERO" } },
     { id: "abyss",            name: "Abyss",             className: "wp-abyss",             accent: "#C778DD", category: "Night",      typo: { main: "OMNIVERSE\u00A0OS", sub: "ABYSS" } },
+
+    // ─── Premium v3 Collection ────────────────────────────────────────────
+    { id: "oled-void",        name: "OLED Void",         className: "wp-oled-void",         accent: "#00F0FF", category: "Minimal",    typo: { main: "OMNIVERSE\u00A0OS", sub: "VOID // 2038" } },
+    { id: "aurora-boreal",    name: "Aurora Borealis",   className: "wp-aurora-boreal",     accent: "#39FF14", category: "Sci-Fi",     typo: { main: "OMNIVERSE\u00A0OS", sub: "AURORA SECTOR" } },
+    { id: "cyber-rain",       name: "Cyber Rain",        className: "wp-cyber-rain",        accent: "#00F0FF", category: "Cyber Grid", typo: { main: "OMNIVERSE\u00A0OS", sub: "RAIN PROTOCOL" } },
+    { id: "nova-burst",       name: "Nova Burst",        className: "wp-nova-burst",        accent: "#FF003C", category: "Space",      typo: { main: "OMNIVERSE\u00A0OS", sub: "NOVA // IGNITION" } },
+    { id: "iris-neural",      name: "Iris Neural",       className: "wp-iris-neural",       accent: "#A855F7", category: "Tech",       typo: { main: "OMNIVERSE\u00A0OS", sub: "IRIS // ONLINE" } },
+    { id: "glacier",          name: "Glacier",           className: "wp-glacier",           accent: "#60A5FA", category: "Minimal",    typo: { main: "OMNIVERSE\u00A0OS", sub: "GLACIER PROTOCOL" } },
+    { id: "crimson-arc",      name: "Crimson Arc",       className: "wp-crimson-arc",       accent: "#FF003C", category: "Abstract",   typo: { main: "OMNIVERSE\u00A0OS", sub: "CRIMSON ARC" } },
+    { id: "solar-wind",       name: "Solar Wind",        className: "wp-solar-wind",        accent: "#FCEE09", category: "Space",      typo: { main: "OMNIVERSE\u00A0OS", sub: "SOLAR WIND" } },
   ];
 
   export const DEFAULT_WALLPAPER = "neural-core";

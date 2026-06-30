@@ -1,16 +1,16 @@
 import React, { useState, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { WIDGET_REGISTRY } from "./widgetRegistry";
 import { useWidgetManager } from "./WidgetManagerContext";
 
 const GLASS = {
-  background: "rgba(6, 8, 16, 0.94)",
+  background: "rgba(6, 8, 16, 0.95)",
   backdropFilter: "blur(40px) saturate(180%)",
   WebkitBackdropFilter: "blur(40px) saturate(180%)",
   border: "1px solid rgba(255,255,255,0.10)",
   borderRadius: 20,
   boxShadow:
-    "0 24px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(0,240,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08)",
+    "0 32px 96px rgba(0,0,0,0.80), 0 0 0 1px rgba(0,240,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08)",
 };
 
 const WIDGET_DESCRIPTIONS = {
@@ -97,14 +97,6 @@ function ActionBtn({ isActive, justAdded, justRemoved, onClick }) {
           e.currentTarget.style.borderColor = `rgba(${accentR},0.65)`;
         }
       }}
-      onMouseLeave={(e) => {
-        setPressed(false);
-        if (!justAdded && !justRemoved) {
-          e.currentTarget.style.background  = `rgba(${accentR},0.09)`;
-          e.currentTarget.style.boxShadow   = `0 0 0px rgba(${accentR},0)`;
-          e.currentTarget.style.borderColor = `rgba(${accentR},${isActive ? 0.35 : 0.4})`;
-        }
-      }}
     >
       {ripples.map((rp) => (
         <span
@@ -163,15 +155,15 @@ function Toast({ message, visible }) {
   );
 }
 
-/* ─── Main WidgetStore ────────────────────────────────────────── */
+/* ─── Main WidgetStore (draggable panel) ─────────────────────── */
 export default function WidgetStore({ onClose }) {
   const { layout, addWidget, removeWidget } = useWidgetManager();
   const [added,   setAdded]   = useState(null);
   const [removed, setRemoved] = useState(null);
   const [toast,   setToast]   = useState({ msg: "", show: false });
   const toastTimer = useRef(null);
-
-  const scrollRef = useRef(null);
+  const scrollRef  = useRef(null);
+  const dragControls = useDragControls();
 
   const activeIds = new Set(layout.map((w) => w.id));
 
@@ -195,17 +187,9 @@ export default function WidgetStore({ onClose }) {
     setTimeout(() => setRemoved(null), 1400);
   }, [removeWidget, showToast]);
 
-  /* Fix scroll — forward wheel events to the inner scrollable div */
-  const handleBackdropWheel = useCallback((e) => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop += e.deltaY;
-      e.preventDefault();
-    }
-  }, []);
-
   return (
     <AnimatePresence>
-      {/* Backdrop — pointer-events:auto overrides the pointer-events-none parent (WidgetCanvas) */}
+      {/* Backdrop */}
       <motion.div
         key="ws-backdrop"
         initial={{ opacity: 0 }}
@@ -215,54 +199,83 @@ export default function WidgetStore({ onClose }) {
         onClick={onClose}
         style={{
           position: "fixed", inset: 0,
-          background: "rgba(0,0,0,0.5)",
+          background: "rgba(0,0,0,0.45)",
           zIndex: 200,
           pointerEvents: "auto",
         }}
       />
 
-      {/* Panel — centered between TopBar (60px) and Dock (~88px) so it never overlaps either */}
+      {/* Draggable Panel */}
       <motion.div
         key="ws-panel"
+        drag
+        dragControls={dragControls}
+        dragMomentum={false}
+        dragElastic={0}
         initial={{ opacity: 0, scale: 0.93, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 12 }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
-        onWheel={handleBackdropWheel}
+        onWheel={(e) => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop += e.deltaY;
+            e.preventDefault();
+          }
+        }}
         style={{
           position: "fixed",
-          /* Sit in the safe zone between TopBar and Dock.
-             Shift the center point up by 44px (half dock height ~88px)
-             so the panel is visually centred in the available canvas. */
           top: "calc(50% - 44px)",
           left: "50%",
           transform: "translate(-50%, -50%)",
           width: 360,
-          /* Never tall enough to reach TopBar (60px) or Dock (88px) + gaps */
           maxHeight: "calc(100vh - 168px)",
           display: "flex",
           flexDirection: "column",
           zIndex: 201,
           pointerEvents: "auto",
+          cursor: "default",
           ...GLASS,
         }}
       >
         {/* Ripple keyframe injection */}
         <style>{`
-          @keyframes omni-ripple {
-            to { transform: scale(1); opacity: 0; }
-          }
+          @keyframes omni-ripple { to { transform: scale(1); opacity: 0; } }
         `}</style>
 
-        {/* Header */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 18px 12px",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          flexShrink: 0,
-        }}>
+        {/* Header — drag handle */}
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "14px 16px 12px",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            flexShrink: 0,
+            cursor: "grab",
+            userSelect: "none",
+            background: "rgba(255,255,255,0.02)",
+            borderRadius: "20px 20px 0 0",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            {/* Drag grip indicator */}
+            <div style={{
+              display: "flex", flexDirection: "column", gap: 2.5,
+              opacity: 0.35, flexShrink: 0,
+            }}>
+              {[0,1,2].map(i => (
+                <div key={i} style={{
+                  display: "flex", gap: 2.5,
+                }}>
+                  {[0,1].map(j => (
+                    <div key={j} style={{
+                      width: 3, height: 3, borderRadius: "50%",
+                      background: "rgba(255,255,255,0.6)",
+                    }} />
+                  ))}
+                </div>
+              ))}
+            </div>
             <i className="fa-solid fa-table-cells-large" style={{ color: "#00F0FF", fontSize: 13 }} />
             <span style={{
               fontSize: 12, fontFamily: "monospace",
@@ -277,8 +290,6 @@ export default function WidgetStore({ onClose }) {
             <span style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.3)" }}>
               {activeIds.size} active
             </span>
-
-            {/* Close button — bigger hitbox, proper hover */}
             <button
               onClick={onClose}
               title="Close"
@@ -317,12 +328,12 @@ export default function WidgetStore({ onClose }) {
             fontSize: 10.5, color: "rgba(255,255,255,0.32)",
             fontFamily: "monospace", margin: 0, lineHeight: 1.5,
           }}>
-            Tap <span style={{ color: "#00F0FF" }}>+</span> to add a widget to your desktop.
+            Tap <span style={{ color: "#00F0FF" }}>+</span> to add a widget.
             Drag &amp; resize widgets once on the desktop.
           </p>
         </div>
 
-        {/* Widget list — scroll fixed */}
+        {/* Widget list */}
         <div
           ref={scrollRef}
           style={{
@@ -330,7 +341,6 @@ export default function WidgetStore({ onClose }) {
             overflowX: "hidden",
             padding: "4px 12px 16px",
             flex: 1,
-            /* Smooth scrolling on trackpad / touch */
             WebkitOverflowScrolling: "touch",
             scrollbarWidth: "thin",
             scrollbarColor: "rgba(0,240,255,0.18) transparent",
