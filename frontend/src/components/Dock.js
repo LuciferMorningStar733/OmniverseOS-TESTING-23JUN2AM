@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback, memo } from "react";
-import { motion, AnimatePresence, useAnimate, useSpring, useTransform } from "framer-motion";
+import React, { useState, useRef, useCallback, useMemo, memo } from "react";
+import { motion, AnimatePresence, useAnimate } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
@@ -63,7 +63,7 @@ const QuickMenu = memo(function QuickMenu({ appId, x, y, onClose, onOpen, onClos
   );
 });
 
-function QuickAction({ icon, label, color, onClick, danger }) {
+const QuickAction = memo(function QuickAction({ icon, label, color, onClick, danger }) {
   const [pressed, setPressed] = useState(false);
   return (
     <button
@@ -90,10 +90,10 @@ function QuickAction({ icon, label, color, onClick, danger }) {
       </span>
     </button>
   );
-}
+});
 
 /* ── Mobile dock icon ──────────────────────────────────────────────────────── */
-function MobileDockIcon({ app, windows, activeId, openApp, focusWindow, closeWindow }) {
+const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, openApp, focusWindow, closeWindow }) {
   const [scope, animate] = useAnimate();
   const pressTimerRef  = useRef(null);
   const didLongPress   = useRef(false);
@@ -105,8 +105,7 @@ function MobileDockIcon({ app, windows, activeId, openApp, focusWindow, closeWin
 
   const handleTouchStart = useCallback((e) => {
     didLongPress.current = false;
-    const touch = e.touches[0];
-    const rect  = e.currentTarget.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     pressTimerRef.current = setTimeout(() => {
       didLongPress.current = true;
       if (navigator.vibrate) navigator.vibrate(35);
@@ -222,7 +221,7 @@ function MobileDockIcon({ app, windows, activeId, openApp, focusWindow, closeWin
       </AnimatePresence>
     </>
   );
-}
+});
 
 function MobileDock() {
   const { openApp, closeWindow, windows, activeId, focusWindow } = useOS();
@@ -265,7 +264,7 @@ function MobileDock() {
 }
 
 /* ── Desktop dock icon ─────────────────────────────────────────────────────── */
-function DockTooltip({ name, visible }) {
+const DockTooltip = memo(function DockTooltip({ name, visible }) {
   return (
     <AnimatePresence>
       {visible && (
@@ -299,21 +298,26 @@ function DockTooltip({ name, visible }) {
       )}
     </AnimatePresence>
   );
-}
+});
 
-function DesktopDockIcon({ app, index, hoverIndex, isActive, open, onHover, onLeave, onClick }) {
-  const [scope, animateScope] = useAnimate();
-  const [tooltipVisible, setTooltipVisible] = useState(false);
-
-  /* Magnification: macOS-style cubic falloff */
-  const scale = (() => {
+/* Magnification scale helper extracted so it's recomputed only when deps change */
+function useScale(index, hoverIndex) {
+  return useMemo(() => {
     if (hoverIndex === null) return 1;
     const d = Math.abs(index - hoverIndex);
     if (d === 0) return 1.42;
     if (d === 1) return 1.22;
     if (d === 2) return 1.08;
     return 1;
-  })();
+  }, [index, hoverIndex]);
+}
+
+const DesktopDockIcon = memo(function DesktopDockIcon({
+  app, index, hoverIndex, isActive, open, onHover, onLeave, openApp,
+}) {
+  const [scope, animateScope] = useAnimate();
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const scale = useScale(index, hoverIndex);
 
   const handleClick = useCallback(async () => {
     await animateScope(scope.current, {
@@ -324,15 +328,30 @@ function DesktopDockIcon({ app, index, hoverIndex, isActive, open, onHover, onLe
       ease: "easeOut",
       times: [0, 0.14, 0.40, 0.64, 0.82, 1],
     });
-    onClick();
-  }, [animateScope, scope, onClick]);
+    openApp(app.id);
+  }, [animateScope, scope, openApp, app.id]);
+
+  const handleMouseEnter = useCallback(() => {
+    onHover(index);
+    setTooltipVisible(true);
+  }, [onHover, index]);
+
+  const handleMouseLeave = useCallback(() => {
+    onLeave();
+    setTooltipVisible(false);
+  }, [onLeave]);
+
+  /* Per-app glow ring color */
+  const ringStyle = useMemo(() => ({
+    boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 18px ${app.color}28, 0 0 36px ${app.color}12`,
+  }), [app.color]);
 
   return (
     <motion.button
       ref={scope}
       data-testid={`dock-item-${app.id}`}
-      onMouseEnter={() => { onHover(index); setTooltipVisible(true); }}
-      onMouseLeave={() => { onLeave(); setTooltipVisible(false); }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onClick={handleClick}
       animate={{ scale }}
       transition={{ type: "spring", stiffness: 350, damping: 20, mass: 0.35 }}
@@ -345,6 +364,7 @@ function DesktopDockIcon({ app, index, hoverIndex, isActive, open, onHover, onLe
         transformOrigin: "bottom center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
         transition: "background 0.22s ease",
+        willChange: "transform",
       }}
     >
       {/* Active glow ring */}
@@ -356,9 +376,7 @@ function DesktopDockIcon({ app, index, hoverIndex, isActive, open, onHover, onLe
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 rounded-xl"
-            style={{
-              boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 18px ${app.color}28`,
-            }}
+            style={ringStyle}
           />
         )}
       </AnimatePresence>
@@ -396,11 +414,22 @@ function DesktopDockIcon({ app, index, hoverIndex, isActive, open, onHover, onLe
       <DockTooltip name={app.name} visible={tooltipVisible} />
     </motion.button>
   );
-}
+});
 
 function DesktopDock({ isTablet }) {
   const { openApp, windows, activeId } = useOS();
-  const [hoverIndex, setHoverIndex]    = useState(null);
+  const [hoverIndex, setHoverIndex] = useState(null);
+
+  /* Stable onLeave so memo'd DesktopDockIcon only re-renders when needed */
+  const onLeave = useCallback(() => setHoverIndex(null), []);
+
+  /* Pre-compute per-app state so the expensive find() isn't inside render */
+  const appStates = useMemo(() => APPS.map((app) => {
+    const win      = windows.find((w) => w.app === app.id);
+    const open     = Boolean(win);
+    const isActive = open && win?.id === activeId;
+    return { app, open, isActive };
+  }), [windows, activeId]);
 
   return (
     <motion.div
@@ -420,27 +449,21 @@ function DesktopDock({ isTablet }) {
           boxShadow: "0 24px 64px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(0,240,255,0.04)",
           maxWidth: "calc(100vw - 16px)",
         }}
-        onMouseLeave={() => setHoverIndex(null)}
+        onMouseLeave={onLeave}
       >
-        {APPS.map((app, i) => {
-          const win      = windows.find((w) => w.app === app.id);
-          const open     = Boolean(win);
-          const isActive = open && win?.id === activeId;
-
-          return (
-            <DesktopDockIcon
-              key={app.id}
-              app={app}
-              index={i}
-              hoverIndex={hoverIndex}
-              isActive={isActive}
-              open={open}
-              onHover={setHoverIndex}
-              onLeave={() => setHoverIndex(null)}
-              onClick={() => openApp(app.id)}
-            />
-          );
-        })}
+        {appStates.map(({ app, open, isActive }, i) => (
+          <DesktopDockIcon
+            key={app.id}
+            app={app}
+            index={i}
+            hoverIndex={hoverIndex}
+            isActive={isActive}
+            open={open}
+            onHover={setHoverIndex}
+            onLeave={onLeave}
+            openApp={openApp}
+          />
+        ))}
       </div>
     </motion.div>
   );
