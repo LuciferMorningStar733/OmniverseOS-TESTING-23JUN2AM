@@ -251,6 +251,239 @@ function EditModal({ mem, onSave, onClose }) {
   );
 }
 
+
+const CATEGORY_COLORS = {
+  Personal:    "#00F0FF",
+  Preferences: "#A78BFA",
+  Devices:     "#34D399",
+  Vehicles:    "#F59E0B",
+  Projects:    "#F97316",
+  Work:        "#60A5FA",
+  Contacts:    "#EC4899",
+  Locations:   "#10B981",
+  Other:       "rgba(255,255,255,0.35)",
+};
+
+function StrengthGraph({ onClose }) {
+  const [stats, setStats] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [view, setView] = React.useState("top"); // "top" | "categories"
+
+  React.useEffect(() => {
+    api.get("/memories/stats").then(r => {
+      setStats(r.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const maxUses = stats?.top_by_usage?.[0]?.use_count || 1;
+
+  const catEntries = stats
+    ? Object.entries(stats.by_category)
+        .sort((a, b) => b[1].uses - a[1].uses)
+    : [];
+  const maxCatUses = catEntries[0]?.[1]?.uses || 1;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)",
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: "min(560px, 96vw)", maxHeight: "80vh",
+          background: "rgba(6,8,16,0.98)",
+          border: "1px solid rgba(0,240,255,0.2)", borderRadius: 16,
+          display: "flex", flexDirection: "column",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.85), 0 0 40px rgba(0,240,255,0.05)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#00F0FF", fontFamily: "'JetBrains Mono', monospace" }}>
+              <i className="fa-solid fa-chart-bar mr-2" style={{ fontSize: 13 }} />
+              Memory Strength
+            </div>
+            {stats && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", fontFamily: "monospace", marginTop: 2 }}>
+                {stats.total} memories · {stats.total_uses} total retrievals by Cortex
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 8, color: "rgba(255,255,255,0.5)", width: 30, height: 30,
+            cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        {/* View toggle */}
+        <div style={{
+          padding: "10px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)",
+          display: "flex", gap: 6, flexShrink: 0,
+        }}>
+          {[["top", "fa-ranking-star", "Most Used"], ["categories", "fa-layer-group", "By Category"]].map(([v, icon, label]) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                padding: "5px 12px", borderRadius: 8, fontSize: 11,
+                fontFamily: "'JetBrains Mono', monospace",
+                background: view === v ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.04)",
+                border: view === v ? "1px solid rgba(0,240,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                color: view === v ? "#00F0FF" : "rgba(255,255,255,0.45)",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <i className={"fa-solid " + icon} style={{ fontSize: 9 }} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+          {loading ? (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 40, fontSize: 13 }}>
+              <i className="fa-solid fa-brain fa-pulse mr-2" /> Loading memory stats...
+            </div>
+          ) : view === "top" ? (
+            <>
+              {stats?.top_by_usage?.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 30, fontSize: 13 }}>
+                  No memory retrievals yet. Chat with Cortex to build memory strength.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {stats.top_by_usage.map((m, i) => {
+                    const pct = Math.max(4, (m.use_count / maxUses) * 100);
+                    const color = CATEGORY_COLORS[m.category] || "#00F0FF";
+                    return (
+                      <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0 }}>
+                            <span style={{
+                              fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.3)",
+                              width: 16, textAlign: "right", flexShrink: 0,
+                            }}>#{i + 1}</span>
+                            <span style={{
+                              fontSize: 11.5, color: "#E2E8F0", fontFamily: "'Inter', sans-serif",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              {m.never_forget && <i className="fa-solid fa-infinity mr-1" style={{ color: "#FF003C", fontSize: 8 }} />}
+                              {m.pinned && <i className="fa-solid fa-thumbtack mr-1" style={{ color: "#00F0FF", fontSize: 8 }} />}
+                              {m.title}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                            <span style={{
+                              fontSize: 9, fontFamily: "monospace",
+                              background: color + "18",
+                              border: "1px solid " + color + "40",
+                              borderRadius: 4, padding: "1px 5px",
+                              color: color,
+                            }}>{m.category}</span>
+                            <span style={{
+                              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                              color: color, fontWeight: 700, minWidth: 28, textAlign: "right",
+                            }}>
+                              {m.use_count}×
+                            </span>
+                          </div>
+                        </div>
+                        {/* Bar */}
+                        <div style={{
+                          height: 6, borderRadius: 3,
+                          background: "rgba(255,255,255,0.06)", overflow: "hidden",
+                          marginLeft: 23,
+                        }}>
+                          <div style={{
+                            height: "100%", width: pct + "%",
+                            borderRadius: 3,
+                            background: "linear-gradient(90deg, " + color + "cc, " + color + "60)",
+                            boxShadow: "0 0 8px " + color + "50",
+                            transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)",
+                          }} />
+                        </div>
+                        {m.last_used && (
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "monospace", marginLeft: 23 }}>
+                            Last used {new Date(m.last_used).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            /* Category breakdown */
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {catEntries.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 30, fontSize: 13 }}>
+                  No memories yet.
+                </div>
+              ) : catEntries.map(([cat, d]) => {
+                const color = CATEGORY_COLORS[cat] || "#00F0FF";
+                const pct = Math.max(4, (d.uses / maxCatUses) * 100);
+                const memPct = Math.max(4, (d.count / (stats?.total || 1)) * 100);
+                return (
+                  <div key={cat} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <i className={"fa-solid " + (CATEGORY_ICONS[cat] || "fa-tag")} style={{ color, fontSize: 10, width: 14, textAlign: "center" }} />
+                        <span style={{ fontSize: 12, color: "#E2E8F0", fontFamily: "'Inter', sans-serif" }}>{cat}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 14, fontSize: 10.5, fontFamily: "monospace" }}>
+                        <span style={{ color: "rgba(255,255,255,0.4)" }}>{d.count} memories</span>
+                        <span style={{ color }}>{d.uses}× used</span>
+                      </div>
+                    </div>
+                    {/* Dual bars: memory count + usage */}
+                    <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 36, fontSize: 8.5, fontFamily: "monospace", color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>count</div>
+                        <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: memPct + "%", borderRadius: 3, background: color + "60" }} />
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 36, fontSize: 8.5, fontFamily: "monospace", color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>used</div>
+                        <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", width: pct + "%", borderRadius: 3,
+                            background: "linear-gradient(90deg, " + color + ", " + color + "80)",
+                            boxShadow: "0 0 6px " + color + "40",
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer hint */}
+        <div style={{
+          padding: "10px 20px", borderTop: "1px solid rgba(255,255,255,0.06)",
+          fontSize: 9.5, color: "rgba(255,255,255,0.22)", fontFamily: "monospace", flexShrink: 0,
+        }}>
+          Strength = how often Cortex retrieved this memory to answer your questions
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function Memory() {
   const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -258,6 +491,7 @@ export default function Memory() {
   const [search, setSearch] = useState("");
   const [editTarget, setEditTarget] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showStrength, setShowStrength] = useState(false);
 
   const load = useCallback(() => {
     memApi.list().then(data => {
@@ -391,6 +625,14 @@ export default function Memory() {
             />
           </div>
           <button
+            onClick={() => setShowStrength(true)}
+            className="neon-btn"
+            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            title="Memory Strength"
+          >
+            <i className="fa-solid fa-chart-bar mr-1" /> Strength
+          </button>
+          <button
             onClick={() => { setEditTarget(null); setShowAddModal(true); }}
             className="neon-btn primary"
             style={{ flexShrink: 0, whiteSpace: "nowrap" }}
@@ -443,6 +685,11 @@ export default function Memory() {
           )}
         </div>
       </div>
+
+      {/* Strength Graph Modal */}
+      {showStrength && (
+        <StrengthGraph onClose={() => setShowStrength(false)} />
+      )}
 
       {/* Edit/Add Modal */}
       {showAddModal && (

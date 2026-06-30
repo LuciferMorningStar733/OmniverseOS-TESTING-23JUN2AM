@@ -48,6 +48,7 @@ async def lifespan(_app: FastAPI):
     await db.cortex_memories.create_index([("user_id", 1), ("importance_score", -1)])
     await db.cortex_memories.create_index([("user_id", 1), ("category", 1)])
     await db.cortex_memories.create_index([("user_id", 1), ("never_forget", 1)])
+    await db.cortex_memories.create_index([("user_id", 1), ("use_count", -1)])
     yield
     # shutdown
     client.close()
@@ -802,6 +803,7 @@ async def create_cortex_memory(req: CortexMemoryReq, user=Depends(get_current_us
         "pinned": req.pinned,
         "never_forget": req.never_forget,
         "source_message": req.source_message,
+        "use_count": 0,
         "created_at": now_iso(),
         "updated_at": now_iso(),
         "last_used": now_iso(),
@@ -871,8 +873,11 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
         ids = [m["id"] for m in top]
         await db.cortex_memories.update_many(
             {"id": {"$in": ids}, "user_id": user["id"]},
-            {"$set": {"last_used": now_iso()}}
+            {"$set": {"last_used": now_iso()}, "$inc": {"use_count": 1}}
         )
+        # Update local copies with incremented count
+        for m in top:
+            m["use_count"] = int(m.get("use_count", 0)) + 1
     return top
 
 @api.post("/memories/extract")
@@ -924,6 +929,7 @@ async def extract_memories(req: MemoryExtractReq, user=Depends(get_current_user)
                 "content": item["content"], "category": cat,
                 "importance_score": imp, "pinned": False, "never_forget": False,
                 "source_message": req.user_message[:200],
+                "use_count": 0,
                 "created_at": now_iso(), "updated_at": now_iso(), "last_used": now_iso(),
             }
             await db.cortex_memories.insert_one(doc)
@@ -933,6 +939,47 @@ async def extract_memories(req: MemoryExtractReq, user=Depends(get_current_user)
     except Exception as exc:
         logging.warning("Memory extraction failed: %s", exc)
         return {"extracted": []}
+
+
+@api.get("/memories/stats")
+async def memory_stats(user=Depends(get_current_user)):
+    """Return memory usage stats for the Strength graph."""
+    all_mems = await db.cortex_memories.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("use_count", -1).to_list(500)
+    if not all_mems:
+        return {"top_by_usage": [], "by_category": {}, "total": 0, "total_uses": 0}
+
+    total_uses = sum(int(m.get("use_count", 0)) for m in all_mems)
+    by_cat: dict = {}
+    for m in all_mems:
+        cat = m.get("category", "Other")
+        if cat not in by_cat:
+            by_cat[cat] = {"count": 0, "uses": 0}
+        by_cat[cat]["count"] += 1
+        by_cat[cat]["uses"] += int(m.get("use_count", 0))
+
+    top_by_usage = [
+        {
+            "id": m["id"],
+            "title": m.get("title") or m.get("content", "")[:50],
+            "category": m.get("category", "Other"),
+            "use_count": int(m.get("use_count", 0)),
+            "importance_score": m.get("importance_score", 0.5),
+            "never_forget": m.get("never_forget", False),
+            "pinned": m.get("pinned", False),
+            "last_used": m.get("last_used"),
+        }
+        for m in all_mems[:20]
+        if int(m.get("use_count", 0)) > 0
+    ]
+
+    return {
+        "top_by_usage": top_by_usage,
+        "by_category": by_cat,
+        "total": len(all_mems),
+        "total_uses": total_uses,
+    }
 
 # Files (virtual file manager)
 @api.get("/files")
