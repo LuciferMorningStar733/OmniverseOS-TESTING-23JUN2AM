@@ -95,13 +95,40 @@ async def _stream_gemini(
     model: str,
     message: str,
     system: str,
+    history: list | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Yields text chunks from Gemini streaming API."""
+    """Yields text chunks from Gemini streaming API.
+    
+    Passes full conversation history for multi-turn context awareness.
+    Enables Google Search grounding so Gemini fetches live web data
+    instead of relying on potentially stale training knowledge.
+    """
+    # Build multi-turn contents from history so Gemini remembers earlier messages
+    contents = []
+    for msg in (history or []):
+        role = "user" if msg.get("role") == "user" else "model"
+        content = (msg.get("content") or "").strip()
+        if content:
+            contents.append(genai_types.Content(
+                role=role,
+                parts=[genai_types.Part(text=content)],
+            ))
+    # Append the current user message
+    contents.append(genai_types.Content(
+        role="user",
+        parts=[genai_types.Part(text=message)],
+    ))
+
     response = await asyncio.wait_for(
         gemini_client.aio.models.generate_content_stream(
             model=model,
-            contents=message,
-            config=genai_types.GenerateContentConfig(system_instruction=system),
+            contents=contents,
+            config=genai_types.GenerateContentConfig(
+                system_instruction=system,
+                # Google Search grounding — Gemini fetches real web data when
+                # it needs current or factual info (e.g. product specs, prices)
+                tools=[genai_types.Tool(google_search=genai_types.GoogleSearch())],
+            ),
         ),
         timeout=50.0,
     )
@@ -214,9 +241,10 @@ class ProviderManager:
         gemini_model: str,
         message: str,
         system: str,
+        history: list | None = None,
     ) -> AsyncGenerator[str, None]:
         if provider == "gemini":
-            async for chunk in _stream_gemini(self._gemini_client, gemini_model, message, system):
+            async for chunk in _stream_gemini(self._gemini_client, gemini_model, message, system, history):
                 yield chunk
         elif provider == "deepseek":
             async for chunk in _stream_openai_compat(
@@ -261,6 +289,7 @@ class ProviderManager:
         gemini_model: str,
         message: str,
         system: str,
+        history: list | None = None,
     ) -> AsyncGenerator[tuple[str, Optional[str]], None]:
         """
         Main entry point.  Yields (chunk_type, value) tuples:
@@ -288,7 +317,7 @@ class ProviderManager:
             try:
                 # Signal provider before first chunk
                 provider_signalled = False
-                async for chunk in self._stream_provider(provider, gemini_model, message, system):
+                async for chunk in self._stream_provider(provider, gemini_model, message, system, history):
                     if not provider_signalled:
                         yield ("provider", provider)
                         provider_signalled = True
