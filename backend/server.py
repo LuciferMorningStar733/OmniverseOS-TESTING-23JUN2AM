@@ -16,6 +16,7 @@ from pathlib import Path
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import uuid
+import re
 import traceback
 import bcrypt
 import jwt as pyjwt
@@ -44,6 +45,9 @@ async def lifespan(_app: FastAPI):
     for coll in ("notes", "tasks", "events", "transactions", "memories", "files", "images", "clipboard"):
         await db[coll].create_index([("user_id", 1), ("created_at", -1)])
     await db.chat_messages.create_index([("user_id", 1), ("session_id", 1), ("created_at", 1)])
+    await db.cortex_memories.create_index([("user_id", 1), ("importance_score", -1)])
+    await db.cortex_memories.create_index([("user_id", 1), ("category", 1)])
+    await db.cortex_memories.create_index([("user_id", 1), ("never_forget", 1)])
     yield
     # shutdown
     client.close()
@@ -149,6 +153,37 @@ class TxnReq(BaseModel):
 class MemoryReq(BaseModel):
     content: str
     tag: str = "general"
+
+# ── Cortex Persistent Memory Models ──────────────────────────────────────
+CORTEX_MEMORY_CATEGORIES = {
+    "Personal", "Preferences", "Devices", "Vehicles",
+    "Projects", "Work", "Contacts", "Locations", "Other",
+}
+
+class CortexMemoryReq(BaseModel):
+    title: str = ""
+    content: str = Field(..., min_length=1, max_length=4000)
+    category: str = "Other"
+    importance_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    pinned: bool = False
+    never_forget: bool = False
+    source_message: str = ""
+
+class CortexMemoryUpdateReq(BaseModel):
+    title: str = ""
+    content: str = Field(..., min_length=1, max_length=4000)
+    category: str = "Other"
+    importance_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    pinned: bool = False
+    never_forget: bool = False
+
+class MemoryExtractReq(BaseModel):
+    user_message: str = Field(..., max_length=4000)
+    assistant_response: str = Field(..., max_length=8000)
+
+class MemoryRelevantReq(BaseModel):
+    query: str = Field(..., max_length=2000)
+    limit: int = Field(default=6, ge=1, le=20)
 
 class FileReq(BaseModel):
     name: str
@@ -745,18 +780,159 @@ async def create_txn(req: TxnReq, user=Depends(get_current_user)):
 async def delete_txn(tid: str, user=Depends(get_current_user)):
     return await delete_for_user("transactions", user["id"], tid)
 
-# Memory
+# ── Cortex Persistent Memory ──────────────────────────────────────────────
+
 @api.get("/memories")
 async def list_memories(user=Depends(get_current_user)):
-    return await list_for_user("memories", user["id"])
+    docs = await db.cortex_memories.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort([("pinned", -1), ("importance_score", -1), ("created_at", -1)]).to_list(500)
+    return docs
 
 @api.post("/memories")
-async def create_memory(req: MemoryReq, user=Depends(get_current_user)):
-    return await create_for_user("memories", user["id"], req.model_dump())
+async def create_cortex_memory(req: CortexMemoryReq, user=Depends(get_current_user)):
+    category = req.category if req.category in CORTEX_MEMORY_CATEGORIES else "Other"
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "title": req.title or req.content[:60],
+        "content": req.content,
+        "category": category,
+        "importance_score": req.importance_score,
+        "pinned": req.pinned,
+        "never_forget": req.never_forget,
+        "source_message": req.source_message,
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+        "last_used": now_iso(),
+    }
+    await db.cortex_memories.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.put("/memories/{mid}")
+async def update_cortex_memory(mid: str, req: CortexMemoryUpdateReq, user=Depends(get_current_user)):
+    category = req.category if req.category in CORTEX_MEMORY_CATEGORIES else "Other"
+    update_data = {
+        "title": req.title or req.content[:60],
+        "content": req.content,
+        "category": category,
+        "importance_score": req.importance_score,
+        "pinned": req.pinned,
+        "never_forget": req.never_forget,
+        "updated_at": now_iso(),
+    }
+    res = await db.cortex_memories.update_one(
+        {"id": mid, "user_id": user["id"]}, {"$set": update_data}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Memory not found")
+    doc = await db.cortex_memories.find_one({"id": mid}, {"_id": 0})
+    return doc
 
 @api.delete("/memories/{mid}")
-async def delete_memory(mid: str, user=Depends(get_current_user)):
-    return await delete_for_user("memories", user["id"], mid)
+async def delete_cortex_memory(mid: str, user=Depends(get_current_user)):
+    res = await db.cortex_memories.delete_one({"id": mid, "user_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Memory not found")
+    return {"ok": True}
+
+@api.post("/memories/relevant")
+async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current_user)):
+    """Keyword-score all user memories and return the most relevant to the query."""
+    all_mems = await db.cortex_memories.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("importance_score", -1).to_list(500)
+    if not all_mems:
+        return []
+    stop = {"i","a","an","the","is","it","my","me","you","do","did",
+            "what","which","who","how","when","where","was","are","be",
+            "have","has","can","could","would","should","will","and","or",
+            "of","in","on","at","to","for","with","about","that","this"}
+    qwords = set(req.query.lower().split()) - stop
+    def score(m):
+        text = (m.get("title","") + " " + m.get("content","") + " " + m.get("category","")).lower()
+        words = set(text.split()) - stop
+        overlap = len(qwords & words)
+        imp = float(m.get("importance_score", 0.5))
+        nf  = 3.0 if m.get("never_forget") else 1.0
+        pin = 1.5 if m.get("pinned") else 1.0
+        return (overlap * 2 + imp) * nf * pin
+    scored = sorted(all_mems, key=score, reverse=True)
+    nf_mems = [m for m in all_mems if m.get("never_forget")]
+    top = scored[:req.limit]
+    seen = {m["id"] for m in top}
+    for m in nf_mems:
+        if m["id"] not in seen:
+            top.append(m)
+            seen.add(m["id"])
+    top = top[:req.limit]
+    if top:
+        ids = [m["id"] for m in top]
+        await db.cortex_memories.update_many(
+            {"id": {"$in": ids}, "user_id": user["id"]},
+            {"$set": {"last_used": now_iso()}}
+        )
+    return top
+
+@api.post("/memories/extract")
+async def extract_memories(req: MemoryExtractReq, user=Depends(get_current_user)):
+    """Use Gemini to auto-extract long-term memorable facts from a conversation turn."""
+    if not gemini_client:
+        return {"extracted": []}
+    await rate_limit(f"mem_extract:{user['id']}", max_per_min=30)
+    prompt = (
+        "Extract long-term memorable facts from this conversation. Return a JSON array only.\n\n"
+        f"User: {req.user_message}\nAssistant: {req.assistant_response[:1500]}\n\n"
+        "Rules:\n"
+        "- Extract ONLY personal facts worth permanently remembering: owned items, preferences, projects, profession, location, contacts.\n"
+        "- Skip: questions, weather, time queries, temporary facts, general knowledge.\n"
+        "- Each item: {title: 5 words max, content: one sentence fact, category: one of [Personal,Preferences,Devices,Vehicles,Projects,Work,Contacts,Locations,Other], importance_score: 0.0-1.0}\n"
+        "- 0.9+ for critical personal info, 0.7 for preferences, 0.5 general.\n"
+        "Return ONLY valid JSON array, no markdown fences, no explanation. Return [] if nothing memorable."
+    )
+    try:
+        resp = await gemini_client.aio.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(temperature=0.1, max_output_tokens=800),
+        )
+        raw = (resp.text or "").strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        import json as _json
+        items = _json.loads(raw)
+        if not isinstance(items, list):
+            return {"extracted": []}
+        saved = []
+        for item in items[:5]:
+            if not isinstance(item, dict) or not item.get("content"):
+                continue
+            cat = item.get("category", "Other")
+            if cat not in CORTEX_MEMORY_CATEGORIES:
+                cat = "Other"
+            imp = min(1.0, max(0.0, float(item.get("importance_score", 0.6))))
+            existing = await db.cortex_memories.find_one({
+                "user_id": user["id"],
+                "content": {"$regex": f"^{re.escape(item['content'][:40])}", "$options": "i"}
+            })
+            if existing:
+                continue
+            doc = {
+                "id": str(uuid.uuid4()), "user_id": user["id"],
+                "title": item.get("title", item["content"][:60]),
+                "content": item["content"], "category": cat,
+                "importance_score": imp, "pinned": False, "never_forget": False,
+                "source_message": req.user_message[:200],
+                "created_at": now_iso(), "updated_at": now_iso(), "last_used": now_iso(),
+            }
+            await db.cortex_memories.insert_one(doc)
+            doc.pop("_id", None)
+            saved.append(doc)
+        return {"extracted": saved}
+    except Exception as exc:
+        logging.warning("Memory extraction failed: %s", exc)
+        return {"extracted": []}
 
 # Files (virtual file manager)
 @api.get("/files")

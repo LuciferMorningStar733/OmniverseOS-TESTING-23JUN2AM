@@ -478,3 +478,21 @@ export const ttsApi = {
     }
   },
 };
+
+// ── Cortex Persistent Memory API ──────────────────────────────────────────
+export const memoryApi = {
+  list: () => api.get('/memories').then(r => r.data),
+  create: (data) => api.post('/memories', data).then(r => r.data),
+  update: (id, data) => api.put('/memories/' + id, data).then(r => r.data),
+  remove: (id) => api.delete('/memories/' + id).then(r => r.data),
+
+  /** Get memories most relevant to a user query (keyword-scored server-side) */
+  relevant: (query, limit = 6) =>
+    api.post('/memories/relevant', { query, limit }).then(r => r.data).catch(() => []),
+
+  /** Fire-and-forget: extract and auto-save memorable facts after an AI response */
+  extract: (user_message, assistant_response) =>
+    api.post('/memories/extract', { user_message, assistant_response })
+      .then(r => r.data)
+      .catch(() => ({ extracted: [] })),
+};

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { aiApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
+import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import { trackEvent } from "../lib/activityTimeline";
@@ -348,6 +348,8 @@ export default function AIChat() {
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
+  const [relevantMemories, setRelevantMemories] = useState([]);
+  const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -575,13 +577,29 @@ export default function AIChat() {
 
     try {
       const preferredProvider = getPreferredProvider();
+      // ── Fetch relevant Cortex memories for this message ──────────────
+      let fetchedMemories = [];
+      try {
+        fetchedMemories = await memoryApi.relevant(text, 6);
+        if (mountedRef.current) setRelevantMemories(fetchedMemories);
+      } catch { /* non-blocking */ }
+
       // ── Cortex Unification: build live OS context system prompt ─────────
       // Aggregates active app, browser URL, recent apps/URLs, last session,
       // memory state — gives the LLM real awareness of the user's workspace.
-      const systemPrompt = buildCortexSystemPrompt({
+      let systemPrompt = buildCortexSystemPrompt({
         windows: windowsRef.current,
         activeId: activeIdRef.current,
       });
+
+      // Inject relevant memories into system prompt
+      if (fetchedMemories.length > 0) {
+        systemPrompt += "\n\n=== CORTEX LONG-TERM MEMORY ===\n";
+        systemPrompt += "The following facts are permanently remembered about this user. Use them naturally without re-asking.\n";
+        fetchedMemories.forEach((m, i) => {
+          systemPrompt += `${i + 1}. [${m.category}] ${m.content}\n`;
+        });
+      }
       // Build conversation history starting from the context floor (respects
       // "Clear context" — messages before the floor are excluded).
       const history = messagesRef.current
@@ -622,6 +640,21 @@ export default function AIChat() {
           if (last?.role === "assistant") copy[copy.length - 1] = { ...last, modelUsed: result.modelUsed };
           return copy;
         });
+      }
+
+      // ── Fire-and-forget memory extraction ───────────────────────────────
+      // Get the full assistant response from messages state for extraction
+      const lastAssistantContent = (() => {
+        const msgs = messagesRef.current;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === "assistant" && msgs[i].content && !msgs[i].pending) {
+            return msgs[i].content;
+          }
+        }
+        return "";
+      })();
+      if (lastAssistantContent) {
+        memoryApi.extract(text, lastAssistantContent); // fire-and-forget
       }
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -852,6 +885,50 @@ export default function AIChat() {
         </button>
       )}
       </div>
+
+      {/* 🧠 Relevant memory indicator */}
+      {relevantMemories.length > 0 && (
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setShowMemoryPanel(p => !p)}
+            style={{
+              width: "100%", textAlign: "left",
+              padding: "4px 14px",
+              background: showMemoryPanel ? "rgba(0,240,255,0.08)" : "rgba(0,240,255,0.04)",
+              borderTop: "1px solid rgba(0,240,255,0.10)",
+              borderBottom: showMemoryPanel ? "none" : "1px solid rgba(0,240,255,0.06)",
+              borderLeft: "none", borderRight: "none",
+              display: "flex", alignItems: "center", gap: 7,
+              fontSize: "10.5px", color: "rgba(0,240,255,0.70)",
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: "pointer", transition: "background 0.15s",
+            }}
+          >
+            <i className="fa-solid fa-brain" style={{ fontSize: 10 }} />
+            <span>Using {relevantMemories.length} relevant {relevantMemories.length === 1 ? "memory" : "memories"}</span>
+            <i className={"fa-solid fa-chevron-" + (showMemoryPanel ? "up" : "down")} style={{ fontSize: 8, marginLeft: "auto", opacity: 0.5 }} />
+          </button>
+          {showMemoryPanel && (
+            <div style={{
+              padding: "8px 14px 10px",
+              background: "rgba(0,240,255,0.04)",
+              borderBottom: "1px solid rgba(0,240,255,0.08)",
+              display: "flex", flexDirection: "column", gap: 4,
+              animation: "fadeSlideUp 0.15s ease",
+            }}>
+              {relevantMemories.map((m, i) => (
+                <div key={m.id || i} style={{
+                  fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                  color: "rgba(255,255,255,0.55)", display: "flex", gap: 6, alignItems: "flex-start",
+                }}>
+                  <span style={{ color: "rgba(0,240,255,0.4)", flexShrink: 0 }}>[{m.category}]</span>
+                  <span>{m.content}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Context memory bar — shows how many messages Gemini has as context + user location */}
       {contextCount > 0 && (
