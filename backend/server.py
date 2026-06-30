@@ -105,6 +105,10 @@ class LoginReq(BaseModel):
     email: EmailStr
     password: str
 
+class ChatHistoryMessage(BaseModel):
+    role: str
+    content: str = Field(..., max_length=3000)
+
 class ChatReq(BaseModel):
     session_id: str = Field(..., max_length=120)
     message: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LEN)
@@ -112,6 +116,7 @@ class ChatReq(BaseModel):
     model: str = "gemini-2.5-flash"
     preferred_provider: str = "auto"
     system: Optional[str] = Field(default=None, max_length=4000)
+    history: list[ChatHistoryMessage] = Field(default=[], max_length=30)
 
 class ImageGenReq(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=MAX_PROMPT_LEN)
@@ -531,6 +536,7 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                 gemini_model=req.model,
                 message=req.message,
                 system=system_msg,
+                history=[{"role": m.role, "content": m.content} for m in req.history],
             ):
                 if kind == "provider":
                     # Signal which provider is responding — frontend parses this
