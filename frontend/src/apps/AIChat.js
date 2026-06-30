@@ -141,7 +141,7 @@ function ModelSelect({ value, onChange, disabled }) {
 }
 
 /* ── System status panel ────────────────────────────────────────────────────── */
-function StatusPanel({ status }) {
+const StatusPanel = React.memo(function StatusPanel({ status }) {
   if (!status) return null;
 
   const isFailover  = status.stage === "unavailable" || status.stage === "switching";
@@ -178,10 +178,10 @@ function StatusPanel({ status }) {
       </div>
     </div>
   );
-}
+});
 
 /* ── Fallback model badge ────────────────────────────────────────────────────── */
-function FallbackBadge({ modelId }) {
+const FallbackBadge = React.memo(function FallbackBadge({ modelId }) {
   const label = MODEL_LABELS[modelId] || modelId;
   return (
     <div className="flex items-center gap-1 text-[10px] font-mono text-[#00F0FF]/40 mb-1 pl-0.5">
@@ -189,7 +189,7 @@ function FallbackBadge({ modelId }) {
       <span>routed via {label}</span>
     </div>
   );
-}
+});
 
 /* ── Active provider badge ───────────────────────────────────────────────────── */
 const PROVIDER_ICONS = {
@@ -208,7 +208,7 @@ const PROVIDER_DISPLAY_LABELS = {
   openrouter: "Using OpenRouter",
 };
 
-function ActiveProviderBadge({ provider, prevProvider }) {
+const ActiveProviderBadge = React.memo(function ActiveProviderBadge({ provider, prevProvider }) {
   if (!provider) return null;
   const switched = prevProvider && prevProvider !== provider;
   const label = switched
@@ -225,7 +225,7 @@ function ActiveProviderBadge({ provider, prevProvider }) {
       <span>{label}</span>
     </div>
   );
-}
+});
 
 /* ── Copy button ─────────────────────────────────────────────────────────────── */
 function CopyButton({ text }) {
@@ -304,7 +304,7 @@ function CopyButton({ text }) {
 }
 
 /* ── Action chips strip ───────────────────────────────────────────────────────── */
-function ActionChips({ actions }) {
+const ActionChips = React.memo(function ActionChips({ actions }) {
   if (!actions?.length) return null;
   return (
     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -325,7 +325,7 @@ function ActionChips({ actions }) {
       ))}
     </div>
   );
-}
+});
 
 /* ── Timestamp formatter ─────────────────────────────────────────────────────── */
 function formatMessageTime(ts) {
@@ -744,6 +744,20 @@ export default function AIChat() {
           from { opacity: 0; transform: scale(0.9); }
           to   { opacity: 1; transform: scale(1); }
         }
+        @keyframes cortexCursorBlink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+        @keyframes typingDot {
+          0%, 80%, 100% { transform: translateY(0);   opacity: 0.35; }
+          40%           { transform: translateY(-4px); opacity: 1; }
+        }
+        @keyframes streamPulse {
+          0%, 100% { box-shadow: 0 0 4px rgba(0,240,255,0.4); }
+          50%       { box-shadow: 0 0 10px rgba(0,240,255,0.8); }
+        }
+        .copy-reveal-row { opacity: 0; transition: opacity 0.18s ease; }
+        .group:hover .copy-reveal-row { opacity: 1; }
       `}</style>
 
       {/* Header */}
@@ -780,9 +794,37 @@ export default function AIChat() {
             onMouseLeave={() => setHoveredMsgIdx(null)}
           >
             {m.error ? (
-              <div className="max-w-[80%] px-4 py-2.5 rounded-2xl text-sm border border-red-500/30 text-red-400 bg-red-900/10">
-                <i className="fa-solid fa-triangle-exclamation mr-2 opacity-80" />
-                {m.content || "Cortex encountered an error. Try sending your message again."}
+              <div
+                className="max-w-[80%] rounded-2xl text-sm"
+                style={{
+                  padding: "10px 16px",
+                  background: "rgba(255,0,60,0.07)",
+                  border: "1px solid rgba(255,0,60,0.28)",
+                  color: "#FF7090",
+                  lineHeight: 1.6,
+                  display: "flex", alignItems: "flex-start", gap: 10,
+                  animation: "fadeSlideUp 0.2s ease",
+                }}
+              >
+                <i className="fa-solid fa-triangle-exclamation" style={{ color: "#FF003C", fontSize: 13, marginTop: 1, flexShrink: 0 }} />
+                <span>
+                  {m.content || "Cortex encountered an error."}
+                  <button
+                    onClick={() => sendRef.current?.(messages[i - 1]?.content || "")}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      marginLeft: 8, fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                      background: "rgba(255,0,60,0.12)", border: "1px solid rgba(255,0,60,0.3)",
+                      borderRadius: 5, padding: "1px 7px", color: "#FF7090", cursor: "pointer",
+                      verticalAlign: "middle", transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.22)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.12)"; }}
+                  >
+                    <i className="fa-solid fa-rotate-right" style={{ fontSize: 8 }} />
+                    retry
+                  </button>
+                </span>
               </div>
             ) : m.role === "assistant" ? (
               <div className="max-w-[82%] w-full" style={{ maxWidth: "min(82%, 680px)" }}>
@@ -791,9 +833,34 @@ export default function AIChat() {
                   className="group relative glass-light rounded-2xl"
                   style={{ padding: "12px 16px 10px" }}
                 >
-                  {/* Streaming cursor */}
+                  {/* Typing indicator — three animated dots when waiting for first token */}
                   {m.pending && !m.content && i === messages.length - 1 && (
-                    <span style={{ color: "#00F0FF", animation: "pulse 1s ease-in-out infinite" }}>▊</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 0" }}>
+                      {[0, 1, 2].map((di) => (
+                        <span
+                          key={di}
+                          style={{
+                            display: "inline-block",
+                            width: 5, height: 5, borderRadius: "50%",
+                            background: "#00F0FF",
+                            animation: `typingDot 1.2s ease-in-out ${di * 0.18}s infinite`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Streaming cursor — blinking block appended during streaming */}
+                  {m.pending && m.content && i === messages.length - 1 && (
+                    <span style={{
+                      display: "inline-block",
+                      width: 7, height: "1em",
+                      background: "#00F0FF",
+                      verticalAlign: "text-bottom",
+                      marginLeft: 2,
+                      borderRadius: 1,
+                      animation: "cortexCursorBlink 0.9s step-end infinite",
+                    }} />
                   )}
 
                   {/* Rendered markdown */}
