@@ -205,7 +205,7 @@ export default function WidgetStore({ onClose }) {
 
   return (
     <AnimatePresence>
-      {/* Backdrop */}
+      {/* Backdrop — pointer-events:auto overrides the pointer-events-none parent (WidgetCanvas) */}
       <motion.div
         key="ws-backdrop"
         initial={{ opacity: 0 }}
@@ -217,10 +217,11 @@ export default function WidgetStore({ onClose }) {
           position: "fixed", inset: 0,
           background: "rgba(0,0,0,0.5)",
           zIndex: 200,
+          pointerEvents: "auto",
         }}
       />
 
-      {/* Panel — centered on screen, never overlaps any window or Cortex panel */}
+      {/* Panel — centered between TopBar (60px) and Dock (~88px) so it never overlaps either */}
       <motion.div
         key="ws-panel"
         initial={{ opacity: 0, scale: 0.93, y: 20 }}
@@ -231,15 +232,19 @@ export default function WidgetStore({ onClose }) {
         onWheel={handleBackdropWheel}
         style={{
           position: "fixed",
-          /* Center on screen — avoids Cortex panel, windows, dock */
-          top: "50%",
+          /* Sit in the safe zone between TopBar and Dock.
+             Shift the center point up by 44px (half dock height ~88px)
+             so the panel is visually centred in the available canvas. */
+          top: "calc(50% - 44px)",
           left: "50%",
           transform: "translate(-50%, -50%)",
           width: 360,
-          maxHeight: "72vh",
+          /* Never tall enough to reach TopBar (60px) or Dock (88px) + gaps */
+          maxHeight: "calc(100vh - 168px)",
           display: "flex",
           flexDirection: "column",
           zIndex: 201,
+          pointerEvents: "auto",
           ...GLASS,
         }}
       >
