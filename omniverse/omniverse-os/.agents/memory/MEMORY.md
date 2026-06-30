@@ -1,0 +1,1 @@
+- [OmniverseOS Responsive Overhaul](responsive-overhaul.md) — strategy used for adaptive desktop OS + mobile responsiveness without breaking desktop UI
