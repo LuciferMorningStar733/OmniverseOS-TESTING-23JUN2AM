@@ -34,6 +34,30 @@
   --neon-yellow:  #FCEE09;
   --neon-green:   #39FF14;
 
+  /* ── Semantic accent palette ──────────────────────────────────
+     Use ONLY for: status dots · small borders · icons
+                   hover glows · progress bars · chips
+     Everything else stays dark + cyan.
+  ────────────────────────────────────────────────────────────── */
+  --accent-ai:       #00F0FF;   /* AI / Cortex                  */
+  --accent-success:  #39FF14;   /* Success · health · finance   */
+  --accent-warning:  #F59E0B;   /* Warning · notes · activity   */
+  --accent-danger:   #FF003C;   /* Danger · destructive         */
+  --accent-weather:  #A855F7;   /* Weather · atmospheric        */
+  --accent-media:    #F472B6;   /* Music · videos · watchlist   */
+  --accent-calendar: #FB923C;   /* Calendar · scheduling        */
+  --accent-files:    #60A5FA;   /* Files · clipboard · browser  */
+
+  /* Glow variants (10–20% alpha) */
+  --glow-ai:       rgba(0,   240, 255, 0.20);
+  --glow-success:  rgba(57,  255,  20, 0.20);
+  --glow-warning:  rgba(245, 158,  11, 0.20);
+  --glow-danger:   rgba(255,   0,  60, 0.20);
+  --glow-weather:  rgba(168,  85, 247, 0.20);
+  --glow-media:    rgba(244, 114, 182, 0.20);
+  --glow-calendar: rgba(251, 146,  60, 0.20);
+  --glow-files:    rgba(96,  165, 250, 0.20);
+
   /* Secondary accent — Crimson */
   --crimson-primary: #DC2626;
   --crimson-hover:   #EF4444;

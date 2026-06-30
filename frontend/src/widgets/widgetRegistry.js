@@ -12,12 +12,22 @@ export const widgetH = (rows) => rows * CELL_H + (rows - 1) * GAP;
 export const xToCol = (px) => Math.max(0, Math.round(px / (CELL_W + GAP)));
 export const yToRow = (px) => Math.max(0, Math.round(px / (CELL_H + GAP)));
 
+// ── Semantic accent palette ───────────────────────────────────────────────
+// AI       = Cyan    #00F0FF
+// Success  = Green   #39FF14
+// Warning  = Amber   #F59E0B
+// Danger   = Red     #FF003C
+// Weather  = Purple  #A855F7
+// Media    = Pink    #F472B6
+// Calendar = Orange  #FB923C
+// Files    = Blue    #60A5FA
+
 export const WIDGET_REGISTRY = [
   {
     id: "chrono",
     name: "Chrono-Atmo",
     icon: "fa-satellite-dish",
-    color: "#00F0FF",
+    color: "#A855F7",          // Weather = Purple
     defaultW: 1, defaultH: 3,
     minW: 1, minH: 2, maxW: 2, maxH: 4,
     Component: lazy(() => import("./widgets/ChronoWidget")),
@@ -26,7 +36,7 @@ export const WIDGET_REGISTRY = [
     id: "cortex",
     name: "Cortex AI",
     icon: "fa-wand-magic-sparkles",
-    color: "#00F0FF",
+    color: "#00F0FF",          // AI = Cyan
     defaultW: 3, defaultH: 2,
     minW: 2, minH: 1, maxW: 5, maxH: 3,
     Component: lazy(() => import("./widgets/CortexWidget")),
@@ -35,7 +45,7 @@ export const WIDGET_REGISTRY = [
     id: "calendar",
     name: "Calendar",
     icon: "fa-calendar",
-    color: "#FF003C",
+    color: "#FB923C",          // Calendar = Orange
     defaultW: 2, defaultH: 2,
     minW: 2, minH: 2, maxW: 3, maxH: 3,
     Component: lazy(() => import("./widgets/CalendarWidget")),
@@ -44,17 +54,16 @@ export const WIDGET_REGISTRY = [
     id: "todo",
     name: "Tasks",
     icon: "fa-list-check",
-    color: "#00F0FF",
+    color: "#39FF14",          // Success = Green
     defaultW: 2, defaultH: 2,
     minW: 2, minH: 1, maxW: 3, maxH: 3,
     Component: lazy(() => import("./widgets/TodoWidget")),
   },
-
   {
     id: "system",
     name: "System Status",
     icon: "fa-circle-nodes",
-    color: "#39FF14",
+    color: "#39FF14",          // Success = Green (health / status)
     defaultW: 2, defaultH: 1,
     minW: 2, minH: 1, maxW: 3, maxH: 2,
     Component: lazy(() => import("./widgets/SystemStatusWidget")),
@@ -63,7 +72,7 @@ export const WIDGET_REGISTRY = [
     id: "activity",
     name: "Recent Activity",
     icon: "fa-bolt",
-    color: "#FCEE09",
+    color: "#F59E0B",          // Warning = Amber (live events)
     defaultW: 2, defaultH: 2,
     minW: 2, minH: 1, maxW: 3, maxH: 3,
     Component: lazy(() => import("./widgets/RecentActivityWidget")),
@@ -72,7 +81,7 @@ export const WIDGET_REGISTRY = [
     id: "quicknotes",
     name: "Quick Notes",
     icon: "fa-note-sticky",
-    color: "#FCEE09",
+    color: "#F59E0B",          // Amber (notes / warning tone)
     defaultW: 2, defaultH: 2,
     minW: 2, minH: 1, maxW: 3, maxH: 3,
     Component: lazy(() => import("./widgets/QuickNotesWidget")),
@@ -81,7 +90,7 @@ export const WIDGET_REGISTRY = [
     id: "music",
     name: "Music",
     icon: "fa-music",
-    color: "#39FF14",
+    color: "#F472B6",          // Media = Pink
     defaultW: 1, defaultH: 1,
     minW: 1, minH: 1, maxW: 2, maxH: 2,
     Component: lazy(() => import("./widgets/MusicWidget")),
@@ -90,7 +99,7 @@ export const WIDGET_REGISTRY = [
     id: "news",
     name: "News",
     icon: "fa-newspaper",
-    color: "#FF003C",
+    color: "#60A5FA",          // Files/Info = Blue
     defaultW: 3, defaultH: 1,
     minW: 2, minH: 1, maxW: 5, maxH: 2,
     Component: lazy(() => import("./widgets/NewsWidget")),
