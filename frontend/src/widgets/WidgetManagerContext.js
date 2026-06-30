@@ -1,19 +1,32 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
-import { DEFAULT_LAYOUT } from "./widgetRegistry";
+import { DEFAULT_LAYOUT, LAYOUT_VERSION } from "./widgetRegistry";
 
 const WidgetManagerContext = createContext(null);
 
-const LS_LAYOUT  = "omniverse_widget_layout";
-const LS_VISIBLE = "omniverse_widgets_visible";
+const LS_LAYOUT   = "omniverse_widget_layout";
+const LS_VISIBLE  = "omniverse_widgets_visible";
+const LS_LAYOUT_V = "omniverse_widget_layout_v";
 
 const safeJSON = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback; }
   catch { return fallback; }
 };
 
+// Reset to default layout when version bumps (user had old all-widgets layout)
+const initLayout = () => {
+  const savedVersion = parseInt(localStorage.getItem(LS_LAYOUT_V) || "0", 10);
+  if (savedVersion < LAYOUT_VERSION) {
+    localStorage.setItem(LS_LAYOUT_V, String(LAYOUT_VERSION));
+    localStorage.setItem(LS_LAYOUT, JSON.stringify(DEFAULT_LAYOUT));
+    return DEFAULT_LAYOUT;
+  }
+  return safeJSON(LS_LAYOUT, DEFAULT_LAYOUT);
+};
+
 export const WidgetManagerProvider = ({ children }) => {
   const [visible, setVisible] = useState(() => safeJSON(LS_VISIBLE, true));
-  const [layout,  setLayout]  = useState(() => safeJSON(LS_LAYOUT, DEFAULT_LAYOUT));
+  const [layout,  setLayout]  = useState(initLayout);
+  const [showStore, setShowStore] = useState(false);
 
   const toggleVisible = useCallback(() => {
     setVisible((v) => {
@@ -22,6 +35,10 @@ export const WidgetManagerProvider = ({ children }) => {
       return next;
     });
   }, []);
+  // Alias used by TopBar
+  const toggleWidgets = toggleVisible;
+  const openStore  = useCallback(() => setShowStore(true),  []);
+  const closeStore = useCallback(() => setShowStore(false), []);
 
   const updateWidget = useCallback((id, patch) => {
     setLayout((prev) => {
@@ -34,6 +51,7 @@ export const WidgetManagerProvider = ({ children }) => {
   const resetLayout = useCallback(() => {
     setLayout(DEFAULT_LAYOUT);
     localStorage.setItem(LS_LAYOUT, JSON.stringify(DEFAULT_LAYOUT));
+    localStorage.setItem(LS_LAYOUT_V, String(LAYOUT_VERSION));
   }, []);
 
   const toggleCollapse = useCallback((id) => {
@@ -75,10 +93,11 @@ export const WidgetManagerProvider = ({ children }) => {
 
   return (
     <WidgetManagerContext.Provider value={{
-      visible, toggleVisible,
+      visible, toggleVisible, toggleWidgets,
       layout, updateWidget, resetLayout,
       toggleCollapse, togglePin,
       removeWidget, addWidget,
+      showStore, openStore, closeStore,
     }}>
       {children}
     </WidgetManagerContext.Provider>

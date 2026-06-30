@@ -107,16 +107,10 @@ export const WIDGET_REGISTRY = [
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
-// Default desktop layout
+// Default desktop layout — only clock & weather shown by default.
+// All other widgets are added manually via the Widget Store (+).
+export const LAYOUT_VERSION = 2;
 export const DEFAULT_LAYOUT = [
-  { id: "clock",      x: 0, y: 0, w: 1, h: 1, collapsed: false, pinned: false },
-  { id: "cortex",     x: 1, y: 0, w: 3, h: 2, collapsed: false, pinned: true  },
-  { id: "system",     x: 4, y: 0, w: 2, h: 1, collapsed: false, pinned: false },
-  { id: "weather",    x: 0, y: 1, w: 1, h: 1, collapsed: false, pinned: false },
-  { id: "activity",   x: 4, y: 1, w: 2, h: 2, collapsed: false, pinned: false },
-  { id: "calendar",   x: 0, y: 2, w: 2, h: 2, collapsed: false, pinned: false },
-  { id: "todo",       x: 2, y: 2, w: 2, h: 2, collapsed: false, pinned: false },
-  { id: "quicknotes", x: 4, y: 3, w: 2, h: 1, collapsed: false, pinned: false },
-  { id: "music",      x: 0, y: 4, w: 1, h: 1, collapsed: false, pinned: false },
-  { id: "news",       x: 1, y: 4, w: 3, h: 1, collapsed: false, pinned: false },
+  { id: "clock",   x: 0, y: 0, w: 1, h: 1, collapsed: false, pinned: false },
+  { id: "weather", x: 0, y: 1, w: 1, h: 1, collapsed: false, pinned: false },
 ];
