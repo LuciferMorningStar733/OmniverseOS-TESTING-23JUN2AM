@@ -357,6 +357,18 @@ export default function AIChat() {
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
 
+  // ── Context floor: messages before this index are excluded from history ──────
+  // Using a ref so send() always reads the latest value without re-creating itself.
+  const contextFloorRef = useRef(0);
+  const [contextFloor, setContextFloor] = useState(0);
+
+  const clearContext = useCallback(() => {
+    const newFloor = messagesRef.current.length;
+    contextFloorRef.current = newFloor;
+    setContextFloor(newFloor);
+    toast.success("Context cleared — fresh start", { duration: 2000 });
+  }, []);
+
   // Derived model object
   const model = React.useMemo(() => {
     const [provider, m] = modelValue.split("|");
@@ -541,10 +553,10 @@ export default function AIChat() {
         windows: windowsRef.current,
         activeId: activeIdRef.current,
       });
-      // Build conversation history (last 20 settled messages) so Gemini has
-      // full context. Without this, "Indian variant" after a bike discussion
-      // gets confused with a COVID variant — the "goldfish memory" bug.
+      // Build conversation history starting from the context floor (respects
+      // "Clear context" — messages before the floor are excluded).
       const history = messagesRef.current
+        .slice(contextFloorRef.current)
         .filter((m) => m.content && !m.pending && !m.error)
         .slice(-20)
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
@@ -642,7 +654,7 @@ export default function AIChat() {
 
   // ── Context memory bar state ──────────────────────────────────────────────
   const contextCount = Math.min(
-    messages.filter((m) => m.content && !m.pending && !m.error).length,
+    messages.slice(contextFloor).filter((m) => m.content && !m.pending && !m.error).length,
     20
   );
   const userLocation = (() => {
@@ -785,14 +797,43 @@ export default function AIChat() {
               ? "memory: 20 msgs (max context)"
               : `memory: ${contextCount} msg${contextCount !== 1 ? "s" : ""} in context`}
           </span>
-          {userLocation?.city && (
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="9" height="9" viewBox="0 0 10 13" fill="none" style={{ flexShrink: 0 }}>
-                <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5 1.5 1.5 0 0 1 5 6.5z" fill="#00F0FF" fillOpacity="0.6"/>
-              </svg>
-              {[userLocation.city, userLocation.country].filter(Boolean).join(", ")}
-            </span>
-          )}
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {userLocation?.city && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="9" height="9" viewBox="0 0 10 13" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5 1.5 1.5 0 0 1 5 6.5z" fill="#00F0FF" fillOpacity="0.6"/>
+                </svg>
+                {[userLocation.city, userLocation.country].filter(Boolean).join(", ")}
+              </span>
+            )}
+            <button
+              onClick={clearContext}
+              title="Clear context — Cortex starts fresh from next message (chat history stays visible)"
+              style={{
+                background: "none",
+                border: "1px solid rgba(0,240,255,0.18)",
+                borderRadius: 4,
+                color: "rgba(0,240,255,0.5)",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9,
+                letterSpacing: "0.04em",
+                padding: "1px 6px",
+                cursor: "pointer",
+                lineHeight: 1.6,
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,80,80,0.45)";
+                e.currentTarget.style.color = "rgba(255,100,100,0.8)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(0,240,255,0.18)";
+                e.currentTarget.style.color = "rgba(0,240,255,0.5)";
+              }}
+            >
+              clear context
+            </button>
+          </span>
         </div>
       )}
 
