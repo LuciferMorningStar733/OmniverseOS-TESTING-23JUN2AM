@@ -338,9 +338,11 @@ export default function AIChat() {
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
-  const endRef    = useRef();
+  const endRef             = useRef();
+  const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
   const abortRef  = useRef(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const reqIdRef  = useRef(0);
   const inputRef  = useRef("");
   const sendRef   = useRef(null);
@@ -481,10 +483,26 @@ export default function AIChat() {
     );
   }, []);
 
+  // ── Scroll position tracker — shows "jump to bottom" when scrolled up ────────
   useEffect(() => {
-    if (!endRef.current) return;
-    const container = endRef.current.parentElement;
-    if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      setShowScrollBottom(distFromBottom > 120);
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // ── Auto-scroll to bottom when new content arrives (unless user scrolled up) ──
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distFromBottom < 180) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [messages, streamStatus]);
 
   const send = useCallback(async (forcedText) => {
@@ -701,7 +719,8 @@ export default function AIChat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="relative flex-1 overflow-hidden">
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-slate-500 pt-10">
             <i className="fa-solid fa-wand-magic-sparkles text-4xl text-[#00F0FF] opacity-50" />
@@ -767,6 +786,43 @@ export default function AIChat() {
 
         <StatusPanel status={streamStatus} />
         <div ref={endRef} />
+      </div>
+
+      {/* Jump to bottom — floats inside messages area when user scrolls up */}
+      {showScrollBottom && (
+        <button
+          onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: "smooth" })}
+          title="Jump to latest message"
+          style={{
+            position: "absolute",
+            bottom: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "5px 14px 5px 10px",
+            background: "rgba(0,10,20,0.82)",
+            border: "1px solid rgba(0,240,255,0.35)",
+            borderRadius: 20,
+            color: "#00F0FF",
+            fontSize: 11,
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.03em",
+            cursor: "pointer",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 4px 20px rgba(0,240,255,0.12)",
+            animation: "fadeSlideUp 0.2s ease",
+            zIndex: 10,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 2v8M2 7l4 4 4-4" stroke="#00F0FF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          jump to latest
+        </button>
+      )}
       </div>
 
       {/* Context memory bar — shows how many messages Gemini has as context + user location */}
