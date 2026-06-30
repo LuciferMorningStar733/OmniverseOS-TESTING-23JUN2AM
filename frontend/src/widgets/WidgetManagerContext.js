@@ -81,8 +81,18 @@ export const WidgetManagerProvider = ({ children }) => {
   const addWidget = useCallback((def) => {
     setLayout((prev) => {
       if (prev.find((w) => w.id === def.id)) return prev;
+      // Find a non-overlapping grid position for the new widget
+      const occupied = new Set(prev.map((w) => `${w.x},${w.y}`));
+      let col = 0, row = 0;
+      // Try up to 20 positions to avoid overlap with existing widgets
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const key = `${col},${row}`;
+        if (!occupied.has(key)) break;
+        col += def.defaultW || 1;
+        if (col > 8) { col = 0; row += def.defaultH || 1; }
+      }
       const next = [...prev, {
-        id: def.id, x: 0, y: 0,
+        id: def.id, x: col, y: row,
         w: def.defaultW, h: def.defaultH,
         collapsed: false, pinned: false,
       }];
