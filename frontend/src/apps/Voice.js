@@ -341,10 +341,13 @@ export default function Voice() {
   const [sessionTurnCount, setSessionTurnCount]   = useState(0);
   const [lastActivityTime, setLastActivityTime]   = useState(Date.now());
   const [wakeWordActive, setWakeWordActive]        = useState(false);
+  const [historyBadge, setHistoryBadge]           = useState(0);   // unread msg count
+  const [isAtBottom, setIsAtBottom]               = useState(true); // history scroll position
 
   const { openApp } = useOS();
 
   const mountedRef         = useRef(true);
+  const historyScrollRef   = useRef(null); // ref for the history scroll container
   const startedRef         = useRef(false);
   const recogRef           = useRef(null);
   const transcriptRef      = useRef("");
@@ -363,6 +366,27 @@ export default function Voice() {
   useEffect(() => { conversationRef.current = conversation; }, [conversation]);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
+
+  // Auto-scroll history to bottom when new messages arrive (only if already near bottom)
+  useEffect(() => {
+    const el = historyScrollRef.current;
+    if (!el || activeView !== "history") return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom < 120) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [conversation, activeView]);
+
+  // Clear badge when user opens history tab
+  useEffect(() => {
+    if (activeView === "history") setHistoryBadge(0);
+  }, [activeView]);
+
+  // Track scroll position for "scroll to bottom" FAB
+  const handleHistoryScroll = useCallback(() => {
+    const el = historyScrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsAtBottom(distFromBottom < 80);
+  }, []);
 
   // ── Load browser voices on mount ─────────────────────────────────────────
   useEffect(() => {
@@ -429,12 +453,14 @@ export default function Voice() {
   // ── Conversation helpers ──────────────────────────────────────────────────
   const appendToConversation = useCallback((role, content) => {
     setConversation((prev) => {
-      const next = [...prev, { role, content }];
+      const next = [...prev, { role, content, ts: Date.now() }];
       // Keep at most MAX_HISTORY_PAIRS * 2 messages
       const trimmed = next.slice(-(MAX_HISTORY_PAIRS * 2));
       saveVoiceHistory(trimmed);
       return trimmed;
     });
+    // Badge: mark new messages when not on history tab
+    setHistoryBadge((b) => b + 1);
   }, []);
 
   const resetConversation = useCallback((silent = false) => {
@@ -872,24 +898,33 @@ export default function Voice() {
           flexShrink: 0,
         }}
       >
-        {["voice", "settings"].map((tab) => (
+        {["voice", "history", "settings"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveView(tab)}
             style={{
-              flex: 1, padding: "12px 0",
+              flex: 1, padding: "12px 0", position: "relative",
               fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.1em", textTransform: "uppercase",
+              letterSpacing: "0.08em", textTransform: "uppercase",
               color: activeView === tab ? "#00F0FF" : "rgba(255,255,255,0.3)",
-              borderBottom: activeView === tab
-                ? "2px solid #00F0FF" : "2px solid transparent",
-              background: "none", border: "none",
               borderBottom: activeView === tab ? "2px solid #00F0FF" : "2px solid transparent",
+              background: "none", border: "none",
               cursor: "pointer", transition: "all 0.2s ease",
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            {tab === "voice" ? "// Voice" : "// Settings"}
+            {tab === "voice" ? "// Voice" : tab === "history" ? "// History" : "// Settings"}
+            {tab === "history" && historyBadge > 0 && (
+              <span style={{
+                position: "absolute", top: 6, right: "calc(50% - 22px)",
+                minWidth: 14, height: 14, borderRadius: 7,
+                background: "#CF9EFF", color: "#000",
+                fontSize: 9, fontWeight: 700, lineHeight: "14px",
+                textAlign: "center", padding: "0 3px",
+              }}>
+                {historyBadge > 99 ? "99+" : historyBadge}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1095,6 +1130,215 @@ export default function Voice() {
           )}
 
           <div style={{ paddingBottom: 80 }} />
+        </div>
+      )}
+
+      {/* ── HISTORY TAB ──────────────────────────────────────────────────── */}
+      {activeView === "history" && (
+        <div
+          ref={historyScrollRef}
+          onScroll={handleHistoryScroll}
+          className="flex-1 overflow-y-auto"
+          style={{ overscrollBehavior: "contain", position: "relative" }}
+        >
+          {/* Sticky header */}
+          <div
+            className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
+            style={{
+              background: "rgba(0,0,0,0.85)",
+              backdropFilter: "blur(16px)",
+              borderBottom: "1px solid rgba(255,255,255,0.07)",
+            }}
+          >
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(0,240,255,0.7)", letterSpacing: "0.1em" }}>
+              // Conversation Replay
+              {conversation.length > 0 && (
+                <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>
+                  {Math.ceil(conversation.length / 2)} turn{Math.ceil(conversation.length / 2) !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {conversation.length > 0 && (
+                <>
+                  {/* Copy all */}
+                  <button
+                    onClick={() => {
+                      const text = conversation.map((m) =>
+                        `[${m.role === "user" ? "You" : "Cortex"}]  ${m.content}`
+                      ).join("\n\n");
+                      navigator.clipboard?.writeText(text).then(() =>
+                        toast.success("Copied to clipboard", { duration: 1500, style: { fontSize: 12 } })
+                      );
+                    }}
+                    className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all"
+                    style={{ borderColor: "rgba(0,240,255,0.25)", background: "rgba(0,240,255,0.06)", color: "rgba(0,240,255,0.6)", cursor: "pointer" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.14)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.06)"; }}
+                    title="Copy entire conversation"
+                  >
+                    <i className="fa-solid fa-copy text-[9px]" />
+                    Copy
+                  </button>
+                  {/* Clear */}
+                  <button
+                    onClick={() => resetConversation()}
+                    className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all"
+                    style={{ borderColor: "rgba(255,0,60,0.25)", background: "rgba(255,0,60,0.06)", color: "rgba(255,0,60,0.55)", cursor: "pointer" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.14)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.06)"; }}
+                    title="Clear conversation history"
+                  >
+                    <i className="fa-solid fa-trash text-[9px]" />
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Empty state */}
+          {conversation.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+              <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.25 }}>
+                <i className="fa-solid fa-comments" />
+              </div>
+              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.25)", lineHeight: 1.6 }}>
+                No conversation yet.<br />
+                Tap the mic on the Voice tab<br />
+                to start talking with Cortex.
+              </p>
+            </div>
+          ) : (
+            <div className="px-4 pb-8 pt-4 flex flex-col gap-3" style={{ maxWidth: 640, margin: "0 auto" }}>
+              {conversation.map((msg, i) => {
+                const isUser = msg.role === "user";
+                const ts = msg.ts ? new Date(msg.ts) : null;
+                const timeLabel = ts
+                  ? ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : null;
+
+                return (
+                  <div
+                    key={i}
+                    className="flex flex-col"
+                    style={{
+                      alignItems: isUser ? "flex-end" : "flex-start",
+                      animation: `fadeSlideUp 0.2s ease ${Math.min(i, 8) * 0.03}s both`,
+                    }}
+                  >
+                    {/* Sender label */}
+                    <div
+                      className="flex items-center gap-2 mb-1 px-1"
+                      style={{ flexDirection: isUser ? "row-reverse" : "row" }}
+                    >
+                      <span style={{
+                        fontFamily: "'JetBrains Mono',monospace",
+                        fontSize: 9, letterSpacing: "0.1em",
+                        color: isUser ? "rgba(0,240,255,0.5)" : "rgba(207,158,255,0.5)",
+                      }}>
+                        {isUser ? "// You" : "// Cortex"}
+                      </span>
+                      {timeLabel && (
+                        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "monospace" }}>
+                          {timeLabel}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bubble */}
+                    <div
+                      style={{
+                        maxWidth: "85%",
+                        padding: "10px 14px",
+                        borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                        background: isUser
+                          ? "rgba(0,240,255,0.08)"
+                          : "rgba(207,158,255,0.07)",
+                        border: isUser
+                          ? "1px solid rgba(0,240,255,0.18)"
+                          : "1px solid rgba(207,158,255,0.16)",
+                        fontSize: 13, lineHeight: 1.6,
+                        color: "rgba(255,255,255,0.88)",
+                        wordBreak: "break-word",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+
+                    {/* Per-message actions (Cortex only) */}
+                    {!isUser && (
+                      <div className="flex gap-2 mt-1 px-1">
+                        {/* Re-speak this message */}
+                        <button
+                          onClick={() => speakBrowser(msg.content)}
+                          disabled={isSpeaking || isListening}
+                          style={{
+                            fontSize: 9, fontFamily: "'JetBrains Mono',monospace",
+                            letterSpacing: "0.08em",
+                            color: isSpeaking || isListening ? "rgba(207,158,255,0.2)" : "rgba(207,158,255,0.45)",
+                            background: "none", border: "none", cursor: isSpeaking || isListening ? "default" : "pointer",
+                            padding: "2px 6px",
+                            transition: "color 0.15s",
+                          }}
+                          onMouseEnter={(e) => { if (!isSpeaking && !isListening) e.currentTarget.style.color = "#CF9EFF"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = isSpeaking || isListening ? "rgba(207,158,255,0.2)" : "rgba(207,158,255,0.45)"; }}
+                          title="Read this message aloud"
+                        >
+                          <i className="fa-solid fa-volume-high text-[8px] mr-1" />
+                          Listen
+                        </button>
+                        {/* Copy single message */}
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(msg.content).then(() =>
+                            toast.success("Copied", { duration: 1200, style: { fontSize: 12 } })
+                          )}
+                          style={{
+                            fontSize: 9, fontFamily: "'JetBrains Mono',monospace",
+                            letterSpacing: "0.08em",
+                            color: "rgba(255,255,255,0.25)",
+                            background: "none", border: "none", cursor: "pointer",
+                            padding: "2px 6px",
+                            transition: "color 0.15s",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.25)"; }}
+                          title="Copy this message"
+                        >
+                          <i className="fa-solid fa-copy text-[8px] mr-1" />
+                          Copy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Scroll-to-bottom FAB */}
+          {!isAtBottom && conversation.length > 0 && (
+            <button
+              onClick={() => historyScrollRef.current?.scrollTo({ top: historyScrollRef.current.scrollHeight, behavior: "smooth" })}
+              style={{
+                position: "sticky", bottom: 16,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 36, borderRadius: "50%",
+                background: "rgba(0,240,255,0.15)",
+                border: "1px solid rgba(0,240,255,0.35)",
+                color: "#00F0FF",
+                margin: "0 auto",
+                cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(0,240,255,0.2)",
+                animation: "fadeSlideUp 0.2s ease",
+                fontSize: 12,
+              }}
+              title="Scroll to latest"
+            >
+              <i className="fa-solid fa-chevron-down" />
+            </button>
+          )}
         </div>
       )}
 
