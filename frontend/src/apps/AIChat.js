@@ -640,6 +640,16 @@ export default function AIChat() {
     return () => window.removeEventListener("cortex:prompt", handler);
   }, []);
 
+  // ── Context memory bar state ──────────────────────────────────────────────
+  const contextCount = Math.min(
+    messages.filter((m) => m.content && !m.pending && !m.error).length,
+    20
+  );
+  const userLocation = (() => {
+    try { return JSON.parse(localStorage.getItem("cortex_user_location") || "null"); }
+    catch { return null; }
+  })();
+
   return (
     <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
       {/* Cortex clarification modal — shown before ambiguous requests reach the LLM */}
@@ -746,6 +756,45 @@ export default function AIChat() {
         <StatusPanel status={streamStatus} />
         <div ref={endRef} />
       </div>
+
+      {/* Context memory bar — shows how many messages Gemini has as context + user location */}
+      {contextCount > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "4px 14px",
+            background: "rgba(0,240,255,0.04)",
+            borderTop: "1px solid rgba(0,240,255,0.08)",
+            borderBottom: "1px solid rgba(0,240,255,0.06)",
+            fontSize: "10.5px",
+            color: "rgba(0,240,255,0.55)",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.02em",
+            userSelect: "none",
+            animation: "fadeSlideUp 0.3s ease",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+              <circle cx="5" cy="5" r="4" stroke="#00F0FF" strokeWidth="1.2" strokeOpacity="0.7"/>
+              <circle cx="5" cy="5" r="1.8" fill="#00F0FF" fillOpacity="0.6"/>
+            </svg>
+            {contextCount === 20
+              ? "memory: 20 msgs (max context)"
+              : `memory: ${contextCount} msg${contextCount !== 1 ? "s" : ""} in context`}
+          </span>
+          {userLocation?.city && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <svg width="9" height="9" viewBox="0 0 10 13" fill="none" style={{ flexShrink: 0 }}>
+                <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5 1.5 1.5 0 0 1 5 6.5z" fill="#00F0FF" fillOpacity="0.6"/>
+              </svg>
+              {[userLocation.city, userLocation.country].filter(Boolean).join(", ")}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Input bar */}
       <div className="p-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
