@@ -18,8 +18,28 @@ const GLASS = {
 
 function Loader() {
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-ping" />
+    <div
+      style={{
+        width: "100%", height: "100%",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", gap: 5 }}>
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            style={{
+              display: "inline-block",
+              width: 4, height: 4, borderRadius: "50%",
+              background: "#00F0FF",
+              animation: `typingDot 1.1s ease-in-out ${i * 0.16}s infinite`,
+              opacity: 0.6,
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -244,7 +264,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
   );
 }
 
-function CtrlBtn({ icon, active, color = "rgba(255,255,255,0.5)", title, onClick }) {
+const CtrlBtn = React.memo(function CtrlBtn({ icon, active, color = "rgba(255,255,255,0.5)", title, onClick }) {
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
@@ -263,9 +283,9 @@ function CtrlBtn({ icon, active, color = "rgba(255,255,255,0.5)", title, onClick
       <i className={`fa-solid ${icon} text-[9px]`} />
     </button>
   );
-}
+});
 
-function SizeBtn({ label, active, flash, color = "#00F0FF", title, onClick }) {
+const SizeBtn = React.memo(function SizeBtn({ label, active, flash, color = "#00F0FF", title, onClick }) {
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
@@ -309,4 +329,4 @@ function SizeBtn({ label, active, flash, color = "#00F0FF", title, onClick }) {
       {label}
     </button>
   );
-}
+});
