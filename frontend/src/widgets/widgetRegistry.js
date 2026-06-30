@@ -18,8 +18,8 @@ export const WIDGET_REGISTRY = [
     name: "Chrono-Atmo",
     icon: "fa-satellite-dish",
     color: "#00F0FF",
-    defaultW: 1, defaultH: 2,
-    minW: 1, minH: 2, maxW: 2, maxH: 3,
+    defaultW: 1, defaultH: 3,
+    minW: 1, minH: 2, maxW: 2, maxH: 4,
     Component: lazy(() => import("./widgets/ChronoWidget")),
   },
   {
@@ -101,7 +101,7 @@ export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
 // Default desktop layout — only clock & weather shown by default.
 // All other widgets are added manually via the Widget Store (+).
-export const LAYOUT_VERSION = 3;
+export const LAYOUT_VERSION = 4;
 export const DEFAULT_LAYOUT = [
-  { id: "chrono", x: 0, y: 0, w: 1, h: 2, collapsed: false, pinned: false },
+  { id: "chrono", x: 0, y: 0, w: 1, h: 3, collapsed: false, pinned: false },
 ];

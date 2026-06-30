@@ -24,14 +24,41 @@ function Loader() {
   );
 }
 
-/** Compute S / M / L size presets from a widget definition's min/max bounds. */
+/** Compute S / M / L size presets from a widget definition's min/max bounds.
+ *  Enumerates all valid (w, h) grid sizes, sorts by area, then picks
+ *  the smallest, a genuine mid-point, and the largest — guaranteeing
+ *  three distinct steps even when the range is narrow. */
 function getSizePresets(def) {
   if (!def) return null;
   const { minW, minH, maxW, maxH } = def;
+  // Build every valid grid size
+  const sizes = [];
+  for (let w = minW; w <= maxW; w++) {
+    for (let h = minH; h <= maxH; h++) {
+      sizes.push({ w, h, area: w * h });
+    }
+  }
+  // Sort by area ascending, break ties by h then w
+  sizes.sort((a, b) => a.area - b.area || a.h - b.h || a.w - b.w);
+  const n = sizes.length;
+  const s = sizes[0];
+  const l = sizes[n - 1];
+  // M = genuine middle step: prefer one strictly between S and L by area
+  const between = sizes.filter(sz => sz.area > s.area && sz.area < l.area);
+  let m;
+  if (between.length) {
+    m = between[Math.floor(between.length / 2)];
+  } else if (n > 2) {
+    // No area gap between S and L — pick the floor-middle by index
+    m = sizes[Math.floor(n / 2)];
+  } else {
+    // Only 2 distinct sizes → S and L are enough; M mirrors S
+    m = s;
+  }
   return [
-    { label: "S", w: minW,                                    h: minH },
-    { label: "M", w: Math.round((minW + maxW) / 2),           h: Math.round((minH + maxH) / 2) },
-    { label: "L", w: maxW,                                    h: maxH },
+    { label: "S", w: s.w, h: s.h },
+    { label: "M", w: m.w, h: m.h },
+    { label: "L", w: l.w, h: l.h },
   ];
 }
 
