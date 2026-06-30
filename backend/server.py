@@ -16,14 +16,11 @@ from pathlib import Path
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import uuid
+import traceback
 import bcrypt
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
 from providers import provider_manager
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -271,7 +268,7 @@ async def ai_tts_gemini(req: GeminiTtsReq, user=Depends(get_current_user)):
         )
 
     # Register a future so concurrent identical requests can piggyback
-    inflight_fut: asyncio.Future = asyncio.get_event_loop().create_future()
+    inflight_fut: asyncio.Future = asyncio.get_running_loop().create_future()
     _tts_inflight[cache_key] = inflight_fut
 
     # ── Live Gemini API call ───────────────────────────────────────────────
@@ -548,7 +545,7 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                     else:
                         yield f"data: [error:{code}]\n\n"
         except Exception as e:
-            logger.error("Unexpected error in event_gen: %s", e)
+            logging.error("Unexpected error in event_gen: %s", e)
             yield "data: [error:500]\n\n"
 
         if full:
@@ -602,25 +599,27 @@ async def chat_history(session_id: str, user=Depends(get_current_user)):
 async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
     await rate_limit(user["id"])
     try:
-        response = gemini_client.models.generate_images(
+        import asyncio as _asyncio
+        response = await _asyncio.to_thread(
+            gemini_client.models.generate_images,
             model="imagen-4.0-generate-001",
             prompt=req.prompt,
             config=genai_types.GenerateImagesConfig(
                 number_of_images=1,
-                output_mime_type="image/png"
-            )
-                    )
-        image_bytes = response.generated_images[0].image.image_bytes        
+                output_mime_type="image/png",
+            ),
+        )
+        image_bytes = response.generated_images[0].image.image_bytes
         image_b64 = base64.b64encode(image_bytes).decode()
         doc = await db.ai_images.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
             "prompt": req.prompt,
             "image_b64": image_b64,
-            "created_at": datetime.now(timezone.utc)
+            "created_at": datetime.now(timezone.utc),
         })
         result = await db.ai_images.find_one({"_id": doc.inserted_id})
-        result.pop("_id")
+        result.pop("_id", None)
         return result
     except Exception as e:
         err_str = str(e)
@@ -633,7 +632,7 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
 
 @api.get("/ai/image/history")
 async def image_history(user=Depends(get_current_user)):
-    items = await db.images.find({"user_id": user["id"]}, {"_id": 0}).sort(
+    items = await db.ai_images.find({"user_id": user["id"]}, {"_id": 0}).sort(
         "created_at", -1
     ).to_list(50)
     return items
@@ -830,6 +829,8 @@ else:
         allow_headers=["*"],
     )
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ── Serve built React frontend (production) ───────────────────────────────
 _FRONTEND_BUILD = Path(__file__).parent.parent / "frontend" / "build"

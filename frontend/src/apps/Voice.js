@@ -11,6 +11,7 @@ import {
 import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
+import { normalizeTranscript } from "../lib/speechCorrection.js";
 
 // ── Markdown stripper ──────────────────────────────────────────────────────
 function stripMarkdown(text) {
@@ -255,19 +256,20 @@ export default function Voice() {
 
   const { openApp } = useOS();
 
-  const mountedRef      = useRef(true);
-  const startedRef      = useRef(false);
-  const recogRef        = useRef(null);
-  const transcriptRef   = useRef("");
-  const abortRef        = useRef(null);
-  const voiceGenderRef  = useRef("female");
-  const geminiVoiceRef  = useRef(GEMINI_VOICE_FEMALE);
-  const speakAbortRef   = useRef(null);
-  const previewAbortRef = useRef(null);
-  const analyserRef     = useRef(null);
+  const mountedRef        = useRef(true);
+  const startedRef        = useRef(false);
+  const recogRef          = useRef(null);
+  const transcriptRef     = useRef("");
+  const finalizedUntilRef = useRef(0);
+  const abortRef          = useRef(null);
+  const voiceGenderRef    = useRef("female");
+  const geminiVoiceRef    = useRef(GEMINI_VOICE_FEMALE);
+  const speakAbortRef     = useRef(null);
+  const previewAbortRef   = useRef(null);
+  const analyserRef       = useRef(null);
   // Holds the currently-playing HTMLAudioElement so stopSpeaking() can call
   // audio.pause() immediately without waiting for the Promise to resolve.
-  const activeAudioRef  = useRef(null);
+  const activeAudioRef    = useRef(null);
 
   useEffect(() => { voiceGenderRef.current  = voiceGender;  }, [voiceGender]);
   useEffect(() => { geminiVoiceRef.current  = geminiVoice;  }, [geminiVoice]);
@@ -488,7 +490,7 @@ export default function Voice() {
     r.lang             = "en-US";
     r.maxAlternatives  = 3;
 
-    transcriptRef.current = "";
+    transcriptRef.current = "";        finalizedUntilRef.current = 0;
     setTranscript("");
     setInterimText("");
     setResponse("");
@@ -501,11 +503,11 @@ export default function Voice() {
     r.onresult = (e) => {
       let finalText = "";
       let interim   = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = Math.max(e.resultIndex, finalizedUntilRef.current); i < e.results.length; i++) {
         const result = e.results[i];
         const best   = Array.from({ length: result.length }, (_, j) => result[j])
           .reduce((a, b) => (a.confidence >= b.confidence ? a : b));
-        if (result.isFinal) finalText += best.transcript;
+        if (result.isFinal) { finalText += normalizeTranscript(best.transcript, { browserUrl: window.location.href, activeAppId: "voice" }); finalizedUntilRef.current = i + 1; }
         else interim += best.transcript;
       }
       if (finalText) {
