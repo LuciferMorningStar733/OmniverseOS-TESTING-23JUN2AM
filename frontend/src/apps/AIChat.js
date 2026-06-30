@@ -327,6 +327,15 @@ function ActionChips({ actions }) {
   );
 }
 
+/* ── Timestamp formatter ─────────────────────────────────────────────────────── */
+function formatMessageTime(ts) {
+  if (!ts) return null;
+  const diffMin = Math.floor((Date.now() - ts) / 60000);
+  if (diffMin < 1)  return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
 /* ── Main component ──────────────────────────────────────────────────────────── */
 export default function AIChat() {
   const [messages, setMessages]             = useState([]);
@@ -338,6 +347,7 @@ export default function AIChat() {
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
+  const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -551,10 +561,11 @@ export default function AIChat() {
       ? `${text}\n\n[OS: ${actionSummary}. Briefly acknowledge in your own voice — natural, not robotic.]`
       : text;
 
+    const msgTs = Date.now();
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: text, actions: actionChips },
-      { role: "assistant", content: "", pending: true },
+      { role: "user", content: text, actions: actionChips, ts: msgTs },
+      { role: "assistant", content: "", pending: true, ts: msgTs },
     ]);
     setStreaming(true);
     setActiveProvider(null);
@@ -729,7 +740,12 @@ export default function AIChat() {
         )}
 
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div
+            key={i}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+            onMouseEnter={() => setHoveredMsgIdx(i)}
+            onMouseLeave={() => setHoveredMsgIdx(null)}
+          >
             {m.error ? (
               <div className="max-w-[80%] px-4 py-2.5 rounded-2xl text-sm border border-red-500/30 text-red-400 bg-red-900/10">
                 <i className="fa-solid fa-triangle-exclamation mr-2 opacity-80" />
@@ -762,6 +778,12 @@ export default function AIChat() {
                     </div>
                   )}
                 </div>
+                {/* Timestamp — fades in on hover */}
+                {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, paddingLeft: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
+                    {formatMessageTime(m.ts)}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="max-w-[80%]">
@@ -778,6 +800,12 @@ export default function AIChat() {
                 >
                   {m.content}
                 </div>
+                {/* Timestamp — fades in on hover */}
+                {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, textAlign: "right", paddingRight: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
+                    {formatMessageTime(m.ts)}
+                  </div>
+                )}
                 <ActionChips actions={m.actions} />
               </div>
             )}
