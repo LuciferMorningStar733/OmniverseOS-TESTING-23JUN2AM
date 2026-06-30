@@ -49,6 +49,8 @@ async def lifespan(_app: FastAPI):
     await db.cortex_memories.create_index([("user_id", 1), ("category", 1)])
     await db.cortex_memories.create_index([("user_id", 1), ("never_forget", 1)])
     await db.cortex_memories.create_index([("user_id", 1), ("use_count", -1)])
+    await db.memory_activity.create_index([("user_id", 1), ("date", -1)], unique=False)
+    await db.memory_activity.create_index([("user_id", 1), ("date", 1)], unique=False)
     yield
     # shutdown
     client.close()
@@ -878,6 +880,13 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
         # Update local copies with incremented count
         for m in top:
             m["use_count"] = int(m.get("use_count", 0)) + 1
+        # Track daily activity for the heatmap
+        today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        await db.memory_activity.update_one(
+            {"user_id": user["id"], "date": today_date},
+            {"$inc": {"count": len(top)}, "$set": {"updated_at": now_iso()}},
+            upsert=True,
+        )
     return top
 
 @api.post("/memories/extract")
@@ -979,6 +988,47 @@ async def memory_stats(user=Depends(get_current_user)):
         "by_category": by_cat,
         "total": len(all_mems),
         "total_uses": total_uses,
+    }
+
+@api.get("/memories/timeline")
+async def memory_timeline(user=Depends(get_current_user)):
+    """Return 52 weeks of daily memory-retrieval activity for the heatmap."""
+    from datetime import date, timedelta
+    today = date.today()
+    # Start from the most recent Sunday going back 52 full weeks (364 days)
+    days_since_sunday = today.weekday() + 1  # Monday=0 so Sun offset = weekday+1; handle Sunday
+    if today.weekday() == 6:
+        days_since_sunday = 0
+    start_date = today - timedelta(days=days_since_sunday + 363)
+    start_str = start_date.strftime("%Y-%m-%d")
+
+    docs = await db.memory_activity.find(
+        {"user_id": user["id"], "date": {"$gte": start_str}},
+        {"_id": 0, "date": 1, "count": 1}
+    ).to_list(400)
+
+    # Build a dict date -> count
+    activity: dict[str, int] = {d["date"]: int(d.get("count", 0)) for d in docs}
+
+    # Generate all days from start_date to today
+    days = []
+    cursor = start_date
+    while cursor <= today:
+        ds = cursor.strftime("%Y-%m-%d")
+        days.append({"date": ds, "count": activity.get(ds, 0)})
+        cursor += timedelta(days=1)
+
+    total_active_days = sum(1 for d in days if d["count"] > 0)
+    total_retrievals   = sum(d["count"] for d in days)
+    max_count          = max((d["count"] for d in days), default=0)
+
+    return {
+        "days": days,
+        "total_active_days": total_active_days,
+        "total_retrievals": total_retrievals,
+        "max_count": max_count,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": today.strftime("%Y-%m-%d"),
     }
 
 # Files (virtual file manager)

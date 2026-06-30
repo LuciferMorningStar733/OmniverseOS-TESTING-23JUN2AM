@@ -264,16 +264,212 @@ const CATEGORY_COLORS = {
   Other:       "rgba(255,255,255,0.35)",
 };
 
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAY_LABELS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function heatColor(count, max) {
+  if (!count || count === 0) return "rgba(255,255,255,0.05)";
+  const intensity = Math.min(1, count / Math.max(1, max));
+  // Cyan gradient: very light → vivid cyan
+  if (intensity < 0.25) return "rgba(0,240,255,0.18)";
+  if (intensity < 0.5)  return "rgba(0,240,255,0.38)";
+  if (intensity < 0.75) return "rgba(0,240,255,0.62)";
+  return "rgba(0,240,255,0.90)";
+}
+
+function heatBorder(count, max) {
+  if (!count || count === 0) return "rgba(255,255,255,0.07)";
+  const intensity = Math.min(1, count / Math.max(1, max));
+  if (intensity < 0.25) return "rgba(0,240,255,0.25)";
+  return "rgba(0,240,255,0.50)";
+}
+
+function TimelineHeatmap({ data }) {
+  const [tooltip, setTooltip] = React.useState(null); // {x, y, date, count}
+
+  if (!data) return (
+    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 30, fontSize: 13 }}>
+      No timeline data yet. Chat with Cortex to build activity history.
+    </div>
+  );
+
+  const { days, total_active_days, total_retrievals, max_count } = data;
+
+  // Build 52-week grid (weeks = columns, days = rows Sun-Sat)
+  // Pad start so first day aligns to correct weekday
+  const firstDay = days.length > 0 ? new Date(days[0].date + "T12:00:00Z") : new Date();
+  const startDow = firstDay.getDay(); // 0=Sun
+
+  // Build columns of 7 days each
+  const paddedDays = [];
+  for (let i = 0; i < startDow; i++) paddedDays.push(null); // empty leading cells
+  for (const d of days) paddedDays.push(d);
+
+  const weeks = [];
+  for (let w = 0; w < Math.ceil(paddedDays.length / 7); w++) {
+    weeks.push(paddedDays.slice(w * 7, w * 7 + 7));
+  }
+
+  // Month label positions: find first week of each month
+  const monthLabels = [];
+  for (let w = 0; w < weeks.length; w++) {
+    const firstReal = weeks[w].find(d => d !== null);
+    if (firstReal) {
+      const d = new Date(firstReal.date + "T12:00:00Z");
+      if (d.getDate() <= 7) {
+        monthLabels.push({ w, label: MONTH_LABELS[d.getMonth()] });
+      }
+    }
+  }
+
+  const CELL = 10; // px per cell
+  const GAP = 2;
+
+  return (
+    <div>
+      {/* Summary stats */}
+      <div style={{ display: "flex", gap: 20, marginBottom: 16, flexWrap: "wrap" }}>
+        {[
+          ["fa-calendar-check", total_active_days + " active days", "#00F0FF"],
+          ["fa-brain",          total_retrievals + " total retrievals", "#A78BFA"],
+          ["fa-fire-flame-curved", (max_count || 0) + " peak in one day", "#F97316"],
+        ].map(([icon, label, color]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, fontFamily: "monospace" }}>
+            <i className={"fa-solid " + icon} style={{ color, fontSize: 11 }} />
+            <span style={{ color: "rgba(255,255,255,0.65)" }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Grid */}
+      <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+        <div style={{ display: "inline-flex", flexDirection: "column", gap: 0 }}>
+          {/* Month labels row */}
+          <div style={{ display: "flex", gap: GAP, paddingLeft: 28, marginBottom: 2 }}>
+            {weeks.map((_, w) => {
+              const label = monthLabels.find(m => m.w === w);
+              return (
+                <div key={w} style={{
+                  width: CELL, fontSize: 7.5, fontFamily: "monospace",
+                  color: label ? "rgba(255,255,255,0.4)" : "transparent",
+                  userSelect: "none", textAlign: "center", letterSpacing: 0,
+                }}>
+                  {label?.label || "·"}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Day rows */}
+          {[0, 1, 2, 3, 4, 5, 6].map(dow => (
+            <div key={dow} style={{ display: "flex", alignItems: "center", gap: GAP, marginBottom: GAP }}>
+              {/* Day label */}
+              <div style={{
+                width: 22, fontSize: 7.5, fontFamily: "monospace",
+                color: "rgba(255,255,255,0.25)", textAlign: "right",
+                userSelect: "none", paddingRight: 4, flexShrink: 0,
+              }}>
+                {dow % 2 === 1 ? DAY_LABELS[dow] : ""}
+              </div>
+              {/* Week cells */}
+              {weeks.map((week, w) => {
+                const cell = week[dow];
+                if (!cell) {
+                  return <div key={w} style={{ width: CELL, height: CELL, borderRadius: 2 }} />;
+                }
+                const bgColor = heatColor(cell.count, max_count);
+                const bdColor = heatBorder(cell.count, max_count);
+                const dateLabel = new Date(cell.date + "T12:00:00Z").toLocaleDateString(undefined, {
+                  month: "short", day: "numeric", year: "numeric",
+                });
+                return (
+                  <div
+                    key={w}
+                    style={{
+                      width: CELL, height: CELL, borderRadius: 2,
+                      background: bgColor,
+                      border: "1px solid " + bdColor,
+                      cursor: cell.count > 0 ? "pointer" : "default",
+                      boxShadow: cell.count > 0 ? "0 0 4px " + bgColor : "none",
+                      transition: "transform 0.1s, box-shadow 0.1s",
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={e => {
+                      if (cell.count > 0) {
+                        e.currentTarget.style.transform = "scale(1.4)";
+                        e.currentTarget.style.zIndex = "10";
+                      }
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltip({ x: rect.left, y: rect.top, date: dateLabel, count: cell.count });
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = "scale(1)";
+                      e.currentTarget.style.zIndex = "auto";
+                      setTooltip(null);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.3)" }}>
+        <span>Less</span>
+        {[0, 0.2, 0.45, 0.7, 1.0].map((v, i) => (
+          <div key={i} style={{
+            width: 9, height: 9, borderRadius: 2,
+            background: heatColor(v * 5, 5),
+            border: "1px solid " + heatBorder(v * 5, 5),
+          }} />
+        ))}
+        <span>More</span>
+      </div>
+
+      {/* Tooltip portal (fixed position) */}
+      {tooltip && (
+        <div style={{
+          position: "fixed",
+          left: tooltip.x + 14,
+          top: tooltip.y - 36,
+          background: "rgba(6,8,16,0.97)",
+          border: "1px solid rgba(0,240,255,0.3)",
+          borderRadius: 8,
+          padding: "5px 10px",
+          fontSize: 11,
+          fontFamily: "monospace",
+          color: "#E2E8F0",
+          zIndex: 99999,
+          pointerEvents: "none",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.7)",
+          whiteSpace: "nowrap",
+        }}>
+          <span style={{ color: "#00F0FF", fontWeight: 700 }}>{tooltip.count} retrieval{tooltip.count !== 1 ? "s" : ""}</span>
+          {" · "}{tooltip.date}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function StrengthGraph({ onClose }) {
   const [stats, setStats] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
-  const [view, setView] = React.useState("top"); // "top" | "categories"
+  const [view, setView] = React.useState("top"); // "top" | "categories" | "timeline"
+  const [timeline, setTimeline] = React.useState(null);
 
   React.useEffect(() => {
-    api.get("/memories/stats").then(r => {
-      setStats(r.data);
+    Promise.all([
+      api.get("/memories/stats").catch(() => ({ data: null })),
+      api.get("/memories/timeline").catch(() => ({ data: null })),
+    ]).then(([statsRes, tlRes]) => {
+      if (statsRes.data) setStats(statsRes.data);
+      if (tlRes.data) setTimeline(tlRes.data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    });
   }, []);
 
   const maxUses = stats?.top_by_usage?.[0]?.use_count || 1;
@@ -330,7 +526,7 @@ function StrengthGraph({ onClose }) {
           padding: "10px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)",
           display: "flex", gap: 6, flexShrink: 0,
         }}>
-          {[["top", "fa-ranking-star", "Most Used"], ["categories", "fa-layer-group", "By Category"]].map(([v, icon, label]) => (
+          {[["top", "fa-ranking-star", "Most Used"], ["categories", "fa-layer-group", "By Category"], ["timeline", "fa-calendar-days", "Timeline"]].map(([v, icon, label]) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -355,6 +551,8 @@ function StrengthGraph({ onClose }) {
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 40, fontSize: 13 }}>
               <i className="fa-solid fa-brain fa-pulse mr-2" /> Loading memory stats...
             </div>
+          ) : view === "timeline" ? (
+            <TimelineHeatmap data={timeline} />
           ) : view === "top" ? (
             <>
               {stats?.top_by_usage?.length === 0 ? (
