@@ -343,11 +343,13 @@ export default function Voice() {
   const [wakeWordActive, setWakeWordActive]        = useState(false);
   const [historyBadge, setHistoryBadge]           = useState(0);   // unread msg count
   const [isAtBottom, setIsAtBottom]               = useState(true); // history scroll position
+  const [isLivePreviewing, setIsLivePreviewing]   = useState(false); // live preview TTS active
 
   const { openApp } = useOS();
 
   const mountedRef         = useRef(true);
   const historyScrollRef   = useRef(null); // ref for the history scroll container
+  const previewTimerRef    = useRef(null); // debounce timer for live preview
   const startedRef         = useRef(false);
   const recogRef           = useRef(null);
   const transcriptRef      = useRef("");
@@ -449,6 +451,34 @@ export default function Voice() {
       return next;
     });
   }, []);
+
+  // ── Live voice preview (rate / pitch / volume sliders) ────────────────────
+  // Called immediately when any voice param changes. Speaks a short test phrase
+  // with the updated value so the user hears the effect right away.
+  const triggerLivePreview = useCallback((patch) => {
+    clearTimeout(previewTimerRef.current);
+    // Small debounce so rapid taps don't stack utterances
+    previewTimerRef.current = setTimeout(() => {
+      if (!isBrowserTTSSupported()) return;
+      // Cancel any ongoing TTS (mic / main conversation)
+      cancelSpeechRef.current?.();
+      cancelSpeechRef.current = null;
+      window.speechSynthesis?.cancel();
+
+      const merged = { ...settingsRef.current, ...patch };
+      const phrase = "Testing — this is how I sound at this setting.";
+
+      setIsLivePreviewing(true);
+      const cancel = browserSpeak(phrase, {
+        rate: merged.rate   || 1.0,
+        pitch: merged.pitch || 1.0,
+        volume: merged.volume ?? 1.0,
+        onEnd:   () => { if (mountedRef.current) setIsLivePreviewing(false); },
+        onError: () => { if (mountedRef.current) setIsLivePreviewing(false); },
+      });
+      cancelSpeechRef.current = cancel;
+    }, 250);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Conversation helpers ──────────────────────────────────────────────────
   const appendToConversation = useCallback((role, content) => {
@@ -1490,9 +1520,32 @@ export default function Voice() {
               />
             </SettingRow>
 
+            {/* Live preview badge — shown while Cortex is speaking the test phrase */}
+            {isLivePreviewing && (
+              <div
+                className="flex items-center gap-2 mb-3 px-3 py-1.5 rounded-full"
+                style={{
+                  background: "rgba(207,158,255,0.1)",
+                  border: "1px solid rgba(207,158,255,0.25)",
+                  animation: "fadeSlideUp 0.15s ease",
+                  alignSelf: "flex-start",
+                }}
+              >
+                <i className="fa-solid fa-volume-high text-[10px]" style={{ color: "#CF9EFF" }} />
+                <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: "#CF9EFF", letterSpacing: "0.08em" }}>
+                  // testing…
+                </span>
+              </div>
+            )}
+
             {/* Rate */}
             <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="text-sm text-white font-medium mb-1">Speech Rate</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm text-white font-medium">Speech Rate</div>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>
+                  tap to preview
+                </span>
+              </div>
               <Segmented
                 options={[
                   { value: 0.75, label: "0.75×" },
@@ -1502,13 +1555,18 @@ export default function Voice() {
                   { value: 1.3,  label: "1.3×"  },
                 ]}
                 value={settings.rate}
-                onChange={(v) => updateSettings({ rate: v })}
+                onChange={(v) => { updateSettings({ rate: v }); triggerLivePreview({ rate: v }); }}
               />
             </div>
 
             {/* Pitch */}
             <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="text-sm text-white font-medium mb-1">Pitch</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm text-white font-medium">Pitch</div>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>
+                  tap to preview
+                </span>
+              </div>
               <Segmented
                 options={[
                   { value: 0.8,  label: "Low"    },
@@ -1516,13 +1574,18 @@ export default function Voice() {
                   { value: 1.2,  label: "High"   },
                 ]}
                 value={settings.pitch}
-                onChange={(v) => updateSettings({ pitch: v })}
+                onChange={(v) => { updateSettings({ pitch: v }); triggerLivePreview({ pitch: v }); }}
               />
             </div>
 
             {/* Volume */}
             <div className="py-2.5">
-              <div className="text-sm text-white font-medium mb-1">Volume</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm text-white font-medium">Volume</div>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>
+                  tap to preview
+                </span>
+              </div>
               <Segmented
                 options={[
                   { value: 0.5,  label: "50%"  },
@@ -1531,7 +1594,7 @@ export default function Voice() {
                   { value: 1.0,  label: "100%" },
                 ]}
                 value={settings.volume}
-                onChange={(v) => updateSettings({ volume: v })}
+                onChange={(v) => { updateSettings({ volume: v }); triggerLivePreview({ volume: v }); }}
               />
             </div>
           </div>
