@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { APPS, getApp } from "../lib/apps";
 import { useOS } from "../context/OSContext";
+import { getTimeline, getRecentUrls } from "../lib/activityTimeline";
+import { memGet } from "../lib/memoryEngine";
+import { listSnapshots, getAutoSnapshot } from "../lib/workspaceSnapshot";
 
 function WindowCard({ win, index, isActive, onFocus, onClose, onMinimize }) {
   const app = getApp(win.app);
@@ -123,10 +126,48 @@ function QuickLaunch({ openApps, onLaunch }) {
 }
 
 export default function MissionControl({ open, onClose }) {
-  const { windows, activeId, focusWindow, closeWindow, minimize, openApp } = useOS();
+  const {
+    windows, activeId, focusWindow, closeWindow, minimize, openApp,
+    restoreLastWorkspace, restoreNamedWorkspace, saveCurrentWorkspace,
+  } = useOS();
   const visibleWindows = useMemo(() => windows.filter((w) => !w.minimized), [windows]);
   const minimizedWindows = useMemo(() => windows.filter((w) => w.minimized), [windows]);
   const openApps = useMemo(() => new Set(windows.map((w) => w.app)), [windows]);
+
+  // ── Side-rail data (Priority 4 — Mission Control as productivity center) ──
+  // `tick` forces refetch from local stores when the overlay opens.
+  const [tick, setTick] = useState(0);
+  useEffect(() => { if (open) setTick((t) => t + 1); }, [open]);
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const recentEvents  = useMemo(() => getTimeline(8), [tick]);
+  const recentUrlList = useMemo(() => getRecentUrls(5), [tick]);
+  const lastApp       = useMemo(() => memGet("lastActiveApp", null), [tick]);
+  const lastUrl       = useMemo(() => memGet("lastUrl", null), [tick]);
+  const namedSnaps    = useMemo(() => listSnapshots(), [tick]);
+  const autoSnap      = useMemo(() => getAutoSnapshot(), [tick]);
+  /* eslint-enable react-hooks/exhaustive-deps */
+  const [saveName, setSaveName] = useState("");
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  const handleRestoreLast = () => {
+    const n = restoreLastWorkspace();
+    if (n > 0) onClose();
+  };
+
+  const handleRestoreNamed = (name) => {
+    const n = restoreNamedWorkspace(name);
+    if (n > 0) onClose();
+  };
+
+  const handleSave = () => {
+    if (!saveName.trim()) return;
+    if (saveCurrentWorkspace(saveName)) {
+      setSavedFlash(true);
+      setSaveName("");
+      setTick((t) => t + 1);
+      setTimeout(() => setSavedFlash(false), 1400);
+    }
+  };
 
   useEffect(() => {
     if (!open) return undefined;
@@ -192,29 +233,187 @@ export default function MissionControl({ open, onClose }) {
               </div>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              {visibleWindows.length > 0 ? (
-                <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
-                  {visibleWindows.map((win, index) => (
-                    <WindowCard
-                      key={win.id}
-                      win={win}
-                      index={index}
-                      isActive={win.id === activeId}
-                      onFocus={() => focusAndClose(win.id)}
-                      onClose={() => closeWindow(win.id)}
-                      onMinimize={() => minimize(win.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="h-full min-h-[220px] flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.035]">
-                  <div className="text-center">
-                    <i className="fa-solid fa-layer-group text-3xl text-[#00F0FF]/45 mb-3" />
-                    <div className="font-heading text-lg text-white">No active windows</div>
+            <div className="min-h-0 flex-1 grid gap-4" style={{ gridTemplateColumns: "minmax(0,1fr) 280px" }}>
+              {/* ── LEFT: Active windows grid ────────────────────────────── */}
+              <div className="min-h-0 overflow-y-auto pr-1">
+                {visibleWindows.length > 0 ? (
+                  <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
+                    {visibleWindows.map((win, index) => (
+                      <WindowCard
+                        key={win.id}
+                        win={win}
+                        index={index}
+                        isActive={win.id === activeId}
+                        onFocus={() => focusAndClose(win.id)}
+                        onClose={() => closeWindow(win.id)}
+                        onMinimize={() => minimize(win.id)}
+                      />
+                    ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="h-full min-h-[220px] flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] gap-4">
+                    <div className="text-center">
+                      <i className="fa-solid fa-layer-group text-3xl text-[#00F0FF]/45 mb-3" />
+                      <div className="font-heading text-lg text-white">No active windows</div>
+                      <p className="text-xs text-slate-500 font-mono mt-1">
+                        Restore your last session or launch an app to begin.
+                      </p>
+                    </div>
+                    {autoSnap.hasSnapshot && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreLast}
+                        data-testid="mission-restore-last-empty"
+                        className="flex items-center gap-2 rounded-lg border border-[#00F0FF]/30 bg-[#00F0FF]/[0.08] hover:bg-[#00F0FF]/[0.14] px-4 py-2 text-xs font-mono text-[#00F0FF] transition"
+                      >
+                        <i className="fa-solid fa-rotate-left text-[11px]" />
+                        Restore last session ({autoSnap.windowCount} windows)
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── RIGHT: Cortex side rail ─────────────────────────────── */}
+              <aside className="min-h-0 overflow-y-auto pr-1 flex flex-col gap-4">
+
+                {/* Workspace Restore card */}
+                <section className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="mono-label">// Workspace</span>
+                    {savedFlash && (
+                      <span className="text-[10px] font-mono text-[#39FF14]">Saved</span>
+                    )}
+                  </div>
+                  {autoSnap.hasSnapshot ? (
+                    <button
+                      type="button"
+                      onClick={handleRestoreLast}
+                      data-testid="mission-restore-last"
+                      className="w-full flex items-center gap-2 rounded-lg border border-[#00F0FF]/25 bg-[#00F0FF]/[0.06] hover:bg-[#00F0FF]/[0.12] px-3 py-2 text-[11px] font-mono text-[#00F0FF] transition"
+                    >
+                      <i className="fa-solid fa-rotate-left" />
+                      Restore last session
+                      <span className="ml-auto text-[10px] text-[#00F0FF]/60">{autoSnap.windowCount}w</span>
+                    </button>
+                  ) : (
+                    <div className="text-[11px] font-mono text-slate-500 py-1">No session captured yet.</div>
+                  )}
+
+                  {/* Named snapshots */}
+                  {namedSnaps.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      {namedSnaps.slice(0, 4).map((name) => (
+                        <button
+                          key={name}
+                          onClick={() => handleRestoreNamed(name)}
+                          data-testid={`mission-restore-named-${name}`}
+                          className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] px-2.5 py-1.5 text-[11px] font-mono text-slate-300 transition"
+                        >
+                          <i className="fa-solid fa-bookmark text-[#FCEE09] text-[10px]" />
+                          <span className="truncate flex-1 text-left">{name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Save current */}
+                  {visibleWindows.length > 0 && (
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <input
+                        value={saveName}
+                        onChange={(e) => setSaveName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                        placeholder="Name this layout"
+                        data-testid="mission-save-name"
+                        className="flex-1 bg-white/[0.05] border border-white/10 rounded-md px-2 py-1 text-[11px] font-mono text-white outline-none focus:border-[#00F0FF]/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={!saveName.trim()}
+                        data-testid="mission-save-btn"
+                        className="rounded-md border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] px-2 py-1 text-[11px] font-mono text-slate-300 disabled:opacity-30"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </section>
+
+                {/* Recent activity */}
+                <section className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                  <div className="mono-label mb-2">// Recent Activity</div>
+                  {recentEvents.length === 0 ? (
+                    <div className="text-[11px] font-mono text-slate-500">No events yet.</div>
+                  ) : (
+                    <ul className="flex flex-col gap-1">
+                      {recentEvents.slice(0, 6).map((e, i) => (
+                        <li key={i} className="flex items-center gap-2 text-[11px] font-mono text-slate-300">
+                          <i className={`fa-solid ${
+                            e.type === "app_open" ? "fa-grip" :
+                            e.type === "app_close" ? "fa-xmark" :
+                            e.type === "url_visit" ? "fa-globe" :
+                            e.type === "voice_command" ? "fa-microphone" :
+                            e.type === "workspace_restore" ? "fa-rotate-left" :
+                            "fa-circle"
+                          } text-[10px] text-[#00F0FF]/60`} />
+                          <span className="truncate flex-1">
+                            {e.appId ? (getApp(e.appId)?.name ?? e.appId) :
+                             e.url ? (() => { try { return new URL(e.url).hostname.replace(/^www\./, ""); } catch { return e.url; } })() :
+                             e.text ? `"${e.text.slice(0, 24)}"` :
+                             e.type}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+
+                {/* Recent URLs */}
+                {recentUrlList.length > 0 && (
+                  <section className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                    <div className="mono-label mb-2">// Recent Sites</div>
+                    <ul className="flex flex-col gap-1">
+                      {recentUrlList.map((u) => {
+                        const host = (() => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } })();
+                        return (
+                          <li key={u}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openApp("browser");
+                                window.dispatchEvent(new CustomEvent("cortex:navigate", { detail: { url: u } }));
+                                onClose();
+                              }}
+                              className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-md text-[11px] font-mono text-slate-300 hover:text-[#00F0FF] hover:bg-[#00F0FF]/[0.06] transition"
+                            >
+                              <i className="fa-solid fa-globe text-[10px] text-[#FCEE09]" />
+                              <span className="truncate">{host}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )}
+
+                {/* Memory snippet */}
+                {(lastApp || lastUrl) && (
+                  <section className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                    <div className="mono-label mb-2">// Memory</div>
+                    <div className="space-y-1 text-[11px] font-mono text-slate-400">
+                      {lastApp && (
+                        <div className="flex items-center gap-2"><i className="fa-solid fa-cube text-[#39FF14]/70" /><span>Last app:</span><span className="text-slate-200">{getApp(lastApp)?.name ?? lastApp}</span></div>
+                      )}
+                      {lastUrl && (
+                        <div className="flex items-center gap-2 truncate"><i className="fa-solid fa-link text-[#CF9EFF]/70" /><span>Last URL:</span><span className="text-slate-200 truncate">{(() => { try { return new URL(lastUrl).hostname.replace(/^www\./, ""); } catch { return lastUrl; } })()}</span></div>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+              </aside>
             </div>
 
             <footer className="flex items-center justify-between gap-4 border-t border-white/10 pt-4">

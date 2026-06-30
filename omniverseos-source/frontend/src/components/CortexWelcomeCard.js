@@ -1,7 +1,9 @@
 import React, { useMemo } from "react";
 import { getRecentApps, getRecentUrls } from "../lib/activityTimeline";
 import { memGet } from "../lib/memoryEngine";
+import { getAutoSnapshot } from "../lib/workspaceSnapshot";
 import { getApp } from "../lib/apps";
+import { useOS } from "../context/OSContext";
 
 // ─── Inline styles (no CSS file dependency, zero-perf impact) ───────────────
 // All colours use OmniverseOS cyan/glass design language.
@@ -116,19 +118,59 @@ function friendlyUrl(url) {
  *   onDismiss  () => void
  */
 export default function CortexWelcomeCard({ onOpenApp, onOpenUrl, onDismiss }) {
+  const { restoreLastWorkspace, user } = useOS();
   const recentApps = useMemo(() => getRecentApps(6), []);
   const recentUrls = useMemo(() => getRecentUrls(4), []);
-  const userName   = memGet("userName", null);
+  const autoSnap   = useMemo(() => getAutoSnapshot(), []);
+  const userName   = memGet("userName", null) || user?.name || null;
 
   const hasContent = recentApps.length > 0 || recentUrls.length > 0;
 
   return (
-    <div style={S.card}>
+    <div style={S.card} data-testid="cortex-welcome-card">
       {/* Header */}
       <div style={S.greeting}>
         {greeting()}{userName ? `, ${userName}` : ""}
       </div>
       <div style={S.sub}>Welcome back to OmniverseOS</div>
+
+      {/* Workspace Restore (Priority 2) */}
+      {autoSnap.hasSnapshot && (
+        <button
+          data-testid="welcome-restore-workspace"
+          onClick={() => {
+            const n = restoreLastWorkspace?.();
+            if (n > 0) onDismiss?.();
+          }}
+          style={{
+            display: "flex", alignItems: "center", gap: 10, width: "100%",
+            background: "rgba(0,240,255,0.08)",
+            border: "1px solid rgba(0,240,255,0.22)",
+            borderRadius: 10, padding: "10px 12px",
+            color: "#bdf2ff", fontSize: 13, cursor: "pointer",
+            marginBottom: 16,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(0,240,255,0.14)"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "rgba(0,240,255,0.08)"}
+        >
+          <span style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: "rgba(0,240,255,0.12)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <i className="fa-solid fa-rotate-left" style={{ color: "#00F0FF", fontSize: 13 }} />
+          </span>
+          <span style={{ flex: 1, textAlign: "left" }}>
+            <div style={{ color: "#fff", fontWeight: 600 }}>Restore last session</div>
+            <div style={{ color: "rgba(0,240,255,0.55)", fontSize: 11, marginTop: 2 }}>
+              {autoSnap.windowCount} {autoSnap.windowCount === 1 ? "window" : "windows"} · {autoSnap.appIds.slice(0, 3).join(", ")}
+            </div>
+          </span>
+          <i className="fa-solid fa-arrow-right" style={{ color: "rgba(0,240,255,0.5)", fontSize: 11 }} />
+        </button>
+      )}
 
       {hasContent ? (
         <>

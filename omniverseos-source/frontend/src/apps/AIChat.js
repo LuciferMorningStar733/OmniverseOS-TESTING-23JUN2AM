@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { aiApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
+import { buildCortexSystemPrompt } from "../lib/cortexContext";
+import { trackEvent } from "../lib/activityTimeline";
+import { rememberTranscript } from "../lib/memoryEngine";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import MarkdownRenderer from "../components/MarkdownRenderer";
@@ -340,9 +343,11 @@ export default function AIChat() {
   const micBaseRef = useRef("");
   const micInputSnapshotRef = useRef("");
 
-  const { openApp, closeWindow, focusWindow, minimize, windows } = useOS();
+  const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
   const windowsRef    = useRef([]);
+  const activeIdRef   = useRef(null);
   useEffect(() => { windowsRef.current = windows; }, [windows]);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { inputRef.current = input; }, [input]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
 
@@ -476,8 +481,15 @@ export default function AIChat() {
 
     try {
       const preferredProvider = getPreferredProvider();
+      // ── Cortex Unification: build live OS context system prompt ─────────
+      // Aggregates active app, browser URL, recent apps/URLs, last session,
+      // memory state — gives the LLM real awareness of the user's workspace.
+      const systemPrompt = buildCortexSystemPrompt({
+        windows: windowsRef.current,
+        activeId: activeIdRef.current,
+      });
       const result = await aiApi.chatStreamResilient(
-        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider },
+        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
@@ -546,6 +558,9 @@ export default function AIChat() {
     const handler = (e) => {
       const text = e.detail?.text;
       if (!text?.trim()) return;
+      // Cortex unification: record dispatched prompt in timeline + memory.
+      trackEvent("voice_command", { text: text.slice(0, 120) });
+      rememberTranscript(text);
       sendRef.current?.(text);
     };
     window.addEventListener("cortex:prompt", handler);
