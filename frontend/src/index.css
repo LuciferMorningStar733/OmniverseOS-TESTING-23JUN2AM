@@ -564,3 +564,190 @@ button:focus-visible,
 /* ── Scrollbar hide utility ──────────────────────────────────── */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   PRIORITY 8 — GLOBAL MICRO-INTERACTIONS
+   Spring-feel for every interactive surface without forcing
+   framer-motion on pure-CSS components.
+════════════════════════════════════════════════════════════════ */
+
+/* ── Spring button press ─────────────────────────────────────── */
+/* Opt-in: add class "spring-btn" to any <button> for an instant
+   press-down feel that complements framer-motion hover.         */
+.spring-btn {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.18s ease,
+              background  0.18s ease;
+  cursor: pointer;
+}
+.spring-btn:active {
+  transform: scale(0.94) translateY(1px);
+}
+
+/* ── Card lift on hover ──────────────────────────────────────── */
+/* Add "lift-card" for any glass card that should elevate on hover */
+.lift-card {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s ease;
+  will-change: transform;
+}
+.lift-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 240, 255, 0.07);
+}
+
+/* ── Glow-icon on hover ──────────────────────────────────────── */
+.glow-icon {
+  transition: filter 0.18s ease, opacity 0.18s ease;
+}
+.glow-icon:hover {
+  filter: drop-shadow(0 0 6px currentColor) brightness(1.25);
+}
+
+/* ── Tray icon row ──────────────────────────────────────────── */
+/* Quick-settings area icons in TopBar */
+.tray-btn {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.15s ease,
+              border-color 0.15s ease;
+  cursor: pointer;
+}
+.tray-btn:hover  { transform: scale(1.12); }
+.tray-btn:active { transform: scale(0.92); }
+
+/* ── Toggle switch ──────────────────────────────────────────── */
+/* The thumb springs into position */
+.toggle-thumb {
+  transition: left 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Range slider — global track & thumb ────────────────────── */
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.45), 0 0 0 2px rgba(245,158,11,0.35);
+  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.14s ease;
+  cursor: grab;
+}
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+  cursor: grabbing;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5), 0 0 0 4px rgba(245,158,11,0.30);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.45);
+  cursor: grab;
+}
+
+/* ── Chip / pill button ─────────────────────────────────────── */
+.chip-btn {
+  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.16s ease,
+              border-color 0.16s ease,
+              box-shadow 0.16s ease;
+  cursor: pointer;
+}
+.chip-btn:hover  { transform: scale(1.05); }
+.chip-btn:active { transform: scale(0.95); }
+
+/* ── Icon micro-bounce on click ─────────────────────────────── */
+@keyframes iconBounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(0.78) rotate(-6deg); }
+  65%  { transform: scale(1.22) rotate(4deg); }
+  85%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+.icon-bounce { animation: iconBounce 0.38s cubic-bezier(0.22,1,0.36,1) forwards; }
+
+/* ── Stagger utility (works with Framer AnimatePresence) ─────── */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+/* ─── Omni Ripple (widget store buttons) ────────────────────── */
+@keyframes omni-ripple {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.55; }
+  100% { transform: translate(-50%,-50%) scale(3.2); opacity: 0; }
+}
+
+/* ── Focus ring — P9: accessible ring on all interactive UI ──── */
+:focus-visible {
+  outline: 2px solid rgba(0, 240, 255, 0.65);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── P9: Prevent text-selection on interactive OS chrome ─────── */
+.os-chrome {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── P9: Overflow guard for app windows ──────────────────────── */
+/* Ensure app content never bleeds through window borders        */
+.app-window-inner {
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* ── P9: Typography corrections ──────────────────────────────── */
+/* Heading font for all h1-h3 inside app windows */
+.window-content h1,
+.window-content h2,
+.window-content h3 {
+  font-family: 'Unbounded', 'Outfit', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Mono label used throughout OS */
+.mono-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: rgba(0, 240, 255, 0.50);
+}
+
+/* ── P9: App-content scroll — always smooth ──────────────────── */
+.app-scroll {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── P9: Custom scrollbar — OS-wide ─────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  {
+  background: rgba(255,255,255,0.12);
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.28); }
+
+/* ── P9: Prevent layout shift from invisible scrollbars ─────── */
+html { scrollbar-gutter: stable; }
+
+/* ── P9: Selection color ────────────────────────────────────── */
+::selection {
+  background: rgba(0, 240, 255, 0.22);
+  color: #fff;
+}

@@ -254,7 +254,8 @@ export default function Desktop() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("om:open-mission", onOpenMission);
     };
-  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen, brightness.toggleOverlay]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen]);
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);
