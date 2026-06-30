@@ -20,6 +20,7 @@ export const APPS = [
   { id: "analytics",  name: "Analytics",   icon: "fa-chart-pie",    color: "#FF003C", Component: lazy(() => import("../apps/Finance")),       group: "data" },
   { id: "nebula",     name: "Nebula Chat", icon: "fa-satellite-dish", color: "#C778DD", Component: lazy(() => import("../apps/Browser")),       group: "social" },
   { id: "browser",    name: "Browser",     icon: "fa-globe",        color: "#FCEE09", Component: lazy(() => import("../apps/Browser")),       group: "system" },
+  { id: "widgets",    name: "Widgets",     icon: "fa-border-all",   color: "#00F0FF", Component: lazy(() => import("../apps/WidgetManager")), group: "system" },
   { id: "settings",   name: "Settings",    icon: "fa-gear",         color: "#94A3B8", Component: lazy(() => import("../apps/Settings")),      group: "system" },
 ];
 
