@@ -1,7 +1,5 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "yarn install --frozen-lockfile",
-  "buildCommand": "CI=false yarn build",
-  "outputDirectory": "build",
-  "framework": "create-react-app"
+  "buildCommand": "cd frontend && yarn install && yarn build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "echo 'skip root install'"
 }
