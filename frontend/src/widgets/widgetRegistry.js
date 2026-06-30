@@ -104,6 +104,33 @@ export const WIDGET_REGISTRY = [
     minW: 2, minH: 1, maxW: 5, maxH: 2,
     Component: lazy(() => import("./widgets/NewsWidget")),
   },
+  {
+    id: "focus",
+    name: "Focus Timer",
+    icon: "fa-stopwatch",
+    color: "#00F0FF",          // AI = Cyan (focus / productivity)
+    defaultW: 1, defaultH: 2,
+    minW: 1, minH: 2, maxW: 2, maxH: 3,
+    Component: lazy(() => import("./widgets/FocusTimerWidget")),
+  },
+  {
+    id: "worldclock",
+    name: "World Clock",
+    icon: "fa-earth-americas",
+    color: "#FCEE09",          // Yellow (global / time)
+    defaultW: 2, defaultH: 2,
+    minW: 2, minH: 2, maxW: 3, maxH: 3,
+    Component: lazy(() => import("./widgets/WorldClockWidget")),
+  },
+  {
+    id: "sysmon",
+    name: "System Monitor",
+    icon: "fa-gauge-high",
+    color: "#FF003C",          // Danger = Red (resource pressure)
+    defaultW: 2, defaultH: 2,
+    minW: 2, minH: 1, maxW: 3, maxH: 3,
+    Component: lazy(() => import("./widgets/SystemMonitorWidget")),
+  },
 ];
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
