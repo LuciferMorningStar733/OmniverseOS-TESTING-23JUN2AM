@@ -5,6 +5,8 @@ import WallpaperStudio from "../components/WallpaperStudio";
 import { useMobilePrefs, LOCK_TIMEOUT_OPTIONS } from "../hooks/useMobilePrefs";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs } from "../lib/api";
+import { useBrightness } from "../components/BrightnessOverlay";
+import LocationSetup, { isLocationSetupDone, getStoredCity, saveCity } from "../components/LocationSetup";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
 function ToggleRow({ label, desc, value, onChange }) {
@@ -110,6 +112,9 @@ export default function Settings() {
   const { prefs, setPref } = useMobilePrefs();
   const { isMobile } = useBreakpoint();
   const [preferredProvider, setPreferredProviderState] = useState(getPreferredProvider);
+  const { brightness, setBrightness } = useBrightness();
+  const [showLocationSetup, setShowLocationSetup] = useState(false);
+  const currentCity = getStoredCity();
 
   const [voicePrefs, setVoicePrefsState] = useState(() => getVoicePrefs());
 
@@ -141,6 +146,58 @@ export default function Settings() {
             Joined {new Date(user?.created_at).toLocaleDateString()}
           </div>
         </div>
+      </div>
+
+      {/* Brightness */}
+      <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+        <div className="mono-label">// Display</div>
+        <h3 className="font-heading text-base font-bold mb-3">Brightness</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <i className="fa-solid fa-moon" style={{ color: "#F59E0B", fontSize: 13, flexShrink: 0 }} />
+          <input
+            type="range" min={10} max={100} step={1} value={brightness}
+            onChange={(e) => setBrightness(Number(e.target.value))}
+            style={{
+              flex: 1, appearance: "none", WebkitAppearance: "none",
+              height: 6, borderRadius: 3, outline: "none", cursor: "pointer",
+              background: `linear-gradient(to right, #F59E0B ${brightness}%, rgba(255,255,255,0.12) ${brightness}%)`,
+            }}
+          />
+          <i className="fa-solid fa-sun" style={{ color: "#F59E0B", fontSize: 13, flexShrink: 0 }} />
+          <span style={{ fontFamily: "monospace", fontSize: 12, color: "#F59E0B", minWidth: 38, textAlign: "right" }}>{brightness}%</span>
+        </div>
+        <p className="text-xs text-slate-500 mt-2">Shortcut: Ctrl + Shift + B</p>
+      </div>
+
+      {/* Location */}
+      <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+        <div className="mono-label">// Location</div>
+        <h3 className="font-heading text-base font-bold mb-1">Weather Location</h3>
+        <p className="text-xs text-slate-500 mb-3">Used by Cortex for weather, greetings, and suggestions.</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <i className="fa-solid fa-location-dot" style={{ color: "#A855F7", fontSize: 13 }} />
+            <span style={{ fontSize: 13, color: currentCity ? "#fff" : "rgba(255,255,255,0.35)" }}>
+              {currentCity || "Not set"}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowLocationSetup(true)}
+            style={{
+              padding: "6px 14px", borderRadius: 8, fontSize: 12,
+              border: "1px solid rgba(168,85,247,0.4)",
+              background: "rgba(168,85,247,0.10)", color: "#A855F7",
+              cursor: "pointer", fontFamily: "monospace", transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.20)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.10)"; }}
+          >
+            {currentCity ? "Change" : "Set Location"}
+          </button>
+        </div>
+        {showLocationSetup && (
+          <LocationSetup onComplete={(city) => { setShowLocationSetup(false); }} />
+        )}
       </div>
 
       {/* Wallpaper Studio */}

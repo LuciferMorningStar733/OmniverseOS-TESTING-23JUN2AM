@@ -298,7 +298,7 @@ function ActiveAppMenuBar({ activeId, windows }) {
 }
 
 /* ─── TopBar ──────────────────────────────────────────────────────────────── */
-export default function TopBar({ onOpenMissionControl }) {
+export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
   const { user, logout, setPaletteOpen, setNotifOpen, notifications, activeId, windows } = useOS();
   const { visible: widgetsVisible, toggleWidgets: toggleWidgets } = useWidgetManager();
   const [time, setTime]   = useState(new Date());
@@ -421,6 +421,26 @@ export default function TopBar({ onOpenMissionControl }) {
 
       {/* Right cluster */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+
+        {/* Brightness */}
+        {onOpenBrightness && (
+          <button
+            onClick={onOpenBrightness}
+            title="Brightness (Ctrl+Shift+B)"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 6, width: 26, height: 26,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(245,158,11,0.12)"; e.currentTarget.style.borderColor = "rgba(245,158,11,0.3)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+          >
+            <i className="fa-solid fa-sun" style={{ color: "#F59E0B", fontSize: 11 }} />
+          </button>
+        )}
 
         {/* Widget toggle */}
         <button

@@ -11,6 +11,10 @@ import NotificationCenter from "./NotificationCenter";
 import MissionControl from "./MissionControl";
 import AIDock from "./AIDock";
 import CortexWelcomeCard from "./CortexWelcomeCard";
+import BootScreen, { isFirstBoot } from "./BootScreen";
+import WelcomePanel from "./WelcomePanel";
+import LocationSetup, { isLocationSetupDone } from "./LocationSetup";
+import BrightnessOverlay, { useBrightness, BrightnessFilter } from "./BrightnessOverlay";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
@@ -126,6 +130,7 @@ export default function Desktop() {
     windows, setPaletteOpen, paletteOpen, wallpaper, focusWindow, activeId,
     openApp, closeWindow, minimize, updateWindow, toggleMaximize,
     notifOpen, setNotifOpen, pushNotification, clearNotifications, trackUrl,
+    notifications, user,
   } = useOS();
   const { isMobile } = useBreakpoint();
   const wp = getWallpaper(wallpaper);
@@ -133,6 +138,25 @@ export default function Desktop() {
   const [missionOpen, setMissionOpen] = useState(false);
   const idleTimer = useRef(null);
   const [showWelcome, setShowWelcome] = useState(true);
+
+  // ── Boot / first-run / brightness ──────────────────────────────────────────
+  const [showBoot,     setShowBoot]     = useState(() => isFirstBoot());
+  const [showWelcomeP, setShowWelcomeP] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const brightness = useBrightness();
+
+  const handleBootComplete = useCallback(() => {
+    setShowBoot(false);
+    // After boot: show welcome panel, and location setup if needed
+    setShowWelcomeP(true);
+    if (!isLocationSetupDone()) {
+      setShowLocation(true);
+    }
+  }, []);
+
+  const handleLocationComplete = useCallback((city) => {
+    setShowLocation(false);
+  }, []);
   const getIdleMs = useCallback(() => {
     const prefs = loadMobilePrefs();
     if (!prefs.lockEnabled || prefs.lockTimeout === 0) return 0;
@@ -194,6 +218,13 @@ export default function Desktop() {
         return;
       }
 
+      // Ctrl + Shift + B → Brightness
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        brightness.toggleOverlay();
+        return;
+      }
+
       // Ctrl/Cmd + Shift + A/B/T → App shortcuts
       if (mod && e.shiftKey && !e.altKey) {
         const k = e.key.toLowerCase();
@@ -223,7 +254,7 @@ export default function Desktop() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("om:open-mission", onOpenMission);
     };
-  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen]);
+  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen, brightness.toggleOverlay]);
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);
@@ -324,7 +355,7 @@ export default function Desktop() {
         transition={{ delay: 0.35, duration: 0.45, ease: "easeOut" }}
         style={{ zIndex: 50, position: "relative" }}
       >
-        <TopBar onOpenMissionControl={() => setMissionOpen(true)} />
+        <TopBar onOpenMissionControl={() => setMissionOpen(true)} onOpenBrightness={brightness.openOverlay} />
       </motion.div>
       {!isMobile && <WidgetCanvas topOffset={60} />}
       <AnimatePresence>
@@ -396,6 +427,38 @@ export default function Desktop() {
             key="lockscreen"
             onUnlock={() => { setLocked(false); resetIdle(); }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── Priority 4: Global Brightness ── */}
+      <BrightnessFilter brightness={brightness.brightness} />
+      <BrightnessOverlay
+        brightness={brightness.brightness}
+        setBrightness={brightness.setBrightness}
+        open={brightness.open}
+        onClose={brightness.closeOverlay}
+      />
+
+      {/* ── Priority 6: JARVIS Boot Screen (first load only) ── */}
+      <AnimatePresence>
+        {showBoot && (
+          <BootScreen key="boot" onComplete={handleBootComplete} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Priority 7: Welcome Panel (post-boot) ── */}
+      {!showBoot && showWelcomeP && !isMobile && (
+        <WelcomePanel
+          user={user}
+          notifications={notifications.length}
+          onDismiss={() => setShowWelcomeP(false)}
+        />
+      )}
+
+      {/* ── Priority 5: First-run Location Setup ── */}
+      <AnimatePresence>
+        {showLocation && !showBoot && (
+          <LocationSetup key="location" onComplete={handleLocationComplete} />
         )}
       </AnimatePresence>
     </div>
