@@ -439,7 +439,7 @@ export default function Voice() {
       });
     }, mins * 60 * 1000);
     return () => clearTimeout(timeoutTimerRef.current);
-  }, [lastActivityTime, settings.conversationTimeout]);
+  }, [lastActivityTime, settings.conversationTimeout, resetConversation]);
 
   // ── Settings helpers ──────────────────────────────────────────────────────
   const updateSettings = useCallback((patch) => {
