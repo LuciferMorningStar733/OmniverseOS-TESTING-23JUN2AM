@@ -24,10 +24,22 @@ function Loader() {
   );
 }
 
+/** Compute S / M / L size presets from a widget definition's min/max bounds. */
+function getSizePresets(def) {
+  if (!def) return null;
+  const { minW, minH, maxW, maxH } = def;
+  return [
+    { label: "S", w: minW,                                    h: minH },
+    { label: "M", w: Math.round((minW + maxW) / 2),           h: Math.round((minH + maxH) / 2) },
+    { label: "L", w: maxW,                                    h: maxH },
+  ];
+}
+
 export default function WidgetShell({ item, def, canvasRef }) {
   const { updateWidget, toggleCollapse, togglePin, removeWidget } = useWidgetManager();
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [sizeFlash, setSizeFlash] = useState(null); // "S" | "M" | "L" — briefly highlights applied preset
 
   const pxX = colToX(item.x);
   const pxY = rowToY(item.y);
@@ -57,6 +69,13 @@ export default function WidgetShell({ item, def, canvasRef }) {
   }, [item.id, pxX, pxY, mx, my, updateWidget]);
 
   const accentColor = def?.color || "#00F0FF";
+  const sizePresets = getSizePresets(def);
+
+  const applySize = useCallback((preset) => {
+    updateWidget(item.id, { w: preset.w, h: preset.h });
+    setSizeFlash(preset.label);
+    setTimeout(() => setSizeFlash(null), 900);
+  }, [item.id, updateWidget]);
 
   return (
     <motion.div
@@ -126,6 +145,30 @@ export default function WidgetShell({ item, def, canvasRef }) {
             animate={{ opacity: hovered ? 1 : 0 }}
             transition={{ duration: 0.15 }}
           >
+            {/* Size presets */}
+            {sizePresets && sizePresets.map((preset) => {
+              const isCurrent = item.w === preset.w && item.h === preset.h;
+              const isFlash   = sizeFlash === preset.label;
+              // Hide preset if it's identical to another (e.g. S==M when minW==maxW)
+              // But always show all three for clarity; just dim duplicates
+              return (
+                <SizeBtn
+                  key={preset.label}
+                  label={preset.label}
+                  active={isCurrent}
+                  flash={isFlash}
+                  color={accentColor}
+                  title={`${preset.label === "S" ? "Small" : preset.label === "M" ? "Medium" : "Large"} — ${preset.w}×${preset.h}`}
+                  onClick={() => applySize(preset)}
+                />
+              );
+            })}
+
+            {/* Divider */}
+            {sizePresets && (
+              <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", margin: "0 2px", flexShrink: 0 }} />
+            )}
+
             <CtrlBtn
               icon={item.pinned ? "fa-thumbtack" : "fa-thumbtack"}
               active={item.pinned}
@@ -191,6 +234,52 @@ function CtrlBtn({ icon, active, color = "rgba(255,255,255,0.5)", title, onClick
       onMouseLeave={(e) => { e.currentTarget.style.background = active ? `${color}22` : "transparent"; e.currentTarget.style.color = active ? color : "rgba(255,255,255,0.4)"; }}
     >
       <i className={`fa-solid ${icon} text-[9px]`} />
+    </button>
+  );
+}
+
+function SizeBtn({ label, active, flash, color = "#00F0FF", title, onClick }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      title={title}
+      style={{
+        width: 18,
+        height: 18,
+        borderRadius: 5,
+        border: active
+          ? `1px solid ${color}60`
+          : "1px solid rgba(255,255,255,0.12)",
+        background: flash
+          ? `${color}35`
+          : active
+            ? `${color}18`
+            : "transparent",
+        cursor: "pointer",
+        color: active ? color : "rgba(255,255,255,0.38)",
+        fontSize: 8,
+        fontWeight: 700,
+        fontFamily: "monospace",
+        letterSpacing: "0.05em",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        transition: "all 0.15s",
+        boxShadow: active ? `0 0 6px ${color}30` : "none",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = `${color}28`;
+        e.currentTarget.style.color = color;
+        e.currentTarget.style.border = `1px solid ${color}50`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = flash ? `${color}35` : active ? `${color}18` : "transparent";
+        e.currentTarget.style.color = active ? color : "rgba(255,255,255,0.38)";
+        e.currentTarget.style.border = active ? `1px solid ${color}60` : "1px solid rgba(255,255,255,0.12)";
+      }}
+    >
+      {label}
     </button>
   );
 }
