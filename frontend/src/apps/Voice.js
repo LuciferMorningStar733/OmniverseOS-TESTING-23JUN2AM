@@ -598,7 +598,7 @@ export default function Voice() {
       }
     };
 
-    const useBrowserFallback = () => {
+    const browserFallback = () => {
       if (!isBrowserTTSSupported()) {
         setVoiceError("Voice synthesis is not supported in this browser.");
         if (mountedRef.current) setPhase("idle");
@@ -642,7 +642,7 @@ export default function Voice() {
         onError: (err) => {
           // Network/CORS error — silently fallback to browser TTS
           console.warn("[StreamTTS] falling back to browser TTS:", err?.message);
-          useBrowserFallback();
+          browserFallback();
         },
       });
       cancelSpeechRef.current = cancel;
@@ -650,7 +650,7 @@ export default function Voice() {
     }
 
     // ── Fallback: Browser TTS (device voices) ────────────────────────────
-    useBrowserFallback();
+    browserFallback();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── STT: start listening ──────────────────────────────────────────────────
