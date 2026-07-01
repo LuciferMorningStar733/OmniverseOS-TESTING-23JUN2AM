@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useAnimate } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
+import { playClick } from "../lib/soundEngine";
 
 /* ── Long-press quick-action menu ─────────────────────────────────────────── */
 const QuickMenu = memo(function QuickMenu({ appId, x, y, onClose, onOpen, onCloseApp, isOpen }) {
@@ -348,6 +349,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   const scale = useScale(index, hoverIndex);
 
   const handleClick = useCallback(async () => {
+    playClick();
     await animateScope(scope.current, {
       scale: [1, 0.80, 1.24, 0.94, 1.04, 1],
       y:     [0,  6,   -8,   2,   -2,   0],

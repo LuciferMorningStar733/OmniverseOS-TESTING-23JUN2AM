@@ -11,6 +11,7 @@ import { trackEvent }  from "../lib/activityTimeline";
 import { autoSave }    from "../lib/workspaceSnapshot";
 import { rememberActiveApp, rememberLastUrl, memClear } from "../lib/memoryEngine";
 import { autoRestore, saveSnapshot, loadSnapshot, getAutoSnapshot } from "../lib/workspaceSnapshot";
+import { playWindowOpen, playWindowClose, playNotification } from "../lib/soundEngine";
 
 const OSContext = createContext(null);
 
@@ -176,15 +177,16 @@ export const OSProvider = ({ children }) => {
         { id, app: appId, x: Math.round(bestX), y: Math.round(bestY), w: width, h: height, z: newZ, minimized: false, maximized: false },
       ];
     });
-    // Cortex: record open event
+    // Sound + Cortex
+    playWindowOpen();
     trackEvent("app_open", { appId });
     rememberActiveApp(appId);
   }, []);
 
   const closeWindow = useCallback((id) => {
+    playWindowClose();
     setWindows((prev) => {
       const win = prev.find((w) => w.id === id);
-      // Cortex: record close event
       if (win) trackEvent("app_close", { appId: win.app });
       return prev.filter((w) => w.id !== id);
     });
@@ -282,6 +284,7 @@ export const OSProvider = ({ children }) => {
 
   // ── notifications ────────────────────────────────────────────────────────────
   const pushNotification = useCallback((title, message, type = "info") => {
+    playNotification();
     const n = {
       id:   `n-${Date.now()}`,
       title,

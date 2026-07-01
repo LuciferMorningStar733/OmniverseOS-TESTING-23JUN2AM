@@ -20,6 +20,7 @@ import { useBrightnessContext } from "../context/BrightnessContext";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
+import WallpaperFX from "./WallpaperFX";
 import WidgetCanvas from "../widgets/WidgetCanvas";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
@@ -369,6 +370,7 @@ export default function Desktop() {
             } : {}),
           }}
         >
+          {wp.fx && !wp.dataURL && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
           {wp.typo?.main && (
             <div className="wp-typo">
               {wp.typo.main}
