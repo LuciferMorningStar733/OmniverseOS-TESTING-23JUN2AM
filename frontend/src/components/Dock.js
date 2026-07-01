@@ -268,27 +268,37 @@ function MobileDock() {
     <motion.div
       initial={{ y: 120, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.20, type: "spring", damping: 22, stiffness: 220 }}
+      transition={{ delay: 0.22, type: "spring", damping: 26, stiffness: 240 }}
       className="absolute left-0 right-0 bottom-0 z-40 pointer-events-none"
       data-testid="dock-root"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        display: "flex",
+        justifyContent: "center",
+        paddingLeft: 20,
+        paddingRight: 20,
+        paddingTop: 10,
+      }}
     >
+      {/* Floating glass pill */}
       <div
         style={{
-          background: "rgba(6,8,14,0.88)",
+          pointerEvents: "auto",
+          background: "rgba(6, 8, 16, 0.82)",
           backdropFilter: "blur(48px) saturate(220%)",
           WebkitBackdropFilter: "blur(48px) saturate(220%)",
-          borderTop: "1px solid rgba(255,255,255,0.09)",
-          boxShadow: "0 -12px 48px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.07)",
-          minHeight: 88,
-          paddingTop: 8,
-          paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
+          border: "1px solid rgba(255,255,255,0.11)",
+          borderRadius: 28,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,240,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)",
+          paddingTop: 10,
+          paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
           paddingLeft: 16,
           paddingRight: 16,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-around",
-          pointerEvents: "auto",
+          gap: 4,
+          minWidth: 240,
         }}
       >
         {pinnedApps.map((app) => (
