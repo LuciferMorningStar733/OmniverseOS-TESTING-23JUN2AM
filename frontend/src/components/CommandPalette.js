@@ -337,6 +337,12 @@ export default function CommandPalette() {
     if (!row) return;
     const p = row.payload;
 
+    // Save search before any early return (covers cortex + cortex_action paths)
+    if (q.trim().length >= 2) {
+      saveRecentSearch(q.trim());
+      setRecentSearches(getRecentSearches());
+    }
+
     if (p.type === 'cortex') {
       // Route to AI Chat with the query pre-seeded
       setPaletteOpen(false);
@@ -381,11 +387,6 @@ export default function CommandPalette() {
       else if (p.act.event) window.dispatchEvent(new CustomEvent(p.act.event));
     }
 
-    // Save non-trivial queries to recent searches
-    if (q.trim().length >= 2) {
-      saveRecentSearch(q.trim());
-      setRecentSearches(getRecentSearches());
-    }
     setPaletteOpen(false);
     setQ('');
   }, [q, openApp, closeWindow, focusWindow, minimize, windows, setPaletteOpen, restoreLastWorkspace, restoreNamedWorkspace]);
@@ -658,13 +659,17 @@ export default function CommandPalette() {
                       const isCortex = row.source === 'cortex';
 
                       return (
-                        <button
+                        <div
                           key={`${row.source}-${row.id}-${idx}`}
                           ref={isSel ? selectedRowRef : null}
+                          id={`palette-result-${row.source}-${idx}`}
                           data-testid={`palette-result-${row.source}-${idx}`}
+                          role="option"
                           aria-selected={isSel}
+                          tabIndex={isSel ? 0 : -1}
                           onMouseEnter={() => setSelected(idx)}
                           onClick={() => activate(row)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(row); } }}
                           style={{
                             width: '100%', textAlign: 'left',
                             display: 'flex', alignItems: 'center', gap: 12,
@@ -743,7 +748,7 @@ export default function CommandPalette() {
                               fontFamily: 'inherit',
                             }}>↵</kbd>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

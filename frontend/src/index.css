@@ -1056,7 +1056,7 @@ html { font-size: clamp(14px, 1.4vw + 0.4vh, 17px); }
     width: 52px !important;
     height: 60px !important;
   }
-  [data-testid="topbar-root"] {
+  [data-testid="topbar"] {
     padding-left: 8px !important;
     padding-right: 8px !important;
   }
@@ -1115,7 +1115,7 @@ html { font-size: clamp(14px, 1.4vw + 0.4vh, 17px); }
   will-change: transform;
 }
 
-[data-testid="topbar-root"] {
+[data-testid="topbar"] {
   contain: layout style;
 }
 
@@ -1149,7 +1149,7 @@ html { font-size: clamp(14px, 1.4vw + 0.4vh, 17px); }
 ───────────────────────────────────────────────────────────────── */
 
 /* ── TopBar consistent height on all screens ─────────────────── */
-[data-testid="topbar-root"] {
+[data-testid="topbar"] {
   height: 38px;
   min-height: 38px;
 }
