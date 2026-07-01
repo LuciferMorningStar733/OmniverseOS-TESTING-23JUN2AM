@@ -4,7 +4,8 @@ import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { playClick } from "../lib/soundEngine";
-import { PINNED_APP_IDS } from "./MobileHomeScreen";
+// Keep in sync with PINNED_APP_IDS in MobileHomeScreen.js
+const PINNED_APP_IDS = ["voice", "browser", "files", "settings"];
 
 /* ── Long-press quick-action menu ─────────────────────────────────────────── */
 const QuickMenu = memo(function QuickMenu({ appId, x, y, onClose, onOpen, onCloseApp, isOpen }) {
