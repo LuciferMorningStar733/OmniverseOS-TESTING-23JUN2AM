@@ -14,14 +14,14 @@ const GLASS = {
   boxShadow: "0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07)",
 };
 
-// Featured widgets for onboarding
+// Featured widgets for onboarding — enhanced with descriptions
 const FEATURED_WIDGETS = [
-  { id: "weather",    name: "Weather",     icon: "fa-cloud-sun",      color: "#FB923C" },
-  { id: "ai-summary", name: "AI Summary",  icon: "fa-sparkles",       color: "#2DD4BF" },
-  { id: "calendar",   name: "Calendar",    icon: "fa-calendar",       color: "#60A5FA" },
-  { id: "memory",     name: "Memory",      icon: "fa-brain",          color: "#A855F7" },
-  { id: "tasks",      name: "Tasks",       icon: "fa-list-check",     color: "#39FF14" },
-  { id: "clipboard",  name: "Clipboard",   icon: "fa-clipboard",      color: "#F59E0B" },
+  { id: "weather",    name: "Weather",     description: "Local forecast & conditions",  icon: "fa-cloud-sun",    color: "#FB923C" },
+  { id: "ai-summary", name: "AI Summary",  description: "Daily briefing by Cortex",    icon: "fa-sparkles",     color: "#2DD4BF" },
+  { id: "calendar",   name: "Calendar",    description: "Your upcoming events",        icon: "fa-calendar",     color: "#60A5FA" },
+  { id: "memory",     name: "Memory",      description: "Cortex learning & notes",     icon: "fa-brain",        color: "#A855F7" },
+  { id: "tasks",      name: "Tasks",       description: "Your to-do list",             icon: "fa-list-check",   color: "#39FF14" },
+  { id: "clipboard",  name: "Clipboard",   description: "Copy & paste sync",           icon: "fa-clipboard",    color: "#F59E0B" },
 ];
 
 function Loader() {
@@ -266,66 +266,55 @@ function FeaturedWidgetCard({ widget, onAddWidget, delay }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.88, y: 12 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay, type: "spring", damping: 24, stiffness: 340 }}
-      onPointerDown={() => setPressed(true)}
-      onPointerUp={() => { setPressed(false); onAddWidget(widget.id); }}
-      onPointerLeave={() => setPressed(false)}
-      style={{
-        flex: "0 0 calc(50% - 6px)",
-        minWidth: 0,
-      }}
+      initial={{ opacity: 0, y: 16, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, type: "spring", damping: 26, stiffness: 320 }}
     >
       <motion.button
-        animate={{ scale: pressed ? 0.95 : 1 }}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={() => { setPressed(false); onAddWidget(widget.id); }}
+        onPointerLeave={() => setPressed(false)}
+        animate={{ scale: pressed ? 0.96 : 1 }}
         transition={{ type: "spring", stiffness: 600, damping: 22, mass: 0.16 }}
         onClick={() => onAddWidget(widget.id)}
         style={{
           width: "100%",
-          height: "100%",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          padding: 16,
+          gap: 14,
+          padding: "14px 16px",
           borderRadius: 16,
-          background: pressed ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
-          border: `1px solid ${widget.color}1F`,
+          background: `linear-gradient(135deg, ${widget.color}12 0%, ${widget.color}04 100%)`,
+          border: `1px solid ${widget.color}24`,
           cursor: "pointer",
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation",
-          transition: "background 0.16s ease",
+          transition: "background 0.16s ease, border-color 0.16s ease",
         }}
       >
         <div style={{
-          width: 44, height: 44, borderRadius: 12,
-          background: `${widget.color}14`,
-          border: `1px solid ${widget.color}28`,
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          background: `${widget.color}16`,
+          border: `1px solid ${widget.color}30`,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <i className={`fa-solid ${widget.icon}`} style={{ color: widget.color, fontSize: 18 }} />
         </div>
-        <div style={{
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: "rgba(255,255,255,0.75)",
-          fontFamily: "'Outfit', sans-serif",
-          textAlign: "center",
-        }}>
-          {widget.name}
+        <div style={{ flex: 1, textAlign: "left" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.82)", fontFamily: "'Outfit', sans-serif" }}>
+            {widget.name}
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'Outfit', sans-serif", marginTop: 1 }}>
+            {widget.description}
+          </div>
         </div>
-        <div style={{
-          fontSize: 9,
-          color: "rgba(255,255,255,0.25)",
-          fontFamily: "'Outfit', sans-serif",
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
-          fontWeight: 700,
-        }}>
-          Add
-        </div>
+        <motion.div
+          animate={{ x: pressed ? 3 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          style={{ flexShrink: 0 }}
+        >
+          <i className="fa-solid fa-plus" style={{ color: widget.color, fontSize: 14 }} />
+        </motion.div>
       </motion.button>
     </motion.div>
   );
@@ -342,58 +331,77 @@ function EmptyWidgetsOnboarding({ onOpenStore, onAddWidget }) {
       style={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "32px 20px 24px",
-        gap: 24,
+        padding: "28px 16px 24px",
+        gap: 22,
       }}
     >
       {/* Welcome Message */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.15, type: "spring", damping: 28, stiffness: 300 }}
         style={{
           textAlign: "center",
+          paddingBottom: 8,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginBottom: 8, fontFamily: "'Outfit', sans-serif" }}>
-          Welcome to Widgets
+        <div style={{
+          width: 64, height: 64, borderRadius: 18,
+          background: "linear-gradient(135deg, rgba(0,240,255,0.12), rgba(124,58,237,0.08))",
+          border: "1px solid rgba(0,240,255,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 16px",
+          boxShadow: "0 0 24px rgba(0,240,255,0.08)",
+        }}>
+          <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 28, color: "#00F0FF", filter: "drop-shadow(0 0 4px rgba(0,240,255,0.8))" }} />
         </div>
-        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif", lineHeight: 1.6 }}>
-          Widgets bring Cortex to life.
-          <br />
-          Choose your first widget.
+        <div style={{ fontSize: 16.5, fontWeight: 700, color: "rgba(255,255,255,0.90)", marginBottom: 8, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.01em" }}>
+          Widgets Bring Cortex to Life
         </div>
-      </div>
+        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.42)", fontFamily: "'Outfit', sans-serif", lineHeight: 1.6 }}>
+          Personalize your workspace with real-time information and AI-powered insights.
+        </div>
+      </motion.div>
 
-      {/* Featured Widgets Grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(2, 1fr)",
-        gap: 12,
-        width: "100%",
-        maxWidth: "100%",
-      }}>
+      {/* Featured Widgets List */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.24, duration: 0.3 }}
+        style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      >
+        <div style={{
+          fontSize: 10.5,
+          color: "rgba(255,255,255,0.30)",
+          fontFamily: "'Outfit', sans-serif",
+          letterSpacing: "0.09em",
+          textTransform: "uppercase",
+          fontWeight: 700,
+          paddingLeft: 2,
+        }}>
+          Choose Your First Widget
+        </div>
         {FEATURED_WIDGETS.map((widget, i) => (
           <FeaturedWidgetCard
             key={widget.id}
             widget={widget}
             onAddWidget={onAddWidget}
-            delay={0.15 + i * 0.06}
+            delay={0.32 + i * 0.05}
           />
         ))}
-      </div>
+      </motion.div>
 
-      {/* Browse All Button */}
+      {/* CTA Button */}
       <motion.button
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.48, duration: 0.3 }}
-        whileTap={{ scale: 0.94 }}
+        transition={{ delay: 0.64, type: "spring", damping: 24, stiffness: 280 }}
         onClick={onOpenStore}
         style={{
-          padding: "11px 24px",
-          borderRadius: 12,
-          background: "rgba(0,240,255,0.14)",
-          border: "1px solid rgba(0,240,255,0.35)",
+          padding: "12px 20px",
+          borderRadius: 14,
+          background: "linear-gradient(135deg, rgba(0,240,255,0.16), rgba(0,240,255,0.04))",
+          border: "1px solid rgba(0,240,255,0.30)",
           color: "#00F0FF",
           fontSize: 13,
           fontWeight: 600,
@@ -401,17 +409,40 @@ function EmptyWidgetsOnboarding({ onOpenStore, onAddWidget }) {
           cursor: "pointer",
           WebkitTapHighlightColor: "transparent",
           letterSpacing: "0.01em",
-          transition: "background 0.16s ease",
+          transition: "all 0.22s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,240,255,0.22), rgba(0,240,255,0.08))";
+          e.currentTarget.style.boxShadow = "0 0 20px rgba(0,240,255,0.18)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,240,255,0.16), rgba(0,240,255,0.04))";
+          e.currentTarget.style.boxShadow = "none";
         }}
       >
         <i className="fa-solid fa-grid-2" style={{ marginRight: 8 }} />
-        Browse All Widgets
+        Explore All Widgets
       </motion.button>
+
+      {/* Footer Message */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.70, duration: 0.4 }}
+        style={{
+          textAlign: "center",
+          paddingTop: 4,
+        }}
+      >
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", fontFamily: "'Outfit', sans-serif" }}>
+          Add and customize widgets anytime from this panel.
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
 
-// ── Empty State with No Widgets (After First Add) ────────────────────────────────
+// ── Empty State Fallback (After User Removes All Widgets) ────────────────────────
 
 function EmptyWidgetsFallback({ onOpenStore }) {
   return (
