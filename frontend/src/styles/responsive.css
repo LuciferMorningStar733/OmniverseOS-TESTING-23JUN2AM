@@ -576,3 +576,196 @@ button, a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   PRIORITY 4 — UI CONSISTENCY SYSTEM
+   Global utility classes that standardize interactive elements,
+   loading states, and inner-panel scrollbars across all apps.
+   Must load last (after Tailwind + wallpapers) to win cascade.
+============================================================ */
+
+/* ── omni-icon-btn ────────────────────────────────────────────
+   Canonical icon button: 26×26px desktop, 44×44px mobile.
+   Use for any square icon-only button (TopBar, sidebars, etc.).
+   Add via className="omni-icon-btn" and inline color overrides.
+─────────────────────────────────────────────────────────────── */
+.omni-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 100ms ease;
+  outline: none;
+  position: relative;
+}
+.omni-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+.omni-icon-btn:active {
+  transform: translateY(0) scale(0.95);
+  background: rgba(255, 255, 255, 0.06);
+}
+.omni-icon-btn:focus-visible {
+  outline: 2px solid rgba(0, 240, 255, 0.6);
+  outline-offset: 2px;
+}
+/* Accent variant: cyan active state */
+.omni-icon-btn[data-active="true"] {
+  background: rgba(0, 240, 255, 0.10);
+  border-color: rgba(0, 240, 255, 0.25);
+}
+.omni-icon-btn[data-active="true"]:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: rgba(0, 240, 255, 0.35);
+}
+
+/* ── omni-card ────────────────────────────────────────────────
+   Consistent interactive card with hover lift.
+   Use for widget cards, app grid items, list rows.
+─────────────────────────────────────────────────────────────── */
+.omni-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 150ms ease;
+}
+.omni-card:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+.omni-card:active {
+  transform: translateY(0) scale(0.99);
+  box-shadow: none;
+}
+
+/* ── omni-skeleton ────────────────────────────────────────────
+   Pulse loading skeleton for content placeholders.
+   Usage: <div className="omni-skeleton" style={{ width: 120, height: 16 }} />
+─────────────────────────────────────────────────────────────── */
+@keyframes omni-skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.omni-skeleton {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: omni-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ── omni-divider ─────────────────────────────────────────────
+   Thin horizontal rule matching the OS glass aesthetic.
+─────────────────────────────────────────────────────────────── */
+.omni-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  margin: 0;
+}
+
+/* ── omni-badge ───────────────────────────────────────────────
+   Notification / count badge, e.g. red dot on bell icon.
+─────────────────────────────────────────────────────────────── */
+.omni-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF003C;
+  border: 1px solid rgba(6, 8, 14, 0.9);
+  pointer-events: none;
+}
+
+/* ── Inner panel scrollbars (4px) ─────────────────────────────
+   App content areas use thinner 4px scrollbars so they don't
+   visually compete with the 8px system scrollbar.
+─────────────────────────────────────────────────────────────── */
+[data-testid$="-app"] ::-webkit-scrollbar,
+.omni-panel ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+[data-testid$="-app"] ::-webkit-scrollbar-track,
+.omni-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-testid$="-app"] ::-webkit-scrollbar-thumb,
+.omni-panel ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 2px;
+}
+[data-testid$="-app"] ::-webkit-scrollbar-thumb:hover,
+.omni-panel ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.30);
+}
+
+/* ── Consistent transition timing for all interactive elements ─
+   Overwrites mismatched 0.1s / 0.15s / 0.2s inline style values
+   via the cascade for any element using CSS transition.
+   (Inline styles take precedence; this is a global baseline.)
+─────────────────────────────────────────────────────────────── */
+button, a, [role="button"] {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Mobile — refine button min-height ────────────────────────
+   Override the blunt "all buttons ≥ 44px" rule from above.
+   Icon buttons (omni-icon-btn) must stay square; only
+   text/action buttons get the full 44px touch target.
+─────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Restore icon buttons to their natural square size */
+  button.omni-icon-btn {
+    min-height: unset !important;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Calendar day buttons stay compact */
+  [data-testid="calendar-app"] .grid-cols-7 button {
+    min-height: 32px !important;
+  }
+
+  /* Model selector chip stays compact */
+  [data-testid="model-select"] {
+    min-height: 36px !important;
+  }
+
+  /* Widget store / modal close buttons — keep at 44px */
+  .omni-sheet-close {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* omni-card on mobile: stronger press feedback */
+  .omni-card:active {
+    transform: scale(0.97) translateY(0) !important;
+    box-shadow: none !important;
+  }
+}
