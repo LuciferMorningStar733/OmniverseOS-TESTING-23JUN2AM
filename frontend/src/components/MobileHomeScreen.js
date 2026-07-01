@@ -6,7 +6,7 @@ import MobileAppDrawer from "./MobileAppDrawer";
 // Dock pinned apps — Cortex, Browser, Files, Settings (4 apps only)
 export const PINNED_APP_IDS = ["voice", "browser", "files", "settings"];
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -37,7 +37,7 @@ function getAIBrief(hour) {
   return "Evening wind-down. Cortex has summarised your day and prepared tomorrow's brief. You're ahead of schedule.";
 }
 
-// ── Shared glass style ─────────────────────────────────────────────────────────
+// ── Shared glass style ───────────────────────────────────────────────────────────
 
 const GLASS = {
   background: "rgba(6, 8, 18, 0.58)",
@@ -485,15 +485,14 @@ function RecentNotesCard({ onOpenApp }) {
   );
 }
 
-function QuickAccessRow({ onOpenApp }) {
-  const apps = [
-    { id: "chat",      name: "AI Chat",   icon: "fa-comments",    color: "#00F0FF" },
-    { id: "notes",     name: "Notes",     icon: "fa-note-sticky",  color: "#F59E0B" },
-    { id: "tasks",     name: "Tasks",     icon: "fa-list-check",   color: "#39FF14" },
-    { id: "calendar",  name: "Calendar",  icon: "fa-calendar",     color: "#FB923C" },
-    { id: "music",     name: "Music",     icon: "fa-music",        color: "#F472B6" },
-    { id: "memory",    name: "Memory",    icon: "fa-brain",        color: "#2DD4BF" },
-  ];
+// ── Suggested for You (Smart Suggestions powered by Cortex) ────────────────────
+
+function SuggestedForYouCard({ onOpenApp }) {
+  const suggestions = useMemo(() => [
+    { id: "chat",      name: "Continue AI Chat",    icon: "fa-comments",    color: "#00F0FF", hint: "2 conversations pending" },
+    { id: "notes",     name: "Resume Notes",        icon: "fa-note-sticky",  color: "#F59E0B", hint: "Last edited today" },
+    { id: "browser",   name: "Open Browser",        icon: "fa-globe",        color: "#60A5FA", hint: "Research session" },
+  ], []);
 
   return (
     <motion.div
@@ -512,65 +511,70 @@ function QuickAccessRow({ onOpenApp }) {
         marginBottom: 10,
         paddingLeft: 2,
       }}>
-        Quick Access
+        Suggested for You
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "6px 0" }}>
-        {apps.map((app, i) => (
-          <AppQuickIcon key={app.id} app={app} onPress={onOpenApp} delay={0.48 + i * 0.03} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {suggestions.map((suggestion, i) => (
+          <SuggestionItem
+            key={suggestion.id}
+            suggestion={suggestion}
+            onPress={onOpenApp}
+            delay={0.48 + i * 0.04}
+          />
         ))}
       </div>
     </motion.div>
   );
 }
 
-function AppQuickIcon({ app, onPress, delay }) {
+function SuggestionItem({ suggestion, onPress, delay }) {
   const [pressed, setPressed] = useState(false);
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.70 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay, type: "spring", damping: 22, stiffness: 380 }}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+      initial={{ opacity: 0, x: -16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay, type: "spring", damping: 26, stiffness: 300 }}
     >
       <motion.button
         onPointerDown={() => setPressed(true)}
-        onPointerUp={() => { setPressed(false); onPress(app.id); }}
+        onPointerUp={() => { setPressed(false); onPress(suggestion.id); }}
         onPointerLeave={() => setPressed(false)}
-        animate={{ scale: pressed ? 0.80 : 1 }}
-        transition={{ type: "spring", stiffness: 600, damping: 22, mass: 0.18 }}
-        aria-label={`Open ${app.name}`}
-        role="button"
+        animate={{ scale: pressed ? 0.97 : 1 }}
+        transition={{ type: "spring", stiffness: 600, damping: 22, mass: 0.16 }}
         style={{
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-          background: "transparent", border: "none", cursor: "pointer",
-          padding: "7px 3px",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "12px 14px",
+          borderRadius: 14,
+          background: pressed ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+          border: `1px solid ${suggestion.color}20`,
+          cursor: "pointer",
           WebkitTapHighlightColor: "transparent",
-          touchAction: "manipulation", userSelect: "none",
-          minWidth: 52,
+          touchAction: "manipulation",
+          transition: "background 0.16s ease",
         }}
       >
         <div style={{
-          width: 50, height: 50, borderRadius: 15,
-          background: `linear-gradient(145deg, ${app.color}1A 0%, ${app.color}08 100%)`,
-          border: `1px solid ${app.color}28`,
+          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+          background: `${suggestion.color}14`,
+          border: `1px solid ${suggestion.color}28`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 4px 18px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.07)`,
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          position: "relative", overflow: "hidden",
         }}>
-          <i className={`fa-solid ${app.icon}`} style={{ color: app.color, fontSize: 21, filter: `drop-shadow(0 0 7px ${app.color}88)` }} />
+          <i className={`fa-solid ${suggestion.icon}`} style={{ color: suggestion.color, fontSize: 16 }} />
         </div>
-        <span style={{
-          fontSize: 9.5, fontFamily: "'Outfit', sans-serif", fontWeight: 500,
-          color: "rgba(255,255,255,0.62)",
-          textAlign: "center", lineHeight: 1.2, maxWidth: 56,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          textShadow: "0 1px 6px rgba(0,0,0,0.9)", userSelect: "none",
-        }}>
-          {app.name}
-        </span>
+        <div style={{ flex: 1, textAlign: "left" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.80)", fontFamily: "'Outfit', sans-serif" }}>
+            {suggestion.name}
+          </div>
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.30)", fontFamily: "'Outfit', sans-serif", marginTop: 2 }}>
+            {suggestion.hint}
+          </div>
+        </div>
+        <i className="fa-solid fa-arrow-right" style={{ color: "rgba(255,255,255,0.20)", fontSize: 11, flexShrink: 0 }} />
       </motion.button>
     </motion.div>
   );
@@ -628,13 +632,35 @@ function AIHomeContent({ onOpenApp, onOpenDrawer }) {
     try { return localStorage.getItem("omniverse_user_name") || ""; } catch { return ""; }
   }, []);
 
+  const scrollContainerRef = useRef(null);
+  const [dockVisible, setDockVisible] = useState(true);
+  const scrollTimeoutRef = useRef(null);
+
+  const handleScroll = useCallback((e) => {
+    const element = e.target;
+    // Show dock if scrolled near top
+    if (element.scrollTop < 50) {
+      setDockVisible(true);
+    } else {
+      setDockVisible(false);
+    }
+
+    // Debounce to avoid too many updates
+    clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      // Additional scroll logic if needed
+    }, 100);
+  }, []);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       {/* Search bar — stays at top */}
       <CortexSearchBar onTap={onOpenDrawer} />
 
       {/* Scrollable feed */}
       <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
         style={{
           flex: 1,
           overflowY: "auto",
@@ -651,9 +677,9 @@ function AIHomeContent({ onOpenApp, onOpenDrawer }) {
         <CalendarCard onOpenApp={onOpenApp} />
         <MemoryCard onOpenApp={onOpenApp} />
         <RecentNotesCard onOpenApp={onOpenApp} />
-        <QuickAccessRow onOpenApp={onOpenApp} />
-        {/* Bottom breathing room */}
-        <div style={{ height: 12 }} />
+        <SuggestedForYouCard onOpenApp={onOpenApp} />
+        {/* Bottom breathing room — space for dock */}
+        <div style={{ height: 28 }} />
       </div>
 
       {/* App Library swipe-up hint */}
