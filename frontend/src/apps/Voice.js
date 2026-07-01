@@ -10,6 +10,14 @@ import {
   getBestVoice,
   isBrowserTTSSupported,
 } from "../lib/browserTTS";
+import {
+  streamSpeak,
+  isStreamTTSAvailable,
+  STREAM_VOICES,
+  DEFAULT_STREAM_VOICE,
+  getStreamVoiceId,
+  saveStreamVoiceId,
+} from "../lib/streamTTS";
 import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
@@ -31,7 +39,8 @@ const DEFAULT_VOICE_SETTINGS = {
   pitch: 1.0,
   volume: 1.0,
   autoSelectBestVoice: true,
-  ttsEngine: "browser", // "browser" (always)
+  voiceEngine: "stream",            // "stream" (Amazon Polly/human) | "browser" (device TTS)
+  streamVoiceId: DEFAULT_STREAM_VOICE, // StreamElements voice id
 };
 
 const TIMEOUT_OPTIONS = [
@@ -457,26 +466,43 @@ export default function Voice() {
   // with the updated value so the user hears the effect right away.
   const triggerLivePreview = useCallback((patch) => {
     clearTimeout(previewTimerRef.current);
-    // Small debounce so rapid taps don't stack utterances
     previewTimerRef.current = setTimeout(() => {
-      if (!isBrowserTTSSupported()) return;
-      // Cancel any ongoing TTS (mic / main conversation)
       cancelSpeechRef.current?.();
       cancelSpeechRef.current = null;
       window.speechSynthesis?.cancel();
 
       const merged = { ...settingsRef.current, ...patch };
       const phrase = "Testing — this is how I sound at this setting.";
+      const done = () => { if (mountedRef.current) setIsLivePreviewing(false); };
 
       setIsLivePreviewing(true);
-      const cancel = browserSpeak(phrase, {
-        rate: merged.rate   || 1.0,
-        pitch: merged.pitch || 1.0,
-        volume: merged.volume ?? 1.0,
-        onEnd:   () => { if (mountedRef.current) setIsLivePreviewing(false); },
-        onError: () => { if (mountedRef.current) setIsLivePreviewing(false); },
-      });
-      cancelSpeechRef.current = cancel;
+
+      // Use whichever engine is currently selected
+      if (merged.voiceEngine !== "browser" && isStreamTTSAvailable()) {
+        const cancel = streamSpeak(phrase, {
+          voiceId: merged.streamVoiceId || getStreamVoiceId(),
+          rate:    merged.rate   || 1.0,
+          volume:  merged.volume ?? 1.0,
+          onEnd:   done,
+          onError: () => {
+            // Fallback to browser on network error
+            if (!isBrowserTTSSupported()) { done(); return; }
+            cancelSpeechRef.current = browserSpeak(phrase, {
+              rate: merged.rate || 1.0, pitch: merged.pitch || 1.0, volume: merged.volume ?? 1.0,
+              onEnd: done, onError: done,
+            });
+          },
+        });
+        cancelSpeechRef.current = cancel;
+      } else if (isBrowserTTSSupported()) {
+        const cancel = browserSpeak(phrase, {
+          rate: merged.rate || 1.0, pitch: merged.pitch || 1.0, volume: merged.volume ?? 1.0,
+          onEnd: done, onError: done,
+        });
+        cancelSpeechRef.current = cancel;
+      } else {
+        done();
+      }
     }, 250);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -527,77 +553,83 @@ export default function Voice() {
 
     const s = settingsRef.current;
 
-    if (!isBrowserTTSSupported()) {
-      setVoiceError("SpeechSynthesis is not supported in this browser.");
-      if (mountedRef.current) setPhase("idle");
-      return;
-    }
-
     setDetectedEmotion(detectEmotion(rawText));
     if (mountedRef.current) setPhase("speaking");
-
-    // Find preferred voice object
-    const preferredName = s.preferredVoiceName || getPreferredVoiceName();
-    const allRaw = window.speechSynthesis?.getVoices() || [];
-    const preferredVoice = preferredName
-      ? allRaw.find((v) => v.name === preferredName) || null
-      : null;
-
-    let retryCount = 0;
-    const MAX_RETRIES = 2;
-
-    const attemptSpeak = (voiceObj) => {
-      const cancel = browserSpeak(cleanText, {
-        voice: voiceObj,
-        rate: s.rate || 1.0,
-        pitch: s.pitch || 1.0,
-        volume: s.volume ?? 1.0,
-        onStart: () => {
-          if (mountedRef.current) setPhase("speaking");
-        },
-        onEnd: () => {
-          cancelSpeechRef.current = null;
-          if (!mountedRef.current) return;
-          setPhase("idle");
-          setDetectedEmotion("neutral");
-
-          // Auto-resume listening after speaking (via ref to avoid stale closure)
-          if (settingsRef.current.autoResumeListen && settingsRef.current.continuousConversation) {
-            clearTimeout(autoListenTimerRef.current);
-            autoListenTimerRef.current = setTimeout(() => {
-              if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
-                startListeningRef.current?.();
-              }
-            }, 900);
-          }
-        },
-        onError: (err) => {
-          cancelSpeechRef.current = null;
-          if (!mountedRef.current) return;
-
-          // Retry with next-best voice
-          if (retryCount < MAX_RETRIES) {
-            retryCount++;
-            const voices = getAvailableVoices();
-            const fallback = voices[retryCount]?.voice || null;
-            console.warn(`[BrowserTTS] Error (${err.message}) — retrying with ${fallback?.name || "system default"}`);
-            attemptSpeak(fallback);
-          } else {
-            console.error("[BrowserTTS] All voice attempts failed:", err.message);
-            setVoiceError("Voice synthesis failed — check browser voice support.");
-            if (mountedRef.current) setPhase("idle");
-          }
-        },
-      });
-      cancelSpeechRef.current = cancel;
-    };
 
     // Cancel any previous speech
     cancelSpeechRef.current?.();
     cancelSpeechRef.current = null;
 
-    attemptSpeak(preferredVoice);
-  }, []);
+    // ── Shared end / error handlers ─────────────────────────────────────
+    const handleEnd = () => {
+      cancelSpeechRef.current = null;
+      if (!mountedRef.current) return;
+      setPhase("idle");
+      setDetectedEmotion("neutral");
+      if (settingsRef.current.autoResumeListen && settingsRef.current.continuousConversation) {
+        clearTimeout(autoListenTimerRef.current);
+        autoListenTimerRef.current = setTimeout(() => {
+          if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
+            startListeningRef.current?.();
+          }
+        }, 900);
+      }
+    };
+
+    const useBrowserFallback = () => {
+      if (!isBrowserTTSSupported()) {
+        setVoiceError("Voice synthesis is not supported in this browser.");
+        if (mountedRef.current) setPhase("idle");
+        return;
+      }
+      const preferredName = s.preferredVoiceName || getPreferredVoiceName();
+      const allRaw = window.speechSynthesis?.getVoices() || [];
+      const preferredVoice = preferredName ? allRaw.find((v) => v.name === preferredName) || null : null;
+      let retryCount = 0;
+      const attemptBrowser = (voiceObj) => {
+        const cancel = browserSpeak(cleanText, {
+          voice: voiceObj, rate: s.rate || 1.0, pitch: s.pitch || 1.0, volume: s.volume ?? 1.0,
+          onStart: () => { if (mountedRef.current) setPhase("speaking"); },
+          onEnd: handleEnd,
+          onError: (err) => {
+            cancelSpeechRef.current = null;
+            if (!mountedRef.current) return;
+            if (retryCount < 2) {
+              retryCount++;
+              const voices = getAvailableVoices();
+              attemptBrowser(voices[retryCount]?.voice || null);
+            } else {
+              setVoiceError("Voice synthesis failed.");
+              if (mountedRef.current) setPhase("idle");
+            }
+          },
+        });
+        cancelSpeechRef.current = cancel;
+      };
+      attemptBrowser(preferredVoice);
+    };
+
+    // ── Primary: Stream TTS (Amazon Polly — human voices, free) ─────────
+    if (s.voiceEngine !== "browser" && isStreamTTSAvailable()) {
+      const cancel = streamSpeak(cleanText, {
+        voiceId: s.streamVoiceId || getStreamVoiceId(),
+        rate:    s.rate   || 1.0,
+        volume:  s.volume ?? 1.0,
+        onStart: () => { if (mountedRef.current) setPhase("speaking"); },
+        onEnd:   handleEnd,
+        onError: (err) => {
+          // Network/CORS error — silently fallback to browser TTS
+          console.warn("[StreamTTS] falling back to browser TTS:", err?.message);
+          useBrowserFallback();
+        },
+      });
+      cancelSpeechRef.current = cancel;
+      return;
+    }
+
+    // ── Fallback: Browser TTS (device voices) ────────────────────────────
+    useBrowserFallback();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── STT: start listening ──────────────────────────────────────────────────
   const startListening = useCallback(() => {
@@ -1478,49 +1510,37 @@ export default function Voice() {
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <div className="mono-label mb-1">// Voice Engine</div>
-            <p className="text-xs text-slate-500 mb-4">
-              Using your browser's built-in speech synthesis — completely free, no API keys required.
+            <p className="text-xs text-slate-500 mb-3">
+              Human voices use Amazon Neural TTS (free, no API key). Browser uses your device's built-in speech.
             </p>
 
-            {/* Engine status */}
-            <div
-              className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs font-mono"
-              style={{
-                background: isBrowserTTSSupported()
-                  ? "rgba(57,255,20,0.08)" : "rgba(255,0,60,0.08)",
-                border: isBrowserTTSSupported()
-                  ? "1px solid rgba(57,255,20,0.25)" : "1px solid rgba(255,0,60,0.25)",
-                color: isBrowserTTSSupported() ? "#39FF14" : "#FF003C",
-              }}
-            >
-              <i className={`fa-solid ${isBrowserTTSSupported() ? "fa-circle-check" : "fa-circle-xmark"} text-[11px]`} />
-              {isBrowserTTSSupported()
-                ? `SpeechSynthesis supported · ${availableVoices.length} voice${availableVoices.length !== 1 ? "s" : ""} available`
-                : "SpeechSynthesis not supported in this browser"
-              }
+            {/* Engine toggle */}
+            <div className="flex gap-2 mb-4">
+              {[
+                { key: "stream",  label: "🧠 Human (Amazon Neural)", desc: "Sounds like a real person" },
+                { key: "browser", label: "🔊 Browser Voice",         desc: "Device built-in" },
+              ].map(({ key, label, desc }) => {
+                const active = settings.voiceEngine === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => updateSettings({ voiceEngine: key })}
+                    className="flex-1 rounded-xl py-2.5 px-2 text-center transition-all duration-150"
+                    style={{
+                      background: active ? "rgba(207,158,255,0.12)" : "rgba(255,255,255,0.03)",
+                      border: active ? "1px solid rgba(207,158,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                      color: active ? "#CF9EFF" : "rgba(255,255,255,0.45)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div className="text-xs font-medium">{label}</div>
+                    <div className="text-[10px] font-mono mt-0.5 opacity-60">{desc}</div>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Auto-select best voice */}
-            <SettingRow
-              label="Auto Select Best Voice"
-              desc="Automatically choose the highest quality voice available"
-            >
-              <Toggle
-                value={settings.autoSelectBestVoice}
-                onChange={(v) => {
-                  updateSettings({ autoSelectBestVoice: v });
-                  if (v) {
-                    const best = getBestVoice();
-                    if (best) {
-                      savePreferredVoiceName(best.name);
-                      updateSettings({ autoSelectBestVoice: v, preferredVoiceName: best.name });
-                    }
-                  }
-                }}
-              />
-            </SettingRow>
-
-            {/* Live preview badge — shown while Cortex is speaking the test phrase */}
+            {/* Live preview badge */}
             {isLivePreviewing && (
               <div
                 className="flex items-center gap-2 mb-3 px-3 py-1.5 rounded-full"
@@ -1529,6 +1549,7 @@ export default function Voice() {
                   border: "1px solid rgba(207,158,255,0.25)",
                   animation: "fadeSlideUp 0.15s ease",
                   alignSelf: "flex-start",
+                  display: "inline-flex",
                 }}
               >
                 <i className="fa-solid fa-volume-high text-[10px]" style={{ color: "#CF9EFF" }} />
@@ -1542,9 +1563,7 @@ export default function Voice() {
             <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               <div className="flex items-center justify-between mb-1">
                 <div className="text-sm text-white font-medium">Speech Rate</div>
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>
-                  tap to preview
-                </span>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>tap to preview</span>
               </div>
               <Segmented
                 options={[
@@ -1559,32 +1578,30 @@ export default function Voice() {
               />
             </div>
 
-            {/* Pitch */}
-            <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-sm text-white font-medium">Pitch</div>
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>
-                  tap to preview
-                </span>
+            {/* Pitch (browser engine only — stream doesn't support pitch) */}
+            {settings.voiceEngine === "browser" && (
+              <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-white font-medium">Pitch</div>
+                  <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>tap to preview</span>
+                </div>
+                <Segmented
+                  options={[
+                    { value: 0.8, label: "Low"    },
+                    { value: 1.0, label: "Normal" },
+                    { value: 1.2, label: "High"   },
+                  ]}
+                  value={settings.pitch}
+                  onChange={(v) => { updateSettings({ pitch: v }); triggerLivePreview({ pitch: v }); }}
+                />
               </div>
-              <Segmented
-                options={[
-                  { value: 0.8,  label: "Low"    },
-                  { value: 1.0,  label: "Normal" },
-                  { value: 1.2,  label: "High"   },
-                ]}
-                value={settings.pitch}
-                onChange={(v) => { updateSettings({ pitch: v }); triggerLivePreview({ pitch: v }); }}
-              />
-            </div>
+            )}
 
             {/* Volume */}
             <div className="py-2.5">
               <div className="flex items-center justify-between mb-1">
                 <div className="text-sm text-white font-medium">Volume</div>
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>
-                  tap to preview
-                </span>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>tap to preview</span>
               </div>
               <Segmented
                 options={[
@@ -1599,105 +1616,217 @@ export default function Voice() {
             </div>
           </div>
 
-          {/* ── Voice List ─────────────────────────────────────────────────── */}
-          <div
-            className="rounded-xl p-4 mb-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="mono-label">// Available Voices</div>
-              <button
-                onClick={() => {
-                  loadVoices().then(() => {
-                    setAvailableVoices(getAvailableVoices());
-                    toast.success("Voice list refreshed", { duration: 1500 });
-                  });
-                }}
-                className="flex items-center gap-1 text-[10px] font-mono transition-colors"
-                style={{ color: "rgba(0,240,255,0.5)", cursor: "pointer" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#00F0FF"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(0,240,255,0.5)"; }}
-              >
-                <i className="fa-solid fa-rotate-right text-[9px]" />
-                Refresh
-              </button>
-            </div>
-
-            {availableVoices.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-4">
-                No voices detected. Try refreshing or check browser permissions.
+          {/* ── Human Voice Selection (stream engine) ──────────────────────── */}
+          {settings.voiceEngine !== "browser" && (
+            <div
+              className="rounded-xl p-4 mb-4"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <div className="mono-label mb-1">// Select Voice</div>
+              <p className="text-xs text-slate-500 mb-3">
+                Amazon Neural voices — free, no account needed. Tap ▶ to hear any voice.
               </p>
-            ) : (
+
               <div className="space-y-2">
-                {availableVoices.map((v) => {
-                  const isSelected = selectedVoiceName === v.name;
-                  const isPreviewing = previewingVoice === v.name;
+                {STREAM_VOICES.map((v) => {
+                  const isSelected = (settings.streamVoiceId || DEFAULT_STREAM_VOICE) === v.id;
+                  const isPreviewing = previewingVoice === v.id;
                   return (
                     <div
-                      key={v.name}
+                      key={v.id}
                       className="flex items-center justify-between rounded-xl p-3 transition-all duration-150"
                       style={{
-                        background: isSelected ? "rgba(0,240,255,0.07)" : "rgba(255,255,255,0.03)",
+                        background: isSelected ? "rgba(207,158,255,0.07)" : "rgba(255,255,255,0.02)",
                         border: isSelected
-                          ? "1px solid rgba(0,240,255,0.4)"
-                          : "1px solid rgba(255,255,255,0.07)",
+                          ? "1px solid rgba(207,158,255,0.45)"
+                          : "1px solid rgba(255,255,255,0.06)",
                         cursor: "pointer",
                         animation: "fadeSlideUp 0.15s ease both",
                       }}
                       onClick={() => {
-                        updateSettings({ preferredVoiceName: v.name, autoSelectBestVoice: false });
-                        savePreferredVoiceName(v.name);
+                        updateSettings({ streamVoiceId: v.id });
+                        saveStreamVoiceId(v.id);
                       }}
                     >
-                      {/* Voice info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
-                            className="text-sm font-medium truncate"
-                            style={{ color: isSelected ? "#00F0FF" : "rgba(255,255,255,0.85)" }}
+                            className="text-sm font-medium"
+                            style={{ color: isSelected ? "#CF9EFF" : "rgba(255,255,255,0.85)" }}
                           >
-                            {v.name}
+                            {v.label}
                           </span>
-                          <QualityBadge quality={v.quality} />
-                          {v.default && (
-                            <span className="text-[9px] font-mono text-slate-500">DEFAULT</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-[10px] font-mono text-slate-500">{v.engine}</span>
-                          <span className="text-[10px] font-mono text-slate-600">·</span>
-                          <span className="text-[10px] font-mono text-slate-500">{v.lang}</span>
-                          <span className="text-[10px] font-mono text-slate-600">·</span>
-                          <span className="text-[10px] font-mono text-slate-500">
-                            {v.local ? "Local" : "Remote"}
+                          <span
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                            style={{ background: "rgba(57,255,20,0.1)", color: "#39FF14", border: "1px solid rgba(57,255,20,0.2)" }}
+                          >
+                            Neural
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-500">
+                            {v.gender === "M" ? "♂" : "♀"} {v.accent}
                           </span>
                         </div>
+                        <div className="text-[10px] font-mono text-slate-500 mt-0.5">{v.note}</div>
                       </div>
 
-                      {/* Preview button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleVoicePreview(v.name);
+                          if (isPreviewing) {
+                            cancelSpeechRef.current?.();
+                            cancelSpeechRef.current = null;
+                            setPreviewingVoice(null);
+                          } else {
+                            cancelSpeechRef.current?.();
+                            cancelSpeechRef.current = null;
+                            setPreviewingVoice(v.id);
+                            const phrase = `Hi, I'm ${v.label}. I'll be your Cortex voice today.`;
+                            const cancel = streamSpeak(phrase, {
+                              voiceId: v.id,
+                              rate: settings.rate || 1.0,
+                              volume: settings.volume ?? 1.0,
+                              onEnd:   () => { if (mountedRef.current) setPreviewingVoice(null); },
+                              onError: () => { if (mountedRef.current) setPreviewingVoice(null); },
+                            });
+                            cancelSpeechRef.current = cancel;
+                          }
                         }}
-                        title={isPreviewing ? "Stop preview" : `Preview "${v.name}"`}
                         className="flex items-center gap-1.5 ml-3 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-all flex-shrink-0"
                         style={{
-                          background: isPreviewing ? "rgba(0,240,255,0.15)" : "rgba(255,255,255,0.06)",
-                          border: isPreviewing ? "1px solid rgba(0,240,255,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                          color: isPreviewing ? "#00F0FF" : "rgba(255,255,255,0.5)",
+                          background: isPreviewing ? "rgba(207,158,255,0.15)" : "rgba(255,255,255,0.06)",
+                          border:     isPreviewing ? "1px solid rgba(207,158,255,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                          color:      isPreviewing ? "#CF9EFF" : "rgba(255,255,255,0.5)",
                           cursor: "pointer",
                         }}
                       >
                         <i className={`fa-solid ${isPreviewing ? "fa-stop animate-pulse" : "fa-play"} text-[9px]`} />
-                        {isPreviewing ? "Stop" : "▶ Preview"}
+                        {isPreviewing ? "Stop" : "▶ Try"}
                       </button>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* ── Browser Voice List (browser engine only) ────────────────────── */}
+          {settings.voiceEngine === "browser" && (
+            <div
+              className="rounded-xl p-4 mb-4"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="mono-label">// Browser Voices</div>
+                <button
+                  onClick={() => {
+                    loadVoices().then(() => {
+                      setAvailableVoices(getAvailableVoices());
+                      toast.success("Voice list refreshed", { duration: 1500 });
+                    });
+                  }}
+                  className="flex items-center gap-1 text-[10px] font-mono transition-colors"
+                  style={{ color: "rgba(0,240,255,0.5)", cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#00F0FF"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(0,240,255,0.5)"; }}
+                >
+                  <i className="fa-solid fa-rotate-right text-[9px]" />
+                  Refresh
+                </button>
+              </div>
+
+              <SettingRow
+                label="Auto Select Best Voice"
+                desc="Automatically choose the highest quality voice available"
+              >
+                <Toggle
+                  value={settings.autoSelectBestVoice}
+                  onChange={(v) => {
+                    updateSettings({ autoSelectBestVoice: v });
+                    if (v) {
+                      const best = getBestVoice();
+                      if (best) {
+                        savePreferredVoiceName(best.name);
+                        updateSettings({ autoSelectBestVoice: v, preferredVoiceName: best.name });
+                      }
+                    }
+                  }}
+                />
+              </SettingRow>
+
+              {availableVoices.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-4">
+                  No voices detected. Try refreshing or check browser permissions.
+                </p>
+              ) : (
+                <div className="space-y-2 mt-3">
+                  {availableVoices.map((v) => {
+                    const isSelected = selectedVoiceName === v.name;
+                    const isPreviewing = previewingVoice === v.name;
+                    return (
+                      <div
+                        key={v.name}
+                        className="flex items-center justify-between rounded-xl p-3 transition-all duration-150"
+                        style={{
+                          background: isSelected ? "rgba(0,240,255,0.07)" : "rgba(255,255,255,0.03)",
+                          border: isSelected
+                            ? "1px solid rgba(0,240,255,0.4)"
+                            : "1px solid rgba(255,255,255,0.07)",
+                          cursor: "pointer",
+                          animation: "fadeSlideUp 0.15s ease both",
+                        }}
+                        onClick={() => {
+                          updateSettings({ preferredVoiceName: v.name, autoSelectBestVoice: false });
+                          savePreferredVoiceName(v.name);
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className="text-sm font-medium truncate"
+                              style={{ color: isSelected ? "#00F0FF" : "rgba(255,255,255,0.85)" }}
+                            >
+                              {v.name}
+                            </span>
+                            <QualityBadge quality={v.quality} />
+                            {v.default && (
+                              <span className="text-[9px] font-mono text-slate-500">DEFAULT</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-[10px] font-mono text-slate-500">{v.engine}</span>
+                            <span className="text-[10px] font-mono text-slate-600">·</span>
+                            <span className="text-[10px] font-mono text-slate-500">{v.lang}</span>
+                            <span className="text-[10px] font-mono text-slate-600">·</span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {v.local ? "Local" : "Remote"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVoicePreview(v.name);
+                          }}
+                          title={isPreviewing ? "Stop preview" : `Preview "${v.name}"`}
+                          className="flex items-center gap-1.5 ml-3 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-all flex-shrink-0"
+                          style={{
+                            background: isPreviewing ? "rgba(0,240,255,0.15)" : "rgba(255,255,255,0.06)",
+                            border: isPreviewing ? "1px solid rgba(0,240,255,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                            color: isPreviewing ? "#00F0FF" : "rgba(255,255,255,0.5)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <i className={`fa-solid ${isPreviewing ? "fa-stop animate-pulse" : "fa-play"} text-[9px]`} />
+                          {isPreviewing ? "Stop" : "▶ Preview"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ paddingBottom: 24 }} />
         </div>
