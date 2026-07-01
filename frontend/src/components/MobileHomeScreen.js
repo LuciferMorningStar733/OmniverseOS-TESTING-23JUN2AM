@@ -62,6 +62,8 @@ function CortexSearchBar({ onTap }) {
         onTouchEnd={onTap}
         onClick={onTap}
         whileTap={{ scale: 0.975 }}
+        aria-label="Search Cortex"
+        role="button"
         style={{
           width: "100%",
           display: "flex",
@@ -537,6 +539,8 @@ function AppQuickIcon({ app, onPress, delay }) {
         onPointerLeave={() => setPressed(false)}
         animate={{ scale: pressed ? 0.80 : 1 }}
         transition={{ type: "spring", stiffness: 600, damping: 22, mass: 0.18 }}
+        aria-label={`Open ${app.name}`}
+        role="button"
         style={{
           display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
           background: "transparent", border: "none", cursor: "pointer",
