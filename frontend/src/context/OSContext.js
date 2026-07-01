@@ -297,6 +297,11 @@ export const OSProvider = ({ children }) => {
 
   const clearNotifications = useCallback(() => setNotifications([]), []);
 
+  const dismissNotification = useCallback(
+    (id) => setNotifications((prev) => prev.filter((n) => n.id !== id)),
+    []
+  );
+
   // ── context value ────────────────────────────────────────────────────────────
   return (
     <OSContext.Provider
@@ -307,7 +312,7 @@ export const OSProvider = ({ children }) => {
         openApp, closeWindow, focusWindow, updateWindow, toggleMaximize, minimize,
         paletteOpen, setPaletteOpen,
         notifOpen,   setNotifOpen,
-        notifications, pushNotification, clearNotifications,
+        notifications, pushNotification, clearNotifications, dismissNotification,
         wallpaper, setWallpaper,
         trackUrl,
         // Workspace Restore (Priority 2)

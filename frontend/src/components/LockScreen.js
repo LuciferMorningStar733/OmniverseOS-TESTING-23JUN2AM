@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { useOS } from "../context/OSContext";
 
 const SWIPE_THRESHOLD = -70;
 
 export default function LockScreen({ onUnlock }) {
   const [time, setTime] = useState(new Date());
-  const [hint, setHint]   = useState(false);
+  const [hint, setHint] = useState(false);
+  const { notifications } = useOS();
 
   /* ── Live clock ────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -23,6 +25,14 @@ export default function LockScreen({ onUnlock }) {
   const y       = useMotionValue(0);
   const opacity = useTransform(y, [0, SWIPE_THRESHOLD], [1, 0]);
   const scale   = useTransform(y, [0, SWIPE_THRESHOLD], [1, 0.94]);
+
+  /* Click anywhere to unlock (desktop fallback — no swipe on mouse devices) */
+  const handleClick = useCallback(() => {
+    animate(y, -window.innerHeight, {
+      type: "tween", duration: 0.28, ease: "easeIn",
+      onComplete: onUnlock,
+    });
+  }, [y, onUnlock]);
 
   function handleDragEnd(_, info) {
     if (info.offset.y < SWIPE_THRESHOLD || info.velocity.y < -600) {
@@ -62,6 +72,8 @@ export default function LockScreen({ onUnlock }) {
       dragElastic={{ top: 0.25, bottom: 0 }}
       dragMomentum={false}
       onDragEnd={handleDragEnd}
+      onClick={handleClick}
+      data-testid="lock-screen"
     >
       {/* ── Background ───────────────────────────────────────────────────── */}
       <div
@@ -144,9 +156,28 @@ export default function LockScreen({ onUnlock }) {
               width: 28, height: 28, borderRadius: 8,
               background: "linear-gradient(135deg,#00F0FF,#FF003C)",
               display: "flex", alignItems: "center", justifyContent: "center",
+              position: "relative",
             }}
           >
             <i className="fa-solid fa-infinity" style={{ color: "#000", fontSize: 12 }} />
+            {notifications.length > 0 && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 14 }}
+                style={{
+                  position: "absolute", top: -4, right: -4,
+                  minWidth: 14, height: 14, borderRadius: 7,
+                  background: "#FF003C",
+                  border: "1.5px solid #05050A",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 8, fontWeight: 700, color: "#fff",
+                  fontFamily: "monospace", paddingInline: 2,
+                }}
+              >
+                {notifications.length > 9 ? "9+" : notifications.length}
+              </motion.div>
+            )}
           </div>
           <span
             style={{
