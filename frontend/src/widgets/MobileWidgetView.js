@@ -477,19 +477,19 @@ export default function MobileWidgetView() {
   const { layout, visible, openStore, showStore, closeStore, addWidget } = useWidgetManager();
   const [hasEverAddedWidget, setHasEverAddedWidget] = useState(false);
 
-  if (!visible) return null;
-
-  const activeWidgets = layout.filter((item) => {
-    const def = getWidgetDef(item.id);
-    return !!def;
-  });
-
   const handleAddWidget = useCallback((widgetId) => {
     if (addWidget) {
       addWidget(widgetId);
       setHasEverAddedWidget(true);
     }
   }, [addWidget]);
+
+  if (!visible) return null;
+
+  const activeWidgets = layout.filter((item) => {
+    const def = getWidgetDef(item.id);
+    return !!def;
+  });
 
   const isEmpty = activeWidgets.length === 0;
 
