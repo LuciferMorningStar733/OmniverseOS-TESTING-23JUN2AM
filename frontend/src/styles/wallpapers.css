@@ -294,17 +294,33 @@
 }
 
 /* ============================================================
-   MOBILE PORTRAIT — wallpaper responsive fixes
-   Targets phones in portrait orientation (≤ 640px wide).
-   Fixes:
-   1. Ensure .wp-base fills full viewport including safe areas
-   2. Scale down + recentre all wp-typo headlines so they fit
-   3. Recentre wp-typo-sub lines that use absolute left/right
-   4. Hide decorative sub-text on very small screens to reduce clutter
+   TABLET — wallpaper responsive (641px – 1024px)
+   Scale typography down proportionally; keep positioning.
+============================================================ */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .wp-base .wp-typo {
+    font-size: clamp(42px, 7vw, 96px) !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+  }
+  .wp-base .wp-typo-sub {
+    font-size: clamp(9px, 0.9vw, 13px) !important;
+    letter-spacing: 0.4em !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ============================================================
+   MOBILE — wallpaper responsive (≤ 640px)
+   Philosophy: on phones the MobileHomeScreen provides its own
+   clock and identity layer. The wallpaper is pure art/background.
+   Hiding the wp-typo/wp-typo-sub avoids overlap with the clock,
+   app grid and dock. Decorative GPU-heavy overlays are also
+   suppressed for performance.
 ============================================================ */
 @media (max-width: 640px) {
 
-  /* 1. Full-bleed on mobile — cover viewport including iOS notch/home bar */
+  /* Full-bleed: cover viewport including iOS notch/home bar */
   .wp-base {
     position: fixed;
     inset: 0;
@@ -313,46 +329,24 @@
     min-height: -webkit-fill-available;
   }
 
-  /* 2. Unified headline scaling — ALL wallpapers (v1.0 + v2.0) */
-  .wp-base .wp-typo {
-    font-size: clamp(20px, 6.5vw, 44px) !important;
-    white-space: nowrap !important;
-    line-height: 1 !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: translateX(-50%) !important;
-    text-align: center !important;
-  }
-
-  /* Per-wallpaper vertical positions — v1.0 */
-  .wp-neural-core .wp-typo     { top: 18% !important; }
-  .wp-blueprint .wp-typo       { top: 20% !important; }
-  .wp-quantum-horizon .wp-typo { top: 18% !important; }
-  .wp-ai-nexus .wp-typo        { top: 16% !important; }
-
-  /* 3. Recentre sub-lines — ALL wallpapers */
+  /* Hide all wallpaper branding text on phones —
+     MobileHomeScreen clock is the identity layer on mobile */
+  .wp-base .wp-typo,
+  .wp-base .wp-typo span,
   .wp-base .wp-typo-sub {
-    left: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: translateX(-50%) !important;
-    text-align: center !important;
-    letter-spacing: 0.3em !important;
-    white-space: nowrap;
+    display: none !important;
   }
 
-  /* Per-wallpaper vertical positions for sub-text — v1.0 */
-  .wp-neural-core .wp-typo-sub     { top: 34% !important; }
-  .wp-blueprint .wp-typo-sub       { top: 36% !important; }
-  .wp-quantum-horizon .wp-typo-sub { top: 34% !important; }
-  .wp-ai-nexus .wp-typo-sub        { top: 32% !important; }
-
-  /* 4. Hide decorative fog + beam overlays on small screens
-        (they add little at this size and cost GPU) */
+  /* Hide decorative fog + beam overlays — cost GPU, add little at phone size */
   .wp-quantum-horizon .wp-fog,
   .wp-beams {
-    display: none;
+    display: none !important;
+  }
+
+  /* Custom user photo wallpapers — ensure correct cover behaviour */
+  .wp-custom {
+    background-size: cover !important;
+    background-position: center center !important;
   }
 }
 
@@ -1062,35 +1056,6 @@
     background-repeat: no-repeat;
   }
 
-  /* ── Mobile responsive — new wallpapers ─────────────────────── */
-  @media (max-width: 640px) {
-    .wp-void-matrix .wp-typo, .wp-neon-grid .wp-typo, .wp-dark-matter .wp-typo,
-    .wp-holographic .wp-typo, .wp-cyber-pulse .wp-typo, .wp-midnight-circuit .wp-typo,
-    .wp-aurora-code .wp-typo, .wp-plasma-field .wp-typo, .wp-nebula-dark .wp-typo,
-    .wp-chrome-void .wp-typo, .wp-quantum-dark .wp-typo, .wp-obsidian-hex .wp-typo,
-    .wp-ghost-signal .wp-typo, .wp-signal-wave .wp-typo, .wp-dark-fiber .wp-typo,
-    .wp-stellar-map .wp-typo, .wp-cyber-storm .wp-typo, .wp-vector-space .wp-typo,
-    .wp-grid-zero .wp-typo, .wp-abyss .wp-typo {
-      font-size: clamp(32px, 9vw, 56px) !important;
-      white-space: normal !important; word-break: break-word;
-      max-width: 88vw; line-height: 1 !important;
-      left: 50% !important; right: auto !important; bottom: auto !important;
-      transform: translateX(-50%) !important; text-align: center !important;
-      top: 18% !important;
-    }
-    .wp-void-matrix .wp-typo-sub, .wp-neon-grid .wp-typo-sub, .wp-dark-matter .wp-typo-sub,
-    .wp-holographic .wp-typo-sub, .wp-cyber-pulse .wp-typo-sub, .wp-midnight-circuit .wp-typo-sub,
-    .wp-aurora-code .wp-typo-sub, .wp-plasma-field .wp-typo-sub, .wp-nebula-dark .wp-typo-sub,
-    .wp-chrome-void .wp-typo-sub, .wp-quantum-dark .wp-typo-sub, .wp-obsidian-hex .wp-typo-sub,
-    .wp-ghost-signal .wp-typo-sub, .wp-signal-wave .wp-typo-sub, .wp-dark-fiber .wp-typo-sub,
-    .wp-stellar-map .wp-typo-sub, .wp-cyber-storm .wp-typo-sub, .wp-vector-space .wp-typo-sub,
-    .wp-grid-zero .wp-typo-sub, .wp-abyss .wp-typo-sub {
-      left: 50% !important; right: auto !important; bottom: auto !important;
-      transform: translateX(-50%) !important; text-align: center !important;
-      letter-spacing: 0.3em !important; white-space: nowrap;
-      top: 34% !important;
-    }
-  }
   
 
 /* ================================================================
@@ -1376,26 +1341,4 @@
   letter-spacing: 0.6em; color: rgba(252,238,9,0.50);
 }
 
-/* ── Mobile responsive — v3 collection ──────────────────────────── */
-@media (max-width: 640px) {
-  .wp-oled-void .wp-typo, .wp-aurora-boreal .wp-typo,
-  .wp-cyber-rain .wp-typo, .wp-nova-burst .wp-typo,
-  .wp-iris-neural .wp-typo, .wp-glacier .wp-typo,
-  .wp-crimson-arc .wp-typo, .wp-solar-wind .wp-typo {
-    font-size: clamp(32px, 9vw, 56px) !important;
-    white-space: normal !important; word-break: break-word;
-    max-width: 88vw; line-height: 1 !important;
-    left: 50% !important; right: auto !important; bottom: auto !important;
-    transform: translateX(-50%) !important; text-align: center !important;
-    top: 18% !important;
-  }
-  .wp-oled-void .wp-typo-sub, .wp-aurora-boreal .wp-typo-sub,
-  .wp-cyber-rain .wp-typo-sub, .wp-nova-burst .wp-typo-sub,
-  .wp-iris-neural .wp-typo-sub, .wp-glacier .wp-typo-sub,
-  .wp-crimson-arc .wp-typo-sub, .wp-solar-wind .wp-typo-sub {
-    left: 50% !important; right: auto !important; bottom: auto !important;
-    transform: translateX(-50%) !important; text-align: center !important;
-    letter-spacing: 0.3em !important; white-space: nowrap;
-    top: 34% !important;
-  }
-}
+/* v3 mobile handled by the unified @media (max-width: 640px) block above */
