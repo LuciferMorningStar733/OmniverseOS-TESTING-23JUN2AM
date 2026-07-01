@@ -24,10 +24,6 @@ import { toast } from "sonner";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
 
 // ── Inline OS context builder ─────────────────────────────────────────────
-// NOTE: we intentionally do NOT import cortexContext here — it imports apps.js
-// which lazy-imports Voice.js, creating a circular dependency that causes
-// "Cannot access 'kt' before initialization" TDZ errors in production builds.
-// This function replicates the essential context without that import chain.
 function buildVoiceContextPrompt(windows, activeId) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
@@ -60,21 +56,15 @@ function buildVoiceContextPrompt(windows, activeId) {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const VOICE_SESSION_KEY   = "cortex_voice_history";
-const VOICE_SETTINGS_KEY  = "cortex_voice_settings_v2";
-const MAX_HISTORY_PAIRS   = 15; // max user+assistant pairs kept
+const VOICE_SESSION_KEY  = "cortex_voice_history";
+const VOICE_SETTINGS_KEY = "cortex_voice_settings_v2";
+const MAX_HISTORY_PAIRS  = 15;
+const SILENCE_TIMEOUT_MS = 2400; // continuous=true: stop after 2.4s silence
 
-// NOTE: This is a function, not a module-level const, to prevent a webpack
-// scope-hoisting TDZ crash in production. If declared as a const at module
-// level, webpack may evaluate Voice.js's initialisation code before
-// streamTTS.js's 'const DEFAULT_STREAM_VOICE' in the merged chunk scope,
-// causing "Cannot access 'kt' before initialization".
-// As a hoisted function, DEFAULT_STREAM_VOICE is only read at call time
-// (inside loadSettings / render), by which point all modules are initialised.
 function getDefaultVoiceSettings() {
   return {
     continuousConversation: true,
-    conversationTimeout: "never", // "never" | "5" | "15" | "30" | "60" (minutes)
+    conversationTimeout: "never",
     autoResumeListen: true,
     wakeWordEnabled: false,
     voiceFeedback: true,
@@ -83,17 +73,17 @@ function getDefaultVoiceSettings() {
     pitch: 1.0,
     volume: 1.0,
     autoSelectBestVoice: true,
-    voiceEngine: "stream",            // "stream" (Amazon Polly/human) | "browser" (device TTS)
-    streamVoiceId: DEFAULT_STREAM_VOICE, // StreamElements voice id
+    voiceEngine: "stream",
+    streamVoiceId: DEFAULT_STREAM_VOICE,
   };
 }
 
 const TIMEOUT_OPTIONS = [
-  { value: "never", label: "Never"   },
-  { value: "5",     label: "5 min"   },
-  { value: "15",    label: "15 min"  },
-  { value: "30",    label: "30 min"  },
-  { value: "60",    label: "1 hour"  },
+  { value: "never", label: "Never"  },
+  { value: "5",     label: "5 min"  },
+  { value: "15",    label: "15 min" },
+  { value: "30",    label: "30 min" },
+  { value: "60",    label: "1 hour" },
 ];
 
 // ── Session storage helpers ───────────────────────────────────────────────
@@ -122,7 +112,7 @@ function saveSettings(s) {
   try { localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify(s)); } catch {}
 }
 
-// ── Markdown stripper ──────────────────────────────────────────────────────
+// ── Markdown stripper ─────────────────────────────────────────────────────
 function stripMarkdown(text) {
   if (!text) return "";
   return text
@@ -148,7 +138,7 @@ function stripMarkdown(text) {
     .trim();
 }
 
-// ── Emotion detector ───────────────────────────────────────────────────────
+// ── Emotion detector ──────────────────────────────────────────────────────
 const EMOTION_PATTERNS = {
   greeting:    /\b(hello|hi|hey|good morning|good evening|welcome|greetings)\b/i,
   excited:     /[!]{2,}|\b(amazing|incredible|fantastic|wow|awesome|brilliant|extraordinary|spectacular)\b/i,
@@ -169,7 +159,7 @@ function detectEmotion(text) {
   return "neutral";
 }
 
-// ── New conversation reset phrases ────────────────────────────────────────
+// ── Reset phrases ─────────────────────────────────────────────────────────
 const RESET_PHRASES = [
   /\bstart new conversation\b/i,
   /\bforget this conversation\b/i,
@@ -183,112 +173,341 @@ function isResetPhrase(text) {
   return RESET_PHRASES.some((p) => p.test(text));
 }
 
-// ── Real-time waveform visualizer ──────────────────────────────────────────
-const BAR_SCALES = [0.35, 0.65, 1, 0.8, 0.55, 0.75, 0.95, 0.6, 0.4];
+// ── Dynamic greeting ──────────────────────────────────────────────────────
+function getContextGreeting(conversation, userName) {
+  const h = new Date().getHours();
+  const name = userName ? `, ${userName.split(" ")[0]}` : "";
 
-function WaveVisualizer({ color, active, useCssAnimation }) {
-  return (
-    <div className="flex items-end gap-[3px]" style={{ height: 36 }}>
-      {BAR_SCALES.map((scale, i) => (
-        <div
-          key={i}
-          style={{
-            width: 4, borderRadius: 2, backgroundColor: color,
-            height: active ? `${Math.round(scale * 34)}px` : 4,
-            opacity: active ? 0.85 : 0.2,
-            animation: active && useCssAnimation
-              ? `cortexWave 0.65s ease-in-out ${(i * 0.08).toFixed(2)}s infinite alternate`
-              : "none",
-            transition: active ? "none" : "height 0.35s ease, opacity 0.35s ease",
-          }}
-        />
-      ))}
-    </div>
-  );
+  if (conversation.length > 0) {
+    const pool = [
+      "Welcome back.",
+      "I've restored your session.",
+      "Ready to continue.",
+      "Awaiting your command.",
+      `Welcome back${name}.`,
+      "Picking up where we left off.",
+    ];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const timePool =
+    h < 5  ? ["Still awake, I see.", "Late night session.", "The night is young."] :
+    h < 12 ? [`Good morning${name}.`, "Systems online.", "Ready for the day.", "What are we building today?"] :
+    h < 17 ? [`Good afternoon${name}.`, "Awaiting your command.", "What would you like to explore?"] :
+             [`Good evening${name}.`, "Systems operational.", "Ready when you are.", "I've been expecting you."];
+
+  return timePool[Math.floor(Math.random() * timePool.length)];
 }
 
-// ── Orb component — animated voice orb ───────────────────────────────────
-function VoiceOrb({ phase }) {
-  const colors = {
-    idle:      { inner: "#00F0FF", outer: "rgba(0,240,255,0.15)", glow: "0 0 40px rgba(0,240,255,0.3)"  },
-    listening: { inner: "#FF003C", outer: "rgba(255,0,60,0.2)",   glow: "0 0 60px rgba(255,0,60,0.5)"   },
-    thinking:  { inner: "#CF9EFF", outer: "rgba(207,158,255,0.2)", glow: "0 0 50px rgba(207,158,255,0.4)" },
-    speaking:  { inner: "#00F0FF", outer: "rgba(0,240,255,0.25)", glow: "0 0 60px rgba(0,240,255,0.5)"  },
-    muted:     { inner: "#64748B", outer: "rgba(100,116,139,0.1)", glow: "none"                          },
-  };
-  const c = colors[phase] || colors.idle;
-  const pulse = phase === "listening" || phase === "speaking";
-
-  return (
-    <div
-      className="relative flex items-center justify-center"
-      style={{ width: 140, height: 140 }}
-    >
-      {/* Outer glow ring */}
-      <div
-        style={{
-          position: "absolute",
-          width: "100%", height: "100%",
-          borderRadius: "50%",
-          background: c.outer,
-          boxShadow: c.glow,
-          animation: pulse ? "orbPulse 1.5s ease-in-out infinite" : "none",
-          transition: "background 0.4s ease, box-shadow 0.4s ease",
-        }}
-      />
-      {/* Inner orb */}
-      <div
-        style={{
-          position: "relative",
-          width: 96, height: 96,
-          borderRadius: "50%",
-          background: `radial-gradient(circle at 35% 35%, ${c.inner}cc, ${c.inner}44 60%, transparent)`,
-          border: `2px solid ${c.inner}55`,
-          boxShadow: c.glow,
-          transition: "all 0.4s ease",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <OrbIcon phase={phase} color={c.inner} />
-      </div>
-    </div>
-  );
-}
-
-function OrbIcon({ phase, color }) {
-  const iconMap = {
-    idle:      "fa-microphone",
-    listening: "fa-stop",
-    thinking:  "fa-circle-notch fa-spin",
-    speaking:  "fa-volume-high",
-    muted:     "fa-microphone-slash",
-  };
-  return (
-    <i
-      className={`fa-solid ${iconMap[phase] || "fa-microphone"} text-2xl`}
-      style={{ color, filter: `drop-shadow(0 0 6px ${color})` }}
-    />
-  );
-}
-
-// ── Phase label ──────────────────────────────────────────────────────────
+// ── Premium phase labels (Cortex identity) ────────────────────────────────
 const PHASE_LABELS = {
-  idle:      "Tap to speak",
-  listening: "Listening…",
-  thinking:  "Thinking…",
-  speaking:  "Speaking…",
-  muted:     "Muted",
+  idle:      "Standing By",
+  listening: "Listening",
+  thinking:  "Processing",
+  speaking:  "Generating Response",
+  muted:     "Offline",
 };
 
 const PHASE_COLORS = {
-  idle:      "#00F0FF",
-  listening: "#FF003C",
-  thinking:  "#CF9EFF",
-  speaking:  "#00F0FF",
-  muted:     "#64748B",
+  idle:      "#4A9EFF",
+  listening: "#00E5FF",
+  thinking:  "#A78BFA",
+  speaking:  "#4A9EFF",
+  muted:     "#475569",
 };
+
+// ── Rotating thinking messages ─────────────────────────────────────────────
+const THINKING_MSGS = [
+  "Processing",
+  "Understanding",
+  "Searching Memory",
+  "Analyzing Context",
+  "Synthesizing",
+  "Formulating",
+  "Cross-referencing",
+];
+
+// ── CSS keyframes string ──────────────────────────────────────────────────
+const CORTEX_KEYFRAMES = `
+  @keyframes cortexBreathe {
+    0%, 100% { transform: scale(1);    opacity: 0.85; }
+    50%       { transform: scale(1.04); opacity: 1;    }
+  }
+  @keyframes cortexListen {
+    0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(0,229,255,0); }
+    50%       { transform: scale(1.06); box-shadow: 0 0 0 18px rgba(0,229,255,0); }
+  }
+  @keyframes cortexPulseRing {
+    0%   { transform: scale(0.92); opacity: 0.8; }
+    100% { transform: scale(1.18); opacity: 0;   }
+  }
+  @keyframes cortexSpin {
+    from { transform: rotate(0deg);   }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes cortexSpinR {
+    from { transform: rotate(0deg);    }
+    to   { transform: rotate(-360deg); }
+  }
+  @keyframes cortexWave {
+    0%, 100% { transform: scaleY(0.3);  }
+    50%       { transform: scaleY(1.0);  }
+  }
+  @keyframes cortexFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+  @keyframes cortexStatusDot {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+  @keyframes cortexGlowPulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 0.9; }
+  }
+  @keyframes wakeFlash {
+    0%, 100% { opacity: 0; }
+    50%       { opacity: 1; }
+  }
+  @keyframes orbPulse {
+    0%, 100% { transform: scale(1);    opacity: 1;    }
+    50%       { transform: scale(1.06); opacity: 0.85; }
+  }
+`;
+
+// ── AI Core Orb — single interactive element ──────────────────────────────
+// audioLevels: float[7] in 0–1 from the Web Audio AnalyserNode.
+// Falls back to CSS keyframe animation when undefined/empty.
+function AICoreOrb({ phase, onClick, onTouchStart, onTouchEnd, audioLevels }) {
+  const isListening = phase === "listening";
+  const isSpeaking  = phase === "speaking";
+  const isThinking  = phase === "thinking";
+  const isIdle      = phase === "idle";
+  const isMuted     = phase === "muted";
+
+  const coreColors = {
+    idle:      { primary: "#4A9EFF", secondary: "#1E3A6E", glow: "rgba(74,158,255,0.35)"  },
+    listening: { primary: "#00E5FF", secondary: "#003D4D", glow: "rgba(0,229,255,0.45)"   },
+    thinking:  { primary: "#A78BFA", secondary: "#2D1B69", glow: "rgba(167,139,250,0.40)" },
+    speaking:  { primary: "#4A9EFF", secondary: "#1A2F5E", glow: "rgba(74,158,255,0.40)"  },
+    muted:     { primary: "#475569", secondary: "#1E2530", glow: "rgba(71,85,105,0.20)"   },
+  };
+  const c = coreColors[phase] || coreColors.idle;
+
+  const orbAnimation = isListening
+    ? "cortexListen 1.2s ease-in-out infinite"
+    : isSpeaking
+    ? "cortexBreathe 0.8s ease-in-out infinite"
+    : isThinking
+    ? "none"
+    : isIdle
+    ? "cortexBreathe 3.5s ease-in-out infinite"
+    : "none";
+
+  return (
+    <button
+      onClick={onClick}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      style={{
+        position: "relative",
+        width: 180,
+        height: 180,
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        WebkitTapHighlightColor: "transparent",
+        outline: "none",
+        flexShrink: 0,
+      }}
+      aria-label={PHASE_LABELS[phase]}
+      title={PHASE_LABELS[phase]}
+    >
+      {/* Outermost ambient glow */}
+      <div style={{
+        position: "absolute",
+        width: 180, height: 180,
+        borderRadius: "50%",
+        background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`,
+        animation: (isListening || isSpeaking) ? "cortexGlowPulse 1.5s ease-in-out infinite" : "none",
+        pointerEvents: "none",
+      }} />
+
+      {/* Outer ring — spins while thinking */}
+      <div style={{
+        position: "absolute",
+        width: 158, height: 158,
+        borderRadius: "50%",
+        border: isThinking
+          ? `1.5px solid ${c.primary}55`
+          : isListening
+          ? `1px solid ${c.primary}40`
+          : `1px solid ${c.primary}25`,
+        animation: isThinking ? "cortexSpin 3s linear infinite" : "none",
+        pointerEvents: "none",
+      }} />
+
+      {/* Second ring — counter-spins while thinking */}
+      {isThinking && (
+        <div style={{
+          position: "absolute",
+          width: 140, height: 140,
+          borderRadius: "50%",
+          border: `1px dashed ${c.primary}35`,
+          animation: "cortexSpinR 5s linear infinite",
+          pointerEvents: "none",
+        }} />
+      )}
+
+      {/* Pulse ring — expands while listening/speaking */}
+      {(isListening || isSpeaking) && (
+        <div style={{
+          position: "absolute",
+          width: 130, height: 130,
+          borderRadius: "50%",
+          border: `1.5px solid ${c.primary}`,
+          animation: "cortexPulseRing 1.4s ease-out infinite",
+          pointerEvents: "none",
+        }} />
+      )}
+
+      {/* Core body */}
+      <div style={{
+        position: "relative",
+        width: 120, height: 120,
+        borderRadius: "50%",
+        background: `radial-gradient(circle at 38% 34%, ${c.primary}18 0%, ${c.secondary}80 55%, #05050Acc 100%)`,
+        border: `1.5px solid ${c.primary}50`,
+        boxShadow: `0 0 40px ${c.glow}, inset 0 1px 0 ${c.primary}20`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        animation: orbAnimation,
+        transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+        backdropFilter: "blur(4px)",
+      }}>
+
+        {/* Inner glow */}
+        <div style={{
+          position: "absolute",
+          width: 60, height: 60,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${c.primary}22 0%, transparent 70%)`,
+          pointerEvents: "none",
+        }} />
+
+        {/* Icon */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {isThinking ? (
+            <div style={{
+              width: 28, height: 28,
+              border: `2px solid ${c.primary}`,
+              borderTopColor: "transparent",
+              borderRadius: "50%",
+              animation: "cortexSpin 0.8s linear infinite",
+            }} />
+          ) : isListening ? (
+            /* Waveform bars — live mic levels when available, CSS fallback otherwise */
+            (() => {
+              const FALLBACK = [0.5, 0.85, 1, 0.7, 0.9, 0.6, 0.8];
+              const levels   = audioLevels && audioLevels.length === 7 ? audioLevels : null;
+              const hasLive  = levels && levels.some(l => l > 0.15);
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 3, height: 28 }}>
+                  {FALLBACK.map((fallH, i) => {
+                    const barH = hasLive
+                      ? Math.max(4, Math.round(levels[i] * 26))
+                      : Math.round(fallH * 26);
+                    return (
+                      <div key={i} style={{
+                        width: 3,
+                        borderRadius: 2,
+                        backgroundColor: c.primary,
+                        height: `${barH}px`,
+                        // Live: smooth hardware-interpolated transition. Fallback: CSS keyframe.
+                        transition: hasLive ? "height 55ms linear" : "none",
+                        animation: hasLive
+                          ? "none"
+                          : `cortexWave 0.6s ease-in-out ${(i * 0.09).toFixed(2)}s infinite alternate`,
+                        boxShadow: `0 0 ${hasLive ? Math.round(levels?.[i] * 10 + 3) : 6}px ${c.primary}80`,
+                        willChange: "height",
+                      }} />
+                    );
+                  })}
+                </div>
+              );
+            })()
+          ) : isSpeaking ? (
+            /* Speaking waveform — faster */
+            <div style={{ display: "flex", alignItems: "center", gap: 3, height: 28 }}>
+              {[0.6, 0.95, 0.75, 1, 0.65, 0.9, 0.5].map((h, i) => (
+                <div key={i} style={{
+                  width: 3,
+                  borderRadius: 2,
+                  backgroundColor: c.primary,
+                  height: `${Math.round(h * 24)}px`,
+                  animation: `cortexWave 0.45s ease-in-out ${(i * 0.07).toFixed(2)}s infinite alternate`,
+                  boxShadow: `0 0 6px ${c.primary}80`,
+                }} />
+              ))}
+            </div>
+          ) : isMuted ? (
+            <i className="fa-solid fa-microphone-slash" style={{ fontSize: 22, color: c.primary, opacity: 0.6 }} />
+          ) : (
+            /* Idle — subtle mic icon */
+            <i className="fa-solid fa-microphone" style={{
+              fontSize: 22,
+              color: c.primary,
+              filter: `drop-shadow(0 0 8px ${c.primary})`,
+            }} />
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Status indicator ──────────────────────────────────────────────────────
+function StatusBadge({ phase, thinkingMsg }) {
+  const c = PHASE_COLORS[phase] || PHASE_COLORS.idle;
+  const label = phase === "thinking" ? thinkingMsg : PHASE_LABELS[phase];
+  const pulseDot = phase === "listening" || phase === "speaking";
+
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "6px 14px",
+      borderRadius: 20,
+      background: `${c}10`,
+      border: `1px solid ${c}30`,
+      animation: "cortexFadeUp 0.25s ease",
+    }}>
+      <div style={{
+        width: 6, height: 6,
+        borderRadius: "50%",
+        backgroundColor: c,
+        boxShadow: `0 0 8px ${c}`,
+        animation: pulseDot ? "cortexStatusDot 1.1s ease-in-out infinite" : "none",
+        flexShrink: 0,
+      }} />
+      <span style={{
+        fontSize: 11,
+        fontFamily: "'JetBrains Mono', monospace",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: c,
+        fontWeight: 600,
+      }}>
+        {label}
+      </span>
+    </div>
+  );
+}
 
 // ── Toggle ────────────────────────────────────────────────────────────────
 function Toggle({ value, onChange, disabled }) {
@@ -298,10 +517,10 @@ function Toggle({ value, onChange, disabled }) {
       disabled={disabled}
       style={{
         width: 44, height: 26, borderRadius: 13, flexShrink: 0,
-        background: value ? "#00F0FF" : "rgba(255,255,255,0.12)",
+        background: value ? "#4A9EFF" : "rgba(255,255,255,0.10)",
         border: "none", cursor: disabled ? "not-allowed" : "pointer",
         position: "relative", transition: "background 0.22s ease",
-        boxShadow: value ? "0 0 12px rgba(0,240,255,0.5)" : "none",
+        boxShadow: value ? "0 0 12px rgba(74,158,255,0.4)" : "none",
         opacity: disabled ? 0.4 : 1,
         WebkitTapHighlightColor: "transparent",
       }}
@@ -320,7 +539,7 @@ function SettingRow({ label, desc, children }) {
   return (
     <div
       className="flex items-center justify-between py-2.5"
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
     >
       <div style={{ flex: 1, paddingRight: 12 }}>
         <div className="text-sm text-white font-medium">{label}</div>
@@ -343,12 +562,12 @@ function Segmented({ options, value, onChange }) {
             padding: "5px 11px", borderRadius: 8,
             fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
             border: value === opt.value
-              ? "1px solid rgba(0,240,255,0.6)"
-              : "1px solid rgba(255,255,255,0.10)",
+              ? "1px solid rgba(74,158,255,0.6)"
+              : "1px solid rgba(255,255,255,0.08)",
             background: value === opt.value
-              ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.04)",
-            color: value === opt.value ? "#00F0FF" : "rgba(255,255,255,0.55)",
-            cursor: "pointer", transition: "all 0.18s ease",
+              ? "rgba(74,158,255,0.12)" : "rgba(255,255,255,0.03)",
+            color: value === opt.value ? "#4A9EFF" : "rgba(255,255,255,0.45)",
+            cursor: "pointer", transition: "all 0.15s ease",
             WebkitTapHighlightColor: "transparent",
           }}
         >
@@ -362,10 +581,10 @@ function Segmented({ options, value, onChange }) {
 // ── Quality badge ─────────────────────────────────────────────────────────
 function QualityBadge({ quality }) {
   const map = {
-    Neural:   { bg: "rgba(0,240,255,0.12)",  border: "rgba(0,240,255,0.35)",  color: "#00F0FF"  },
-    Enhanced: { bg: "rgba(57,255,20,0.10)",  border: "rgba(57,255,20,0.30)",  color: "#39FF14"  },
-    Standard: { bg: "rgba(255,255,255,0.06)",border: "rgba(255,255,255,0.15)",color: "rgba(255,255,255,0.55)" },
-    Basic:    { bg: "rgba(255,160,0,0.08)",  border: "rgba(255,160,0,0.25)",  color: "#FFA000"  },
+    Neural:   { bg: "rgba(74,158,255,0.12)",  border: "rgba(74,158,255,0.35)",  color: "#4A9EFF"  },
+    Enhanced: { bg: "rgba(57,255,20,0.10)",   border: "rgba(57,255,20,0.30)",   color: "#39FF14"  },
+    Standard: { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.55)" },
+    Basic:    { bg: "rgba(255,160,0,0.08)",   border: "rgba(255,160,0,0.25)",   color: "#FFA000"  },
   };
   const s = map[quality] || map.Standard;
   return (
@@ -380,48 +599,87 @@ function QualityBadge({ quality }) {
   );
 }
 
+// ── Section header ────────────────────────────────────────────────────────
+function SectionHeader({ label }) {
+  return (
+    <div style={{
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase",
+      color: "rgba(74,158,255,0.55)", marginBottom: 12, fontWeight: 600,
+    }}>
+      {label}
+    </div>
+  );
+}
+
+// ── Card wrapper ──────────────────────────────────────────────────────────
+function Card({ children, style }) {
+  return (
+    <div style={{
+      borderRadius: 16,
+      background: "rgba(255,255,255,0.025)",
+      border: "1px solid rgba(255,255,255,0.06)",
+      padding: 16,
+      marginBottom: 12,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 export default function Voice() {
-  const [phase, setPhase]                         = useState("idle");
-  const [transcript, setTranscript]               = useState("");
-  const [interimText, setInterimText]             = useState("");
-  const [conversation, setConversation]           = useState(loadVoiceHistory);
-  const [settings, setSettings]                   = useState(loadSettings);
-  const [activeView, setActiveView]               = useState("voice"); // "voice" | "settings"
-  const [availableVoices, setAvailableVoices]     = useState([]);
-  const [previewingVoice, setPreviewingVoice]     = useState(null);
-  const [voiceError, setVoiceError]               = useState(null);
-  const [detectedEmotion, setDetectedEmotion]     = useState("neutral");
-  const [sessionTurnCount, setSessionTurnCount]   = useState(0);
-  const [lastActivityTime, setLastActivityTime]   = useState(Date.now());
-  const [wakeWordActive, setWakeWordActive]        = useState(false);
-  const [historyBadge, setHistoryBadge]           = useState(0);   // unread msg count
-  const [isAtBottom, setIsAtBottom]               = useState(true); // history scroll position
-  const [isLivePreviewing, setIsLivePreviewing]   = useState(false); // live preview TTS active
-  const [thinkingMsg, setThinkingMsg]             = useState("Thinking…");  // rotating status
+  const [phase, setPhase]                       = useState("idle");
+  const [transcript, setTranscript]             = useState("");
+  const [interimText, setInterimText]           = useState("");
+  const [conversation, setConversation]         = useState(loadVoiceHistory);
+  const [settings, setSettings]                 = useState(loadSettings);
+  const [activeView, setActiveView]             = useState("voice");
+  const [availableVoices, setAvailableVoices]   = useState([]);
+  const [previewingVoice, setPreviewingVoice]   = useState(null);
+  const [voiceError, setVoiceError]             = useState(null);
+  const [detectedEmotion, setDetectedEmotion]   = useState("neutral");
+  const [sessionTurnCount, setSessionTurnCount] = useState(0);
+  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [wakeWordActive, setWakeWordActive]      = useState(false);
+  const [historyBadge, setHistoryBadge]         = useState(0);
+  const [isAtBottom, setIsAtBottom]             = useState(true);
+  const [isLivePreviewing, setIsLivePreviewing] = useState(false);
+  const [thinkingMsg, setThinkingMsg]           = useState("Processing");
+  const [greeting, setGreeting]                 = useState("");
+  // Live mic levels from the Web Audio AnalyserNode (7 floats, 0–1 each)
+  const [audioLevels, setAudioLevels]           = useState(() => new Array(7).fill(0));
 
   const { openApp, windows, activeId } = useOS();
 
-  const mountedRef         = useRef(true);
-  const historyScrollRef   = useRef(null); // ref for the history scroll container
-  const previewTimerRef    = useRef(null); // debounce timer for live preview
-  const startedRef         = useRef(false);
-  const recogRef           = useRef(null);
-  const transcriptRef      = useRef("");
-  const finalizedUntilRef  = useRef(0);
-  const abortRef           = useRef(null);
-  const cancelSpeechRef    = useRef(null);      // cancel() for current browser TTS
-  const orbSwipeTouchY     = useRef(null);      // touch Y for swipe-down interrupt
-  const conversationRef    = useRef([]);         // keeps in sync for callbacks
-  const settingsRef        = useRef(settings);
-  const autoListenTimerRef = useRef(null);
-  const timeoutTimerRef    = useRef(null);
-  const wakeRecogRef       = useRef(null);
-  const phaseRef           = useRef("idle");
-  const startListeningRef  = useRef(null);       // populated after startListening is defined
-  const windowsRef         = useRef(windows);    // for cortex context in callbacks
-  const activeIdRef        = useRef(activeId);   // for cortex context in callbacks
-  const sessionClearedRef  = useRef(false);      // true when user explicitly cleared this session
+  const mountedRef          = useRef(true);
+  const historyScrollRef    = useRef(null);
+  const previewTimerRef     = useRef(null);
+  const startedRef          = useRef(false);
+  const recogRef            = useRef(null);
+  const transcriptRef       = useRef("");
+  const finalizedUntilRef   = useRef(0);
+  const abortRef            = useRef(null);
+  const cancelSpeechRef     = useRef(null);
+  const orbSwipeTouchY      = useRef(null);
+  const conversationRef     = useRef([]);
+  const settingsRef         = useRef(settings);
+  const autoListenTimerRef  = useRef(null);
+  const timeoutTimerRef     = useRef(null);
+  const wakeRecogRef        = useRef(null);
+  const phaseRef            = useRef("idle");
+  const startListeningRef   = useRef(null);
+  const windowsRef          = useRef(windows);
+  const activeIdRef         = useRef(activeId);
+  const sessionClearedRef   = useRef(false);
+  const silenceTimerRef     = useRef(null);
+  // Web Audio analyser refs
+  const audioCtxRef         = useRef(null);
+  const analyserRef         = useRef(null);
+  const micStreamRef        = useRef(null);
+  const animFrameRef        = useRef(null);
+  const smoothedLevelsRef   = useRef(new Array(7).fill(0));
 
   // Keep refs in sync
   useEffect(() => { conversationRef.current = conversation; }, [conversation]);
@@ -430,27 +688,28 @@ export default function Voice() {
   useEffect(() => { windowsRef.current = windows; }, [windows]);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
-  // Rotate thinking status messages while AI is processing
+  // Build greeting on mount + when conversation changes
   useEffect(() => {
-    if (phase !== "thinking") { setThinkingMsg("Thinking…"); return; }
-    const msgs = [
-      "Thinking…",
-      "Reasoning…",
-      "Processing…",
-      "Consulting memory…",
-      "Formulating response…",
-      "Analyzing context…",
-      "Synthesizing…",
-    ];
+    const user = (() => {
+      try { const u = JSON.parse(localStorage.getItem("cortex_user") || "{}"); return u?.name || null; }
+      catch { return null; }
+    })();
+    setGreeting(getContextGreeting(conversation, user));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rotate thinking messages
+  useEffect(() => {
+    if (phase !== "thinking") { setThinkingMsg("Processing"); return; }
     let i = 0;
     const id = setInterval(() => {
-      i = (i + 1) % msgs.length;
-      setThinkingMsg(msgs[i]);
-    }, 1400);
+      i = (i + 1) % THINKING_MSGS.length;
+      setThinkingMsg(THINKING_MSGS[i]);
+    }, 1200);
     return () => clearInterval(id);
   }, [phase]);
 
-  // Auto-scroll history to bottom when new messages arrive (only if already near bottom)
+  // Auto-scroll history
   useEffect(() => {
     const el = historyScrollRef.current;
     if (!el || activeView !== "history") return;
@@ -458,12 +717,10 @@ export default function Voice() {
     if (distFromBottom < 120) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [conversation, activeView]);
 
-  // Clear badge when user opens history tab
   useEffect(() => {
     if (activeView === "history") setHistoryBadge(0);
   }, [activeView]);
 
-  // Track scroll position for "scroll to bottom" FAB
   const handleHistoryScroll = useCallback(() => {
     const el = historyScrollRef.current;
     if (!el) return;
@@ -471,7 +728,7 @@ export default function Voice() {
     setIsAtBottom(distFromBottom < 80);
   }, []);
 
-  // ── Load browser voices on mount ─────────────────────────────────────────
+  // Load browser voices
   useEffect(() => {
     mountedRef.current = true;
 
@@ -479,8 +736,6 @@ export default function Voice() {
       if (!mountedRef.current) return;
       const voices = getAvailableVoices();
       setAvailableVoices(voices);
-
-      // If auto-select best and no preference saved → pick best automatically
       if (settings.autoSelectBestVoice && !settings.preferredVoiceName) {
         const best = getBestVoice();
         if (best) {
@@ -490,49 +745,45 @@ export default function Voice() {
       }
     });
 
-    // Also refresh voices when the list changes (some browsers load async)
     const onChanged = () => {
       if (!mountedRef.current) return;
       setAvailableVoices(getAvailableVoices());
     };
     window.speechSynthesis?.addEventListener("voiceschanged", onChanged);
 
-    // Load shared conversation history from backend on mount (P2: share with AIChat)
-    // Capture initial local length so we can guard against overwriting newer turns.
     const localLenAtMount = conversationRef.current.length;
     aiApi.history("main").then((msgs) => {
       if (!mountedRef.current || !Array.isArray(msgs) || msgs.length === 0) return;
-      // P2 race guard: if user already started speaking, or explicitly cleared this session, skip.
       if (startedRef.current || phaseRef.current !== "idle" || sessionClearedRef.current) return;
       const voiceHistory = msgs
         .filter((m) => m.content && !m.pending && !m.error)
         .slice(-MAX_HISTORY_PAIRS * 2)
         .map((m) => ({ role: m.role, content: String(m.content) }));
-      // Only apply if backend has strictly more history than what was loaded from localStorage.
-      // This ensures we never overwrite turns the user added while the request was in flight.
       if (voiceHistory.length > localLenAtMount && conversationRef.current.length === localLenAtMount) {
         setConversation(voiceHistory);
         conversationRef.current = voiceHistory;
         saveVoiceHistory(voiceHistory);
       }
-    }).catch(() => {
-      // Non-blocking — fall back to localStorage history which is already loaded
-    });
+    }).catch(() => {});
 
     return () => {
       mountedRef.current = false;
       window.speechSynthesis?.removeEventListener("voiceschanged", onChanged);
       clearTimeout(autoListenTimerRef.current);
       clearTimeout(timeoutTimerRef.current);
+      clearTimeout(silenceTimerRef.current);
       cancelSpeechRef.current?.();
       abortRef.current?.abort();
       stopWakeWord();
+      // Clean up audio analyser
+      cancelAnimationFrame(animFrameRef.current);
+      try { micStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+      try { audioCtxRef.current?.close(); } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetConversation = useCallback((silent = false) => {
-    // Mark session as cleared so backend history isn't reloaded on remount (P2 fix)
     sessionClearedRef.current = true;
     setConversation([]);
     saveVoiceHistory([]);
@@ -541,13 +792,11 @@ export default function Voice() {
     setInterimText("");
     setDetectedEmotion("neutral");
     if (!silent) {
-      toast.success("Conversation cleared — fresh start", {
-        duration: 2000, style: { fontSize: 12 },
-      });
+      toast.success("Conversation cleared", { duration: 2000, style: { fontSize: 12 } });
     }
   }, []);
 
-  // ── Conversation timeout management ─────────────────────────────────────
+  // Conversation timeout
   useEffect(() => {
     clearTimeout(timeoutTimerRef.current);
     const mins = parseInt(settings.conversationTimeout, 10);
@@ -555,14 +804,12 @@ export default function Voice() {
     timeoutTimerRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
       resetConversation(true);
-      toast("Conversation timed out — starting fresh", {
-        duration: 3000, style: { fontSize: 12, padding: "6px 14px" },
-      });
+      toast("Session timed out — starting fresh", { duration: 3000, style: { fontSize: 12 } });
     }, mins * 60 * 1000);
     return () => clearTimeout(timeoutTimerRef.current);
   }, [lastActivityTime, settings.conversationTimeout, resetConversation]);
 
-  // ── Settings helpers ──────────────────────────────────────────────────────
+  // Settings helpers
   const updateSettings = useCallback((patch) => {
     setSettings((prev) => {
       const next = { ...prev, ...patch };
@@ -571,9 +818,7 @@ export default function Voice() {
     });
   }, []);
 
-  // ── Live voice preview (rate / pitch / volume sliders) ────────────────────
-  // Called immediately when any voice param changes. Speaks a short test phrase
-  // with the updated value so the user hears the effect right away.
+  // Live preview
   const triggerLivePreview = useCallback((patch) => {
     clearTimeout(previewTimerRef.current);
     previewTimerRef.current = setTimeout(() => {
@@ -582,20 +827,16 @@ export default function Voice() {
       window.speechSynthesis?.cancel();
 
       const merged = { ...settingsRef.current, ...patch };
-      const phrase = "Testing — this is how I sound at this setting.";
+      const phrase = "Testing — this is Cortex speaking.";
       const done = () => { if (mountedRef.current) setIsLivePreviewing(false); };
-
       setIsLivePreviewing(true);
 
-      // Use whichever engine is currently selected
       if (merged.voiceEngine !== "browser" && isStreamTTSAvailable()) {
         const cancel = streamSpeak(phrase, {
           voiceId: merged.streamVoiceId || getStreamVoiceId(),
-          rate:    merged.rate   || 1.0,
-          volume:  merged.volume ?? 1.0,
-          onEnd:   done,
+          rate: merged.rate || 1.0, volume: merged.volume ?? 1.0,
+          onEnd: done,
           onError: () => {
-            // Fallback to browser on network error
             if (!isBrowserTTSSupported()) { done(); return; }
             cancelSpeechRef.current = browserSpeak(phrase, {
               rate: merged.rate || 1.0, pitch: merged.pitch || 1.0, volume: merged.volume ?? 1.0,
@@ -616,47 +857,42 @@ export default function Voice() {
     }, 250);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Conversation helpers ──────────────────────────────────────────────────
+  // Conversation helpers
   const appendToConversation = useCallback((role, content) => {
     setConversation((prev) => {
       const next = [...prev, { role, content, ts: Date.now() }];
-      // Keep at most MAX_HISTORY_PAIRS * 2 messages
       const trimmed = next.slice(-(MAX_HISTORY_PAIRS * 2));
       saveVoiceHistory(trimmed);
       return trimmed;
     });
-    // Badge: mark new messages when not on history tab
     setHistoryBadge((b) => b + 1);
   }, []);
 
-  // ── Stop speaking ─────────────────────────────────────────────────────────
+  // Stop speaking
   const stopSpeaking = useCallback(() => {
     clearTimeout(autoListenTimerRef.current);
     cancelSpeechRef.current?.();
     cancelSpeechRef.current = null;
-    cancelSpeech(); // belt-and-suspenders
+    cancelSpeech();
     if (mountedRef.current) {
       setPhase("idle");
       setDetectedEmotion("neutral");
     }
   }, []);
 
-  // ── Browser TTS speak ─────────────────────────────────────────────────────
+  // Browser TTS speak
   const speakBrowser = useCallback((rawText) => {
     if (!rawText?.trim()) return;
     const cleanText = stripMarkdown(rawText);
     if (!cleanText) return;
 
     const s = settingsRef.current;
-
     setDetectedEmotion(detectEmotion(rawText));
     if (mountedRef.current) setPhase("speaking");
 
-    // Cancel any previous speech
     cancelSpeechRef.current?.();
     cancelSpeechRef.current = null;
 
-    // ── Shared end / error handlers ─────────────────────────────────────
     const handleEnd = () => {
       cancelSpeechRef.current = null;
       if (!mountedRef.current) return;
@@ -674,7 +910,7 @@ export default function Voice() {
 
     const browserFallback = () => {
       if (!isBrowserTTSSupported()) {
-        setVoiceError("Voice synthesis is not supported in this browser.");
+        setVoiceError("Voice synthesis not supported in this browser.");
         if (mountedRef.current) setPhase("idle");
         return;
       }
@@ -695,10 +931,9 @@ export default function Voice() {
               const voices = getAvailableVoices();
               attemptBrowser(voices[retryCount]?.voice || null);
             } else {
-              // P8: show error, then auto-resume if continuous mode is on
               if (mountedRef.current) {
                 setPhase("idle");
-                setVoiceError("Voice synthesis failed. Listening again…");
+                setVoiceError("Voice synthesis unavailable. Listening again…");
                 if (settingsRef.current.autoResumeListen && settingsRef.current.continuousConversation) {
                   clearTimeout(autoListenTimerRef.current);
                   autoListenTimerRef.current = setTimeout(() => {
@@ -717,16 +952,14 @@ export default function Voice() {
       attemptBrowser(preferredVoice);
     };
 
-    // ── Primary: Stream TTS (Amazon Polly — human voices, free) ─────────
+    // Primary: Stream TTS
     if (s.voiceEngine !== "browser" && isStreamTTSAvailable()) {
       const cancel = streamSpeak(cleanText, {
         voiceId: s.streamVoiceId || getStreamVoiceId(),
-        rate:    s.rate   || 1.0,
-        volume:  s.volume ?? 1.0,
+        rate: s.rate || 1.0, volume: s.volume ?? 1.0,
         onStart: () => { if (mountedRef.current) setPhase("speaking"); },
-        onEnd:   handleEnd,
+        onEnd: handleEnd,
         onError: (err) => {
-          // Network/CORS error — silently fallback to browser TTS
           console.warn("[StreamTTS] falling back to browser TTS:", err?.message);
           browserFallback();
         },
@@ -735,11 +968,13 @@ export default function Voice() {
       return;
     }
 
-    // ── Fallback: Browser TTS (device voices) ────────────────────────────
+    // Fallback: Browser TTS
     browserFallback();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── STT: start listening ──────────────────────────────────────────────────
+  // FIX (Priority 3): continuous=true + silence detection timer.
+  // The previous continuous=false caused immediate stop after first silence.
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
@@ -749,8 +984,8 @@ export default function Voice() {
     if (startedRef.current) return;
 
     clearTimeout(autoListenTimerRef.current);
+    clearTimeout(silenceTimerRef.current);
 
-    // If currently speaking → interrupt
     if (phaseRef.current === "speaking") {
       cancelSpeechRef.current?.();
       cancelSpeechRef.current = null;
@@ -758,12 +993,12 @@ export default function Voice() {
     }
 
     const r = new SR();
-    r.continuous      = false;
+    r.continuous      = true;   // FIX: keep recognition alive — silence timer drives stop
     r.interimResults  = true;
     r.lang            = "en-US";
     r.maxAlternatives = 3;
 
-    transcriptRef.current    = "";
+    transcriptRef.current     = "";
     finalizedUntilRef.current = 0;
     setTranscript("");
     setInterimText("");
@@ -771,7 +1006,21 @@ export default function Voice() {
     setPhase("listening");
     startedRef.current = true;
 
+    // Reset silence timer — restarted on every result event
+    const resetSilenceTimer = () => {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = setTimeout(() => {
+        if (startedRef.current && recogRef.current) {
+          try { recogRef.current.stop(); } catch {}
+        }
+      }, SILENCE_TIMEOUT_MS);
+    };
+
+    // Start silence timer immediately — catches "no speech" case
+    resetSilenceTimer();
+
     r.onresult = (e) => {
+      resetSilenceTimer(); // extend window on every result
       let finalText = "";
       let interim   = "";
       for (let i = Math.max(e.resultIndex, finalizedUntilRef.current); i < e.results.length; i++) {
@@ -797,19 +1046,21 @@ export default function Voice() {
     };
 
     r.onerror = (e) => {
+      clearTimeout(silenceTimerRef.current);
       startedRef.current = false;
       if (mountedRef.current) {
         setPhase("idle");
         setInterimText("");
       }
       if (e.error === "not-allowed") {
-        setVoiceError("Microphone permission denied — please allow access and try again.");
+        setVoiceError("Microphone access denied — please allow access and try again.");
       } else if (e.error !== "aborted" && e.error !== "no-speech") {
         toast.error(`Microphone error: ${e.error}`);
       }
     };
 
     r.onend = async () => {
+      clearTimeout(silenceTimerRef.current);
       startedRef.current = false;
       const text = transcriptRef.current.trim();
       if (mountedRef.current) setInterimText("");
@@ -819,7 +1070,6 @@ export default function Voice() {
       }
       if (!mountedRef.current) return;
 
-      // Check for explicit reset phrases
       if (isResetPhrase(text)) {
         resetConversation();
         if (mountedRef.current) setPhase("idle");
@@ -829,7 +1079,6 @@ export default function Voice() {
       setLastActivityTime(Date.now());
       setPhase("thinking");
 
-      // Cortex Actions
       const detectedActions = parseActions(text);
       if (detectedActions.length > 0) {
         executeActions(detectedActions, { openApp }).catch(() => {});
@@ -839,25 +1088,16 @@ export default function Voice() {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
-      // Build history to send to backend (last 20 messages = 10 pairs)
       const historyToSend = conversationRef.current.slice(-20).map((m) => ({
-        role: m.role,
-        content: m.content,
+        role: m.role, content: m.content,
       }));
 
       try {
-        // ── Fetch relevant Cortex memories (P6: shared memory) ────────────
         let fetchedMemories = [];
-        try {
-          fetchedMemories = await memoryApi.relevant(text, 5);
-        } catch { /* non-blocking */ }
+        try { fetchedMemories = await memoryApi.relevant(text, 5); } catch {}
 
-        // ── Build Cortex OS context system prompt (P6: context unification) ─
-        // Uses inline builder (not cortexContext import) to avoid circular dep:
-        // cortexContext → apps.js → Voice.js → TDZ crash in production build.
         let systemPrompt = buildVoiceContextPrompt(windowsRef.current, activeIdRef.current);
 
-        // Inject relevant memories
         if (fetchedMemories.length > 0) {
           systemPrompt += "\n\n=== CORTEX LONG-TERM MEMORY ===\n";
           systemPrompt += "Permanently remembered facts. Use naturally without re-asking.\n";
@@ -866,7 +1106,6 @@ export default function Voice() {
           });
         }
 
-        // Voice-specific response rules (appended after OS context)
         systemPrompt += `\n\n=== VOICE RESPONSE RULES — follow strictly ===
 - Keep every response to 1–3 sentences unless the user explicitly asks for detail or a list.
 - Use natural spoken language only. No markdown, no bullet points, no headers, no asterisks, no code blocks.
@@ -881,7 +1120,7 @@ export default function Voice() {
         let fullResponse = "";
         await aiApi.chatStreamResilient(
           {
-            session_id: "main",   // P2: share session with AIChat
+            session_id: "main",
             message: text,
             provider: "gemini",
             model: "gemini-2.5-flash",
@@ -894,15 +1133,12 @@ export default function Voice() {
         );
         if (!mountedRef.current || ctrl.signal.aborted) return;
 
-        // Persist both turns to conversation history
         appendToConversation("user", text);
         appendToConversation("assistant", fullResponse);
         setSessionTurnCount((n) => n + 1);
 
-        // P6: Fire-and-forget memory extraction (same as AIChat)
         memoryApi.extract(text, fullResponse).catch(() => {});
 
-        // Speak the response
         if (settingsRef.current.voiceFeedback) {
           speakBrowser(fullResponse);
         } else {
@@ -915,38 +1151,39 @@ export default function Voice() {
         if (err?.status === 429) {
           toast.error("Cortex is rate-limited. Please wait a moment.");
         } else {
-          toast.error("Cortex voice response failed. Please try again.");
+          toast.error("Cortex response failed. Please try again.");
         }
       }
     };
 
     recogRef.current = r;
     try { r.start(); } catch (e) {
+      clearTimeout(silenceTimerRef.current);
       startedRef.current = false;
       setPhase("idle");
-      toast.error("Failed to start microphone. Try again.");
+      toast.error("Failed to start microphone. Please try again.");
     }
   }, [speakBrowser, openApp, appendToConversation, resetConversation]);
 
-  // Keep startListeningRef in sync so speakBrowser can call it without stale closure
   useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
 
   const stopListening = useCallback(() => {
-    recogRef.current?.stop();
+    clearTimeout(silenceTimerRef.current);
+    try { recogRef.current?.stop(); } catch {}
     startedRef.current = false;
     if (mountedRef.current) setPhase("idle");
   }, []);
 
-  // ── Wake word detection ────────────────────────────────────────────────────
+  // ── Wake word ─────────────────────────────────────────────────────────────
   const startWakeWord = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     if (wakeRecogRef.current) return;
 
     const r = new SR();
-    r.continuous    = true;
+    r.continuous     = true;
     r.interimResults = false;
-    r.lang          = "en-US";
+    r.lang           = "en-US";
 
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -969,7 +1206,6 @@ export default function Voice() {
 
     r.onerror = (e) => {
       if (e.error === "aborted") return;
-      // Restart on error
       setTimeout(() => {
         if (mountedRef.current && settingsRef.current.wakeWordEnabled) {
           wakeRecogRef.current = null;
@@ -981,9 +1217,7 @@ export default function Voice() {
     r.onend = () => {
       wakeRecogRef.current = null;
       if (mountedRef.current && settingsRef.current.wakeWordEnabled) {
-        setTimeout(() => {
-          if (mountedRef.current) startWakeWord();
-        }, 500);
+        setTimeout(() => { if (mountedRef.current) startWakeWord(); }, 500);
       }
     };
 
@@ -993,21 +1227,102 @@ export default function Voice() {
 
   const stopWakeWord = useCallback(() => {
     if (wakeRecogRef.current) {
-      wakeRecogRef.current.onend = null;
+      wakeRecogRef.current.onend  = null;
       wakeRecogRef.current.onerror = null;
       try { wakeRecogRef.current.stop(); } catch {}
       wakeRecogRef.current = null;
     }
   }, []);
 
-  // Watch wake word setting toggle
   useEffect(() => {
-    if (settings.wakeWordEnabled) {
-      startWakeWord();
-    } else {
-      stopWakeWord();
-    }
+    if (settings.wakeWordEnabled) startWakeWord();
+    else stopWakeWord();
   }, [settings.wakeWordEnabled, startWakeWord, stopWakeWord]);
+
+  // ── Web Audio analyser — real-time mic level visualizer ───────────────────
+  // Samples 7 frequency bands from the mic stream at ~60 fps via rAF.
+  // Independent of SpeechRecognition — both can share the mic concurrently.
+  const startAudioAnalyser = useCallback(async () => {
+    // Already running? No-op.
+    if (analyserRef.current) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+      micStreamRef.current = stream;
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === "suspended") await ctx.resume();
+      audioCtxRef.current = ctx;
+
+      const analyser = ctx.createAnalyser();
+      // 512-point FFT → 256 bins; at 44 100 Hz each bin ≈ 172 Hz.
+      // Voice fundamentals live in bins 1–20 (≈85–3 440 Hz).
+      analyser.fftSize              = 512;
+      analyser.smoothingTimeConstant = 0.55; // moderate smoothing; we apply our own EMA below
+      analyserRef.current = analyser;
+
+      const source = ctx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      // Seven bands spread across the vocal range (85 Hz – 3 kHz).
+      // Bin 2 ≈ 344 Hz · 5 ≈ 860 Hz · 8 ≈ 1.4 kHz … etc.
+      const BAND_BINS = [2, 4, 7, 10, 14, 19, 26];
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const tick = () => {
+        if (!analyserRef.current || !mountedRef.current) return;
+
+        analyser.getByteFrequencyData(dataArray);
+
+        const prev = smoothedLevelsRef.current;
+        const next = BAND_BINS.map((bin, i) => {
+          // 0–255 → 0–1, amplify quiet voices by ×1.6, floor at 10%
+          const raw  = Math.min(1, (dataArray[bin] / 255) * 1.6);
+          const val  = Math.max(0.1, raw);
+          // Exponential moving average: rise fast (0.55), fall slower (0.35)
+          return raw > prev[i] ? prev[i] * 0.45 + val * 0.55 : prev[i] * 0.65 + val * 0.35;
+        });
+
+        smoothedLevelsRef.current = next;
+        setAudioLevels([...next]);
+
+        animFrameRef.current = requestAnimationFrame(tick);
+      };
+
+      animFrameRef.current = requestAnimationFrame(tick);
+    } catch (err) {
+      // getUserMedia denied or not supported — CSS animation fallback is already in place
+      console.warn("[AudioAnalyser] could not start:", err?.message);
+    }
+  }, []);
+
+  const stopAudioAnalyser = useCallback(() => {
+    cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current  = null;
+    analyserRef.current   = null;
+
+    try { micStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+    micStreamRef.current = null;
+
+    try { audioCtxRef.current?.close(); } catch {}
+    audioCtxRef.current = null;
+
+    smoothedLevelsRef.current = new Array(7).fill(0);
+    if (mountedRef.current) setAudioLevels(new Array(7).fill(0));
+  }, []);
+
+  // Start / stop the analyser whenever the phase enters or leaves "listening".
+  useEffect(() => {
+    if (phase === "listening") {
+      startAudioAnalyser();
+    } else {
+      stopAudioAnalyser();
+    }
+  }, [phase, startAudioAnalyser, stopAudioAnalyser]);
 
   // ── Main button click ─────────────────────────────────────────────────────
   const handleMicClick = useCallback(() => {
@@ -1015,12 +1330,8 @@ export default function Voice() {
       stopListening();
     } else if (phase === "speaking") {
       stopSpeaking();
-      // After stopping, start listening immediately
-      setTimeout(() => {
-        if (mountedRef.current) startListening();
-      }, 150);
+      setTimeout(() => { if (mountedRef.current) startListening(); }, 150);
     } else if (phase === "thinking") {
-      // Cancel the AI request
       abortRef.current?.abort();
       if (mountedRef.current) setPhase("idle");
     } else {
@@ -1035,25 +1346,22 @@ export default function Voice() {
       setPreviewingVoice(null);
       return;
     }
-
     cancelSpeech();
     setPreviewingVoice(voiceName);
 
     const allRaw = window.speechSynthesis?.getVoices() || [];
     const voiceObj = allRaw.find((v) => v.name === voiceName) || null;
 
-    browserSpeak("Hello, I'm Cortex. Nice to meet you.", {
+    browserSpeak("Hello, I'm Cortex. Ready to assist.", {
       voice: voiceObj,
       rate: settingsRef.current.rate || 1.0,
       pitch: settingsRef.current.pitch || 1.0,
       volume: settingsRef.current.volume ?? 1.0,
-      onEnd: () => {
-        if (mountedRef.current) setPreviewingVoice(null);
-      },
+      onEnd:  () => { if (mountedRef.current) setPreviewingVoice(null); },
       onError: () => {
         if (mountedRef.current) {
           setPreviewingVoice(null);
-          toast.error(`Voice preview failed for "${voiceName}"`, { duration: 2000 });
+          toast.error(`Preview failed for "${voiceName}"`, { duration: 2000 });
         }
       },
     });
@@ -1066,227 +1374,257 @@ export default function Voice() {
     if (last) speakBrowser(last.content);
   }, [speakBrowser]);
 
-  // ── Derived state ──────────────────────────────────────────────────────────
+  // ── Derived state ─────────────────────────────────────────────────────────
   const isListening = phase === "listening";
   const isSpeaking  = phase === "speaking";
   const isThinking  = phase === "thinking";
-  const isIdle      = phase === "idle";
 
-  const lastUserMsg      = [...conversation].reverse().find((m) => m.role === "user");
   const lastAssistantMsg = [...conversation].reverse().find((m) => m.role === "assistant");
-
   const selectedVoiceName = settings.preferredVoiceName || getPreferredVoiceName();
   const selectedVoiceInfo = availableVoices.find((v) => v.name === selectedVoiceName);
 
-  return (
-    <div className="flex flex-col h-full text-white overflow-hidden" data-testid="voice-app">
-      <style>{`
-        @keyframes cortexWave {
-          from { transform: scaleY(0.25); }
-          to   { transform: scaleY(1.15); }
-        }
-        @keyframes orbPulse {
-          0%, 100% { transform: scale(1);    opacity: 1;    }
-          50%       { transform: scale(1.08); opacity: 0.85; }
-        }
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes wakeFlash {
-          0%, 100% { opacity: 0; }
-          50%       { opacity: 1; }
-        }
-      `}</style>
+  // ── Tab labels ────────────────────────────────────────────────────────────
+  const TAB_LABELS = {
+    voice:    "CORTEX",
+    history:  "MISSION LOG",
+    settings: "NEURAL ENGINE",
+  };
 
-      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
-      <div
-        className="flex border-b"
-        style={{
-          borderColor: "rgba(255,255,255,0.08)",
-          background: "rgba(0,0,0,0.3)",
-          backdropFilter: "blur(12px)",
-          flexShrink: 0,
-        }}
-      >
-        {["voice", "history", "settings"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveView(tab)}
-            style={{
-              flex: 1, padding: "12px 0", position: "relative",
-              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.08em", textTransform: "uppercase",
-              color: activeView === tab ? "#00F0FF" : "rgba(255,255,255,0.3)",
-              borderBottom: activeView === tab ? "2px solid #00F0FF" : "2px solid transparent",
-              background: "none", border: "none",
-              cursor: "pointer", transition: "all 0.2s ease",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {tab === "voice" ? "// Voice" : tab === "history" ? "// History" : "// Settings"}
-            {tab === "history" && historyBadge > 0 && (
-              <span style={{
-                position: "absolute", top: 6, right: "calc(50% - 22px)",
-                minWidth: 14, height: 14, borderRadius: 7,
-                background: "#CF9EFF", color: "#000",
-                fontSize: 9, fontWeight: 700, lineHeight: "14px",
-                textAlign: "center", padding: "0 3px",
-              }}>
-                {historyBadge > 99 ? "99+" : historyBadge}
-              </span>
-            )}
-          </button>
-        ))}
+  return (
+    <div
+      className="flex flex-col h-full text-white overflow-hidden"
+      data-testid="voice-app"
+      style={{ background: "linear-gradient(160deg, #05050A 0%, #080D1A 60%, #05050A 100%)" }}
+    >
+      <style>{CORTEX_KEYFRAMES}</style>
+
+      {/* ── Nav bar ──────────────────────────────────────────────────────── */}
+      <div style={{
+        display: "flex",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(5,5,10,0.7)",
+        backdropFilter: "blur(20px)",
+        flexShrink: 0,
+      }}>
+        {["voice", "history", "settings"].map((tab) => {
+          const active = activeView === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveView(tab)}
+              style={{
+                flex: 1, padding: "13px 0", position: "relative",
+                fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                color: active ? "#4A9EFF" : "rgba(255,255,255,0.22)",
+                background: "none", border: "none",
+                borderBottom: active ? "1.5px solid #4A9EFF" : "1.5px solid transparent",
+                cursor: "pointer", transition: "all 0.2s ease",
+                WebkitTapHighlightColor: "transparent",
+                fontWeight: active ? 700 : 500,
+              }}
+            >
+              {TAB_LABELS[tab]}
+              {tab === "history" && historyBadge > 0 && (
+                <span style={{
+                  position: "absolute", top: 6, right: "calc(50% - 24px)",
+                  minWidth: 14, height: 14, borderRadius: 7,
+                  background: "#4A9EFF", color: "#000",
+                  fontSize: 8, fontWeight: 700, lineHeight: "14px",
+                  textAlign: "center", padding: "0 3px",
+                }}>
+                  {historyBadge > 99 ? "99+" : historyBadge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── VOICE TAB ────────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* CORTEX TAB                                                         */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {activeView === "voice" && (
-        <div className="flex flex-col items-center flex-1 overflow-y-auto p-5 sm:p-8">
+        <div
+          className="flex flex-col items-center flex-1 overflow-y-auto"
+          style={{ padding: "28px 20px 100px", position: "relative" }}
+        >
+          {/* Title */}
+          <div style={{ textAlign: "center", marginBottom: 6 }}>
+            <h1 style={{
+              fontFamily: "'Unbounded', sans-serif",
+              fontSize: "clamp(28px, 6vw, 42px)",
+              fontWeight: 800,
+              letterSpacing: "0.22em",
+              background: "linear-gradient(135deg, #ffffff 30%, #4A9EFF 70%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              margin: 0,
+              lineHeight: 1.1,
+            }}>
+              CORTEX
+            </h1>
+          </div>
 
-          {/* Header */}
-          <div className="mono-label mb-1 opacity-60">// Cortex Voice Interface</div>
-          <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1 text-center">
-            Speak to Cortex
-          </h2>
+          {/* Dynamic greeting */}
+          {greeting && (
+            <p style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 12, color: "rgba(255,255,255,0.35)",
+              letterSpacing: "0.06em", marginBottom: 24, marginTop: 4,
+              animation: "cortexFadeUp 0.6s ease",
+              textAlign: "center",
+            }}>
+              {greeting}
+            </p>
+          )}
 
-          {/* Conversation info */}
-          <div className="flex items-center gap-3 mb-5">
-            {conversation.length > 0 ? (
-              <div
-                className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full border"
-                style={{ borderColor: "rgba(0,240,255,0.25)", background: "rgba(0,240,255,0.06)", color: "rgba(0,240,255,0.7)" }}
-              >
-                <i className="fa-solid fa-comments text-[9px]" />
-                {Math.ceil(conversation.length / 2)} turn{conversation.length !== 2 ? "s" : ""}
+          {/* Meta row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
+            {conversation.length > 0 && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                padding: "4px 10px", borderRadius: 12,
+                border: "1px solid rgba(74,158,255,0.2)",
+                background: "rgba(74,158,255,0.05)",
+                color: "rgba(74,158,255,0.65)",
+              }}>
+                <i className="fa-solid fa-wave-square" style={{ fontSize: 8 }} />
+                {Math.ceil(conversation.length / 2)} exchanges
               </div>
-            ) : (
-              <div className="text-[10px] font-mono text-slate-600">No conversation yet</div>
             )}
-
             {conversation.length > 0 && (
               <button
                 onClick={resetConversation}
-                className="flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all"
                 style={{
-                  borderColor: "rgba(255,0,60,0.3)", background: "rgba(255,0,60,0.06)",
-                  color: "rgba(255,0,60,0.6)", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 5,
+                  fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                  padding: "4px 10px", borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.03)",
+                  color: "rgba(255,255,255,0.3)",
+                  cursor: "pointer", transition: "all 0.15s ease",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.14)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.06)"; }}
-                title="Start a new conversation"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "rgba(255,80,80,0.8)";
+                  e.currentTarget.style.borderColor = "rgba(255,80,80,0.25)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "rgba(255,255,255,0.3)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                }}
               >
-                <i className="fa-solid fa-plus-circle text-[9px]" />
-                New Chat
+                <i className="fa-solid fa-rotate-left" style={{ fontSize: 8 }} />
+                New Session
               </button>
             )}
-
-            {/* Wake word indicator */}
             {settings.wakeWordEnabled && (
-              <div
-                className="flex items-center gap-1 text-[10px] font-mono px-2.5 py-1 rounded-full border"
-                style={{
-                  borderColor: wakeWordActive ? "rgba(207,158,255,0.6)" : "rgba(207,158,255,0.2)",
-                  background: wakeWordActive ? "rgba(207,158,255,0.15)" : "rgba(207,158,255,0.05)",
-                  color: wakeWordActive ? "#CF9EFF" : "rgba(207,158,255,0.4)",
-                  animation: wakeWordActive ? "wakeFlash 0.3s ease" : "none",
-                }}
-              >
-                <i className="fa-solid fa-waveform text-[9px]" />
+              <div style={{
+                display: "flex", alignItems: "center", gap: 5,
+                fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                padding: "4px 10px", borderRadius: 12,
+                border: `1px solid ${wakeWordActive ? "rgba(74,158,255,0.6)" : "rgba(74,158,255,0.2)"}`,
+                background: wakeWordActive ? "rgba(74,158,255,0.12)" : "rgba(74,158,255,0.04)",
+                color: wakeWordActive ? "#4A9EFF" : "rgba(74,158,255,0.4)",
+                animation: wakeWordActive ? "wakeFlash 0.3s ease" : "none",
+              }}>
+                <i className="fa-solid fa-microphone-lines" style={{ fontSize: 8 }} />
                 Hey Cortex
               </div>
             )}
           </div>
 
-          {/* Voice Orb */}
-          <VoiceOrb phase={phase} />
+          {/* ── AI Core — single primary interaction ── */}
+          <AICoreOrb
+            phase={phase}
+            audioLevels={audioLevels}
+            onClick={handleMicClick}
+            onTouchStart={(e) => { orbSwipeTouchY.current = e.touches[0]?.clientY ?? null; }}
+            onTouchEnd={(e) => {
+              const startY = orbSwipeTouchY.current;
+              orbSwipeTouchY.current = null;
+              if (startY == null) return;
+              const deltaY = (e.changedTouches[0]?.clientY ?? startY) - startY;
+              if (deltaY >= 40 && isSpeaking) {
+                e.preventDefault();
+                stopSpeaking();
+                setTimeout(() => { if (mountedRef.current) startListening(); }, 150);
+              }
+            }}
+          />
 
-          {/* Phase label + waveform */}
-          <div className="flex flex-col items-center gap-2 my-4">
-            <p
-              className="text-sm font-mono font-semibold tracking-wide transition-all duration-300"
-              style={{ color: PHASE_COLORS[phase] || "#00F0FF" }}
-            >
-              {phase === "thinking" ? thinkingMsg : (PHASE_LABELS[phase] || "Tap to speak")}
-            </p>
-            <WaveVisualizer
-              color={PHASE_COLORS[phase] || "#00F0FF"}
-              active={isListening || isSpeaking}
-              useCssAnimation={isListening}
-            />
+          {/* Status badge */}
+          <div style={{ marginTop: 20, marginBottom: 8 }}>
+            <StatusBadge phase={phase} thinkingMsg={thinkingMsg} />
           </div>
 
-          {/* Status sub-label */}
-          {isSpeaking && settings.autoResumeListen && settings.continuousConversation && (
-            <p className="text-[10px] font-mono text-slate-500 mb-4 text-center">
-              Will auto-listen after speaking
-            </p>
-          )}
-          {isListening && (
-            <p className="text-[10px] font-mono text-slate-500 mb-4 text-center">
-              Tap to stop • or just stop speaking
-            </p>
-          )}
-          {isThinking && (
-            <p className="text-[10px] font-mono text-slate-500 mb-4 text-center">
-              Tap to cancel
-            </p>
-          )}
-          {isSpeaking && (
-            <p className="text-[10px] font-mono text-slate-500 mb-4 text-center">
-              Tap to interrupt and speak
-            </p>
-          )}
-          {!isListening && !isSpeaking && !isThinking && (
-            <div className="mb-4" />
-          )}
+          {/* Sub-hints */}
+          <div style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10, color: "rgba(255,255,255,0.2)",
+            letterSpacing: "0.06em", textAlign: "center", marginBottom: 16, minHeight: 16,
+          }}>
+            {isListening && "Speak now — silence will send"}
+            {isSpeaking && settings.autoResumeListen && settings.continuousConversation && "Tap to interrupt · Will auto-listen after"}
+            {isSpeaking && !(settings.autoResumeListen && settings.continuousConversation) && "Tap to interrupt"}
+            {isThinking && "Tap to cancel"}
+            {!isListening && !isSpeaking && !isThinking && "Tap the core to speak"}
+          </div>
 
-          {/* Selected voice indicator */}
-          {selectedVoiceInfo && (
-            <div
-              className="flex items-center gap-2 text-[10px] font-mono mb-3 px-3 py-1.5 rounded-full border"
-              style={{
-                borderColor: "rgba(255,255,255,0.1)",
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.4)",
-              }}
-            >
-              <i className="fa-solid fa-volume-high text-[9px]" />
-              <span>{selectedVoiceInfo.name}</span>
+          {/* Selected voice */}
+          {selectedVoiceInfo && settings.voiceEngine === "browser" && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+              padding: "4px 12px", borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.07)",
+              background: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.3)", marginBottom: 16,
+            }}>
+              <i className="fa-solid fa-volume-high" style={{ fontSize: 8 }} />
+              {selectedVoiceInfo.name}
               <QualityBadge quality={selectedVoiceInfo.quality} />
             </div>
           )}
 
-          {/* Error message */}
+          {/* Error */}
           {voiceError && (
-            <div
-              className="flex items-center gap-2 text-[11px] font-mono px-3 py-2 rounded-lg border mb-4 max-w-sm text-center"
-              style={{
-                borderColor: "rgba(255,160,0,0.4)",
-                background: "rgba(255,160,0,0.08)",
-                color: "#FFA000",
-              }}
-            >
-              <i className="fa-solid fa-triangle-exclamation text-[10px]" />
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+              padding: "10px 14px", borderRadius: 10,
+              border: "1px solid rgba(255,160,0,0.3)",
+              background: "rgba(255,160,0,0.06)",
+              color: "#FFA000", marginBottom: 14, maxWidth: 340, textAlign: "center",
+              animation: "cortexFadeUp 0.2s ease",
+            }}>
+              <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: 10, flexShrink: 0 }} />
               {voiceError}
             </div>
           )}
 
-          {/* Current transcript */}
+          {/* Live transcript */}
           {(transcript || interimText) && (
-            <div
-              className="w-full max-w-lg rounded-xl p-4 mb-3"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                animation: "fadeSlideUp 0.2s ease",
-              }}
-            >
-              <div className="mono-label mb-1 text-[9px]">// You said</div>
-              <p className="text-sm text-white leading-relaxed">
+            <div style={{
+              width: "100%", maxWidth: 480,
+              padding: "14px 16px", borderRadius: 14, marginBottom: 12,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              animation: "cortexFadeUp 0.2s ease",
+            }}>
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9, letterSpacing: "0.14em", color: "rgba(74,158,255,0.5)",
+                textTransform: "uppercase", marginBottom: 6,
+              }}>
+                Voice Input
+              </div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.6, margin: 0 }}>
                 {transcript}
                 {interimText && (
-                  <span className="text-slate-500 italic">
+                  <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
                     {transcript ? " " : ""}{interimText}
                   </span>
                 )}
@@ -1294,113 +1632,130 @@ export default function Voice() {
             </div>
           )}
 
-          {/* Conversation history (last few turns) */}
+          {/* Recent conversation */}
           {conversation.length > 0 && (
-            <div className="w-full max-w-lg mb-3" style={{ animation: "fadeSlideUp 0.25s ease" }}>
-              {/* Show last 2 exchanges (4 messages) */}
-              {conversation.slice(-4).map((msg, i) => (
-                <div
-                  key={i}
-                  className="mb-2 rounded-xl p-3"
-                  style={{
-                    background: msg.role === "user"
-                      ? "rgba(0,240,255,0.05)"
-                      : "rgba(207,158,255,0.05)",
-                    border: msg.role === "user"
-                      ? "1px solid rgba(0,240,255,0.12)"
-                      : "1px solid rgba(207,158,255,0.12)",
-                    animation: `fadeSlideUp 0.2s ease ${i * 0.04}s both`,
-                  }}
-                >
+            <div style={{ width: "100%", maxWidth: 480, marginBottom: 12 }}>
+              {conversation.slice(-4).map((msg, i) => {
+                const isUser = msg.role === "user";
+                return (
                   <div
-                    className="mono-label mb-1 text-[9px]"
-                    style={{ color: msg.role === "user" ? "#00F0FF" : "#CF9EFF" }}
+                    key={i}
+                    style={{
+                      marginBottom: 8, padding: "10px 14px", borderRadius: 12,
+                      background: isUser ? "rgba(74,158,255,0.05)" : "rgba(167,139,250,0.04)",
+                      border: isUser ? "1px solid rgba(74,158,255,0.12)" : "1px solid rgba(167,139,250,0.10)",
+                      animation: `cortexFadeUp 0.2s ease ${i * 0.04}s both`,
+                    }}
                   >
-                    // {msg.role === "user" ? "You" : "Cortex"}
+                    <div style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase",
+                      color: isUser ? "rgba(74,158,255,0.5)" : "rgba(167,139,250,0.5)",
+                      marginBottom: 4,
+                    }}>
+                      {isUser ? "You" : "Cortex"}
+                    </div>
+                    <p style={{
+                      fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.55,
+                      margin: 0, whiteSpace: "pre-wrap",
+                      overflow: "hidden",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical",
+                    }}>
+                      {msg.content.length > 260 ? msg.content.slice(0, 260) + "…" : msg.content}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap line-clamp-4">
-                    {msg.content.length > 280 ? msg.content.slice(0, 280) + "…" : msg.content}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
 
-              {/* Replay last response */}
               {lastAssistantMsg && !isSpeaking && !isListening && !isThinking && (
                 <button
                   onClick={replayLast}
-                  className="flex items-center gap-1.5 text-[10px] font-mono mt-1 transition-colors"
-                  style={{ color: "rgba(207,158,255,0.5)" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#CF9EFF"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(207,158,255,0.5)"; }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                    color: "rgba(167,139,250,0.45)", background: "none", border: "none",
+                    cursor: "pointer", padding: "4px 2px", transition: "color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#A78BFA"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(167,139,250,0.45)"; }}
                 >
-                  <i className="fa-solid fa-rotate-right text-[9px]" />
-                  Replay response
+                  <i className="fa-solid fa-rotate-right" style={{ fontSize: 9 }} />
+                  Replay last response
                 </button>
               )}
             </div>
           )}
-
-          <div style={{ paddingBottom: 80 }} />
         </div>
       )}
 
-      {/* ── HISTORY TAB ──────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* MISSION LOG TAB                                                    */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {activeView === "history" && (
         <div
           ref={historyScrollRef}
           onScroll={handleHistoryScroll}
           className="flex-1 overflow-y-auto"
-          style={{ overscrollBehavior: "contain", position: "relative" }}
+          style={{ overscrollBehavior: "contain" }}
         >
-          {/* Sticky header */}
-          <div
-            className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
-            style={{
-              background: "rgba(0,0,0,0.85)",
-              backdropFilter: "blur(16px)",
-              borderBottom: "1px solid rgba(255,255,255,0.07)",
-            }}
-          >
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(0,240,255,0.7)", letterSpacing: "0.1em" }}>
-              // Conversation Replay
+          <div style={{
+            position: "sticky", top: 0, zIndex: 10,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 16px",
+            background: "rgba(5,5,10,0.9)",
+            backdropFilter: "blur(20px)",
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+          }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase",
+              color: "rgba(74,158,255,0.65)",
+            }}>
+              Conversation Memory
               {conversation.length > 0 && (
-                <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>
-                  {Math.ceil(conversation.length / 2)} turn{Math.ceil(conversation.length / 2) !== 1 ? "s" : ""}
+                <span style={{ color: "rgba(255,255,255,0.2)", marginLeft: 10 }}>
+                  {Math.ceil(conversation.length / 2)} turns
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div style={{ display: "flex", gap: 8 }}>
               {conversation.length > 0 && (
                 <>
-                  {/* Copy all */}
                   <button
                     onClick={() => {
                       const text = conversation.map((m) =>
                         `[${m.role === "user" ? "You" : "Cortex"}]  ${m.content}`
                       ).join("\n\n");
                       navigator.clipboard?.writeText(text).then(() =>
-                        toast.success("Copied to clipboard", { duration: 1500, style: { fontSize: 12 } })
+                        toast.success("Copied", { duration: 1500, style: { fontSize: 12 } })
                       );
                     }}
-                    className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all"
-                    style={{ borderColor: "rgba(0,240,255,0.25)", background: "rgba(0,240,255,0.06)", color: "rgba(0,240,255,0.6)", cursor: "pointer" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.14)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.06)"; }}
-                    title="Copy entire conversation"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                      padding: "5px 10px", borderRadius: 8,
+                      border: "1px solid rgba(74,158,255,0.2)",
+                      background: "rgba(74,158,255,0.05)",
+                      color: "rgba(74,158,255,0.6)", cursor: "pointer",
+                    }}
                   >
-                    <i className="fa-solid fa-copy text-[9px]" />
-                    Copy
+                    <i className="fa-solid fa-copy" style={{ fontSize: 8 }} />
+                    Export
                   </button>
-                  {/* Clear */}
                   <button
                     onClick={() => resetConversation()}
-                    className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full border transition-all"
-                    style={{ borderColor: "rgba(255,0,60,0.25)", background: "rgba(255,0,60,0.06)", color: "rgba(255,0,60,0.55)", cursor: "pointer" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.14)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.06)"; }}
-                    title="Clear conversation history"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                      padding: "5px 10px", borderRadius: 8,
+                      border: "1px solid rgba(255,80,80,0.2)",
+                      background: "rgba(255,80,80,0.05)",
+                      color: "rgba(255,80,80,0.6)", cursor: "pointer",
+                    }}
                   >
-                    <i className="fa-solid fa-trash text-[9px]" />
+                    <i className="fa-solid fa-trash" style={{ fontSize: 8 }} />
                     Clear
                   </button>
                 </>
@@ -1408,20 +1763,17 @@ export default function Voice() {
             </div>
           </div>
 
-          {/* Empty state */}
           {conversation.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-              <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.25 }}>
-                <i className="fa-solid fa-comments" />
-              </div>
-              <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(255,255,255,0.25)", lineHeight: 1.6 }}>
-                No conversation yet.<br />
-                Tap the mic on the Voice tab<br />
-                to start talking with Cortex.
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 24px", textAlign: "center" }}>
+              <i className="fa-solid fa-wave-square" style={{ fontSize: 36, color: "rgba(74,158,255,0.15)", marginBottom: 16 }} />
+              <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.2)", lineHeight: 1.7 }}>
+                No conversations recorded.<br />
+                Activate the Core on the Cortex tab<br />
+                to begin a session.
               </p>
             </div>
           ) : (
-            <div className="px-4 pb-8 pt-4 flex flex-col gap-3" style={{ maxWidth: 640, margin: "0 auto" }}>
+            <div style={{ padding: "16px 16px 32px", maxWidth: 640, margin: "0 auto" }}>
               {conversation.map((msg, i) => {
                 const isUser = msg.role === "user";
                 const ts = msg.ts ? new Date(msg.ts) : null;
@@ -1432,23 +1784,23 @@ export default function Voice() {
                 return (
                   <div
                     key={i}
-                    className="flex flex-col"
                     style={{
+                      display: "flex", flexDirection: "column",
                       alignItems: isUser ? "flex-end" : "flex-start",
-                      animation: `fadeSlideUp 0.2s ease ${Math.min(i, 8) * 0.03}s both`,
+                      marginBottom: 12,
+                      animation: `cortexFadeUp 0.2s ease ${Math.min(i, 8) * 0.03}s both`,
                     }}
                   >
-                    {/* Sender label */}
-                    <div
-                      className="flex items-center gap-2 mb-1 px-1"
-                      style={{ flexDirection: isUser ? "row-reverse" : "row" }}
-                    >
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 8, marginBottom: 4, padding: "0 2px",
+                      flexDirection: isUser ? "row-reverse" : "row",
+                    }}>
                       <span style={{
-                        fontFamily: "'JetBrains Mono',monospace",
-                        fontSize: 9, letterSpacing: "0.1em",
-                        color: isUser ? "rgba(0,240,255,0.5)" : "rgba(207,158,255,0.5)",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase",
+                        color: isUser ? "rgba(74,158,255,0.5)" : "rgba(167,139,250,0.5)",
                       }}>
-                        {isUser ? "// You" : "// Cortex"}
+                        {isUser ? "You" : "Cortex"}
                       </span>
                       {timeLabel && (
                         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "monospace" }}>
@@ -1457,67 +1809,51 @@ export default function Voice() {
                       )}
                     </div>
 
-                    {/* Bubble */}
-                    <div
-                      style={{
-                        maxWidth: "85%",
-                        padding: "10px 14px",
-                        borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                        background: isUser
-                          ? "rgba(0,240,255,0.08)"
-                          : "rgba(207,158,255,0.07)",
-                        border: isUser
-                          ? "1px solid rgba(0,240,255,0.18)"
-                          : "1px solid rgba(207,158,255,0.16)",
-                        fontSize: 13, lineHeight: 1.6,
-                        color: "rgba(255,255,255,0.88)",
-                        wordBreak: "break-word",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
+                    <div style={{
+                      maxWidth: "85%", padding: "10px 14px",
+                      borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                      background: isUser ? "rgba(74,158,255,0.07)" : "rgba(167,139,250,0.06)",
+                      border: isUser ? "1px solid rgba(74,158,255,0.15)" : "1px solid rgba(167,139,250,0.12)",
+                      fontSize: 13, lineHeight: 1.6,
+                      color: "rgba(255,255,255,0.85)",
+                      wordBreak: "break-word", whiteSpace: "pre-wrap",
+                    }}>
                       {msg.content}
                     </div>
 
-                    {/* Per-message actions (Cortex only) */}
                     {!isUser && (
-                      <div className="flex gap-2 mt-1 px-1">
-                        {/* Re-speak this message */}
+                      <div style={{ display: "flex", gap: 4, marginTop: 4, padding: "0 2px" }}>
                         <button
                           onClick={() => speakBrowser(msg.content)}
                           disabled={isSpeaking || isListening}
                           style={{
-                            fontSize: 9, fontFamily: "'JetBrains Mono',monospace",
-                            letterSpacing: "0.08em",
-                            color: isSpeaking || isListening ? "rgba(207,158,255,0.2)" : "rgba(207,158,255,0.45)",
-                            background: "none", border: "none", cursor: isSpeaking || isListening ? "default" : "pointer",
-                            padding: "2px 6px",
+                            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                            letterSpacing: "0.08em", padding: "3px 7px",
+                            color: isSpeaking || isListening ? "rgba(167,139,250,0.2)" : "rgba(167,139,250,0.45)",
+                            background: "none", border: "none",
+                            cursor: isSpeaking || isListening ? "default" : "pointer",
                             transition: "color 0.15s",
                           }}
-                          onMouseEnter={(e) => { if (!isSpeaking && !isListening) e.currentTarget.style.color = "#CF9EFF"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.color = isSpeaking || isListening ? "rgba(207,158,255,0.2)" : "rgba(207,158,255,0.45)"; }}
-                          title="Read this message aloud"
+                          onMouseEnter={(e) => { if (!isSpeaking && !isListening) e.currentTarget.style.color = "#A78BFA"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = isSpeaking || isListening ? "rgba(167,139,250,0.2)" : "rgba(167,139,250,0.45)"; }}
                         >
-                          <i className="fa-solid fa-volume-high text-[8px] mr-1" />
-                          Listen
+                          <i className="fa-solid fa-volume-high" style={{ fontSize: 8, marginRight: 4 }} />
+                          Play
                         </button>
-                        {/* Copy single message */}
                         <button
                           onClick={() => navigator.clipboard?.writeText(msg.content).then(() =>
                             toast.success("Copied", { duration: 1200, style: { fontSize: 12 } })
                           )}
                           style={{
-                            fontSize: 9, fontFamily: "'JetBrains Mono',monospace",
-                            letterSpacing: "0.08em",
-                            color: "rgba(255,255,255,0.25)",
-                            background: "none", border: "none", cursor: "pointer",
-                            padding: "2px 6px",
-                            transition: "color 0.15s",
+                            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                            letterSpacing: "0.08em", padding: "3px 7px",
+                            color: "rgba(255,255,255,0.2)", background: "none", border: "none",
+                            cursor: "pointer", transition: "color 0.15s",
                           }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.25)"; }}
-                          title="Copy this message"
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.2)"; }}
                         >
-                          <i className="fa-solid fa-copy text-[8px] mr-1" />
+                          <i className="fa-solid fa-copy" style={{ fontSize: 8, marginRight: 4 }} />
                           Copy
                         </button>
                       </div>
@@ -1528,24 +1864,19 @@ export default function Voice() {
             </div>
           )}
 
-          {/* Scroll-to-bottom FAB */}
           {!isAtBottom && conversation.length > 0 && (
             <button
               onClick={() => historyScrollRef.current?.scrollTo({ top: historyScrollRef.current.scrollHeight, behavior: "smooth" })}
               style={{
                 position: "sticky", bottom: 16,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                width: 36, height: 36, borderRadius: "50%",
-                background: "rgba(0,240,255,0.15)",
-                border: "1px solid rgba(0,240,255,0.35)",
-                color: "#00F0FF",
-                margin: "0 auto",
-                cursor: "pointer",
-                boxShadow: "0 4px 20px rgba(0,240,255,0.2)",
-                animation: "fadeSlideUp 0.2s ease",
-                fontSize: 12,
+                width: 34, height: 34, borderRadius: "50%",
+                background: "rgba(74,158,255,0.12)",
+                border: "1px solid rgba(74,158,255,0.3)",
+                color: "#4A9EFF", margin: "0 auto",
+                cursor: "pointer", fontSize: 11,
+                animation: "cortexFadeUp 0.2s ease",
               }}
-              title="Scroll to latest"
             >
               <i className="fa-solid fa-chevron-down" />
             </button>
@@ -1553,31 +1884,21 @@ export default function Voice() {
         </div>
       )}
 
-      {/* ── SETTINGS TAB ─────────────────────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* NEURAL ENGINE TAB                                                  */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {activeView === "settings" && (
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto" style={{ padding: "16px 16px 32px" }}>
 
-          {/* ── Conversation Settings ──────────────────────────────────── */}
-          <div
-            className="rounded-xl p-4 mb-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <div className="mono-label mb-3">// Conversation</div>
+          {/* Conversation Memory */}
+          <Card>
+            <SectionHeader label="Conversation Memory" />
 
-            <SettingRow
-              label="Continuous Conversation"
-              desc="Keep context alive between microphone presses"
-            >
-              <Toggle
-                value={settings.continuousConversation}
-                onChange={(v) => updateSettings({ continuousConversation: v })}
-              />
+            <SettingRow label="Continuous Mode" desc="Keep context alive between sessions">
+              <Toggle value={settings.continuousConversation} onChange={(v) => updateSettings({ continuousConversation: v })} />
             </SettingRow>
 
-            <SettingRow
-              label="Auto Resume Listening"
-              desc="Automatically listen again after Cortex finishes speaking"
-            >
+            <SettingRow label="Auto-Listen" desc="Resume listening automatically after Cortex speaks">
               <Toggle
                 value={settings.autoResumeListen}
                 onChange={(v) => updateSettings({ autoResumeListen: v })}
@@ -1586,15 +1907,12 @@ export default function Voice() {
             </SettingRow>
 
             <SettingRow label="Voice Feedback" desc="Cortex speaks responses aloud">
-              <Toggle
-                value={settings.voiceFeedback}
-                onChange={(v) => updateSettings({ voiceFeedback: v })}
-              />
+              <Toggle value={settings.voiceFeedback} onChange={(v) => updateSettings({ voiceFeedback: v })} />
             </SettingRow>
 
-            <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="text-sm text-white font-medium mb-1">Conversation Timeout</div>
-              <div className="text-xs text-slate-500 mb-2">Auto-reset conversation after inactivity</div>
+            <div style={{ paddingTop: 10 }}>
+              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500, marginBottom: 4 }}>Session Timeout</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Auto-reset after inactivity</div>
               <Segmented
                 options={TIMEOUT_OPTIONS}
                 value={settings.conversationTimeout}
@@ -1603,123 +1921,105 @@ export default function Voice() {
             </div>
 
             {conversation.length > 0 && (
-              <div className="pt-3">
+              <div style={{ marginTop: 14 }}>
                 <button
                   onClick={() => resetConversation()}
-                  className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-lg transition-all"
                   style={{
-                    background: "rgba(255,0,60,0.06)",
-                    border: "1px solid rgba(255,0,60,0.25)",
-                    color: "rgba(255,0,60,0.7)", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 8,
+                    fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                    padding: "8px 14px", borderRadius: 10,
+                    background: "rgba(255,80,80,0.05)",
+                    border: "1px solid rgba(255,80,80,0.2)",
+                    color: "rgba(255,80,80,0.7)", cursor: "pointer",
+                    transition: "background 0.15s",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.14)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.06)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,80,80,0.12)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,80,80,0.05)"; }}
                 >
-                  <i className="fa-solid fa-trash text-[10px]" />
-                  Clear Conversation History
-                  <span className="text-[10px] opacity-60">
-                    ({Math.ceil(conversation.length / 2)} turns)
-                  </span>
+                  <i className="fa-solid fa-trash" style={{ fontSize: 10 }} />
+                  Clear Memory Bank
+                  <span style={{ fontSize: 10, opacity: 0.6 }}>({Math.ceil(conversation.length / 2)} turns)</span>
                 </button>
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* ── Wake Word ─────────────────────────────────────────────────── */}
-          <div
-            className="rounded-xl p-4 mb-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <div className="mono-label mb-3">// Wake Word</div>
+          {/* Wake Word */}
+          <Card>
+            <SectionHeader label="Voice Activation" />
 
-            <SettingRow
-              label="Hey Cortex"
-              desc={'Say "Hey Cortex" to activate without touching the screen'}
-            >
-              <Toggle
-                value={settings.wakeWordEnabled}
-                onChange={(v) => updateSettings({ wakeWordEnabled: v })}
-              />
+            <SettingRow label={`"Hey Cortex" Wake Word`} desc='Say "Hey Cortex" to activate hands-free'>
+              <Toggle value={settings.wakeWordEnabled} onChange={(v) => updateSettings({ wakeWordEnabled: v })} />
             </SettingRow>
 
             {settings.wakeWordEnabled && (
-              <div
-                className="mt-2 p-2.5 rounded-lg text-[11px] font-mono"
-                style={{ background: "rgba(207,158,255,0.08)", border: "1px solid rgba(207,158,255,0.2)", color: "rgba(207,158,255,0.8)" }}
-              >
-                <i className="fa-solid fa-circle-info mr-1.5" />
-                Say <strong>"Hey Cortex"</strong> or <strong>"Hi Cortex"</strong> to start listening.
+              <div style={{
+                marginTop: 10, padding: "10px 12px", borderRadius: 10,
+                background: "rgba(74,158,255,0.06)", border: "1px solid rgba(74,158,255,0.18)",
+                fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                color: "rgba(74,158,255,0.75)", lineHeight: 1.6,
+              }}>
+                <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }} />
+                Say <strong>"Hey Cortex"</strong> or <strong>"Hi Cortex"</strong> to activate.
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* ── Voice Engine ───────────────────────────────────────────────── */}
-          <div
-            className="rounded-xl p-4 mb-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <div className="mono-label mb-1">// Voice Engine</div>
-            <p className="text-xs text-slate-500 mb-3">
-              Human voices use Amazon Neural TTS (free, no API key). Browser uses your device's built-in speech.
+          {/* Voice Matrix */}
+          <Card>
+            <SectionHeader label="Voice Matrix" />
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 14, marginTop: -4, lineHeight: 1.6 }}>
+              Human mode uses Amazon Neural TTS via StreamElements (free, no key needed). Browser uses your device's built-in voice engine.
             </p>
 
-            {/* Engine toggle */}
-            <div className="flex gap-2 mb-4">
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               {[
-                { key: "stream",  label: "🧠 Human (Amazon Neural)", desc: "Sounds like a real person" },
-                { key: "browser", label: "🔊 Browser Voice",         desc: "Device built-in" },
+                { key: "stream",  label: "Neural Human", desc: "Amazon Polly · Realistic" },
+                { key: "browser", label: "Device Voice",  desc: "Browser built-in" },
               ].map(({ key, label, desc }) => {
                 const active = settings.voiceEngine === key;
                 return (
                   <button
                     key={key}
                     onClick={() => updateSettings({ voiceEngine: key })}
-                    className="flex-1 rounded-xl py-2.5 px-2 text-center transition-all duration-150"
                     style={{
-                      background: active ? "rgba(207,158,255,0.12)" : "rgba(255,255,255,0.03)",
-                      border: active ? "1px solid rgba(207,158,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                      color: active ? "#CF9EFF" : "rgba(255,255,255,0.45)",
-                      cursor: "pointer",
+                      flex: 1, borderRadius: 12, padding: "10px 8px", textAlign: "center",
+                      background: active ? "rgba(74,158,255,0.10)" : "rgba(255,255,255,0.03)",
+                      border: active ? "1px solid rgba(74,158,255,0.45)" : "1px solid rgba(255,255,255,0.06)",
+                      color: active ? "#4A9EFF" : "rgba(255,255,255,0.4)",
+                      cursor: "pointer", transition: "all 0.15s ease",
                     }}
                   >
-                    <div className="text-xs font-medium">{label}</div>
-                    <div className="text-[10px] font-mono mt-0.5 opacity-60">{desc}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+                    <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", opacity: 0.6 }}>{desc}</div>
                   </button>
                 );
               })}
             </div>
 
-            {/* Live preview badge */}
             {isLivePreviewing && (
-              <div
-                className="flex items-center gap-2 mb-3 px-3 py-1.5 rounded-full"
-                style={{
-                  background: "rgba(207,158,255,0.1)",
-                  border: "1px solid rgba(207,158,255,0.25)",
-                  animation: "fadeSlideUp 0.15s ease",
-                  alignSelf: "flex-start",
-                  display: "inline-flex",
-                }}
-              >
-                <i className="fa-solid fa-volume-high text-[10px]" style={{ color: "#CF9EFF" }} />
-                <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: "#CF9EFF", letterSpacing: "0.08em" }}>
-                  // testing…
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 12px", borderRadius: 10, marginBottom: 12,
+                background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.2)",
+                animation: "cortexFadeUp 0.15s ease",
+              }}>
+                <i className="fa-solid fa-volume-high" style={{ fontSize: 10, color: "#4A9EFF" }} />
+                <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#4A9EFF", letterSpacing: "0.08em" }}>
+                  Testing voice…
                 </span>
               </div>
             )}
 
-            {/* Rate */}
-            <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-sm text-white font-medium">Speech Rate</div>
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>tap to preview</span>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 12, marginBottom: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>Speed</div>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(74,158,255,0.4)" }}>tap to preview</span>
               </div>
               <Segmented
                 options={[
-                  { value: 0.75, label: "0.75×" },
-                  { value: 0.9,  label: "0.9×"  },
-                  { value: 1.0,  label: "1×"    },
-                  { value: 1.15, label: "1.15×" },
+                  { value: 0.75, label: "0.75×" }, { value: 0.9, label: "0.9×" },
+                  { value: 1.0,  label: "1×"    }, { value: 1.15, label: "1.15×" },
                   { value: 1.3,  label: "1.3×"  },
                 ]}
                 value={settings.rate}
@@ -1727,18 +2027,15 @@ export default function Voice() {
               />
             </div>
 
-            {/* Pitch (browser engine only — stream doesn't support pitch) */}
             {settings.voiceEngine === "browser" && (
-              <div className="py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm text-white font-medium">Pitch</div>
-                  <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>tap to preview</span>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 12, marginBottom: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>Pitch</div>
+                  <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(74,158,255,0.4)" }}>tap to preview</span>
                 </div>
                 <Segmented
                   options={[
-                    { value: 0.8, label: "Low"    },
-                    { value: 1.0, label: "Normal" },
-                    { value: 1.2, label: "High"   },
+                    { value: 0.8, label: "Low" }, { value: 1.0, label: "Normal" }, { value: 1.2, label: "High" },
                   ]}
                   value={settings.pitch}
                   onChange={(v) => { updateSettings({ pitch: v }); triggerLivePreview({ pitch: v }); }}
@@ -1746,76 +2043,66 @@ export default function Voice() {
               </div>
             )}
 
-            {/* Volume */}
-            <div className="py-2.5">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-sm text-white font-medium">Volume</div>
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: "rgba(207,158,255,0.45)" }}>tap to preview</span>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>Volume</div>
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(74,158,255,0.4)" }}>tap to preview</span>
               </div>
               <Segmented
                 options={[
-                  { value: 0.5,  label: "50%"  },
-                  { value: 0.7,  label: "70%"  },
-                  { value: 0.85, label: "85%"  },
-                  { value: 1.0,  label: "100%" },
+                  { value: 0.5, label: "50%" }, { value: 0.7, label: "70%" },
+                  { value: 0.85, label: "85%" }, { value: 1.0, label: "100%" },
                 ]}
                 value={settings.volume}
                 onChange={(v) => { updateSettings({ volume: v }); triggerLivePreview({ volume: v }); }}
               />
             </div>
-          </div>
+          </Card>
 
-          {/* ── Human Voice Selection (stream engine) ──────────────────────── */}
+          {/* Neural Voice Selection (stream engine) */}
           {settings.voiceEngine !== "browser" && (
-            <div
-              className="rounded-xl p-4 mb-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <div className="mono-label mb-1">// Select Voice</div>
-              <p className="text-xs text-slate-500 mb-3">
-                Amazon Neural voices — free, no account needed. Tap ▶ to hear any voice.
+            <Card>
+              <SectionHeader label="Neural Voice Selection" />
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 14, marginTop: -4, lineHeight: 1.6 }}>
+                Amazon Neural voices — free, no account needed. Tap ▶ to preview any voice.
               </p>
 
-              <div className="space-y-2">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {STREAM_VOICES.map((v) => {
                   const isSelected = (settings.streamVoiceId || DEFAULT_STREAM_VOICE) === v.id;
                   const isPreviewing = previewingVoice === v.id;
                   return (
                     <div
                       key={v.id}
-                      className="flex items-center justify-between rounded-xl p-3 transition-all duration-150"
+                      onClick={() => { updateSettings({ streamVoiceId: v.id }); saveStreamVoiceId(v.id); }}
                       style={{
-                        background: isSelected ? "rgba(207,158,255,0.07)" : "rgba(255,255,255,0.02)",
-                        border: isSelected
-                          ? "1px solid rgba(207,158,255,0.45)"
-                          : "1px solid rgba(255,255,255,0.06)",
-                        cursor: "pointer",
-                        animation: "fadeSlideUp 0.15s ease both",
-                      }}
-                      onClick={() => {
-                        updateSettings({ streamVoiceId: v.id });
-                        saveStreamVoiceId(v.id);
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "12px 14px", borderRadius: 12, cursor: "pointer",
+                        background: isSelected ? "rgba(74,158,255,0.07)" : "rgba(255,255,255,0.02)",
+                        border: isSelected ? "1px solid rgba(74,158,255,0.4)" : "1px solid rgba(255,255,255,0.05)",
+                        transition: "all 0.15s ease",
+                        animation: "cortexFadeUp 0.15s ease both",
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className="text-sm font-medium"
-                            style={{ color: isSelected ? "#CF9EFF" : "rgba(255,255,255,0.85)" }}
-                          >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: isSelected ? "#4A9EFF" : "rgba(255,255,255,0.85)" }}>
                             {v.label}
                           </span>
-                          <span
-                            className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                            style={{ background: "rgba(57,255,20,0.1)", color: "#39FF14", border: "1px solid rgba(57,255,20,0.2)" }}
-                          >
-                            Neural
+                          <span style={{
+                            fontSize: 8, fontFamily: "monospace", fontWeight: 700,
+                            padding: "1px 5px", borderRadius: 3,
+                            background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.2)", color: "#39FF14",
+                          }}>
+                            NEURAL
                           </span>
-                          <span className="text-[9px] font-mono text-slate-500">
+                          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.3)" }}>
                             {v.gender === "M" ? "♂" : "♀"} {v.accent}
                           </span>
                         </div>
-                        <div className="text-[10px] font-mono text-slate-500 mt-0.5">{v.note}</div>
+                        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.25)", marginTop: 2 }}>
+                          {v.note}
+                        </div>
                       </div>
 
                       <button
@@ -1829,7 +2116,7 @@ export default function Voice() {
                             cancelSpeechRef.current?.();
                             cancelSpeechRef.current = null;
                             setPreviewingVoice(v.id);
-                            const phrase = `Hi, I'm ${v.label}. I'll be your Cortex voice today.`;
+                            const phrase = `Hi, I'm ${v.label}. Cortex is online.`;
                             const cancel = streamSpeak(phrase, {
                               voiceId: v.id,
                               rate: settings.rate || 1.0,
@@ -1840,32 +2127,31 @@ export default function Voice() {
                             cancelSpeechRef.current = cancel;
                           }
                         }}
-                        className="flex items-center gap-1.5 ml-3 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-all flex-shrink-0"
                         style={{
-                          background: isPreviewing ? "rgba(207,158,255,0.15)" : "rgba(255,255,255,0.06)",
-                          border:     isPreviewing ? "1px solid rgba(207,158,255,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                          color:      isPreviewing ? "#CF9EFF" : "rgba(255,255,255,0.5)",
-                          cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 5,
+                          marginLeft: 10, padding: "6px 10px", borderRadius: 8,
+                          fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                          background: isPreviewing ? "rgba(74,158,255,0.12)" : "rgba(255,255,255,0.05)",
+                          border: isPreviewing ? "1px solid rgba(74,158,255,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                          color: isPreviewing ? "#4A9EFF" : "rgba(255,255,255,0.45)",
+                          cursor: "pointer", flexShrink: 0,
                         }}
                       >
-                        <i className={`fa-solid ${isPreviewing ? "fa-stop animate-pulse" : "fa-play"} text-[9px]`} />
-                        {isPreviewing ? "Stop" : "▶ Try"}
+                        <i className={`fa-solid ${isPreviewing ? "fa-stop" : "fa-play"}`} style={{ fontSize: 8, animation: isPreviewing ? "cortexStatusDot 1s infinite" : "none" }} />
+                        {isPreviewing ? "Stop" : "Try"}
                       </button>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            </Card>
           )}
 
-          {/* ── Browser Voice List (browser engine only) ────────────────────── */}
+          {/* Browser voice list */}
           {settings.voiceEngine === "browser" && (
-            <div
-              className="rounded-xl p-4 mb-4"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="mono-label">// Browser Voices</div>
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <SectionHeader label="Device Voice Selection" />
                 <button
                   onClick={() => {
                     loadVoices().then(() => {
@@ -1873,20 +2159,22 @@ export default function Voice() {
                       toast.success("Voice list refreshed", { duration: 1500 });
                     });
                   }}
-                  className="flex items-center gap-1 text-[10px] font-mono transition-colors"
-                  style={{ color: "rgba(0,240,255,0.5)", cursor: "pointer" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#00F0FF"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(0,240,255,0.5)"; }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                    color: "rgba(74,158,255,0.5)", cursor: "pointer",
+                    background: "none", border: "none", padding: 0,
+                    transition: "color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#4A9EFF"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(74,158,255,0.5)"; }}
                 >
-                  <i className="fa-solid fa-rotate-right text-[9px]" />
+                  <i className="fa-solid fa-rotate-right" style={{ fontSize: 8 }} />
                   Refresh
                 </button>
               </div>
 
-              <SettingRow
-                label="Auto Select Best Voice"
-                desc="Automatically choose the highest quality voice available"
-              >
+              <SettingRow label="Auto-Select Best Voice" desc="Automatically choose highest quality available">
                 <Toggle
                   value={settings.autoSelectBestVoice}
                   onChange={(v) => {
@@ -1903,172 +2191,71 @@ export default function Voice() {
               </SettingRow>
 
               {availableVoices.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-4">
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "20px 0", fontFamily: "'JetBrains Mono', monospace" }}>
                   No voices detected. Try refreshing or check browser permissions.
                 </p>
               ) : (
-                <div className="space-y-2 mt-3">
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                   {availableVoices.map((v) => {
                     const isSelected = selectedVoiceName === v.name;
                     const isPreviewing = previewingVoice === v.name;
                     return (
                       <div
                         key={v.name}
-                        className="flex items-center justify-between rounded-xl p-3 transition-all duration-150"
-                        style={{
-                          background: isSelected ? "rgba(0,240,255,0.07)" : "rgba(255,255,255,0.03)",
-                          border: isSelected
-                            ? "1px solid rgba(0,240,255,0.4)"
-                            : "1px solid rgba(255,255,255,0.07)",
-                          cursor: "pointer",
-                          animation: "fadeSlideUp 0.15s ease both",
-                        }}
                         onClick={() => {
                           updateSettings({ preferredVoiceName: v.name, autoSelectBestVoice: false });
                           savePreferredVoiceName(v.name);
                         }}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "10px 12px", borderRadius: 10, cursor: "pointer",
+                          background: isSelected ? "rgba(74,158,255,0.06)" : "rgba(255,255,255,0.02)",
+                          border: isSelected ? "1px solid rgba(74,158,255,0.35)" : "1px solid rgba(255,255,255,0.05)",
+                          transition: "all 0.15s ease",
+                          animation: "cortexFadeUp 0.15s ease both",
+                        }}
                       >
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className="text-sm font-medium truncate"
-                              style={{ color: isSelected ? "#00F0FF" : "rgba(255,255,255,0.85)" }}
-                            >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{
+                              fontSize: 12, fontWeight: 500,
+                              color: isSelected ? "#4A9EFF" : "rgba(255,255,255,0.8)",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
                               {v.name}
                             </span>
                             <QualityBadge quality={v.quality} />
-                            {v.default && (
-                              <span className="text-[9px] font-mono text-slate-500">DEFAULT</span>
-                            )}
+                            {v.default && <span style={{ fontSize: 8, fontFamily: "monospace", color: "rgba(255,255,255,0.3)" }}>DEFAULT</span>}
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="text-[10px] font-mono text-slate-500">{v.engine}</span>
-                            <span className="text-[10px] font-mono text-slate-600">·</span>
-                            <span className="text-[10px] font-mono text-slate-500">{v.lang}</span>
-                            <span className="text-[10px] font-mono text-slate-600">·</span>
-                            <span className="text-[10px] font-mono text-slate-500">
-                              {v.local ? "Local" : "Remote"}
-                            </span>
+                          <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.25)", marginTop: 2 }}>
+                            {v.engine} · {v.lang} · {v.local ? "Local" : "Remote"}
                           </div>
                         </div>
 
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleVoicePreview(v.name);
-                          }}
-                          title={isPreviewing ? "Stop preview" : `Preview "${v.name}"`}
-                          className="flex items-center gap-1.5 ml-3 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-all flex-shrink-0"
+                          onClick={(e) => { e.stopPropagation(); handleVoicePreview(v.name); }}
                           style={{
-                            background: isPreviewing ? "rgba(0,240,255,0.15)" : "rgba(255,255,255,0.06)",
-                            border: isPreviewing ? "1px solid rgba(0,240,255,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                            color: isPreviewing ? "#00F0FF" : "rgba(255,255,255,0.5)",
-                            cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 5,
+                            marginLeft: 10, padding: "5px 10px", borderRadius: 8,
+                            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                            background: isPreviewing ? "rgba(74,158,255,0.12)" : "rgba(255,255,255,0.04)",
+                            border: isPreviewing ? "1px solid rgba(74,158,255,0.35)" : "1px solid rgba(255,255,255,0.07)",
+                            color: isPreviewing ? "#4A9EFF" : "rgba(255,255,255,0.4)",
+                            cursor: "pointer", flexShrink: 0,
                           }}
                         >
-                          <i className={`fa-solid ${isPreviewing ? "fa-stop animate-pulse" : "fa-play"} text-[9px]`} />
-                          {isPreviewing ? "Stop" : "▶ Preview"}
+                          <i className={`fa-solid ${isPreviewing ? "fa-stop" : "fa-play"}`} style={{ fontSize: 8 }} />
+                          {isPreviewing ? "Stop" : "▶"}
                         </button>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
-          <div style={{ paddingBottom: 24 }} />
-        </div>
-      )}
-
-      {/* ── Floating mic button (voice tab only) ─────────────────────────── */}
-      {activeView === "voice" && (
-        <div
-          className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-6 pt-4"
-          style={{
-            background: "linear-gradient(to top, rgba(0,0,0,0.95) 60%, transparent)",
-            pointerEvents: "none",
-          }}
-        >
-          <button
-            onClick={handleMicClick}
-            disabled={false}
-            className="transition-all duration-300"
-            onTouchStart={(e) => {
-              orbSwipeTouchY.current = e.touches[0]?.clientY ?? null;
-            }}
-            onTouchEnd={(e) => {
-              const startY = orbSwipeTouchY.current;
-              orbSwipeTouchY.current = null;
-              if (startY == null) return;
-              const deltaY = (e.changedTouches[0]?.clientY ?? startY) - startY;
-              // Swipe DOWN ≥ 40px while speaking → interrupt (like pulling away from ear)
-              if (deltaY >= 40 && isSpeaking) {
-                e.preventDefault();
-                stopSpeaking();
-                setTimeout(() => { if (mountedRef.current) startListening(); }, 150);
-              }
-            }}
-            style={{
-              pointerEvents: "all",
-              width: 80, height: 80,
-              borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: isListening
-                ? "rgba(255,0,60,0.2)"
-                : isSpeaking
-                ? "rgba(0,240,255,0.15)"
-                : isThinking
-                ? "rgba(207,158,255,0.1)"
-                : "rgba(0,240,255,0.1)",
-              border: isListening
-                ? "2px solid #FF003C"
-                : isSpeaking
-                ? "2px solid #00F0FF"
-                : isThinking
-                ? "2px solid rgba(207,158,255,0.5)"
-                : "2px solid rgba(0,240,255,0.4)",
-              boxShadow: isListening
-                ? "0 0 40px rgba(255,0,60,0.4)"
-                : isSpeaking
-                ? "0 0 40px rgba(0,240,255,0.35)"
-                : isThinking
-                ? "0 0 20px rgba(207,158,255,0.2)"
-                : "0 0 20px rgba(0,240,255,0.15)",
-              animation: isListening || isSpeaking ? "orbPulse 1.5s ease-in-out infinite" : "none",
-              cursor: "pointer",
-            }}
-            title={PHASE_LABELS[phase]}
-          >
-            <i
-              className={`fa-solid text-2xl ${
-                isListening ? "fa-stop text-[#FF003C]"
-                : isSpeaking ? "fa-microphone text-[#00F0FF]"
-                : isThinking ? "fa-circle-notch fa-spin text-[#CF9EFF]"
-                : "fa-microphone text-[#00F0FF]"
-              }`}
-            />
-          </button>
-          {/* Swipe hint — only shown while speaking */}
-          {isSpeaking && (
-            <div
-              className="flex flex-col items-center mt-1"
-              style={{ pointerEvents: "none", animation: "fadeSlideUp 0.2s ease" }}
-            >
-              <i className="fa-solid fa-chevron-down text-[8px] mb-0.5 animate-bounce" style={{ color: "rgba(0,240,255,0.5)" }} />
-              <p className="text-[9px] font-mono" style={{ color: "rgba(0,240,255,0.5)" }}>
-                swipe ↓ to interrupt
-              </p>
-            </div>
-          )}
-          {!isSpeaking && (
-            <p
-              className="text-[10px] font-mono mt-2 transition-all duration-300"
-              style={{ color: PHASE_COLORS[phase] || "#00F0FF", pointerEvents: "none" }}
-            >
-              {isListening ? "Tap to stop" : isThinking ? "Processing…" : "Tap to speak"}
-            </p>
-          )}
+          <div style={{ height: 24 }} />
         </div>
       )}
     </div>
