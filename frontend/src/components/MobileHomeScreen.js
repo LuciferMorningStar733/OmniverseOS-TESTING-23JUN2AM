@@ -826,7 +826,8 @@ function AppLibraryHint({ onOpen }) {
 
 function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
   const now      = useClock();
-  const theme    = useMemo(() => getTheme(now.getHours()), [now.getHours()]);
+  const hour     = now.getHours();
+  const theme    = useMemo(() => getTheme(hour), [hour]);
   const userName = useMemo(() => {
     try { return localStorage.getItem("omniverse_user_name") || ""; } catch { return ""; }
   }, []);
