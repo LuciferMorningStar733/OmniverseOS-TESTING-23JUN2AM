@@ -534,6 +534,62 @@ async def login(req: LoginReq):
 async def me(user=Depends(get_current_user)):
     return user
 
+class ForgotPasswordReq(BaseModel):
+    email: EmailStr
+
+class ResetPasswordReq(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=4)
+
+class ChangePasswordReq(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=4)
+
+@api.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordReq):
+    user = await db.users.find_one({"email": req.email})
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "If that email is registered, a reset link has been sent."}
+    reset_token = str(uuid.uuid4())
+    expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+    await db.users.update_one(
+        {"email": req.email},
+        {"$set": {"reset_token": reset_token, "reset_token_expires": expires_at}}
+    )
+    # In production: send email with reset link containing token
+    # For dev: return token directly (remove before prod)
+    return {
+        "message": "If that email is registered, a reset link has been sent.",
+        "dev_token": reset_token,  # Remove in production
+    }
+
+@api.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordReq):
+    user = await db.users.find_one({"reset_token": req.token})
+    if not user:
+        raise HTTPException(400, "Invalid or expired reset token")
+    expires_at = user.get("reset_token_expires", "")
+    if expires_at and datetime.fromisoformat(expires_at) < datetime.utcnow():
+        raise HTTPException(400, "Reset token has expired")
+    hashed = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one(
+        {"reset_token": req.token},
+        {"$set": {"password": hashed}, "$unset": {"reset_token": "", "reset_token_expires": ""}}
+    )
+    return {"message": "Password reset successfully. You can now log in."}
+
+@api.put("/auth/change-password")
+async def change_password(req: ChangePasswordReq, user=Depends(get_current_user)):
+    db_user = await db.users.find_one({"id": user["id"]})
+    if not db_user:
+        raise HTTPException(404, "User not found")
+    if not bcrypt.checkpw(req.current_password.encode(), db_user["password"].encode()):
+        raise HTTPException(400, "Current password is incorrect")
+    hashed = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password": hashed}})
+    return {"message": "Password changed successfully"}
+
 # ---------- Routes: AI Chat (Streaming SSE) ----------
 ALLOWED_GEMINI_MODELS = {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"}
 ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "groq", "cerebras", "openrouter"}

@@ -353,6 +353,7 @@ export default function Voice() {
   const [historyBadge, setHistoryBadge]           = useState(0);   // unread msg count
   const [isAtBottom, setIsAtBottom]               = useState(true); // history scroll position
   const [isLivePreviewing, setIsLivePreviewing]   = useState(false); // live preview TTS active
+  const [thinkingMsg, setThinkingMsg]             = useState("Thinking…");  // rotating status
 
   const { openApp } = useOS();
 
@@ -378,6 +379,26 @@ export default function Voice() {
   useEffect(() => { conversationRef.current = conversation; }, [conversation]);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
+
+  // Rotate thinking status messages while AI is processing
+  useEffect(() => {
+    if (phase !== "thinking") { setThinkingMsg("Thinking…"); return; }
+    const msgs = [
+      "Thinking…",
+      "Reasoning…",
+      "Processing…",
+      "Consulting memory…",
+      "Formulating response…",
+      "Analyzing context…",
+      "Synthesizing…",
+    ];
+    let i = 0;
+    const id = setInterval(() => {
+      i = (i + 1) % msgs.length;
+      setThinkingMsg(msgs[i]);
+    }, 1400);
+    return () => clearInterval(id);
+  }, [phase]);
 
   // Auto-scroll history to bottom when new messages arrive (only if already near bottom)
   useEffect(() => {
@@ -747,6 +768,18 @@ export default function Voice() {
             provider: "gemini",
             model: "gemini-2.5-flash",
             history: historyToSend,
+            system: `You are Cortex, the AI core of OmniverseOS. The user is speaking to you by voice in real time.
+
+VOICE RESPONSE RULES — follow strictly:
+- Keep every response to 1–3 sentences unless the user explicitly asks for detail or a list.
+- Use natural spoken language only. No markdown, no bullet points, no headers, no asterisks, no code blocks.
+- Sound like a brilliant friend, not a manual. Be warm, direct, and conversational.
+- Use contractions (I'm, you're, it's, I'll) for natural flow.
+- Never repeat the user's question back to them.
+- If you don't know something, say so in one sentence and offer what you can.
+- Avoid filler phrases like "Certainly!", "Of course!", "Great question!" — just answer.
+- Numbers, dates, times: speak them out (twenty-four, not 24; half past three, not 3:30).
+- If given a task like opening an app, confirm briefly: "Done." or "Opening that now."`,
           },
           (delta) => { fullResponse += delta; },
           null,
@@ -1059,7 +1092,7 @@ export default function Voice() {
               className="text-sm font-mono font-semibold tracking-wide transition-all duration-300"
               style={{ color: PHASE_COLORS[phase] || "#00F0FF" }}
             >
-              {PHASE_LABELS[phase] || "Tap to speak"}
+              {phase === "thinking" ? thinkingMsg : (PHASE_LABELS[phase] || "Tap to speak")}
             </p>
             <WaveVisualizer
               color={PHASE_COLORS[phase] || "#00F0FF"}

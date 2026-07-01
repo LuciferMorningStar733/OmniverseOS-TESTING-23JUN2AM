@@ -15,6 +15,9 @@ export const authApi = {
   signup: (data) => api.post("/auth/signup", data).then((r) => r.data),
   login: (data) => api.post("/auth/login", data).then((r) => r.data),
   me: () => api.get("/auth/me").then((r) => r.data),
+  forgotPassword: (email) => api.post("/auth/forgot-password", { email }).then((r) => r.data),
+  resetPassword: (token, new_password) => api.post("/auth/reset-password", { token, new_password }).then((r) => r.data),
+  changePassword: (current_password, new_password) => api.put("/auth/change-password", { current_password, new_password }).then((r) => r.data),
 };
 
 // ── AI resilience config ───────────────────────────────────────────────────

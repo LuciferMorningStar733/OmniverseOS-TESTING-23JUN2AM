@@ -4,11 +4,12 @@ import { useOS } from "../context/OSContext";
 import WallpaperStudio from "../components/WallpaperStudio";
 import { useMobilePrefs, LOCK_TIMEOUT_OPTIONS } from "../hooks/useMobilePrefs";
 import { useBreakpoint } from "../hooks/useBreakpoint";
-import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs } from "../lib/api";
+import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs, authApi } from "../lib/api";
 import { useBrightnessContext } from "../context/BrightnessContext";
 import LocationSetup, { isLocationSetupDone, getStoredCity } from "../components/LocationSetup";
 import { resetBootFlag } from "../components/BootScreen";
 import { resetOnboarding } from "../components/OnboardingExperience";
+import { toast } from "sonner";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
 function ToggleRow({ label, desc, value, onChange }) {
@@ -438,9 +439,77 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Security — Change Password */}
+      <ChangePasswordSection />
+
       <button onClick={logout} className="neon-btn danger w-full justify-center">
         <i className="fa-solid fa-right-from-bracket mr-2" />Logout
       </button>
+    </div>
+  );
+}
+
+function ChangePasswordSection() {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (next !== confirm) { toast.error("New passwords do not match"); return; }
+    if (next.length < 4) { toast.error("Password must be at least 4 characters"); return; }
+    setBusy(true);
+    try {
+      await authApi.changePassword(current, next);
+      toast.success("Password changed successfully");
+      setCurrent(""); setNext(""); setConfirm("");
+      setOpen(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to change password");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: 16, marginBottom: 12 }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm text-white font-medium">Security</div>
+          <div className="text-xs text-slate-500 mt-0.5">Change your account password</div>
+        </div>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            padding: "5px 12px", borderRadius: 8, fontSize: 11, fontFamily: "monospace",
+            border: "1px solid rgba(0,240,255,0.25)", background: "rgba(0,240,255,0.06)",
+            color: "#00F0FF", cursor: "pointer", transition: "all 0.18s",
+          }}
+        >
+          {open ? "Cancel" : "Change Password"}
+        </button>
+      </div>
+      {open && (
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          <div>
+            <label className="mono-label block mb-1">Current Password</label>
+            <input type="password" required value={current} onChange={(e) => setCurrent(e.target.value)} className="input-cyber" placeholder="••••••••" />
+          </div>
+          <div>
+            <label className="mono-label block mb-1">New Password</label>
+            <input type="password" required value={next} onChange={(e) => setNext(e.target.value)} className="input-cyber" placeholder="••••••••" minLength={4} />
+          </div>
+          <div>
+            <label className="mono-label block mb-1">Confirm New Password</label>
+            <input type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} className="input-cyber" placeholder="••••••••" minLength={4} />
+          </div>
+          <button disabled={busy} type="submit" className="neon-btn primary w-full justify-center py-2.5">
+            {busy ? "Updating…" : "Update Password"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
