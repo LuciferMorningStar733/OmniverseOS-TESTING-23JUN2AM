@@ -12,6 +12,7 @@ import MissionControl from "./MissionControl";
 import AIDock from "./AIDock";
 import CortexWelcomeCard from "./CortexWelcomeCard";
 import BootScreen, { isFirstBoot } from "./BootScreen";
+import OnboardingExperience, { hasSeenOnboarding, markOnboardingDone } from "./OnboardingExperience";
 import WelcomePanel from "./WelcomePanel";
 import LocationSetup, { isLocationSetupDone } from "./LocationSetup";
 import BrightnessOverlay, { BrightnessFilter } from "./BrightnessOverlay";
@@ -141,9 +142,10 @@ export default function Desktop() {
   const [showWelcome, setShowWelcome] = useState(true);
 
   // ── Boot / first-run / brightness ──────────────────────────────────────────
-  const [showBoot,     setShowBoot]     = useState(() => isFirstBoot());
-  const [showWelcomeP, setShowWelcomeP] = useState(false);
-  const [showLocation, setShowLocation] = useState(false);
+  const [showBoot,       setShowBoot]       = useState(() => isFirstBoot());
+  const [showWelcomeP,   setShowWelcomeP]   = useState(false);
+  const [showLocation,   setShowLocation]   = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const brightness = useBrightnessContext();
   const { toggleOverlay: toggleBrightness } = brightness;
 
@@ -160,8 +162,24 @@ export default function Desktop() {
 
   const handleLocationComplete = useCallback(() => {
     setShowLocation(false);
-    // Show welcome panel after location is saved
+    if (!hasSeenOnboarding()) {
+      setShowOnboarding(true);
+    } else {
+      setShowWelcomeP(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    markOnboardingDone();
+    setShowOnboarding(false);
     setShowWelcomeP(true);
+  }, []);
+
+  // Allow Settings to trigger onboarding replay via custom event
+  useEffect(() => {
+    const handler = () => { setShowOnboarding(true); };
+    window.addEventListener("omniverse:replay-onboarding", handler);
+    return () => window.removeEventListener("omniverse:replay-onboarding", handler);
   }, []);
   const getIdleMs = useCallback(() => {
     const prefs = loadMobilePrefs();
@@ -449,6 +467,22 @@ export default function Desktop() {
       <AnimatePresence>
         {showBoot && (
           <BootScreen key="boot" onComplete={handleBootComplete} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Priority 1: Cinematic Onboarding (first-ever login) ── */}
+      <AnimatePresence>
+        {showOnboarding && !showBoot && (
+          <motion.div
+            key="onboarding"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            style={{ position: "absolute", inset: 0, zIndex: 9000 }}
+          >
+            <OnboardingExperience onComplete={handleOnboardingComplete} />
+          </motion.div>
         )}
       </AnimatePresence>
 
