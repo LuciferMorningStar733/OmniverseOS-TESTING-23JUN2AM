@@ -273,12 +273,16 @@ const CORTEX_KEYFRAMES = `
     0%, 100% { transform: scale(1);    opacity: 1;    }
     50%       { transform: scale(1.06); opacity: 0.85; }
   }
+  @keyframes cortexCountdown {
+    from { stroke-dashoffset: 0;   }
+    to   { stroke-dashoffset: 534; }
+  }
 `;
 
 // ── AI Core Orb — single interactive element ──────────────────────────────
 // audioLevels: float[7] in 0–1 from the Web Audio AnalyserNode.
 // Falls back to CSS keyframe animation when undefined/empty.
-function AICoreOrb({ phase, onClick, onTouchStart, onTouchEnd, audioLevels }) {
+function AICoreOrb({ phase, onClick, onTouchStart, onTouchEnd, audioLevels, silenceKey }) {
   const isListening = phase === "listening";
   const isSpeaking  = phase === "speaking";
   const isThinking  = phase === "thinking";
@@ -335,6 +339,31 @@ function AICoreOrb({ phase, onClick, onTouchStart, onTouchEnd, audioLevels }) {
         animation: (isListening || isSpeaking) ? "cortexGlowPulse 1.5s ease-in-out infinite" : "none",
         pointerEvents: "none",
       }} />
+
+      {/* Silence countdown ring — thin arc draining over 2.4s, resets on every result */}
+      {isListening && (
+        <svg
+          key={silenceKey}
+          style={{
+            position: "absolute",
+            width: 180, height: 180,
+            top: 0, left: 0,
+            pointerEvents: "none",
+            transform: "rotate(-90deg)", // arc starts at 12 o'clock
+            overflow: "visible",
+          }}
+        >
+          {/* Track — faint full circle */}
+          <circle cx={90} cy={90} r={85} fill="none"
+            stroke={`${c.primary}18`} strokeWidth={2.5} />
+          {/* Draining arc — 2 * π * 85 ≈ 534 */}
+          <circle cx={90} cy={90} r={85} fill="none"
+            stroke={c.primary} strokeWidth={2.5} strokeLinecap="round"
+            strokeDasharray={534} strokeDashoffset={0}
+            style={{ animation: `cortexCountdown ${SILENCE_TIMEOUT_MS / 1000}s linear forwards`, opacity: 0.7 }}
+          />
+        </svg>
+      )}
 
       {/* Outer ring — spins while thinking */}
       <div style={{
@@ -650,6 +679,7 @@ export default function Voice() {
   const [greeting, setGreeting]                 = useState("");
   // Live mic levels from the Web Audio AnalyserNode (7 floats, 0–1 each)
   const [audioLevels, setAudioLevels]           = useState(() => new Array(7).fill(0));
+  const [silenceKey, setSilenceKey]             = useState(0);
 
   const { openApp, windows, activeId } = useOS();
 
@@ -1008,6 +1038,7 @@ export default function Voice() {
     // Reset silence timer — restarted on every result event
     const resetSilenceTimer = () => {
       clearTimeout(silenceTimerRef.current);
+      setSilenceKey((k) => k + 1); // restart the countdown ring animation
       silenceTimerRef.current = setTimeout(() => {
         if (startedRef.current && recogRef.current) {
           intentionalStopRef.current = true; // silence timeout = deliberate stop
@@ -1516,6 +1547,7 @@ export default function Voice() {
           <AICoreOrb
             phase={phase}
             audioLevels={audioLevels}
+            silenceKey={silenceKey}
             onClick={handleMicClick}
             onTouchStart={(e) => { orbSwipeTouchY.current = e.touches[0]?.clientY ?? null; }}
             onTouchEnd={(e) => {
