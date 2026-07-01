@@ -4,6 +4,7 @@ import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { playClick } from "../lib/soundEngine";
+import { PINNED_APP_IDS } from "./MobileHomeScreen";
 
 /* ── Long-press quick-action menu ─────────────────────────────────────────── */
 const QuickMenu = memo(function QuickMenu({ appId, x, y, onClose, onOpen, onCloseApp, isOpen }) {
@@ -255,6 +256,12 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
 function MobileDock() {
   const { openApp, closeWindow, windows, activeId, focusWindow } = useOS();
 
+  const pinnedApps = useMemo(
+    () => APPS.filter((a) => PINNED_APP_IDS.includes(a.id))
+         .sort((a, b) => PINNED_APP_IDS.indexOf(a.id) - PINNED_APP_IDS.indexOf(b.id)),
+    []
+  );
+
   return (
     <motion.div
       initial={{ y: 120, opacity: 0 }}
@@ -265,22 +272,24 @@ function MobileDock() {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div
-        className="pointer-events-auto w-full flex items-center justify-start"
         style={{
-          background: "rgba(6,8,14,0.92)",
-          backdropFilter: "blur(40px) saturate(200%)",
-          WebkitBackdropFilter: "blur(40px) saturate(200%)",
-          borderTop: "1px solid rgba(255,255,255,0.10)",
-          boxShadow: "0 -8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
-          minHeight: 90,
-          paddingTop: 6, paddingBottom: 6,
-          paddingLeft: 6, paddingRight: 6,
-          overflowX: "auto", overflowY: "visible",
-          WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none", willChange: "transform",
+          background: "rgba(6,8,14,0.88)",
+          backdropFilter: "blur(48px) saturate(220%)",
+          WebkitBackdropFilter: "blur(48px) saturate(220%)",
+          borderTop: "1px solid rgba(255,255,255,0.09)",
+          boxShadow: "0 -12px 48px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.07)",
+          minHeight: 88,
+          paddingTop: 8,
+          paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
+          paddingLeft: 16,
+          paddingRight: 16,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          pointerEvents: "auto",
         }}
       >
-        {APPS.map((app) => (
+        {pinnedApps.map((app) => (
           <MobileDockIcon
             key={app.id} app={app}
             windows={windows} activeId={activeId}

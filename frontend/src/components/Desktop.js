@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { getWallpaper } from "../lib/wallpapers";
 import WallpaperFX from "./WallpaperFX";
 import WidgetCanvas from "../widgets/WidgetCanvas";
+import MobileHomeScreen from "./MobileHomeScreen";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
@@ -393,6 +394,14 @@ export default function Desktop() {
         <TopBar onOpenMissionControl={() => setMissionOpen(true)} onOpenBrightness={brightness.openOverlay} />
       </motion.div>
       {!isMobile && <WidgetCanvas topOffset={60} />}
+
+      {/* ── Mobile Home Screen (shown when no app is open) ── */}
+      <AnimatePresence>
+        {isMobile && openWindows.length === 0 && (
+          <MobileHomeScreen key="mobile-home" onOpenApp={handleOpenApp} />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showCortexWelcome && (
           <motion.div
