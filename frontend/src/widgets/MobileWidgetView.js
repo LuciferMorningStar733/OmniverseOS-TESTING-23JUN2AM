@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useState } from "react";
+import React, { Suspense, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWidgetManager } from "./WidgetManagerContext";
 import { getWidgetDef } from "./widgetRegistry";
@@ -13,6 +13,16 @@ const GLASS = {
   borderRadius: 22,
   boxShadow: "0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07)",
 };
+
+// Featured widgets for onboarding
+const FEATURED_WIDGETS = [
+  { id: "weather",    name: "Weather",     icon: "fa-cloud-sun",      color: "#FB923C" },
+  { id: "ai-summary", name: "AI Summary",  icon: "fa-sparkles",       color: "#2DD4BF" },
+  { id: "calendar",   name: "Calendar",    icon: "fa-calendar",       color: "#60A5FA" },
+  { id: "memory",     name: "Memory",      icon: "fa-brain",          color: "#A855F7" },
+  { id: "tasks",      name: "Tasks",       icon: "fa-list-check",     color: "#39FF14" },
+  { id: "clipboard",  name: "Clipboard",   icon: "fa-clipboard",      color: "#F59E0B" },
+];
 
 function Loader() {
   return (
@@ -249,7 +259,161 @@ function MobileWidgetCard({ item, def }) {
   );
 }
 
-function EmptyWidgets({ onOpenStore }) {
+// ── Featured Widget Card for Onboarding ────────────────────────────────────────
+
+function FeaturedWidgetCard({ widget, onAddWidget, delay }) {
+  const [pressed, setPressed] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.88, y: 12 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ delay, type: "spring", damping: 24, stiffness: 340 }}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => { setPressed(false); onAddWidget(widget.id); }}
+      onPointerLeave={() => setPressed(false)}
+      style={{
+        flex: "0 0 calc(50% - 6px)",
+        minWidth: 0,
+      }}
+    >
+      <motion.button
+        animate={{ scale: pressed ? 0.95 : 1 }}
+        transition={{ type: "spring", stiffness: 600, damping: 22, mass: 0.16 }}
+        onClick={() => onAddWidget(widget.id)}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          padding: 16,
+          borderRadius: 16,
+          background: pressed ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+          border: `1px solid ${widget.color}1F`,
+          cursor: "pointer",
+          WebkitTapHighlightColor: "transparent",
+          touchAction: "manipulation",
+          transition: "background 0.16s ease",
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: `${widget.color}14`,
+          border: `1px solid ${widget.color}28`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <i className={`fa-solid ${widget.icon}`} style={{ color: widget.color, fontSize: 18 }} />
+        </div>
+        <div style={{
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.75)",
+          fontFamily: "'Outfit', sans-serif",
+          textAlign: "center",
+        }}>
+          {widget.name}
+        </div>
+        <div style={{
+          fontSize: 9,
+          color: "rgba(255,255,255,0.25)",
+          fontFamily: "'Outfit', sans-serif",
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          fontWeight: 700,
+        }}>
+          Add
+        </div>
+      </motion.button>
+    </motion.div>
+  );
+}
+
+// ── Empty State with Featured Widgets Onboarding ────────────────────────────────
+
+function EmptyWidgetsOnboarding({ onOpenStore, onAddWidget }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.1, duration: 0.4 }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "32px 20px 24px",
+        gap: 24,
+      }}
+    >
+      {/* Welcome Message */}
+      <div
+        style={{
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.85)", marginBottom: 8, fontFamily: "'Outfit', sans-serif" }}>
+          Welcome to Widgets
+        </div>
+        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif", lineHeight: 1.6 }}>
+          Widgets bring Cortex to life.
+          <br />
+          Choose your first widget.
+        </div>
+      </div>
+
+      {/* Featured Widgets Grid */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)",
+        gap: 12,
+        width: "100%",
+        maxWidth: "100%",
+      }}>
+        {FEATURED_WIDGETS.map((widget, i) => (
+          <FeaturedWidgetCard
+            key={widget.id}
+            widget={widget}
+            onAddWidget={onAddWidget}
+            delay={0.15 + i * 0.06}
+          />
+        ))}
+      </div>
+
+      {/* Browse All Button */}
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.48, duration: 0.3 }}
+        whileTap={{ scale: 0.94 }}
+        onClick={onOpenStore}
+        style={{
+          padding: "11px 24px",
+          borderRadius: 12,
+          background: "rgba(0,240,255,0.14)",
+          border: "1px solid rgba(0,240,255,0.35)",
+          color: "#00F0FF",
+          fontSize: 13,
+          fontWeight: 600,
+          fontFamily: "'Outfit', sans-serif",
+          cursor: "pointer",
+          WebkitTapHighlightColor: "transparent",
+          letterSpacing: "0.01em",
+          transition: "background 0.16s ease",
+        }}
+      >
+        <i className="fa-solid fa-grid-2" style={{ marginRight: 8 }} />
+        Browse All Widgets
+      </motion.button>
+    </motion.div>
+  );
+}
+
+// ── Empty State with No Widgets (After First Add) ────────────────────────────────
+
+function EmptyWidgetsFallback({ onOpenStore }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -282,7 +446,7 @@ function EmptyWidgets({ onOpenStore }) {
           No Widgets Yet
         </div>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", fontFamily: "'Outfit', sans-serif", lineHeight: 1.5 }}>
-          Add widgets to get quick access to your favourite information
+          Add one to personalize your workspace
         </div>
       </div>
       <motion.button
@@ -310,7 +474,8 @@ function EmptyWidgets({ onOpenStore }) {
 }
 
 export default function MobileWidgetView() {
-  const { layout, visible, openStore, showStore, closeStore } = useWidgetManager();
+  const { layout, visible, openStore, showStore, closeStore, addWidget } = useWidgetManager();
+  const [hasEverAddedWidget, setHasEverAddedWidget] = useState(false);
 
   if (!visible) return null;
 
@@ -318,6 +483,15 @@ export default function MobileWidgetView() {
     const def = getWidgetDef(item.id);
     return !!def;
   });
+
+  const handleAddWidget = useCallback((widgetId) => {
+    if (addWidget) {
+      addWidget(widgetId);
+      setHasEverAddedWidget(true);
+    }
+  }, [addWidget]);
+
+  const isEmpty = activeWidgets.length === 0;
 
   return (
     <div
@@ -376,12 +550,24 @@ export default function MobileWidgetView() {
           overflowY: "auto",
           overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
-          padding: "0 14px 20px",
+          padding: isEmpty ? "0" : "0 14px 20px",
+          scrollBehavior: "smooth",
         }}
       >
         <AnimatePresence mode="popLayout">
-          {activeWidgets.length === 0 ? (
-            <EmptyWidgets key="empty" onOpenStore={openStore} />
+          {isEmpty ? (
+            hasEverAddedWidget ? (
+              <EmptyWidgetsFallback
+                key="empty-fallback"
+                onOpenStore={openStore}
+              />
+            ) : (
+              <EmptyWidgetsOnboarding
+                key="empty-onboarding"
+                onOpenStore={openStore}
+                onAddWidget={handleAddWidget}
+              />
+            )
           ) : (
             activeWidgets.map((item) => {
               const def = getWidgetDef(item.id);
