@@ -16,7 +16,11 @@
 import { getRecentApps, getRecentUrls, getTimeline } from "./activityTimeline";
 import { memGet } from "./memoryEngine";
 import { getAutoSnapshot } from "./workspaceSnapshot";
-import { getApp } from "./apps";
+import { getAppName } from "./appNames";
+// NOTE: do NOT import from "./apps" here — apps.js lazy-imports AI apps (AIChat, Voice, etc.)
+// which statically import this file, creating a circular dependency that causes
+// "Cannot access '...' before initialization" TDZ crashes in production builds.
+// Use ./appNames instead (zero imports, pure static map).
 
 const CORTEX_URL_KEY = "cortex_current_url"; // Unified localStorage key
 
@@ -34,13 +38,13 @@ export function assembleCortexContext(osContext = {}) {
   // ── Active window detection ──────────────────────────────────────────────
   const activeWindow = windows.find(w => w.id === activeId) || null;
   const activeAppId = activeWindow?.app || null;
-  const activeAppName = activeAppId ? (getApp(activeAppId)?.name || activeAppId) : null;
+  const activeAppName = getAppName(activeAppId);
   
   // ── Browser URL (unified key) ─────────────────────────────────────────────
   const browserUrl = localStorage.getItem(CORTEX_URL_KEY) || null;
   
   // ── Recent activity from activityTimeline ──────────────────────────────────
-  const recentApps = getRecentApps(5).map(id => getApp(id)?.name || id);
+  const recentApps = getRecentApps(5).map(id => getAppName(id));
   const recentUrls = getRecentUrls(3);
   
   // ── Workspace snapshot ────────────────────────────────────────────────────
@@ -56,7 +60,7 @@ export function assembleCortexContext(osContext = {}) {
   const timeline = getTimeline(10);
   
   // ── Open windows summary ────────────────────────────────────────────────────
-  const openApps = windows.map(w => getApp(w.app)?.name || w.app);
+  const openApps = windows.map(w => getAppName(w.app));
   
   return {
     // Current state
