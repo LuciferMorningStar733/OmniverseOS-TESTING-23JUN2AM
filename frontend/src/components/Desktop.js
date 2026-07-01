@@ -129,7 +129,7 @@ function AmbientParticles() {
 }
 export default function Desktop() {
   const {
-    windows, setPaletteOpen, paletteOpen, wallpaper, focusWindow, activeId,
+    windows, setPaletteOpen, paletteOpen, wallpaper, setWallpaper, focusWindow, activeId,
     openApp, closeWindow, minimize, updateWindow, toggleMaximize,
     notifOpen, setNotifOpen, pushNotification, clearNotifications, trackUrl,
     notifications, user,
@@ -174,6 +174,15 @@ export default function Desktop() {
     setShowOnboarding(false);
     setShowWelcomeP(true);
   }, []);
+
+  const handleOnboardingNameSet = useCallback((name) => {
+    // Already saved to localStorage by OnboardingExperience; nothing extra needed here.
+    // Future: could update user profile via API.
+  }, []);
+
+  const handleOnboardingWallpaperSelect = useCallback((wallpaperId) => {
+    setWallpaper(wallpaperId);
+  }, [setWallpaper]);
 
   // Allow Settings to trigger onboarding replay via custom event
   useEffect(() => {
@@ -481,7 +490,11 @@ export default function Desktop() {
             transition={{ duration: 0.4 }}
             style={{ position: "absolute", inset: 0, zIndex: 9000 }}
           >
-            <OnboardingExperience onComplete={handleOnboardingComplete} />
+            <OnboardingExperience
+              onComplete={handleOnboardingComplete}
+              onNameSet={handleOnboardingNameSet}
+              onWallpaperSelect={handleOnboardingWallpaperSelect}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -393,10 +393,16 @@ export default function AIChat() {
   const [isRecording, setIsRecording] = useState(false);
   const micRecogRef   = useRef(null);
   const micActiveRef  = useRef(false);
+  const startMicRef   = useRef(null);  // stable ref for auto-resume after AI response
+  const voiceModeRef  = useRef(false); // true = in voice conversation mode (auto-resume mic)
 
   const startMic = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR || micActiveRef.current) return;
+
+    // Interrupt any active AI response so the user can speak immediately
+    abortRef.current?.abort();
+    voiceModeRef.current = true;
 
     const r = new SR();
     r.continuous      = false;
@@ -433,7 +439,16 @@ export default function AIChat() {
       }
     };
 
-    r.onend = () => { micActiveRef.current = false; if (mountedRef.current) setIsRecording(false); };
+    r.onend = () => {
+      micActiveRef.current = false;
+      if (mountedRef.current) setIsRecording(false);
+      // Auto-submit recognized text — enables Gemini-Live-style continuous conversation.
+      // Use micBaseRef (final transcript) first, fall back to whatever is in the input field.
+      const transcribed = (micBaseRef.current || inputRef.current || "").trim();
+      if (transcribed && voiceModeRef.current && sendRef.current && mountedRef.current) {
+        sendRef.current(transcribed);
+      }
+    };
     r.onerror = () => { micActiveRef.current = false; if (mountedRef.current) setIsRecording(false); };
 
     micRecogRef.current = r;
@@ -682,12 +697,18 @@ export default function AIChat() {
         setStreaming(false);
         setStreamStatus(null);
         setActiveProvider(null);
+        // Auto-resume listening after AI responds — continuous voice conversation.
+        // Only fires in voice mode and only when the stream wasn't manually aborted.
+        if (voiceModeRef.current && !ctrl.signal.aborted) {
+          setTimeout(() => { if (mountedRef.current) startMicRef.current?.(); }, 600);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, model]);
 
   useEffect(() => { sendRef.current = send; }, [send]);
+  useEffect(() => { startMicRef.current = startMic; }, [startMic]);
 
   // ── Clarification modal: user selected an option ──────────────────────────
   const handleClarificationSelect = useCallback((option) => {
@@ -1094,6 +1115,7 @@ export default function AIChat() {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               if (isRecording) stopMic();
+              voiceModeRef.current = false; // manual keyboard send exits voice mode
               send();
             }
           }}
@@ -1104,7 +1126,7 @@ export default function AIChat() {
 
         <button
           data-testid="chat-send"
-          onClick={send}
+          onClick={() => { voiceModeRef.current = false; send(); }} // manual click exits voice mode
           disabled={streaming || !input.trim()}
           className="neon-btn primary !py-2 flex-shrink-0"
         >
