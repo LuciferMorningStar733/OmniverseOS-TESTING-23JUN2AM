@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { aiApi } from "../lib/api";
+import { aiApi, memoryApi } from "../lib/api";
+import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import {
   browserSpeak,
   cancelSpeech,
@@ -355,7 +356,7 @@ export default function Voice() {
   const [isLivePreviewing, setIsLivePreviewing]   = useState(false); // live preview TTS active
   const [thinkingMsg, setThinkingMsg]             = useState("Thinking…");  // rotating status
 
-  const { openApp } = useOS();
+  const { openApp, windows, activeId } = useOS();
 
   const mountedRef         = useRef(true);
   const historyScrollRef   = useRef(null); // ref for the history scroll container
@@ -374,11 +375,15 @@ export default function Voice() {
   const wakeRecogRef       = useRef(null);
   const phaseRef           = useRef("idle");
   const startListeningRef  = useRef(null);       // populated after startListening is defined
+  const windowsRef         = useRef(windows);    // for cortex context in callbacks
+  const activeIdRef        = useRef(activeId);   // for cortex context in callbacks
 
   // Keep refs in sync
   useEffect(() => { conversationRef.current = conversation; }, [conversation]);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { windowsRef.current = windows; }, [windows]);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
   // Rotate thinking status messages while AI is processing
   useEffect(() => {
@@ -446,6 +451,22 @@ export default function Voice() {
       setAvailableVoices(getAvailableVoices());
     };
     window.speechSynthesis?.addEventListener("voiceschanged", onChanged);
+
+    // Load shared conversation history from backend on mount (P2: share with AIChat)
+    aiApi.history("main").then((msgs) => {
+      if (!mountedRef.current || !Array.isArray(msgs) || msgs.length === 0) return;
+      const voiceHistory = msgs
+        .filter((m) => m.content && !m.pending && !m.error)
+        .slice(-MAX_HISTORY_PAIRS * 2)
+        .map((m) => ({ role: m.role, content: String(m.content) }));
+      if (voiceHistory.length > 0) {
+        setConversation(voiceHistory);
+        conversationRef.current = voiceHistory;
+        saveVoiceHistory(voiceHistory);
+      }
+    }).catch(() => {
+      // Non-blocking — fall back to localStorage history which is already loaded
+    });
 
     return () => {
       mountedRef.current = false;
@@ -621,8 +642,20 @@ export default function Voice() {
               const voices = getAvailableVoices();
               attemptBrowser(voices[retryCount]?.voice || null);
             } else {
-              setVoiceError("Voice synthesis failed.");
-              if (mountedRef.current) setPhase("idle");
+              // P8: show error, then auto-resume if continuous mode is on
+              if (mountedRef.current) {
+                setPhase("idle");
+                setVoiceError("Voice synthesis failed. Listening again…");
+                if (settingsRef.current.autoResumeListen && settingsRef.current.continuousConversation) {
+                  clearTimeout(autoListenTimerRef.current);
+                  autoListenTimerRef.current = setTimeout(() => {
+                    if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
+                      setVoiceError(null);
+                      startListeningRef.current?.();
+                    }
+                  }, 1500);
+                }
+              }
             }
           },
         });
@@ -760,17 +793,29 @@ export default function Voice() {
       }));
 
       try {
-        let fullResponse = "";
-        await aiApi.chatStreamResilient(
-          {
-            session_id: "voice",
-            message: text,
-            provider: "gemini",
-            model: "gemini-2.5-flash",
-            history: historyToSend,
-            system: `You are Cortex, the AI core of OmniverseOS. The user is speaking to you by voice in real time.
+        // ── Fetch relevant Cortex memories (P6: shared memory) ────────────
+        let fetchedMemories = [];
+        try {
+          fetchedMemories = await memoryApi.relevant(text, 5);
+        } catch { /* non-blocking */ }
 
-VOICE RESPONSE RULES — follow strictly:
+        // ── Build Cortex OS context system prompt (P6: context unification) ─
+        let systemPrompt = buildCortexSystemPrompt({
+          windows: windowsRef.current,
+          activeId: activeIdRef.current,
+        });
+
+        // Inject relevant memories
+        if (fetchedMemories.length > 0) {
+          systemPrompt += "\n\n=== CORTEX LONG-TERM MEMORY ===\n";
+          systemPrompt += "Permanently remembered facts. Use naturally without re-asking.\n";
+          fetchedMemories.forEach((m, i) => {
+            systemPrompt += `${i + 1}. [${m.category}] ${m.content}\n`;
+          });
+        }
+
+        // Voice-specific response rules (appended after OS context)
+        systemPrompt += `\n\n=== VOICE RESPONSE RULES — follow strictly ===
 - Keep every response to 1–3 sentences unless the user explicitly asks for detail or a list.
 - Use natural spoken language only. No markdown, no bullet points, no headers, no asterisks, no code blocks.
 - Sound like a brilliant friend, not a manual. Be warm, direct, and conversational.
@@ -779,7 +824,17 @@ VOICE RESPONSE RULES — follow strictly:
 - If you don't know something, say so in one sentence and offer what you can.
 - Avoid filler phrases like "Certainly!", "Of course!", "Great question!" — just answer.
 - Numbers, dates, times: speak them out (twenty-four, not 24; half past three, not 3:30).
-- If given a task like opening an app, confirm briefly: "Done." or "Opening that now."`,
+- If given a task like opening an app, confirm briefly: "Done." or "Opening that now."`;
+
+        let fullResponse = "";
+        await aiApi.chatStreamResilient(
+          {
+            session_id: "main",   // P2: share session with AIChat
+            message: text,
+            provider: "gemini",
+            model: "gemini-2.5-flash",
+            history: historyToSend,
+            system: systemPrompt,
           },
           (delta) => { fullResponse += delta; },
           null,
@@ -791,6 +846,9 @@ VOICE RESPONSE RULES — follow strictly:
         appendToConversation("user", text);
         appendToConversation("assistant", fullResponse);
         setSessionTurnCount((n) => n + 1);
+
+        // P6: Fire-and-forget memory extraction (same as AIChat)
+        memoryApi.extract(text, fullResponse).catch(() => {});
 
         // Speak the response
         if (settingsRef.current.voiceFeedback) {
@@ -841,7 +899,12 @@ VOICE RESPONSE RULES — follow strictly:
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const transcript = (e.results[i][0]?.transcript || "").toLowerCase();
-        if (transcript.includes("hey cortex") || transcript.includes("hi cortex")) {
+        if (
+          transcript.includes("hey cortex") ||
+          transcript.includes("hi cortex") ||
+          transcript.includes("hello cortex") ||
+          /\bcortex\b/.test(transcript)
+        ) {
           if (phaseRef.current === "idle") {
             setWakeWordActive(true);
             setTimeout(() => setWakeWordActive(false), 2000);

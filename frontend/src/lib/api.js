@@ -321,7 +321,7 @@ export const analytics = () => api.get("/analytics/summary").then((r) => r.data)
 
 // ── Voice preferences (localStorage) ──────────────────────────────────────
 const VOICE_PREFS_KEY = "omniverse_voice_prefs";
-const DEFAULT_VOICE_PREFS = { provider: "gemini", volume: 1.0 };
+const DEFAULT_VOICE_PREFS = { provider: "stream", volume: 1.0 };
 
 export function getVoicePrefs() {
   try {

@@ -1,4 +1,5 @@
 import React, { Suspense, useCallback, useRef, useState } from "react";
+import ErrorBoundary from "../components/ErrorBoundary";
 import { motion, useMotionValue } from "framer-motion";
 import {
   CELL_H, CELL_W, GAP,
@@ -254,9 +255,11 @@ export default function WidgetShell({ item, def, canvasRef }) {
             className="absolute left-0 right-0 bottom-0"
             style={{ top: 41, overflowY: "auto", overflowX: "hidden" }}
           >
-            <Suspense fallback={<Loader />}>
-              <def.Component item={item} />
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<Loader />}>
+                <def.Component item={item} />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
       </div>

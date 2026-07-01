@@ -91,8 +91,8 @@ const PROVIDER_OPTIONS = [
 
 /* ── Main Settings component ───────────────────────────────────────────────── */
 const VOICE_PROVIDER_OPTIONS = [
-  { value: "google",  label: "Google Cloud TTS",  desc: "Premium neural voice — Journey female or male (default)" },
-  { value: "browser", label: "Browser (local)",    desc: "Emergency fallback — uses your device's built-in voices" },
+  { value: "stream",  label: "StreamElements (Free)", desc: "Amazon Polly Neural voices — human quality, no API key required" },
+  { value: "browser", label: "Browser (local)",        desc: "Uses your device's built-in voices — Microsoft Edge Neural, Chrome, Apple" },
 ];
 
 const RATE_OPTIONS = [
@@ -310,7 +310,7 @@ export default function Settings() {
         <div className="mono-label">// Voice</div>
         <h3 className="font-heading text-base font-bold mb-1">Cortex Voice</h3>
         <p className="text-xs text-slate-500 mb-4">
-          Google Cloud TTS uses Journey neural voices for a natural, premium sound. Browser is the emergency fallback.
+          StreamElements uses Amazon Polly Neural voices — human quality, completely free, no API key required. Browser uses your device's built-in voices (Microsoft Edge Neural on Windows, Apple on macOS/iOS).
         </p>
 
         {/* Provider */}
