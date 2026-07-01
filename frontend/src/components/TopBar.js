@@ -448,6 +448,8 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         {/* Widget toggle */}
         <button
           onClick={toggleWidgets}
+          aria-label={widgetsVisible ? "Hide widgets" : "Show widgets"}
+          aria-pressed={widgetsVisible}
           title={widgetsVisible ? "Hide widgets" : "Show widgets"}
           style={{
             background: widgetsVisible ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.05)",
@@ -466,6 +468,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         {/* Mission control */}
         <button
           onClick={onOpenMissionControl}
+          aria-label="Mission Control"
           title="Mission Control (Ctrl+Tab)"
           style={{
             background: "rgba(255,255,255,0.05)",
@@ -484,6 +487,8 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         {/* Notifications */}
         <button
           onClick={() => setNotifOpen(true)}
+          aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
+          aria-live="polite"
           title={`Notifications${unread > 0 ? ` (${unread})` : ""}`}
           style={{
             background: unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)",

@@ -56,6 +56,7 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={label}
+      aria-label={label}
       style={{
         position: "relative", width: 22, height: 22,
         background: "transparent", border: "none", cursor: "pointer", padding: 0,

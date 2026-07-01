@@ -155,6 +155,8 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
       <motion.button
         ref={scope}
         data-testid={`dock-item-${app.id}`}
+        aria-label={`Open ${app.name}`}
+        role="button"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchMove}

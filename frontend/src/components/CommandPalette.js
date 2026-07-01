@@ -462,6 +462,12 @@ export default function CommandPalette() {
               data-testid="palette-input"
               autoFocus
               value={q}
+              role="combobox"
+              aria-label="Command palette search"
+              aria-expanded={results.length > 0}
+              aria-autocomplete="list"
+              aria-controls="palette-results-list"
+              aria-activedescendant={results[selected] ? `palette-result-${results[selected].source}-${selected}` : undefined}
               onChange={e => { setQ(e.target.value); setSelected(0); }}
               onKeyDown={handleKeyDown}
               placeholder={`Try "${EXAMPLES[phIdx]}"`}
@@ -506,6 +512,9 @@ export default function CommandPalette() {
           {/* ── Results ───────────────────────────────────────────────── */}
           <div
             data-testid="palette-results"
+            id="palette-results-list"
+            role="listbox"
+            aria-label="Search results"
             style={{ maxHeight: 420, overflowY: 'auto', padding: '6px 8px 8px' }}
           >
             {/* ── Empty state: recent searches + pinned actions ──────── */}

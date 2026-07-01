@@ -902,3 +902,305 @@ select:focus-visible {
     opacity    0.22s ease;
   overflow: hidden;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PRIORITY 11 — ACCESSIBILITY LAYER
+   Keyboard navigation · Reduced motion · High contrast ·
+   Large text · Screen readers · Touch accessibility
+════════════════════════════════════════════════════════════════ */
+
+/* ── Skip to content (screen readers & keyboard users) ────────── */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 8px;
+  z-index: 99999;
+  padding: 8px 16px;
+  background: #00F0FF;
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  transition: top 0.18s ease;
+}
+.skip-to-content:focus {
+  top: 0;
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ── Stronger keyboard focus ring (overrides previous rules) ──── */
+:focus-visible {
+  outline: 2px solid rgba(0, 240, 255, 0.85) !important;
+  outline-offset: 3px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 4px rgba(0, 240, 255, 0.15) !important;
+  transition: outline 0.12s ease, box-shadow 0.12s ease !important;
+}
+
+/* Buttons & interactive OS chrome need tighter radius */
+button:focus-visible,
+[role="button"]:focus-visible {
+  border-radius: 8px !important;
+}
+
+/* Inputs already have their own glow ring — don't double up */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(0, 240, 255, 0.8) !important;
+  outline-offset: 0 !important;
+  box-shadow:
+    0 0 0 3px rgba(0, 240, 255, 0.15),
+    0 0 0 1px rgba(0, 240, 255, 0.45) !important;
+}
+
+/* ── ARIA live region (screen reader announcements) ────────────── */
+[aria-live] {
+  position: relative;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ── Minimum touch targets (WCAG 2.5.5 — 44×44px) ────────────── */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Exception: inline text links */
+  p a, span a { min-height: unset; min-width: unset; }
+  /* Exception: tiny icon-only controls that use a hitbox wrapper */
+  .omni-icon-btn { min-height: 44px; min-width: 44px; }
+}
+
+/* ── Reduced motion — comprehensive ──────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* Kill all CSS animations */
+  *, *::before, *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Framer Motion: set to instant via CSS custom prop */
+  :root { --framer-motion-duration: 0.01ms; }
+  /* Remove parallax / floating effects */
+  .cortex-idle-float { animation: none !important; }
+  /* Keep opacity-only fades for usability (no transform) */
+  .fade-only {
+    animation: fade-only-in 0.15s ease !important;
+  }
+}
+@keyframes fade-only-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── High contrast mode ───────────────────────────────────────── */
+@media (prefers-contrast: high) {
+  :root {
+    --cyan-primary:   #00FFFF;
+    --text-primary:   #FFFFFF;
+    --text-secondary: #EEEEEE;
+    --border-subtle:  #666666;
+    --glass-bg:       rgba(0, 0, 0, 0.9);
+  }
+  /* Increase border visibility */
+  .glass, .glass-light {
+    border-color: rgba(0, 240, 255, 0.6) !important;
+  }
+  /* Stronger text contrast */
+  .text-slate-500, .text-slate-400 { color: #aaa !important; }
+  /* Ensure focus rings are ultra-visible */
+  :focus-visible {
+    outline: 3px solid #00FFFF !important;
+    box-shadow: 0 0 0 6px rgba(0, 255, 255, 0.3) !important;
+  }
+}
+
+/* ── Large text (OS-level zoom) ───────────────────────────────── */
+@media (min-resolution: 1dppx) {
+  html { text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+}
+
+/* Respect system font size preference */
+html { font-size: clamp(14px, 1.4vw + 0.4vh, 17px); }
+
+/* ─────────────────────────────────────────────────────────────────
+   PRIORITY 12 — RESPONSIVENESS FIXES (extreme breakpoints)
+───────────────────────────────────────────────────────────────── */
+
+/* ── 320px (smallest Android) ─────────────────────────────────── */
+@media (max-width: 340px) {
+  [data-testid="dock-root"] {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    gap: 2px !important;
+  }
+  [data-testid^="dock-item-"] {
+    width: 52px !important;
+    height: 60px !important;
+  }
+  [data-testid="topbar-root"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  [data-testid="command-palette"] {
+    margin-left: 8px !important;
+    margin-right: 8px !important;
+  }
+}
+
+/* ── Ultra-wide (≥ 2560px) ────────────────────────────────────── */
+@media (min-width: 2560px) {
+  [data-testid="desktop-root"] {
+    max-width: 2560px;
+    margin: 0 auto;
+  }
+  [data-testid="dock-root"] > div {
+    gap: 12px !important;
+  }
+  [data-testid^="dock-item-"] {
+    width: 80px !important;
+    height: 88px !important;
+  }
+}
+
+/* ── 1440px desktop — center content ──────────────────────────── */
+@media (min-width: 1440px) {
+  [data-testid="ai-chat-app"] .max-w-\[82\%\] {
+    max-width: min(82%, 760px) !important;
+  }
+}
+
+/* ── Command Palette on small phones ──────────────────────────── */
+@media (max-width: 480px) {
+  [data-testid="command-palette"] > div > div:first-of-type {
+    padding: 12px 14px 10px !important;
+  }
+  [data-testid="command-palette"] [data-testid^="palette-result-"] {
+    padding: 8px 10px !important;
+    border-radius: 10px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PRIORITY 13 — PERFORMANCE
+   CSS containment · will-change · layer promotion
+───────────────────────────────────────────────────────────────── */
+
+/* ── CSS containment for layout-stable components ────────────── */
+[data-testid^="window-"] {
+  contain: layout style;
+  will-change: transform, opacity;
+}
+
+[data-testid="dock-root"] {
+  contain: layout style;
+  will-change: transform;
+}
+
+[data-testid="topbar-root"] {
+  contain: layout style;
+}
+
+/* ── Compositor layers for heavy animated surfaces ────────────── */
+.ambient-canvas,
+.wallpaper-layer {
+  transform: translateZ(0);
+  will-change: opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* ── Scrollable containers: GPU-accelerated ───────────────────── */
+.h-full.overflow-y-auto,
+[style*="overflow-y: auto"],
+[style*="overflow-y:auto"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  transform: translateZ(0);
+}
+
+/* ── Reduce paint area for modal overlays ────────────────────── */
+[data-testid="command-palette"],
+[data-testid="mission-control"] {
+  isolation: isolate;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PRIORITY 14 — VISUAL POLISH
+   Audit every surface · Consistent spacing · Unified tokens
+───────────────────────────────────────────────────────────────── */
+
+/* ── TopBar consistent height on all screens ─────────────────── */
+[data-testid="topbar-root"] {
+  height: 38px;
+  min-height: 38px;
+}
+
+/* ── Window chrome: unified border radius ────────────────────── */
+[data-testid^="window-"] {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+/* ── Dock pill: refined glassmorphism ────────────────────────── */
+[data-testid="dock-root"] > div {
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+}
+
+/* ── Tooltips: consistent styling ────────────────────────────── */
+[title]:not([title=""]) {
+  cursor: pointer;
+}
+
+/* ── Modal overlays: consistent blur backdrop ────────────────── */
+[role="dialog"],
+.modal-overlay {
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+}
+
+/* ── Scrollbars in modals / sheets: thinner ──────────────────── */
+[role="dialog"] ::-webkit-scrollbar { width: 3px; }
+
+/* ── Placeholder text: readable ──────────────────────────────── */
+::placeholder { color: rgba(255,255,255,0.25) !important; opacity: 1; }
+
+/* ── Selection: OS brand color ───────────────────────────────── */
+::selection {
+  background: rgba(0, 240, 255, 0.25) !important;
+  color: #fff !important;
+}
+
+/* ── No orphan text in button labels ────────────────────────── */
+button { text-wrap: nowrap; }
+
+/* ── App window inner scroll containment ─────────────────────── */
+.app-window-inner > * { contain: content; }
+
+/* ── Notification badge: always on top ───────────────────────── */
+.omni-badge { z-index: 10; }
+
+/* ── Cortex chat: smooth appearance ──────────────────────────── */
+.cortex-msg-user,
+.cortex-msg-ai {
+  transform-origin: bottom center;
+}
