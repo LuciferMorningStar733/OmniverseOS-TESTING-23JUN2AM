@@ -1,12 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { APPS } from "../lib/apps";
+import MobileWidgetView from "../widgets/MobileWidgetView";
 
-// Apps shown in the pinned dock (excluded from main grid count for page layout)
+// Apps shown in the pinned dock (5 pinned, evenly spaced)
 export const PINNED_APP_IDS = ["dashboard", "chat", "voice", "browser", "settings"];
 
 const COLS = 4;
 const PAGE_SIZE = 16; // 4 rows × 4 cols per page
+
+// global page 0 = widget view, global pages 1..N = app grid pages
+const WIDGET_PAGE = 0;
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -115,48 +119,161 @@ function AppIcon({ app, onPress, delay = 0 }) {
   );
 }
 
-export default function MobileHomeScreen({ onOpenApp }) {
+function HomeAppGrid({ appPage, onOpenApp, direction }) {
   const now = useClock();
-  const [page, setPage] = useState(0);
+  const gridApps = APPS;
+  const currentApps = gridApps.slice(appPage * PAGE_SIZE, (appPage + 1) * PAGE_SIZE);
+
+  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflowX: "hidden",
+      }}
+    >
+      {/* Clock — only on first app page */}
+      {appPage === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12, duration: 0.42, ease: "easeOut" }}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            paddingTop: 20,
+            paddingBottom: 12,
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "clamp(52px, 14vw, 68px)",
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 200,
+              color: "#ffffff",
+              letterSpacing: "-0.02em",
+              lineHeight: 1,
+              textShadow: "0 2px 24px rgba(0,0,0,0.6), 0 0 60px rgba(0,240,255,0.08)",
+              userSelect: "none",
+            }}
+          >
+            {timeStr}
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 400,
+              color: "rgba(255,255,255,0.55)",
+              marginTop: 6,
+              letterSpacing: "0.02em",
+              textShadow: "0 1px 8px rgba(0,0,0,0.7)",
+              userSelect: "none",
+            }}
+          >
+            {dateStr}
+          </div>
+        </motion.div>
+      )}
+
+      {/* App Grid */}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={appPage}
+            initial={{ opacity: 0, x: direction > 0 ? 40 : -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction > 0 ? -40 : 40 }}
+            transition={{ type: "spring", damping: 30, stiffness: 340, mass: 0.4 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+              alignContent: "start",
+              padding: "4px 8px",
+              height: "100%",
+            }}
+          >
+            {currentApps.map((app, i) => (
+              <AppIcon
+                key={app.id}
+                app={app}
+                onPress={onOpenApp}
+                delay={i * 0.018}
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export default function MobileHomeScreen({ onOpenApp }) {
+  const gridApps = APPS;
+  const appPageCount = Math.ceil(gridApps.length / PAGE_SIZE);
+  // Total pages: 1 widget page + N app pages
+  const totalPages = 1 + appPageCount;
+
+  // globalPage: 0 = widget view, 1..appPageCount = app grid
+  // Start at 1 (home/app grid) so widget page is discoverable by swiping right
+  const [globalPage, setGlobalPage] = useState(1);
+  const [direction, setDirection] = useState(0); // -1 = left swipe, +1 = right swipe
+
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
-  const locked = useRef(false);
+  const axisLocked = useRef(false);
 
-  const gridApps = APPS;
-  const totalPages = Math.ceil(gridApps.length / PAGE_SIZE);
+  const navigate = useCallback((delta) => {
+    setGlobalPage((p) => {
+      const next = Math.max(0, Math.min(totalPages - 1, p + delta));
+      setDirection(delta);
+      return next;
+    });
+  }, [totalPages]);
 
   const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-    locked.current = false;
+    axisLocked.current = false;
   }, []);
 
   const handleTouchMove = useCallback((e) => {
     if (touchStartX.current === null) return;
     const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
     const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
-    if (!locked.current && (dx > 8 || dy > 8)) {
-      locked.current = dy > dx;
+    if (!axisLocked.current && (dx > 8 || dy > 8)) {
+      axisLocked.current = dy > dx; // lock to vertical if dominant
     }
   }, []);
 
-  const handleTouchEnd = useCallback(
-    (e) => {
-      if (touchStartX.current === null || locked.current) return;
-      const dx = e.changedTouches[0].clientX - touchStartX.current;
-      const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+  const handleTouchEnd = useCallback((e) => {
+    if (touchStartX.current === null || axisLocked.current) {
       touchStartX.current = null;
-      if (dy > 55 || Math.abs(dx) < 48) return;
-      if (dx < 0 && page < totalPages - 1) setPage((p) => p + 1);
-      if (dx > 0 && page > 0) setPage((p) => p - 1);
-    },
-    [page, totalPages]
-  );
+      return;
+    }
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    touchStartX.current = null;
+    if (dy > 55 || Math.abs(dx) < 48) return;
+    if (dx < 0) navigate(1);  // swipe left = next page
+    if (dx > 0) navigate(-1); // swipe right = prev page
+  }, [navigate]);
 
-  const currentApps = gridApps.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const isWidgetPage = globalPage === WIDGET_PAGE;
+  const appPage = Math.max(0, globalPage - 1);
 
-  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const dateStr = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  // Page transition animation
+  const pageVariants = {
+    initial: (dir) => ({ opacity: 0, x: dir > 0 ? "30%" : "-30%" }),
+    animate: { opacity: 1, x: "0%" },
+    exit: (dir) => ({ opacity: 0, x: dir > 0 ? "-30%" : "30%" }),
+  };
 
   return (
     <motion.div
@@ -180,99 +297,56 @@ export default function MobileHomeScreen({ onOpenApp }) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* ── Clock ──────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12, duration: 0.42, ease: "easeOut" }}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          paddingTop: 20,
-          paddingBottom: 12,
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            fontSize: "clamp(56px, 15vw, 72px)",
-            fontFamily: "'Outfit', sans-serif",
-            fontWeight: 200,
-            color: "#ffffff",
-            letterSpacing: "-0.02em",
-            lineHeight: 1,
-            textShadow: "0 2px 24px rgba(0,0,0,0.6), 0 0 60px rgba(0,240,255,0.08)",
-            userSelect: "none",
-          }}
-        >
-          {timeStr}
-        </div>
-        <div
-          style={{
-            fontSize: 14,
-            fontFamily: "'Outfit', sans-serif",
-            fontWeight: 400,
-            color: "rgba(255,255,255,0.55)",
-            marginTop: 6,
-            letterSpacing: "0.02em",
-            textShadow: "0 1px 8px rgba(0,0,0,0.7)",
-            userSelect: "none",
-          }}
-        >
-          {dateStr}
-        </div>
-      </motion.div>
-
-      {/* ── App Grid ───────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-        <AnimatePresence mode="wait" initial={false}>
+      {/* Page content area */}
+      <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
+        <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
-            key={page}
-            initial={{ opacity: 0, x: page === 0 ? -24 : 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: page === 0 ? 24 : -24 }}
-            transition={{ type: "spring", damping: 30, stiffness: 340, mass: 0.4 }}
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
-              alignContent: "start",
-              padding: "4px 8px",
-              flex: 1,
-            }}
+            key={globalPage}
+            custom={direction}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ type: "spring", damping: 32, stiffness: 340, mass: 0.45 }}
+            style={{ position: "absolute", inset: 0 }}
           >
-            {currentApps.map((app, i) => (
-              <AppIcon
-                key={app.id}
-                app={app}
-                onPress={onOpenApp}
-                delay={i * 0.018}
+            {isWidgetPage ? (
+              <MobileWidgetView />
+            ) : (
+              <HomeAppGrid
+                appPage={appPage}
+                onOpenApp={onOpenApp}
+                direction={direction}
               />
-            ))}
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* ── Page dots ──────────────────────────────────────────────── */}
-      {totalPages > 1 && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 6,
-            paddingBottom: 16,
-            paddingTop: 4,
-            flexShrink: 0,
-          }}
-        >
-          {Array.from({ length: totalPages }, (_, i) => (
+      {/* Page indicator dots */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 6,
+          paddingBottom: 14,
+          paddingTop: 6,
+          flexShrink: 0,
+        }}
+      >
+        {Array.from({ length: totalPages }, (_, i) => {
+          const isActive = i === globalPage;
+          const isWidget = i === WIDGET_PAGE;
+          return (
             <motion.button
               key={i}
-              onClick={() => setPage(i)}
+              onClick={() => { setDirection(i > globalPage ? 1 : -1); setGlobalPage(i); }}
               animate={{
-                width: i === page ? 18 : 6,
-                background: i === page ? "#00F0FF" : "rgba(255,255,255,0.28)",
+                width: isActive ? 20 : 6,
+                background: isActive
+                  ? (isWidget ? "#7C3AED" : "#00F0FF")
+                  : "rgba(255,255,255,0.28)",
               }}
               transition={{ type: "spring", damping: 22, stiffness: 320 }}
               style={{
@@ -281,12 +355,43 @@ export default function MobileHomeScreen({ onOpenApp }) {
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
-                boxShadow: i === page ? "0 0 10px rgba(0,240,255,0.65)" : "none",
+                boxShadow: isActive
+                  ? `0 0 10px ${isWidget ? "rgba(124,58,237,0.65)" : "rgba(0,240,255,0.65)"}`
+                  : "none",
                 WebkitTapHighlightColor: "transparent",
               }}
             />
-          ))}
-        </div>
+          );
+        })}
+      </div>
+
+      {/* Widget page hint — shown briefly on first load */}
+      {globalPage === 1 && (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 0.4, x: 0 }}
+          transition={{ delay: 1.2, duration: 0.4 }}
+          style={{
+            position: "absolute",
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            pointerEvents: "none",
+          }}
+        >
+          <motion.div
+            animate={{ x: [-3, 0, -3] }}
+            transition={{ repeat: 3, duration: 1, delay: 1.4 }}
+          >
+            <i className="fa-solid fa-chevron-left" style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }} />
+          </motion.div>
+          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Outfit', sans-serif" }}>
+            Widgets
+          </span>
+        </motion.div>
       )}
     </motion.div>
   );
