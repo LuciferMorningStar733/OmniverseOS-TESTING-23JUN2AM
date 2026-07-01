@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { aiApi, memoryApi } from "../lib/api";
-import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import {
   browserSpeak,
   cancelSpeech,
@@ -23,6 +22,42 @@ import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
+
+// ── Inline OS context builder ─────────────────────────────────────────────
+// NOTE: we intentionally do NOT import cortexContext here — it imports apps.js
+// which lazy-imports Voice.js, creating a circular dependency that causes
+// "Cannot access 'kt' before initialization" TDZ errors in production builds.
+// This function replicates the essential context without that import chain.
+function buildVoiceContextPrompt(windows, activeId) {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  const userLocation = (() => {
+    try { const raw = localStorage.getItem("cortex_user_location"); return raw ? JSON.parse(raw) : null; }
+    catch { return null; }
+  })();
+
+  const openWindows = windows || [];
+  const activeWindow = openWindows.find(w => w.id === activeId);
+  const openAppIds = [...new Set(openWindows.map(w => w.app).filter(Boolean))];
+
+  let prompt = "You are OmniverseOS Cortex — a friendly, witty cyberpunk AI assistant living inside an operating system.\n\n";
+  prompt += `Current time: ${timeStr}, ${dateStr}\n`;
+  if (userLocation?.city) {
+    const loc = [userLocation.city, userLocation.region, userLocation.country].filter(Boolean).join(", ");
+    prompt += `User location: ${loc}\n`;
+    prompt += `Always tailor answers to this region (prices, availability, local brands, variants) unless the user specifies otherwise.\n`;
+  }
+  prompt += "\n=== CURRENT OS STATE ===\n";
+  if (activeWindow?.app) prompt += `Active app: ${activeWindow.app}\n`;
+  if (openAppIds.length > 0) {
+    prompt += `Open apps (${openWindows.length}): ${openAppIds.join(", ")}\n`;
+  } else {
+    prompt += "No apps currently open.\n";
+  }
+  return prompt;
+}
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const VOICE_SESSION_KEY   = "cortex_voice_history";
@@ -809,10 +844,9 @@ export default function Voice() {
         } catch { /* non-blocking */ }
 
         // ── Build Cortex OS context system prompt (P6: context unification) ─
-        let systemPrompt = buildCortexSystemPrompt({
-          windows: windowsRef.current,
-          activeId: activeIdRef.current,
-        });
+        // Uses inline builder (not cortexContext import) to avoid circular dep:
+        // cortexContext → apps.js → Voice.js → TDZ crash in production build.
+        let systemPrompt = buildVoiceContextPrompt(windowsRef.current, activeIdRef.current);
 
         // Inject relevant memories
         if (fetchedMemories.length > 0) {
