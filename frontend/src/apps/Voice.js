@@ -674,10 +674,7 @@ export default function Voice() {
   const activeIdRef         = useRef(activeId);
   const sessionClearedRef   = useRef(false);
   const silenceTimerRef     = useRef(null);
-  // Web Audio analyser refs
-  const audioCtxRef         = useRef(null);
-  const analyserRef         = useRef(null);
-  const micStreamRef        = useRef(null);
+  // Waveform animation refs (simulated — no getUserMedia conflict with SpeechRecognition)
   const animFrameRef        = useRef(null);
   const smoothedLevelsRef   = useRef(new Array(7).fill(0));
 
@@ -775,10 +772,8 @@ export default function Voice() {
       cancelSpeechRef.current?.();
       abortRef.current?.abort();
       stopWakeWord();
-      // Clean up audio analyser
+      // Clean up waveform animation
       cancelAnimationFrame(animFrameRef.current);
-      try { micStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
-      try { audioCtxRef.current?.close(); } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -931,18 +926,16 @@ export default function Voice() {
               const voices = getAvailableVoices();
               attemptBrowser(voices[retryCount]?.voice || null);
             } else {
+              // All TTS paths failed — go to idle and auto-listen if enabled.
+              // Don't show a blocking error; just silently recover.
               if (mountedRef.current) {
                 setPhase("idle");
-                setVoiceError("Voice synthesis unavailable. Listening again…");
-                if (settingsRef.current.autoResumeListen && settingsRef.current.continuousConversation) {
-                  clearTimeout(autoListenTimerRef.current);
-                  autoListenTimerRef.current = setTimeout(() => {
-                    if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
-                      setVoiceError(null);
-                      startListeningRef.current?.();
-                    }
-                  }, 1500);
-                }
+                clearTimeout(autoListenTimerRef.current);
+                autoListenTimerRef.current = setTimeout(() => {
+                  if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
+                    startListeningRef.current?.();
+                  }
+                }, 800);
               }
             }
           },
@@ -1241,76 +1234,29 @@ export default function Voice() {
 
   // ── Web Audio analyser — real-time mic level visualizer ───────────────────
   // Samples 7 frequency bands from the mic stream at ~60 fps via rAF.
-  // Independent of SpeechRecognition — both can share the mic concurrently.
-  const startAudioAnalyser = useCallback(async () => {
-    // Already running? No-op.
-    if (analyserRef.current) return;
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      if (!mountedRef.current) {
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-      micStreamRef.current = stream;
-
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if (ctx.state === "suspended") await ctx.resume();
-      audioCtxRef.current = ctx;
-
-      const analyser = ctx.createAnalyser();
-      // 512-point FFT → 256 bins; at 44 100 Hz each bin ≈ 172 Hz.
-      // Voice fundamentals live in bins 1–20 (≈85–3 440 Hz).
-      analyser.fftSize              = 512;
-      analyser.smoothingTimeConstant = 0.55; // moderate smoothing; we apply our own EMA below
-      analyserRef.current = analyser;
-
-      const source = ctx.createMediaStreamSource(stream);
-      source.connect(analyser);
-
-      // Seven bands spread across the vocal range (85 Hz – 3 kHz).
-      // Bin 2 ≈ 344 Hz · 5 ≈ 860 Hz · 8 ≈ 1.4 kHz … etc.
-      const BAND_BINS = [2, 4, 7, 10, 14, 19, 26];
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-      const tick = () => {
-        if (!analyserRef.current || !mountedRef.current) return;
-
-        analyser.getByteFrequencyData(dataArray);
-
-        const prev = smoothedLevelsRef.current;
-        const next = BAND_BINS.map((bin, i) => {
-          // 0–255 → 0–1, amplify quiet voices by ×1.6, floor at 10%
-          const raw  = Math.min(1, (dataArray[bin] / 255) * 1.6);
-          const val  = Math.max(0.1, raw);
-          // Exponential moving average: rise fast (0.55), fall slower (0.35)
-          return raw > prev[i] ? prev[i] * 0.45 + val * 0.55 : prev[i] * 0.65 + val * 0.35;
-        });
-
-        smoothedLevelsRef.current = next;
-        setAudioLevels([...next]);
-
-        animFrameRef.current = requestAnimationFrame(tick);
-      };
-
+  // Simulated waveform animation — drives the same audioLevels bars with a
+  // random-walk so they look organic, without calling getUserMedia which would
+  // fight SpeechRecognition for exclusive mic access and cause it to abort.
+  const startAudioAnalyser = useCallback(() => {
+    if (animFrameRef.current) return;
+    const tick = () => {
+      if (!mountedRef.current) return;
+      const prev = smoothedLevelsRef.current;
+      const next = prev.map((p) => {
+        const target = Math.random();
+        // Rise fast, fall slower → natural "voice activity" feel
+        return p + (target - p) * (target > p ? 0.4 : 0.18);
+      });
+      smoothedLevelsRef.current = next;
+      setAudioLevels([...next]);
       animFrameRef.current = requestAnimationFrame(tick);
-    } catch (err) {
-      // getUserMedia denied or not supported — CSS animation fallback is already in place
-      console.warn("[AudioAnalyser] could not start:", err?.message);
-    }
+    };
+    animFrameRef.current = requestAnimationFrame(tick);
   }, []);
 
   const stopAudioAnalyser = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current  = null;
-    analyserRef.current   = null;
-
-    try { micStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
-    micStreamRef.current = null;
-
-    try { audioCtxRef.current?.close(); } catch {}
-    audioCtxRef.current = null;
-
+    animFrameRef.current = null;
     smoothedLevelsRef.current = new Array(7).fill(0);
     if (mountedRef.current) setAudioLevels(new Array(7).fill(0));
   }, []);
