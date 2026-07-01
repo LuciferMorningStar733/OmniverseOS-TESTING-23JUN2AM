@@ -484,27 +484,29 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         {/* Notifications */}
         <button
           onClick={() => setNotifOpen(true)}
-          title="Notifications"
+          title={`Notifications${unread > 0 ? ` (${unread})` : ""}`}
           style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 6, width: 26, height: 26,
-            display: "flex", alignItems: "center", justifyContent: "center",
+            background: unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${unread > 0 ? "rgba(255,0,60,0.25)" : "rgba(255,255,255,0.08)"}`,
+            borderRadius: 6, height: 26,
+            minWidth: 26,
+            paddingInline: unread > 0 ? "6px" : "0",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
             cursor: "pointer",
             position: "relative",
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = unread > 0 ? "rgba(255,0,60,0.16)" : "rgba(255,255,255,0.09)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)"; }}
         >
-          <i className="fa-solid fa-bell" style={{ color: unread > 0 ? "#E2E8F0" : "#64748b", fontSize: 11 }} />
+          <i className="fa-solid fa-bell" style={{ color: unread > 0 ? "#FF6B7A" : "#64748b", fontSize: 11 }} />
           {unread > 0 && (
             <span style={{
-              position: "absolute", top: 3, right: 3,
-              width: 6, height: 6, borderRadius: "50%",
-              background: "#FF003C",
-              border: "1px solid rgba(6,8,14,0.9)",
-            }} />
+              fontSize: 10, fontWeight: 700, fontFamily: "monospace",
+              color: "#FF6B7A", lineHeight: 1,
+            }}>
+              {unread > 99 ? "99+" : unread}
+            </span>
           )}
         </button>
 

@@ -498,6 +498,27 @@ export default function Window({ win, children }) {
         background: "linear-gradient(135deg, rgba(255,255,255,0.028) 0%, transparent 50%, rgba(0,0,0,0.12) 100%)",
       }} />
 
+      {/* Active accent indicator — 1px gradient line at very top */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 1,
+        borderRadius: "20px 20px 0 0",
+        background: isActive
+          ? `linear-gradient(to right, transparent 0%, ${accentColor}80 20%, ${accentColor} 50%, ${accentColor}80 80%, transparent 100%)`
+          : "transparent",
+        pointerEvents: "none", zIndex: 10,
+        transition: "background 0.35s ease",
+      }} />
+
+      {/* App-color ambient tint when active (subtle, top-down) */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+        borderRadius: "inherit",
+        background: isActive
+          ? `radial-gradient(ellipse 80% 30% at 50% 0%, ${accentColor}08 0%, transparent 70%)`
+          : "transparent",
+        transition: "background 0.35s ease",
+      }} />
+
       {/* Desktop title bar */}
       <div
         className="window-handle flex items-center justify-between px-3 border-b flex-shrink-0"
