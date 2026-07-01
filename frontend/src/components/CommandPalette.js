@@ -129,6 +129,42 @@ function scoreMatch(text, queryTokens) {
   return score;
 }
 
+// ── Recent search helpers ─────────────────────────────────────────────────
+const RECENT_KEY = 'omni_palette_recent';
+const MAX_RECENT = 8;
+
+function getRecentSearches() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveRecentSearch(q) {
+  if (!q || q.trim().length < 2) return;
+  try {
+    const prev = getRecentSearches().filter(r => r.toLowerCase() !== q.toLowerCase());
+    localStorage.setItem(RECENT_KEY, JSON.stringify([q, ...prev].slice(0, MAX_RECENT)));
+  } catch {}
+}
+
+function clearRecentSearches() {
+  try { localStorage.removeItem(RECENT_KEY); } catch {}
+}
+
+// ── Source grouping order ─────────────────────────────────────────────────
+const GROUP_ORDER = ['cortex', 'action', 'app', 'note', 'task', 'memory', 'timeline', 'url', 'clipboard', 'snapshot'];
+const GROUP_LABELS = {
+  cortex: 'AI',
+  action: 'Actions',
+  app:    'Apps',
+  note:   'Notes',
+  task:   'Tasks',
+  memory: 'Memory',
+  timeline: 'Recent Activity',
+  url:    'Browser History',
+  clipboard: 'Clipboard',
+  snapshot: 'Workspaces',
+};
+
 export default function CommandPalette() {
   const {
     paletteOpen, setPaletteOpen,
@@ -137,16 +173,17 @@ export default function CommandPalette() {
     restoreLastWorkspace, restoreNamedWorkspace,
   } = useOS();
 
-  const [q, setQ]                 = useState('');
-  const [selected, setSelected]   = useState(0);
-  const [notes, setNotes]         = useState([]);
-  const [tasks, setTasks]         = useState([]);
-  const [memories, setMemories]   = useState([]);
-  const [clipboard, setClipboard] = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [phIdx, setPhIdx]         = useState(0);
-  const inputRef                  = useRef(null);
-  const selectedRowRef            = useRef(null);
+  const [q, setQ]                     = useState('');
+  const [selected, setSelected]       = useState(0);
+  const [notes, setNotes]             = useState([]);
+  const [tasks, setTasks]             = useState([]);
+  const [memories, setMemories]       = useState([]);
+  const [clipboard, setClipboard]     = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [phIdx, setPhIdx]             = useState(0);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const inputRef                      = useRef(null);
+  const selectedRowRef                = useRef(null);
 
   // ── Cycle placeholder examples ─────────────────────────────────────────
   useEffect(() => {
@@ -159,6 +196,7 @@ export default function CommandPalette() {
   useEffect(() => {
     if (!paletteOpen) { setQ(''); return; }
     setSelected(0);
+    setRecentSearches(getRecentSearches());
     let cancelled = false;
     setLoading(true);
     Promise.allSettled([
@@ -343,9 +381,14 @@ export default function CommandPalette() {
       else if (p.act.event) window.dispatchEvent(new CustomEvent(p.act.event));
     }
 
+    // Save non-trivial queries to recent searches
+    if (q.trim().length >= 2) {
+      saveRecentSearch(q.trim());
+      setRecentSearches(getRecentSearches());
+    }
     setPaletteOpen(false);
     setQ('');
-  }, [openApp, closeWindow, focusWindow, minimize, windows, setPaletteOpen, restoreLastWorkspace, restoreNamedWorkspace]);
+  }, [q, openApp, closeWindow, focusWindow, minimize, windows, setPaletteOpen, restoreLastWorkspace, restoreNamedWorkspace]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') { setPaletteOpen(false); return; }
@@ -397,11 +440,23 @@ export default function CommandPalette() {
           }} />
 
           {/* ── Input row ─────────────────────────────────────────────── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px 16px' }}>
-            <i
-              className="fa-solid fa-wand-magic-sparkles"
-              style={{ color: '#00F0FF', fontSize: 15, flexShrink: 0, opacity: 0.85 }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px 14px' }}>
+            {/* Dynamic icon: magnifier when empty, wand when typing */}
+            <div style={{
+              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: q.trim() ? 'rgba(207,158,255,0.12)' : 'rgba(0,240,255,0.08)',
+              border: `1px solid ${q.trim() ? 'rgba(207,158,255,0.25)' : 'rgba(0,240,255,0.18)'}`,
+              transition: 'all 0.2s ease',
+            }}>
+              <i
+                className={`fa-solid ${q.trim() ? 'fa-wand-magic-sparkles' : 'fa-magnifying-glass'}`}
+                style={{
+                  color: q.trim() ? '#CF9EFF' : '#00F0FF',
+                  fontSize: 13, transition: 'color 0.2s ease',
+                }}
+              />
+            </div>
             <input
               ref={inputRef}
               data-testid="palette-input"
@@ -415,17 +470,33 @@ export default function CommandPalette() {
               spellCheck="false"
               style={{
                 flex: 1, background: 'none', border: 'none', outline: 'none',
-                color: '#fff', fontSize: 17, fontFamily: 'inherit',
-                letterSpacing: '-0.01em',
-                caretColor: '#00F0FF',
+                color: '#fff', fontSize: 16.5, fontFamily: 'inherit',
+                letterSpacing: '-0.01em', caretColor: q.trim() ? '#CF9EFF' : '#00F0FF',
               }}
             />
             {loading && (
-              <i className="fa-solid fa-circle-notch fa-spin" style={{ color: 'rgba(0,240,255,0.4)', fontSize: 12, flexShrink: 0 }} />
+              <i className="fa-solid fa-circle-notch fa-spin" style={{ color: 'rgba(0,240,255,0.38)', fontSize: 12, flexShrink: 0 }} />
+            )}
+            {q.trim() && (
+              <button
+                onClick={() => { setQ(''); setSelected(0); inputRef.current?.focus(); }}
+                style={{
+                  width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.3)', cursor: 'pointer', transition: 'all 0.12s ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; }}
+                title="Clear"
+              >
+                <i className="fa-solid fa-xmark" style={{ fontSize: 9 }} />
+              </button>
             )}
             <kbd style={{
-              fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'inherit',
-              border: '1px solid rgba(255,255,255,0.08)', borderRadius: 5, padding: '2px 6px', flexShrink: 0,
+              fontSize: 10, color: 'rgba(255,255,255,0.18)', fontFamily: 'inherit',
+              border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, padding: '2px 7px', flexShrink: 0,
+              background: 'rgba(255,255,255,0.03)',
             }}>ESC</kbd>
           </div>
 
@@ -435,147 +506,260 @@ export default function CommandPalette() {
           {/* ── Results ───────────────────────────────────────────────── */}
           <div
             data-testid="palette-results"
-            style={{ maxHeight: 400, overflowY: 'auto', padding: '8px 8px' }}
+            style={{ maxHeight: 420, overflowY: 'auto', padding: '6px 8px 8px' }}
           >
+            {/* ── Empty state: recent searches + pinned actions ──────── */}
             {results.length === 0 && !q.trim() && (
-              /* Empty state — show hint chips */
-              <div style={{ padding: '16px 12px 10px' }}>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: "'JetBrains Mono', monospace", marginBottom: 10, letterSpacing: '0.08em' }}>
-                  SUGGESTIONS
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {['open music', 'new note', 'open github', 'compare X vs Y', 'remember...', 'add task...'].map(hint => (
-                    <button
-                      key={hint}
-                      onClick={() => { setQ(hint.endsWith('...') ? hint.slice(0, -3) : hint); inputRef.current?.focus(); }}
-                      style={{
-                        padding: '5px 12px', borderRadius: 20, fontSize: 12,
-                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
-                        color: 'rgba(255,255,255,0.38)', cursor: 'pointer', fontFamily: 'inherit',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,240,255,0.06)'; e.currentTarget.style.color = 'rgba(0,240,255,0.8)'; e.currentTarget.style.borderColor = 'rgba(0,240,255,0.18)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'rgba(255,255,255,0.38)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; }}
-                    >
-                      {hint}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {results.length === 0 && q.trim() && (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
-                No matches — press <kbd style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: '1px 5px', fontSize: 11 }}>↵</kbd> to ask Cortex
-              </div>
-            )}
-
-            {results.map((row, idx) => {
-              const isSel  = idx === selected;
-              const color  = row.color  || SOURCE_COLORS[row.source]  || '#94A3B8';
-              const icon   = row.icon   || SOURCE_ICONS[row.source]   || 'fa-circle';
-              const label  = SOURCE_LABELS[row.source] || row.source;
-              const isCortex = row.source === 'cortex';
-
-              return (
-                <button
-                  key={`${row.source}-${row.id}-${idx}`}
-                  ref={isSel ? selectedRowRef : null}
-                  data-testid={`palette-result-${row.source}-${idx}`}
-                  aria-selected={isSel}
-                  onMouseEnter={() => setSelected(idx)}
-                  onClick={() => activate(row)}
-                  style={{
-                    width: '100%', textAlign: 'left',
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 12px', borderRadius: 12,
-                    background: isSel
-                      ? (isCortex ? 'rgba(207,158,255,0.09)' : 'rgba(0,240,255,0.07)')
-                      : 'transparent',
-                    border: isSel
-                      ? `1px solid ${isCortex ? 'rgba(207,158,255,0.18)' : 'rgba(0,240,255,0.14)'}`
-                      : '1px solid transparent',
-                    cursor: 'pointer', transition: 'all 0.08s ease',
-                    marginBottom: 2,
-                  }}
-                >
-                  {/* Icon bubble */}
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: `${color}18`,
-                    border: `1px solid ${color}28`,
-                  }}>
-                    <i className={`fa-solid ${icon}`} style={{ fontSize: 12, color }} />
+              <div style={{ padding: '8px 4px' }}>
+                {/* Pinned quick actions */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.18)', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 8 }}>
+                    Quick Actions
                   </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {[
+                      { label: 'Open Cortex AI', icon: 'fa-wand-magic-sparkles', color: '#CF9EFF', action: () => { openApp('chat'); setPaletteOpen(false); } },
+                      { label: 'Mission Control', icon: 'fa-clone', color: '#00F0FF', action: () => { window.dispatchEvent(new CustomEvent('om:open-mission')); setPaletteOpen(false); } },
+                      { label: 'New Note', icon: 'fa-note-sticky', color: '#FCEE09', action: () => { openApp('notes'); setPaletteOpen(false); } },
+                      { label: 'Restore Session', icon: 'fa-rotate-left', color: '#39FF14', action: () => { restoreLastWorkspace?.(); setPaletteOpen(false); } },
+                    ].map((item) => (
+                      <button key={item.label} onClick={item.action}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '9px 12px', borderRadius: 10,
+                          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+                          color: 'rgba(255,255,255,0.6)', fontSize: 12.5, cursor: 'pointer',
+                          transition: 'all 0.15s ease', fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${item.color}0D`; e.currentTarget.style.borderColor = `${item.color}28`; e.currentTarget.style.color = item.color; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+                      >
+                        <i className={`fa-solid ${item.icon}`} style={{ fontSize: 11, color: item.color, flexShrink: 0 }} />
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                  {/* Text */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: 14, fontWeight: isCortex ? 500 : 400,
-                      color: isSel ? '#fff' : 'rgba(255,255,255,0.75)',
-                      letterSpacing: '-0.01em',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {isCortex ? (
-                        <>
-                          <span style={{ color: 'rgba(207,158,255,0.6)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace", marginRight: 6 }}>ask</span>
-                          {row.title}
-                        </>
-                      ) : row.title}
+                {/* Recent searches */}
+                {recentSearches.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingLeft: 8, paddingRight: 4 }}>
+                      <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.18)', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                        Recent Searches
+                      </span>
+                      <button onClick={() => { clearRecentSearches(); setRecentSearches([]); }}
+                        style={{ fontSize: 9, color: 'rgba(255,255,255,0.15)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace', padding: '0 2px'" }}>
+                        clear
+                      </button>
                     </div>
-                    {row.subtitle && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {recentSearches.slice(0, 5).map((rs, i) => (
+                        <button key={i} onClick={() => { setQ(rs); setSelected(0); inputRef.current?.focus(); }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '7px 12px', borderRadius: 8, textAlign: 'left',
+                            background: 'transparent', border: '1px solid transparent',
+                            color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer',
+                            fontFamily: 'inherit', transition: 'all 0.12s ease',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+                        >
+                          <i className="fa-solid fa-clock-rotate-left" style={{ fontSize: 10, opacity: 0.4, flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{rs}</span>
+                          <i className="fa-solid fa-arrow-up-left" style={{ fontSize: 8, opacity: 0.25, flexShrink: 0 }} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hint chips when no recent */}
+                {recentSearches.length === 0 && (
+                  <div>
+                    <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.18)', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 8 }}>
+                      Try Asking
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 4 }}>
+                      {['open music', 'new note', 'compare X vs Y', 'add task...', 'remember...'].map(hint => (
+                        <button key={hint}
+                          onClick={() => { setQ(hint.replace(/\.\.\./, '')); inputRef.current?.focus(); }}
+                          style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.32)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s ease' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,240,255,0.07)'; e.currentTarget.style.color = 'rgba(0,240,255,0.8)'; e.currentTarget.style.borderColor = 'rgba(0,240,255,0.2)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = 'rgba(255,255,255,0.32)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; }}
+                        >{hint}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── No results for active query ────────────────────────── */}
+            {results.length === 0 && q.trim() && (
+              <div style={{ padding: '28px 24px', textAlign: 'center' }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(207,158,255,0.08)', border: '1px solid rgba(207,158,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                  <i className="fa-solid fa-wand-magic-sparkles" style={{ color: '#CF9EFF', fontSize: 14 }} />
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 6 }}>No local matches</div>
+                <div style={{ color: 'rgba(255,255,255,0.22)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                  Press <kbd style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontFamily: 'inherit' }}>↵</kbd> to ask Cortex AI
+                </div>
+              </div>
+            )}
+
+            {/* ── Grouped results ────────────────────────────────────── */}
+            {results.length > 0 && (() => {
+              // Group results by source
+              const groups = {};
+              results.forEach((row, idx) => {
+                const g = row.source;
+                if (!groups[g]) groups[g] = [];
+                groups[g].push({ row, idx });
+              });
+              const orderedGroups = GROUP_ORDER.filter(g => groups[g]);
+
+              let globalIdx = 0;
+              return orderedGroups.map(groupKey => {
+                const groupRows = groups[groupKey];
+                const groupLabel = GROUP_LABELS[groupKey] || groupKey;
+                const groupColor = SOURCE_COLORS[groupKey] || '#94A3B8';
+                const showHeader = results.length > 4 && orderedGroups.length > 1;
+
+                return (
+                  <div key={groupKey} style={{ marginBottom: 4 }}>
+                    {showHeader && (
                       <div style={{
-                        fontSize: 11, color: 'rgba(255,255,255,0.22)',
-                        fontFamily: "'JetBrains Mono', monospace",
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        marginTop: 1,
+                        fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",
+                        letterSpacing: '0.1em', textTransform: 'uppercase',
+                        color: `${groupColor}60`, marginTop: 10, marginBottom: 4,
+                        paddingLeft: 12, paddingRight: 8,
+                        display: 'flex', alignItems: 'center', gap: 8,
                       }}>
-                        {row.subtitle}
+                        <span>{groupLabel}</span>
+                        <div style={{ flex: 1, height: 1, background: `${groupColor}15` }} />
                       </div>
                     )}
+                    {groupRows.map(({ row, idx }) => {
+                      const isSel = idx === selected;
+                      const color = row.color || SOURCE_COLORS[row.source] || '#94A3B8';
+                      const icon  = row.icon  || SOURCE_ICONS[row.source]  || 'fa-circle';
+                      const label = SOURCE_LABELS[row.source] || row.source;
+                      const isCortex = row.source === 'cortex';
+
+                      return (
+                        <button
+                          key={`${row.source}-${row.id}-${idx}`}
+                          ref={isSel ? selectedRowRef : null}
+                          data-testid={`palette-result-${row.source}-${idx}`}
+                          aria-selected={isSel}
+                          onMouseEnter={() => setSelected(idx)}
+                          onClick={() => activate(row)}
+                          style={{
+                            width: '100%', textAlign: 'left',
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            padding: isCortex ? '11px 14px' : '9px 12px',
+                            borderRadius: isCortex ? 13 : 10,
+                            background: isSel
+                              ? (isCortex ? 'rgba(207,158,255,0.1)' : 'rgba(255,255,255,0.06)')
+                              : 'transparent',
+                            border: isSel
+                              ? `1px solid ${isCortex ? 'rgba(207,158,255,0.22)' : 'rgba(255,255,255,0.1)'}`
+                              : '1px solid transparent',
+                            cursor: 'pointer',
+                            transition: 'background 0.08s ease, border-color 0.08s ease',
+                            marginBottom: 2,
+                            boxShadow: isSel && isCortex ? '0 0 20px rgba(207,158,255,0.1)' : 'none',
+                          }}
+                        >
+                          {/* Icon bubble */}
+                          <div style={{
+                            width: isCortex ? 34 : 30, height: isCortex ? 34 : 30,
+                            borderRadius: isCortex ? 10 : 8, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: isSel ? `${color}22` : `${color}12`,
+                            border: `1px solid ${color}${isSel ? '35' : '20'}`,
+                            transition: 'all 0.1s ease',
+                          }}>
+                            <i className={`fa-solid ${icon}`} style={{ fontSize: isCortex ? 13 : 11, color }} />
+                          </div>
+
+                          {/* Text */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontSize: isCortex ? 14.5 : 13.5,
+                              fontWeight: isCortex ? 500 : 400,
+                              color: isSel ? '#fff' : 'rgba(255,255,255,0.72)',
+                              letterSpacing: '-0.01em',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {isCortex ? (
+                                <>
+                                  <span style={{ color: 'rgba(207,158,255,0.55)', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", marginRight: 7 }}>ask cortex</span>
+                                  {row.title}
+                                </>
+                              ) : row.title}
+                            </div>
+                            {row.subtitle && (
+                              <div style={{
+                                fontSize: 10.5, color: 'rgba(255,255,255,0.2)',
+                                fontFamily: "'JetBrains Mono', monospace",
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                marginTop: 1.5,
+                              }}>
+                                {row.subtitle}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Source badge — only show when ungrouped or for cortex */}
+                          {(orderedGroups.length === 1 || isCortex) && (
+                            <span style={{
+                              fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                              letterSpacing: '0.07em', textTransform: 'uppercase',
+                              color, background: `${color}10`, border: `1px solid ${color}28`,
+                              borderRadius: 5, padding: '2px 7px', flexShrink: 0,
+                            }}>
+                              {label}
+                            </span>
+                          )}
+
+                          {/* Enter hint for selected */}
+                          {isSel && (
+                            <kbd style={{
+                              fontSize: 10, color: 'rgba(255,255,255,0.28)',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              borderRadius: 5, padding: '1px 5px', flexShrink: 0,
+                              fontFamily: 'inherit',
+                            }}>↵</kbd>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {/* Source badge */}
-                  <span style={{
-                    fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
-                    letterSpacing: '0.07em', textTransform: 'uppercase',
-                    color, background: `${color}10`, border: `1px solid ${color}28`,
-                    borderRadius: 5, padding: '2px 7px', flexShrink: 0,
-                  }}>
-                    {label}
-                  </span>
-
-                  {/* Enter key hint for selected */}
-                  {isSel && (
-                    <kbd style={{
-                      fontSize: 10, color: 'rgba(255,255,255,0.3)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: 5, padding: '1px 5px', flexShrink: 0,
-                      fontFamily: 'inherit',
-                    }}>↵</kbd>
-                  )}
-                </button>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
 
           {/* ── Footer ────────────────────────────────────────────────── */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 20px 12px',
+            padding: '8px 20px 11px',
             borderTop: '1px solid rgba(255,255,255,0.04)',
           }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.15)', fontFamily: "'JetBrains Mono', monospace", display: 'flex', gap: 10 }}>
-              {[['↑↓', 'navigate'], ['↵', 'execute'], ['esc', 'close']].map(([key, label]) => (
-                <span key={key}>
-                  <kbd style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '1px 5px' }}>{key}</kbd>
-                  {' '}{label}
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.13)', fontFamily: "'JetBrains Mono', monospace", display: 'flex', gap: 12 }}>
+              {[['↑↓', 'navigate'], ['↵', 'run'], ['esc', 'close']].map(([key, lbl]) => (
+                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <kbd style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, padding: '1px 5px', background: 'rgba(255,255,255,0.04)' }}>{key}</kbd>
+                  <span>{lbl}</span>
                 </span>
               ))}
             </span>
-            <span style={{ fontSize: 10, color: 'rgba(207,158,255,0.35)', fontFamily: "'JetBrains Mono', monospace" }}>
-              powered by Cortex
+            <span style={{ fontSize: 10, color: 'rgba(207,158,255,0.3)', fontFamily: "'JetBrains Mono', monospace", display: 'flex', alignItems: 'center', gap: 5 }}>
+              <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 8 }} />
+              Cortex
             </span>
           </div>
         </motion.div>
