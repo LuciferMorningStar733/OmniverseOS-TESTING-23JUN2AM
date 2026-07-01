@@ -365,6 +365,7 @@ export default function Voice() {
   const finalizedUntilRef  = useRef(0);
   const abortRef           = useRef(null);
   const cancelSpeechRef    = useRef(null);      // cancel() for current browser TTS
+  const orbSwipeTouchY     = useRef(null);      // touch Y for swipe-down interrupt
   const conversationRef    = useRef([]);         // keeps in sync for callbacks
   const settingsRef        = useRef(settings);
   const autoListenTimerRef = useRef(null);
@@ -1845,6 +1846,21 @@ export default function Voice() {
             onClick={handleMicClick}
             disabled={false}
             className="transition-all duration-300"
+            onTouchStart={(e) => {
+              orbSwipeTouchY.current = e.touches[0]?.clientY ?? null;
+            }}
+            onTouchEnd={(e) => {
+              const startY = orbSwipeTouchY.current;
+              orbSwipeTouchY.current = null;
+              if (startY == null) return;
+              const deltaY = (e.changedTouches[0]?.clientY ?? startY) - startY;
+              // Swipe DOWN ≥ 40px while speaking → interrupt (like pulling away from ear)
+              if (deltaY >= 40 && isSpeaking) {
+                e.preventDefault();
+                stopSpeaking();
+                setTimeout(() => { if (mountedRef.current) startListening(); }, 150);
+              }
+            }}
             style={{
               pointerEvents: "all",
               width: 80, height: 80,
@@ -1885,12 +1901,26 @@ export default function Voice() {
               }`}
             />
           </button>
-          <p
-            className="text-[10px] font-mono mt-2 transition-all duration-300"
-            style={{ color: PHASE_COLORS[phase] || "#00F0FF", pointerEvents: "none" }}
-          >
-            {isSpeaking ? "Tap to interrupt" : isListening ? "Tap to stop" : isThinking ? "Processing…" : "Tap to speak"}
-          </p>
+          {/* Swipe hint — only shown while speaking */}
+          {isSpeaking && (
+            <div
+              className="flex flex-col items-center mt-1"
+              style={{ pointerEvents: "none", animation: "fadeSlideUp 0.2s ease" }}
+            >
+              <i className="fa-solid fa-chevron-down text-[8px] mb-0.5 animate-bounce" style={{ color: "rgba(0,240,255,0.5)" }} />
+              <p className="text-[9px] font-mono" style={{ color: "rgba(0,240,255,0.5)" }}>
+                swipe ↓ to interrupt
+              </p>
+            </div>
+          )}
+          {!isSpeaking && (
+            <p
+              className="text-[10px] font-mono mt-2 transition-all duration-300"
+              style={{ color: PHASE_COLORS[phase] || "#00F0FF", pointerEvents: "none" }}
+            >
+              {isListening ? "Tap to stop" : isThinking ? "Processing…" : "Tap to speak"}
+            </p>
+          )}
         </div>
       )}
     </div>
