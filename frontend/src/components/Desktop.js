@@ -371,7 +371,7 @@ export default function Desktop() {
             } : {}),
           }}
         >
-          {wp.fx && !wp.dataURL && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
+          {wp.fx && !wp.dataURL && !isMobile && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
           {wp.typo?.main && (
             <div className="wp-typo">
               {wp.typo.main}
