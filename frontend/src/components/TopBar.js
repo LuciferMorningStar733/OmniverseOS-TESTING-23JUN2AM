@@ -334,8 +334,8 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
           style={{ background: "linear-gradient(135deg,#00F0FF,#FF003C)" }}
         >
-          <i className="fa-solid fa-infinity text-ext-black text-xs" />
-          </div>
+          <i className="fa-solid fa-infinity text-black text-xs" />
+        </div>
 
           {/* Search pill */}
           <button
@@ -352,7 +352,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             }}
           >
             <i className="fa-solid fa-magnifying-glass text-[#00F0FF] text-sm flex-shrink-0" />
-            <span className="flex-1 text-left text-sm text-slate-400 font-mono truncate">Search or ask AI.</span>
+            <span className="flex-1 text-left text-sm text-slate-400 font-mono truncate">Search or ask Cortex…</span>
             <i className="fa-solid fa-microphone text-slate-500 text-sm flex-shrink-0" />
           </button>
 
@@ -410,13 +410,16 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           cursor: "pointer",
           flexShrink: 0,
           minWidth: 200,
+          transition: "all 0.15s ease",
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)"; }}
       >
         <i className="fa-solid fa-magnifying-glass" style={{ color: "#00F0FF", fontSize: 11 }} />
         <span style={{ color: "#64748b", fontSize: 12, fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap" }}>
-          Search apps, files or ask AI.
+          Search or ask Cortex…
         </span>
-        <kbd style={{ marginLeft: 4, padding: "1px 5px", background: "rgba(255,255,255,0.08)", borderRadius: 4, color: "#475569", fontSize: 10, fontFamily: "monospace" }}>?K</kbd>
+        <kbd style={{ marginLeft: 4, padding: "1px 5px", background: "rgba(255,255,255,0.08)", borderRadius: 4, color: "#475569", fontSize: 10, fontFamily: "monospace" }}>⌘K</kbd>
       </button>
 
       {/* Right cluster */}
@@ -448,11 +451,14 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           title={widgetsVisible ? "Hide widgets" : "Show widgets"}
           style={{
             background: widgetsVisible ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: `1px solid ${widgetsVisible ? "rgba(0,240,255,0.25)" : "rgba(255,255,255,0.08)"}`,
             borderRadius: 6, width: 26, height: 26,
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
+          onMouseEnter={(e) => { if (!widgetsVisible) { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}}
+          onMouseLeave={(e) => { if (!widgetsVisible) { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}}
         >
           <i className="fa-solid fa-table-cells" style={{ color: widgetsVisible ? "#00F0FF" : "#64748b", fontSize: 11 }} />
         </button>
@@ -460,14 +466,17 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         {/* Mission control */}
         <button
           onClick={onOpenMissionControl}
-          title="Mission Control"
+          title="Mission Control (Ctrl+Tab)"
           style={{
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 6, width: 26, height: 26,
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
         >
           <i className="fa-solid fa-clone" style={{ color: "#64748b", fontSize: 11 }} />
         </button>
@@ -475,6 +484,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         {/* Notifications */}
         <button
           onClick={() => setNotifOpen(true)}
+          title="Notifications"
           style={{
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -482,9 +492,12 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer",
             position: "relative",
+            transition: "all 0.15s ease",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
         >
-          <i className="fa-solid fa-bell" style={{ color: "#64748b", fontSize: 11 }} />
+          <i className="fa-solid fa-bell" style={{ color: unread > 0 ? "#E2E8F0" : "#64748b", fontSize: 11 }} />
           {unread > 0 && (
             <span style={{
               position: "absolute", top: 3, right: 3,

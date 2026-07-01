@@ -117,16 +117,17 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
       <button
         onClick={onClose}
         style={{
-          width: 52, height: 52,
-          display: "flex", alignItems: "center", justifyContent: "center",
+          display: "flex", alignItems: "center", gap: 4,
+          height: 52, paddingLeft: 4, paddingRight: 8,
           background: "transparent", border: "none", cursor: "pointer",
-          color: "#00F0FF", fontSize: 18, zIndex: 2,
+          color: "#00F0FF", zIndex: 2,
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation", flexShrink: 0,
           transition: "opacity 0.15s",
         }}
       >
-        <i className="fa-solid fa-chevron-left" />
+        <i className="fa-solid fa-chevron-left" style={{ fontSize: 18 }} />
+        <span style={{ fontSize: 14, fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>Back</span>
       </button>
 
       <div style={{

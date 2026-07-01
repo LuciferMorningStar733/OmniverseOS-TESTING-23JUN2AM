@@ -161,25 +161,25 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
         transition={{ type: "spring", stiffness: 440, damping: 14, mass: 0.22 }}
         className="relative flex-shrink-0 flex flex-col items-center justify-center select-none"
         style={{
-          width: 64, height: 64,
-          minWidth: 56, minHeight: 56,
+          width: 68, height: 76,
+          minWidth: 60,
           borderRadius: 14,
-          background: isActive ? `${app.color}12` : "transparent",
-          boxShadow: isActive
-            ? `0 0 0 1.5px ${app.color}40, 0 0 24px ${app.color}18`
-            : "none",
+          background: "transparent",
+          boxShadow: "none",
           transition: "background 0.22s ease, box-shadow 0.22s ease",
           WebkitTapHighlightColor: "transparent",
           touchAction: "none", userSelect: "none",
           willChange: "transform",
+          gap: 2,
         }}
       >
         <div
           className="flex items-center justify-center"
           style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: isActive ? `${app.color}18` : "rgba(255,255,255,0.05)",
-            transition: "background 0.22s ease",
+            width: 44, height: 44, borderRadius: 12,
+            background: isActive ? `${app.color}18` : "rgba(255,255,255,0.06)",
+            border: isActive ? `1.5px solid ${app.color}40` : "1px solid rgba(255,255,255,0.06)",
+            transition: "background 0.22s ease, border-color 0.22s ease",
           }}
         >
           <i
@@ -194,15 +194,30 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
           />
         </div>
 
+        <span style={{
+          fontSize: 9.5,
+          fontFamily: "'Outfit', sans-serif",
+          color: isActive ? "#fff" : "rgba(255,255,255,0.45)",
+          marginTop: 3,
+          maxWidth: 60,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          letterSpacing: "0.01em",
+          lineHeight: 1.2,
+          transition: "color 0.22s ease",
+          userSelect: "none",
+        }}>
+          {app.name}
+        </span>
+
         {open && (
           <motion.div
             layoutId={`running-dot-${app.id}`}
             style={{
-              position: "absolute", bottom: 4, left: "50%",
+              position: "absolute", bottom: 2, left: "50%",
               x: "-50%",
-              width: isActive ? 20 : 4, height: 3, borderRadius: 2,
-              background: isActive ? app.color : "rgba(255,255,255,0.35)",
-              boxShadow: isActive ? `0 0 10px ${app.color}CC` : "none",
+              width: isActive ? 16 : 3, height: 3, borderRadius: 2,
+              background: isActive ? app.color : "rgba(255,255,255,0.30)",
+              boxShadow: isActive ? `0 0 8px ${app.color}CC` : "none",
               transition: "width 0.25s cubic-bezier(0.34,1.56,0.64,1), background 0.25s ease, box-shadow 0.25s ease",
             }}
           />
@@ -251,14 +266,14 @@ function MobileDock() {
       <div
         className="pointer-events-auto w-full flex items-center justify-start"
         style={{
-          background: "rgba(6,8,14,0.88)",
+          background: "rgba(6,8,14,0.92)",
           backdropFilter: "blur(40px) saturate(200%)",
           WebkitBackdropFilter: "blur(40px) saturate(200%)",
           borderTop: "1px solid rgba(255,255,255,0.10)",
           boxShadow: "0 -8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
-          minHeight: 80,
-          paddingTop: 8, paddingBottom: 8,
-          paddingLeft: 4, paddingRight: 4,
+          minHeight: 90,
+          paddingTop: 6, paddingBottom: 6,
+          paddingLeft: 6, paddingRight: 6,
           overflowX: "auto", overflowY: "visible",
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none", willChange: "transform",

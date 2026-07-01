@@ -61,10 +61,10 @@ export default function AuthScreen() {
   };
 
   const headings = {
-    login:  { title: "Authenticate",    sub: "Authenticate to enter your workspace." },
-    signup: { title: "Create Workspace", sub: "Create your sovereign workspace."     },
-    forgot: { title: "Reset Password",  sub: "Enter your email to receive a reset link." },
-    reset:  { title: "New Password",    sub: "Choose a strong new password."          },
+    login:  { title: "Welcome back",    sub: "Sign in to enter your workspace." },
+    signup: { title: "Create account",  sub: "Create your OmniverseOS workspace."     },
+    forgot: { title: "Reset password",  sub: "Enter your email to receive a reset link." },
+    reset:  { title: "New password",    sub: "Choose a strong new password."          },
   };
 
   return (
@@ -100,7 +100,10 @@ export default function AuthScreen() {
               exit="exit"
               transition={{ duration: 0.22, ease: "easeOut" }}
             >
-              <p className="text-slate-400 text-sm mt-4 mb-6 leading-relaxed">
+              <h2 className="font-heading text-2xl font-bold text-white mt-5 mb-1">
+                {headings[mode]?.title}
+              </h2>
+              <p className="text-slate-400 text-sm mb-6 leading-relaxed">
                 {headings[mode]?.sub}
               </p>
 
@@ -186,7 +189,7 @@ export default function AuthScreen() {
                 <>New here?{" "}<button data-testid="auth-toggle-mode" type="button" onClick={() => setMode("signup")} className="text-[#00F0FF] hover:underline">Create an account</button></>
               )}
               {mode === "signup" && (
-                <>Already authenticated?{" "}<button data-testid="auth-toggle-mode" type="button" onClick={() => setMode("login")} className="text-[#00F0FF] hover:underline">Sign in</button></>
+                <>Already have an account?{" "}<button data-testid="auth-toggle-mode" type="button" onClick={() => setMode("login")} className="text-[#00F0FF] hover:underline">Sign in</button></>
               )}
               {(mode === "forgot" || mode === "reset") && (
                 <button type="button" onClick={() => { setMode("login"); setForgotSent(false); }} className="text-[#00F0FF] hover:underline">
@@ -198,7 +201,7 @@ export default function AuthScreen() {
         </div>
 
         <div className="text-center mt-4 mono-label opacity-60">
-          // Press Cmd+K anywhere to open the command palette
+          // Press ⌘K anywhere to open the command palette
         </div>
       </motion.div>
     </div>

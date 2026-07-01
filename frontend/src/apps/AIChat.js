@@ -785,7 +785,7 @@ export default function AIChat() {
       <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 flex-shrink-0">
         <div>
           <div className="mono-label">// Cortex Online</div>
-          <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
+          <h2 className="font-heading text-xl font-bold">Cortex</h2>
         </div>
         <div className="flex items-center gap-2">
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
@@ -801,9 +801,49 @@ export default function AIChat() {
       <div className="relative flex-1 overflow-hidden">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-slate-500 pt-10">
-            <i className="fa-solid fa-wand-magic-sparkles text-4xl text-[#00F0FF] opacity-50" />
-            <div className="mt-3 text-sm">Ask me anything. I remember our conversation.</div>
+          <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12" style={{ minHeight: 200 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: "linear-gradient(135deg, rgba(0,240,255,0.15), rgba(207,158,255,0.15))",
+              border: "1px solid rgba(0,240,255,0.2)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              marginBottom: 16,
+              boxShadow: "0 0 30px rgba(0,240,255,0.08)",
+            }}>
+              <i className="fa-solid fa-wand-magic-sparkles text-2xl" style={{ color: "#00F0FF" }} />
+            </div>
+            <div className="font-heading text-lg font-bold text-white mb-1">How can I help?</div>
+            <div className="text-sm text-slate-500 mb-6">Ask anything — I remember our full conversation.</div>
+            <div className="flex flex-wrap gap-2 justify-center max-w-xs">
+              {["Summarize my day", "Help me focus", "What can you do?"].map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => sendRef.current?.(prompt)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 20,
+                    background: "rgba(0,240,255,0.07)",
+                    border: "1px solid rgba(0,240,255,0.18)",
+                    color: "rgba(0,240,255,0.8)",
+                    fontSize: 12,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    cursor: "pointer",
+                    transition: "all 0.18s ease",
+                    letterSpacing: "0.01em",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(0,240,255,0.14)";
+                    e.currentTarget.style.color = "#00F0FF";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(0,240,255,0.07)";
+                    e.currentTarget.style.color = "rgba(0,240,255,0.8)";
+                  }}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1119,7 +1159,7 @@ export default function AIChat() {
               send();
             }
           }}
-          placeholder={isRecording ? "Listening…" : "Message the cortex…"}
+          placeholder={isRecording ? "Listening…" : "Message Cortex…"}
           className="input-cyber flex-1 transition-all duration-200"
           style={isRecording ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" } : {}}
         />
