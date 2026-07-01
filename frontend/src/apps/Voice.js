@@ -64,20 +64,29 @@ const VOICE_SESSION_KEY   = "cortex_voice_history";
 const VOICE_SETTINGS_KEY  = "cortex_voice_settings_v2";
 const MAX_HISTORY_PAIRS   = 15; // max user+assistant pairs kept
 
-const DEFAULT_VOICE_SETTINGS = {
-  continuousConversation: true,
-  conversationTimeout: "never", // "never" | "5" | "15" | "30" | "60" (minutes)
-  autoResumeListen: true,
-  wakeWordEnabled: false,
-  voiceFeedback: true,
-  preferredVoiceName: null,
-  rate: 1.0,
-  pitch: 1.0,
-  volume: 1.0,
-  autoSelectBestVoice: true,
-  voiceEngine: "stream",            // "stream" (Amazon Polly/human) | "browser" (device TTS)
-  streamVoiceId: DEFAULT_STREAM_VOICE, // StreamElements voice id
-};
+// NOTE: This is a function, not a module-level const, to prevent a webpack
+// scope-hoisting TDZ crash in production. If declared as a const at module
+// level, webpack may evaluate Voice.js's initialisation code before
+// streamTTS.js's 'const DEFAULT_STREAM_VOICE' in the merged chunk scope,
+// causing "Cannot access 'kt' before initialization".
+// As a hoisted function, DEFAULT_STREAM_VOICE is only read at call time
+// (inside loadSettings / render), by which point all modules are initialised.
+function getDefaultVoiceSettings() {
+  return {
+    continuousConversation: true,
+    conversationTimeout: "never", // "never" | "5" | "15" | "30" | "60" (minutes)
+    autoResumeListen: true,
+    wakeWordEnabled: false,
+    voiceFeedback: true,
+    preferredVoiceName: null,
+    rate: 1.0,
+    pitch: 1.0,
+    volume: 1.0,
+    autoSelectBestVoice: true,
+    voiceEngine: "stream",            // "stream" (Amazon Polly/human) | "browser" (device TTS)
+    streamVoiceId: DEFAULT_STREAM_VOICE, // StreamElements voice id
+  };
+}
 
 const TIMEOUT_OPTIONS = [
   { value: "never", label: "Never"   },
@@ -104,9 +113,9 @@ function saveVoiceHistory(history) {
 function loadSettings() {
   try {
     const raw = localStorage.getItem(VOICE_SETTINGS_KEY);
-    if (!raw) return { ...DEFAULT_VOICE_SETTINGS };
-    return { ...DEFAULT_VOICE_SETTINGS, ...JSON.parse(raw) };
-  } catch { return { ...DEFAULT_VOICE_SETTINGS }; }
+    if (!raw) return getDefaultVoiceSettings();
+    return { ...getDefaultVoiceSettings(), ...JSON.parse(raw) };
+  } catch { return getDefaultVoiceSettings(); }
 }
 
 function saveSettings(s) {
