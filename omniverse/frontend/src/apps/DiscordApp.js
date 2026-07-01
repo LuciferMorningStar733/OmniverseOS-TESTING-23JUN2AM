@@ -39,7 +39,7 @@ export default function DiscordApp() {
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="discord-app">
-      <DemoBadge note="Messages stay local to this browser session." />
+      <DemoBadge note="Messages are session-local — connect a backend for persistence." />
       <div className="flex flex-1 overflow-hidden">
       <div className="w-16 bg-black/40 flex flex-col items-center py-3 gap-2 border-r border-white/10">
         {SERVERS.map((s) => (

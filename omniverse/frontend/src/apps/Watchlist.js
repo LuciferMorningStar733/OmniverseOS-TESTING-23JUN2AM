@@ -27,7 +27,7 @@ export default function Watchlist() {
 
   return (
     <div className="h-full overflow-y-auto text-white" data-testid="watchlist-app">
-      <DemoBadge note="Static titles. Watchlist saves to your browser only." />
+      <DemoBadge note="Watchlist is stored locally in your browser." />
 
       {/* Featured hero */}
       <div className="relative h-48 sm:h-60">

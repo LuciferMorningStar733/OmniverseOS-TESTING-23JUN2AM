@@ -18,17 +18,70 @@ const CONV_PREFS_KEY = "omniverse_cortex_conv_prefs";
 const DEFAULT_CONV_PREFS = {
   liveMode: false,
   autoResumeListening: true,
-  sessionTimeout: 15, // minutes; 0 = never
+  sessionTimeout: 15,
   continuousConversation: true,
+  wakeWordEnabled: false,
+  recognitionLang: "en-US",
 };
 const TIMEOUT_OPTIONS = [
-  { value: 0,  label: "Never"    },
+  { value: 0,  label: "Never"   },
   { value: 5,  label: "5 min"   },
   { value: 15, label: "15 min"  },
   { value: 30, label: "30 min"  },
   { value: 60, label: "1 hour"  },
 ];
-const MAX_HISTORY_PAIRS = 15; // keep last 15 user+assistant pairs (30 messages)
+const MAX_HISTORY_PAIRS = 15;
+
+// ── Accent / language options ──────────────────────────────────────────────
+const ACCENT_OPTIONS = [
+  { value: "en-US", label: "English (US)",       flag: "🇺🇸" },
+  { value: "en-GB", label: "English (UK)",        flag: "🇬🇧" },
+  { value: "en-AU", label: "English (Australia)", flag: "🇦🇺" },
+  { value: "en-IN", label: "English (India)",     flag: "🇮🇳" },
+  { value: "en-ZA", label: "English (S. Africa)", flag: "🇿🇦" },
+  { value: "en-PH", label: "English (Philippines)",flag:"🇵🇭" },
+  { value: "en-NZ", label: "English (N. Zealand)", flag: "🇳🇿" },
+  { value: "en-CA", label: "English (Canada)",    flag: "🇨🇦" },
+  { value: "en-SG", label: "English (Singapore)", flag: "🇸🇬" },
+];
+
+// ── Wake word detection ────────────────────────────────────────────────────
+// Primary triggers (exact / near-exact)
+const WAKE_TRIGGERS = [
+  "hey cortex", "cortex", "ok cortex", "okay cortex",
+  "hi cortex", "yo cortex", "listen cortex", "wake cortex",
+];
+// Phonetic variants across accents — what STT may transcribe instead
+const WAKE_PHONETIC = [
+  "hey chorus", "hey courts", "hey vortex", "hey kordex",
+  "hey cortis", "hey cortes", "hey cortecks", "hey corteks",
+  "hey quarttex", "hey cortech", "hey cortez", "hey code x",
+  "okay chorus", "ok chorus", "a cortex", "the cortex",
+  "hey cord ex", "oi cortex", "hey quartteks", "hey corkx",
+];
+const ALL_WAKE_WORDS = [...WAKE_TRIGGERS, ...WAKE_PHONETIC];
+
+// Simple Levenshtein for fuzzy "cortex" word matching
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function isWakeWord(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  // Exact / phonetic list match
+  if (ALL_WAKE_WORDS.some((w) => t.includes(w))) return true;
+  // Fuzzy: any word in the transcript within distance 2 of "cortex"
+  const words = t.split(/\s+/);
+  return words.some((w) => w.length >= 4 && levenshtein(w, "cortex") <= 2);
+}
 
 // ── Conversation prefs helpers ─────────────────────────────────────────────
 function loadConvPrefs() {
@@ -249,14 +302,16 @@ function playAudioUrl(objectUrl, volume, analyserRef, onAudioCreated) {
 }
 
 // ── State indicator pill ────────────────────────────────────────────────────
-function StateIndicator({ phase, liveMode }) {
+function StateIndicator({ phase, wakeActive, liveMode }) {
   const states = {
-    idle:      { label: "Idle",      color: "rgba(255,255,255,0.25)", icon: "fa-circle",           pulse: false },
-    listening: { label: "Listening", color: "#FF003C",                icon: "fa-microphone",        pulse: true  },
-    thinking:  { label: "Thinking",  color: "#CF9EFF",                icon: "fa-brain",             pulse: true  },
-    speaking:  { label: "Speaking",  color: "#00F0FF",                icon: "fa-waveform-lines",   pulse: false },
+    idle:      { label: "Idle",      color: "rgba(255,255,255,0.25)", icon: "fa-circle",          pulse: false },
+    wake:      { label: "Waiting…",  color: "#FCEE09",                icon: "fa-ear-listen",      pulse: true  },
+    listening: { label: "Listening", color: "#FF003C",                icon: "fa-microphone",       pulse: true  },
+    thinking:  { label: "Thinking",  color: "#CF9EFF",                icon: "fa-brain",            pulse: true  },
+    speaking:  { label: "Speaking",  color: "#00F0FF",                icon: "fa-waveform-lines",  pulse: false },
   };
-  const meta = states[phase] || states.idle;
+  const key  = wakeActive && phase === "idle" ? "wake" : phase;
+  const meta = states[key] || states.idle;
   return (
     <div
       className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-mono"
@@ -269,7 +324,7 @@ function StateIndicator({ phase, liveMode }) {
     >
       <i className={`fa-solid ${meta.icon} text-[10px] ${meta.pulse ? "animate-pulse" : ""}`} />
       {meta.label}
-      {liveMode && phase === "idle" && (
+      {liveMode && phase === "idle" && !wakeActive && (
         <span className="text-[9px] opacity-60 ml-0.5">· Live</span>
       )}
     </div>
@@ -287,6 +342,14 @@ function SettingsPanel({ prefs, onChange, onClose }) {
         </button>
       </div>
 
+      {/* Wake Word */}
+      <SettingRow
+        label='Wake Word — "Hey Cortex"'
+        desc="Continuously listen for your name in the background"
+        value={prefs.wakeWordEnabled}
+        onChange={(v) => onChange({ ...prefs, wakeWordEnabled: v })}
+      />
+
       {/* Live Mode */}
       <SettingRow
         label="Live Mode"
@@ -303,7 +366,6 @@ function SettingsPanel({ prefs, onChange, onClose }) {
         onChange={(v) => onChange({ ...prefs, continuousConversation: v })}
       />
 
-      {/* Auto Resume Listening */}
       {prefs.liveMode && (
         <SettingRow
           label="Auto-Resume Listening"
@@ -330,6 +392,32 @@ function SettingsPanel({ prefs, onChange, onClose }) {
               }}
             >
               {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Accent / Language */}
+      <div className="py-2.5">
+        <div className="text-sm text-white font-medium mb-1">Speech Accent</div>
+        <div className="text-xs text-slate-500 mb-2">Improves recognition accuracy for your accent</div>
+        <div className="flex flex-col gap-1">
+          {ACCENT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => onChange({ ...prefs, recognitionLang: opt.value })}
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-[11px] font-mono text-left transition-all"
+              style={{
+                borderColor: prefs.recognitionLang === opt.value ? "rgba(0,240,255,0.55)" : "rgba(255,255,255,0.08)",
+                background: prefs.recognitionLang === opt.value ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.03)",
+                color: prefs.recognitionLang === opt.value ? "#00F0FF" : "rgba(255,255,255,0.50)",
+              }}
+            >
+              <span>{opt.flag}</span>
+              <span>{opt.label}</span>
+              {prefs.recognitionLang === opt.value && (
+                <i className="fa-solid fa-check text-[9px] ml-auto" />
+              )}
             </button>
           ))}
         </div>
@@ -402,11 +490,12 @@ export default function Voice() {
   const [voiceUnavailable, setVoiceUnavailable] = useState(false);
 
   // Conversation state
-  const [conversationHistory, setConversationHistory] = useState([]); // [{role,content}]
+  const [conversationHistory, setConversationHistory] = useState([]);
   const [convPrefs, setConvPrefs] = useState(loadConvPrefs);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [lastInteraction, setLastInteraction] = useState(null);
+  const [wakeActive, setWakeActive] = useState(false);
 
   const { openApp } = useOS();
 
@@ -423,10 +512,13 @@ export default function Voice() {
   const analyserRef       = useRef(null);
   const activeAudioRef    = useRef(null);
   const sessionTimerRef   = useRef(null);
+  const wakeWordRecogRef  = useRef(null);
+  const wakeRestartRef    = useRef(null);
   // Refs for use inside callbacks (avoid stale closures)
   const convHistoryRef    = useRef([]);
   const convPrefsRef      = useRef(convPrefs);
   const phaseRef          = useRef("idle");
+  const wakeActiveRef     = useRef(false);
 
   useEffect(() => { voiceGenderRef.current = voiceGender; }, [voiceGender]);
   useEffect(() => { geminiVoiceRef.current = geminiVoice; }, [geminiVoice]);
@@ -472,10 +564,12 @@ export default function Voice() {
     return () => {
       mountedRef.current = false;
       clearTimeout(sessionTimerRef.current);
+      clearTimeout(wakeRestartRef.current);
       abortRef.current?.abort();
       speakAbortRef.current?.abort();
       previewAbortRef.current?.abort();
       recogRef.current?.stop();
+      try { wakeWordRecogRef.current?.stop(); } catch (_) {}
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
         activeAudioRef.current.src = "";
@@ -540,15 +634,20 @@ export default function Voice() {
       if (mountedRef.current && !ctrl.signal.aborted) {
         setPhase("idle");
         setDetectedEmotion("neutral");
-        // Live Mode: auto-resume listening after speaking (if not interrupted)
         const prefs = convPrefsRef.current;
         if (!interrupted && prefs.liveMode && prefs.autoResumeListening) {
-          // Small delay before auto-listening so it feels natural
           setTimeout(() => {
             if (mountedRef.current && phaseRef.current === "idle") {
               startListeningRef.current?.();
             }
           }, 800);
+        } else if (!interrupted && prefs.wakeWordEnabled) {
+          // Wake word mode: go back to listening for "Hey Cortex"
+          setTimeout(() => {
+            if (mountedRef.current && phaseRef.current === "idle") {
+              startWakeWord();
+            }
+          }, 600);
         }
       }
     }
@@ -639,8 +738,98 @@ export default function Voice() {
     });
   }, []);
 
+  // ── Wake word detection ────────────────────────────────────────────────────
+  const stopWakeWord = useCallback(() => {
+    clearTimeout(wakeRestartRef.current);
+    try { wakeWordRecogRef.current?.stop(); } catch (_) {}
+    wakeWordRecogRef.current = null;
+    wakeActiveRef.current = false;
+    setWakeActive(false);
+  }, []);
+
+  const startWakeWord = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || !mountedRef.current) return;
+    // Don't run while actively listening/speaking/thinking
+    if (phaseRef.current !== "idle") return;
+    if (wakeActiveRef.current) return;
+
+    try { wakeWordRecogRef.current?.stop(); } catch (_) {}
+    const lang = convPrefsRef.current.recognitionLang || "en-US";
+    const r    = new SR();
+    r.continuous     = true;
+    r.interimResults = true;
+    r.lang           = lang;
+    r.maxAlternatives = 2;
+    wakeWordRecogRef.current = r;
+    wakeActiveRef.current    = true;
+    setWakeActive(true);
+
+    r.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const best = e.results[i][0].transcript;
+        if (isWakeWord(best)) {
+          stopWakeWord();
+          setTimeout(() => {
+            if (mountedRef.current && phaseRef.current === "idle") {
+              startListeningRef.current?.();
+            }
+          }, 120);
+          return;
+        }
+      }
+    };
+
+    r.onerror = (e) => {
+      if (!mountedRef.current) return;
+      if (e.error === "aborted" || e.error === "not-allowed") {
+        wakeActiveRef.current = false;
+        setWakeActive(false);
+        return;
+      }
+      // Other errors — restart after 1.5s
+      wakeWordRecogRef.current = null;
+      wakeActiveRef.current    = false;
+      setWakeActive(false);
+      wakeRestartRef.current = setTimeout(() => {
+        if (mountedRef.current && convPrefsRef.current.wakeWordEnabled
+            && phaseRef.current === "idle") {
+          startWakeWord();
+        }
+      }, 1500);
+    };
+
+    r.onend = () => {
+      if (!mountedRef.current) return;
+      const stillEnabled = convPrefsRef.current.wakeWordEnabled;
+      wakeWordRecogRef.current = null;
+      wakeActiveRef.current    = false;
+      setWakeActive(false);
+      if (stillEnabled && phaseRef.current === "idle") {
+        // Auto-restart to keep listening
+        wakeRestartRef.current = setTimeout(() => {
+          if (mountedRef.current && convPrefsRef.current.wakeWordEnabled
+              && phaseRef.current === "idle") {
+            startWakeWord();
+          }
+        }, 300);
+      }
+    };
+
+    try { r.start(); } catch (_) {}
+  }, [stopWakeWord]);
+
+  // Start/stop wake word when the pref changes
+  useEffect(() => {
+    if (convPrefs.wakeWordEnabled) {
+      startWakeWord();
+    } else {
+      stopWakeWord();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convPrefs.wakeWordEnabled]);
+
   // ── STT: listen ────────────────────────────────────────────────────────────
-  // Exposed via ref so speakGemini's auto-resume can call it safely
   const startListeningRef = useRef(null);
 
   const start = useCallback(() => {
@@ -656,7 +845,7 @@ export default function Voice() {
     const r = new SR();
     r.continuous      = false;
     r.interimResults  = true;
-    r.lang            = "en-US";
+    r.lang            = convPrefsRef.current.recognitionLang || "en-US";
     r.maxAlternatives = 3;
 
     transcriptRef.current     = "";
@@ -704,7 +893,19 @@ export default function Voice() {
       startedRef.current = false;
       const text = transcriptRef.current.trim();
       if (mountedRef.current) setInterimText("");
-      if (!text) { if (mountedRef.current) setPhase("idle"); return; }
+      if (!text) {
+        if (mountedRef.current) {
+          setPhase("idle");
+          // Wake word: go back to standby after silence
+          const prefs = convPrefsRef.current;
+          if (prefs.wakeWordEnabled) {
+            setTimeout(() => {
+              if (mountedRef.current && phaseRef.current === "idle") startWakeWord();
+            }, 400);
+          }
+        }
+        return;
+      }
       if (!mountedRef.current) return;
 
       setPhase("thinking");
@@ -814,6 +1015,8 @@ export default function Voice() {
     ? "bg-[#00F0FF]/15 border-2 border-[#00F0FF] shadow-[0_0_40px_rgba(0,240,255,0.35)]"
     : isThinking
     ? "bg-white/5 border-2 border-white/20 cursor-not-allowed"
+    : wakeActive
+    ? "bg-[#FCEE09]/10 border-2 border-[#FCEE09]/50 shadow-[0_0_24px_rgba(252,238,9,0.2)] animate-pulse"
     : "bg-[#00F0FF]/10 border-2 border-[#00F0FF]/40 hover:border-[#00F0FF] hover:shadow-[0_0_30px_rgba(0,240,255,0.3)]";
 
   const buttonIcon = isListening
@@ -822,6 +1025,8 @@ export default function Voice() {
     ? "fa-waveform-lines text-[#00F0FF]"
     : isThinking
     ? "fa-circle-notch fa-spin text-white/30"
+    : wakeActive
+    ? "fa-ear-listen text-[#FCEE09]"
     : "fa-microphone text-[#00F0FF]";
 
   const buttonTitle = isListening
@@ -830,6 +1035,8 @@ export default function Voice() {
     ? "Interrupt — start listening"
     : isThinking
     ? "Processing…"
+    : wakeActive
+    ? "Wake word active — tap to speak now"
     : "Tap to speak";
 
   const statusText = isListening
@@ -838,6 +1045,8 @@ export default function Voice() {
     ? "Speaking — tap mic to interrupt"
     : isThinking
     ? "Processing request…"
+    : wakeActive
+    ? "Say 'Hey Cortex' — or tap to speak"
     : convPrefs.liveMode
     ? "Live mode active — tap to speak"
     : "Tap to speak";
@@ -845,9 +1054,11 @@ export default function Voice() {
   const handleButtonClick = isListening
     ? stop
     : isSpeaking
-    ? () => stopSpeaking(true)  // interrupt → auto-start listening
+    ? () => stopSpeaking(true)
     : isThinking
     ? undefined
+    : wakeActive
+    ? () => { stopWakeWord(); start(); }
     : start;
 
   const EMOTION_META = {
@@ -1012,7 +1223,7 @@ export default function Voice() {
 
           {/* ── State indicator + badges ── */}
           <div className="flex items-center gap-2 mb-5 flex-wrap justify-center">
-            <StateIndicator phase={phase} liveMode={convPrefs.liveMode} />
+            <StateIndicator phase={phase} wakeActive={wakeActive} liveMode={convPrefs.liveMode} />
 
             {/* Gender toggle */}
             <button

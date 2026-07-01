@@ -15,7 +15,7 @@ export default function Videos() {
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="videos-app">
-      <DemoBadge note="Curated YouTube samples. Personal subscriptions coming soon." />
+      <DemoBadge note="Curated YouTube collection — select any video to play." />
 
       {/* Content area — stack on mobile, 3-col grid on desktop */}
       <div className="flex-1 flex flex-col sm:grid sm:grid-cols-3 overflow-hidden min-h-0">
