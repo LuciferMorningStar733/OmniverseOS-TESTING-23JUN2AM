@@ -264,11 +264,38 @@ function MobileDock() {
     []
   );
 
+  // Auto-hide dock when user scrolls down in the home feed
+  const [dockVisible, setDockVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  useEffect(() => {
+    const handler = ({ detail }) => {
+      const y = detail?.scrollY ?? 0;
+      if (y > lastScrollY.current + 18 && y > 55) {
+        setDockVisible(false);
+      } else if (y < lastScrollY.current - 10 || y < 30) {
+        setDockVisible(true);
+      }
+      lastScrollY.current = y;
+    };
+    window.addEventListener("aiHomeScroll", handler);
+    return () => window.removeEventListener("aiHomeScroll", handler);
+  }, []);
+
   return (
     <motion.div
       initial={{ y: 120, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.22, type: "spring", damping: 26, stiffness: 240 }}
+      animate={{
+        y: dockVisible ? 0 : 120,
+        opacity: dockVisible ? 1 : 0,
+      }}
+      transition={{
+        y:       { type: "spring", damping: 28, stiffness: 280 },
+        opacity: { duration: 0.20 },
+        // Initial entrance still uses delay
+        ...(dockVisible === true && lastScrollY.current === 0
+          ? { delay: 0.22 }
+          : {}),
+      }}
       className="absolute left-0 right-0 bottom-0 z-40 pointer-events-none"
       data-testid="dock-root"
       style={{
@@ -284,21 +311,21 @@ function MobileDock() {
       <div
         style={{
           pointerEvents: "auto",
-          background: "rgba(6, 8, 16, 0.82)",
-          backdropFilter: "blur(48px) saturate(220%)",
-          WebkitBackdropFilter: "blur(48px) saturate(220%)",
-          border: "1px solid rgba(255,255,255,0.11)",
-          borderRadius: 28,
-          boxShadow: "0 8px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,240,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)",
-          paddingTop: 10,
-          paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
-          paddingLeft: 16,
-          paddingRight: 16,
+          background: "rgba(5, 7, 15, 0.84)",
+          backdropFilter: "blur(56px) saturate(230%)",
+          WebkitBackdropFilter: "blur(56px) saturate(230%)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 30,
+          boxShadow: "0 12px 48px rgba(0,0,0,0.70), 0 0 0 1px rgba(0,240,255,0.04), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(0,0,0,0.30)",
+          paddingTop: 9,
+          paddingBottom: "calc(9px + env(safe-area-inset-bottom, 0px))",
+          paddingLeft: 14,
+          paddingRight: 14,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-around",
-          gap: 4,
-          minWidth: 240,
+          gap: 2,
+          minWidth: 232,
         }}
       >
         {pinnedApps.map((app) => (

@@ -337,37 +337,44 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           <i className="fa-solid fa-infinity text-black text-xs" />
         </div>
 
-          {/* Search pill */}
-          <button
-            data-testid="open-command-palette"
-            onClick={() => setPaletteOpen(true)}
-            className="flex-1 flex items-center gap-2 rounded-2xl"
-            style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              height: 44,
-              paddingLeft: 14,
-              paddingRight: 14,
-              minWidth: 0,
-            }}
-          >
-            <i className="fa-solid fa-magnifying-glass text-[#00F0FF] text-sm flex-shrink-0" />
-            <span className="flex-1 text-left text-sm text-slate-400 font-mono truncate">Search or ask Cortex…</span>
-            <i className="fa-solid fa-microphone text-slate-500 text-sm flex-shrink-0" />
-          </button>
-
-          {/* Notification bell */}
-          <button
-            onClick={() => setNotifOpen(true)}
-            className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-          >
-            <i className="fa-solid fa-bell text-slate-300 text-sm" />
-            {unread > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF003C]" />
-            )}
-          </button>
+        {/* OS name — minimal, no duplicate search */}
+        <div className="flex-1 flex flex-col justify-center" style={{ paddingLeft: 6 }}>
+          <span style={{
+            fontSize: 13,
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.82)",
+            letterSpacing: "-0.01em",
+            lineHeight: 1,
+          }}>
+            OmniverseOS
+          </span>
+          <span style={{
+            fontSize: 9.5,
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 400,
+            color: "rgba(0,240,255,0.55)",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            marginTop: 2,
+          }}>
+            Cortex Active
+          </span>
         </div>
+
+        {/* Notification bell */}
+        <button
+          onClick={() => setNotifOpen(true)}
+          className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+          aria-label="Notifications"
+        >
+          <i className="fa-solid fa-bell text-slate-300 text-sm" />
+          {unread > 0 && (
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF003C]" />
+          )}
+        </button>
+      </div>
       );
   }
 

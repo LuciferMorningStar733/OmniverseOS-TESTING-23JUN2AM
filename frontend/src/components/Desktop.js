@@ -398,7 +398,7 @@ export default function Desktop() {
       {/* ── Mobile Home Screen (shown when no app is open) ── */}
       <AnimatePresence>
         {isMobile && openWindows.length === 0 && (
-          <MobileHomeScreen key="mobile-home" onOpenApp={handleOpenApp} />
+          <MobileHomeScreen key="mobile-home" onOpenApp={handleOpenApp} onOpenSearch={() => setPaletteOpen(true)} />
         )}
       </AnimatePresence>
 
