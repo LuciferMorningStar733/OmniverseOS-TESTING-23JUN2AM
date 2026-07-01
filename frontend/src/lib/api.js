@@ -3,7 +3,7 @@ import axios from "axios";
 const BASE = process.env.REACT_APP_BACKEND_URL || "";
 export const API = `${BASE}/api`;
 
-export const api = axios.create({ baseURL: API });
+export const api = axios.create({ baseURL: API, timeout: 60_000 });
 
 api.interceptors.request.use((cfg) => {
   const token = localStorage.getItem("omniverse_token");

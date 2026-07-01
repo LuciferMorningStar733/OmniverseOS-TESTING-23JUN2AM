@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
@@ -15,6 +15,27 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy]         = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [slowMsg, setSlowMsg]   = useState(null);
+  const timerA = useRef(null);
+  const timerB = useRef(null);
+
+  useEffect(() => {
+    if (busy) {
+      timerA.current = setTimeout(() => setSlowMsg("Connecting to server…"), 4000);
+      timerB.current = setTimeout(
+        () => setSlowMsg("Server is starting up — this can take up to a minute on first login."),
+        14000,
+      );
+    } else {
+      clearTimeout(timerA.current);
+      clearTimeout(timerB.current);
+      setSlowMsg(null);
+    }
+    return () => {
+      clearTimeout(timerA.current);
+      clearTimeout(timerB.current);
+    };
+  }, [busy]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -48,7 +69,12 @@ export default function AuthScreen() {
         setConfirmPassword("");
       }
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Something went wrong");
+      const isTimeout = err.code === "ECONNABORTED" || err.message?.toLowerCase().includes("timeout");
+      toast.error(
+        isTimeout
+          ? "Server is starting up — please wait a moment and try again."
+          : err?.response?.data?.detail || "Something went wrong",
+      );
     } finally {
       setBusy(false);
     }
@@ -177,6 +203,12 @@ export default function AuthScreen() {
                       : mode === "forgot"  ? "Send Reset Link"
                       : "Reset Password"}
                   </button>
+
+                  {busy && slowMsg && (
+                    <p className="text-xs text-center font-mono mt-2 leading-relaxed" style={{ color: "rgba(0,240,255,0.65)" }}>
+                      {slowMsg}
+                    </p>
+                  )}
                 </form>
               )}
             </motion.div>

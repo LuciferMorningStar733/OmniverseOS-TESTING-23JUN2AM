@@ -313,17 +313,11 @@
     min-height: -webkit-fill-available;
   }
 
-  /* 2. Unified headline scaling — all four wallpapers */
-  .wp-neural-core .wp-typo,
-  .wp-blueprint .wp-typo,
-  .wp-quantum-horizon .wp-typo,
-  .wp-ai-nexus .wp-typo {
-    font-size: clamp(32px, 9vw, 56px) !important;
-    white-space: normal !important;
-    word-break: break-word;
-    max-width: 88vw;
+  /* 2. Unified headline scaling — ALL wallpapers (v1.0 + v2.0) */
+  .wp-base .wp-typo {
+    font-size: clamp(20px, 6.5vw, 44px) !important;
+    white-space: nowrap !important;
     line-height: 1 !important;
-    /* Centre all headlines regardless of desktop alignment */
     left: 50% !important;
     right: auto !important;
     bottom: auto !important;
@@ -331,17 +325,14 @@
     text-align: center !important;
   }
 
-  /* Adjust vertical positions to avoid TopBar chrome */
-  .wp-neural-core .wp-typo   { top: 18% !important; }
-  .wp-blueprint .wp-typo     { top: 20% !important; }
+  /* Per-wallpaper vertical positions — v1.0 */
+  .wp-neural-core .wp-typo     { top: 18% !important; }
+  .wp-blueprint .wp-typo       { top: 20% !important; }
   .wp-quantum-horizon .wp-typo { top: 18% !important; }
-  .wp-ai-nexus .wp-typo      { top: 16% !important; }
+  .wp-ai-nexus .wp-typo        { top: 16% !important; }
 
-  /* 3. Recentre sub-lines */
-  .wp-neural-core .wp-typo-sub,
-  .wp-blueprint .wp-typo-sub,
-  .wp-quantum-horizon .wp-typo-sub,
-  .wp-ai-nexus .wp-typo-sub {
+  /* 3. Recentre sub-lines — ALL wallpapers */
+  .wp-base .wp-typo-sub {
     left: 50% !important;
     right: auto !important;
     bottom: auto !important;
@@ -351,10 +342,11 @@
     white-space: nowrap;
   }
 
-  .wp-neural-core .wp-typo-sub    { top: 34% !important; }
-  .wp-blueprint .wp-typo-sub      { top: 36% !important; }
+  /* Per-wallpaper vertical positions for sub-text — v1.0 */
+  .wp-neural-core .wp-typo-sub     { top: 34% !important; }
+  .wp-blueprint .wp-typo-sub       { top: 36% !important; }
   .wp-quantum-horizon .wp-typo-sub { top: 34% !important; }
-  .wp-ai-nexus .wp-typo-sub       { top: 32% !important; }
+  .wp-ai-nexus .wp-typo-sub        { top: 32% !important; }
 
   /* 4. Hide decorative fog + beam overlays on small screens
         (they add little at this size and cost GPU) */

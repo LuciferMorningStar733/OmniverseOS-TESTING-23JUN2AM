@@ -41,7 +41,7 @@ export default function WidgetCanvas({ topOffset = 60 }) {
         style={{
           position: "fixed",
           top: topOffset + 12,
-          left: 18,
+          right: 18,
           width: 36,
           height: 36,
           borderRadius: 10,
