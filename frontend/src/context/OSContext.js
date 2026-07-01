@@ -48,7 +48,7 @@ export const OSProvider = ({ children }) => {
 
   // ── wallpaper ───────────────────────────────────────────────────────────────
   const [wallpaper, setWallpaperState] = useState(
-    () => localStorage.getItem(LS_WALLPAPER) || DEFAULT_WALLPAPER
+    () => { try { return localStorage.getItem(LS_WALLPAPER) || DEFAULT_WALLPAPER; } catch { return DEFAULT_WALLPAPER; } }
   );
   const setWallpaper = useCallback((id) => {
     setWallpaperState(id);
