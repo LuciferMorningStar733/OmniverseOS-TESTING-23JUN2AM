@@ -377,6 +377,7 @@ export default function Voice() {
   const startListeningRef  = useRef(null);       // populated after startListening is defined
   const windowsRef         = useRef(windows);    // for cortex context in callbacks
   const activeIdRef        = useRef(activeId);   // for cortex context in callbacks
+  const sessionClearedRef  = useRef(false);      // true when user explicitly cleared this session
 
   // Keep refs in sync
   useEffect(() => { conversationRef.current = conversation; }, [conversation]);
@@ -453,13 +454,19 @@ export default function Voice() {
     window.speechSynthesis?.addEventListener("voiceschanged", onChanged);
 
     // Load shared conversation history from backend on mount (P2: share with AIChat)
+    // Capture initial local length so we can guard against overwriting newer turns.
+    const localLenAtMount = conversationRef.current.length;
     aiApi.history("main").then((msgs) => {
       if (!mountedRef.current || !Array.isArray(msgs) || msgs.length === 0) return;
+      // P2 race guard: if user already started speaking, or explicitly cleared this session, skip.
+      if (startedRef.current || phaseRef.current !== "idle" || sessionClearedRef.current) return;
       const voiceHistory = msgs
         .filter((m) => m.content && !m.pending && !m.error)
         .slice(-MAX_HISTORY_PAIRS * 2)
         .map((m) => ({ role: m.role, content: String(m.content) }));
-      if (voiceHistory.length > 0) {
+      // Only apply if backend has strictly more history than what was loaded from localStorage.
+      // This ensures we never overwrite turns the user added while the request was in flight.
+      if (voiceHistory.length > localLenAtMount && conversationRef.current.length === localLenAtMount) {
         setConversation(voiceHistory);
         conversationRef.current = voiceHistory;
         saveVoiceHistory(voiceHistory);
@@ -563,6 +570,8 @@ export default function Voice() {
   }, []);
 
   const resetConversation = useCallback((silent = false) => {
+    // Mark session as cleared so backend history isn't reloaded on remount (P2 fix)
+    sessionClearedRef.current = true;
     setConversation([]);
     saveVoiceHistory([]);
     setSessionTurnCount(0);
