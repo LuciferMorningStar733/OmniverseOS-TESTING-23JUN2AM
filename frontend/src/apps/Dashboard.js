@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { analytics } from "../lib/api";
-import { APPS } from "../lib/apps";
+import { APP_META } from "../lib/appMeta";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 
 // ── Activity data ─────────────────────────────────────────────────────────
@@ -328,7 +328,7 @@ function AIIntelligencePanel({ stats, delay = 0.44 }) {
 // ── App picker modal ──────────────────────────────────────────────────────
 function AppPickerModal({ current, onSave, onClose }) {
   const [selected, setSelected] = useState(current);
-  const allApps = APPS.filter(a => a.id !== "settings");
+  const allApps = APP_META.filter(a => a.id !== "settings");
   const toggle = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -403,7 +403,7 @@ export default function Dashboard() {
   const removeQuickApp = (id) => saveQuick(quickIds.filter(x => x !== id));
 
   const completionPct  = stats.tasks ? Math.round((stats.tasks_done / stats.tasks) * 100) : 0;
-  const quickApps      = quickIds.map(id => APPS.find(a => a.id === id)).filter(Boolean).slice(0, 10);
+  const quickApps      = quickIds.map(id => APP_META.find(a => a.id === id)).filter(Boolean).slice(0, 10);
   const pctColor       = completionPct >= 80 ? "#39FF14" : completionPct >= 40 ? "#FCEE09" : "#FF003C";
 
   const STATS = [
