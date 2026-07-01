@@ -531,6 +531,22 @@ export default function Voice() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const resetConversation = useCallback((silent = false) => {
+    // Mark session as cleared so backend history isn't reloaded on remount (P2 fix)
+    sessionClearedRef.current = true;
+    setConversation([]);
+    saveVoiceHistory([]);
+    setSessionTurnCount(0);
+    setTranscript("");
+    setInterimText("");
+    setDetectedEmotion("neutral");
+    if (!silent) {
+      toast.success("Conversation cleared — fresh start", {
+        duration: 2000, style: { fontSize: 12 },
+      });
+    }
+  }, []);
+
   // ── Conversation timeout management ─────────────────────────────────────
   useEffect(() => {
     clearTimeout(timeoutTimerRef.current);
@@ -611,22 +627,6 @@ export default function Voice() {
     });
     // Badge: mark new messages when not on history tab
     setHistoryBadge((b) => b + 1);
-  }, []);
-
-  const resetConversation = useCallback((silent = false) => {
-    // Mark session as cleared so backend history isn't reloaded on remount (P2 fix)
-    sessionClearedRef.current = true;
-    setConversation([]);
-    saveVoiceHistory([]);
-    setSessionTurnCount(0);
-    setTranscript("");
-    setInterimText("");
-    setDetectedEmotion("neutral");
-    if (!silent) {
-      toast.success("Conversation cleared — fresh start", {
-        duration: 2000, style: { fontSize: 12 },
-      });
-    }
   }, []);
 
   // ── Stop speaking ─────────────────────────────────────────────────────────
