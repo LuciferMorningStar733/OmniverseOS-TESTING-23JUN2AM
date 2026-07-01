@@ -677,6 +677,11 @@ export default function Voice() {
   // Waveform animation refs (simulated — no getUserMedia conflict with SpeechRecognition)
   const animFrameRef        = useRef(null);
   const smoothedLevelsRef   = useRef(new Array(7).fill(0));
+  // true when the recognition was stopped deliberately (silence timer / user tap / error).
+  // false = browser ended it unexpectedly (Android Chrome fires onend even with continuous=true).
+  const intentionalStopRef  = useRef(false);
+  // Unlock AudioContext on first tap so TTS works on Android Chrome.
+  const audioUnlockedRef    = useRef(false);
 
   // Keep refs in sync
   useEffect(() => { conversationRef.current = conversation; }, [conversation]);
@@ -978,6 +983,7 @@ export default function Voice() {
 
     clearTimeout(autoListenTimerRef.current);
     clearTimeout(silenceTimerRef.current);
+    intentionalStopRef.current = false; // fresh session — any onend is unexpected until we say otherwise
 
     if (phaseRef.current === "speaking") {
       cancelSpeechRef.current?.();
@@ -1004,6 +1010,7 @@ export default function Voice() {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = setTimeout(() => {
         if (startedRef.current && recogRef.current) {
+          intentionalStopRef.current = true; // silence timeout = deliberate stop
           try { recogRef.current.stop(); } catch {}
         }
       }, SILENCE_TIMEOUT_MS);
@@ -1040,6 +1047,7 @@ export default function Voice() {
 
     r.onerror = (e) => {
       clearTimeout(silenceTimerRef.current);
+      intentionalStopRef.current = true; // errors count as intentional (don't auto-restart)
       startedRef.current = false;
       if (mountedRef.current) {
         setPhase("idle");
@@ -1058,6 +1066,16 @@ export default function Voice() {
       const text = transcriptRef.current.trim();
       if (mountedRef.current) setInterimText("");
       if (!text) {
+        // Android Chrome fires onend early even with continuous=true (network-dependent STT).
+        // If the stop was NOT intentional and we're still in listening phase, silently restart.
+        if (!intentionalStopRef.current && mountedRef.current && phaseRef.current === "listening") {
+          setTimeout(() => {
+            if (mountedRef.current && phaseRef.current === "listening" && !startedRef.current) {
+              startListeningRef.current?.();
+            }
+          }, 150);
+          return;
+        }
         if (mountedRef.current) setPhase("idle");
         return;
       }
@@ -1162,6 +1180,7 @@ export default function Voice() {
 
   const stopListening = useCallback(() => {
     clearTimeout(silenceTimerRef.current);
+    intentionalStopRef.current = true; // user tapped stop = intentional
     try { recogRef.current?.stop(); } catch {}
     startedRef.current = false;
     if (mountedRef.current) setPhase("idle");
@@ -1272,6 +1291,17 @@ export default function Voice() {
 
   // ── Main button click ─────────────────────────────────────────────────────
   const handleMicClick = useCallback(() => {
+    // Unlock AudioContext on first user tap — required on Android Chrome for TTS.
+    // Must happen inside a gesture handler (not async) to satisfy the browser's
+    // "audio was started by user gesture" security requirement.
+    if (!audioUnlockedRef.current) {
+      audioUnlockedRef.current = true;
+      try {
+        const tmp = new (window.AudioContext || window.webkitAudioContext)();
+        tmp.resume().then(() => tmp.close()).catch(() => {});
+      } catch {}
+    }
+
     if (phase === "listening") {
       stopListening();
     } else if (phase === "speaking") {

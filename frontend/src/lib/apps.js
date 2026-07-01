@@ -19,7 +19,7 @@ export const APPS = [
   // ─── AI ────────────────────────────────────────────────────────────────
   { id: "chat",       name: "AI Chat",      icon: "fa-comments",       color: "#00F0FF", Component: lazy(() => import("../apps/AIChat")),        group: "ai" },
   { id: "image",      name: "Image Gen",    icon: "fa-image",          color: "#A855F7", Component: lazy(() => import("../apps/ImageGen")),      group: "ai" },
-  { id: "voice",      name: "Voice",        icon: "fa-microphone",     color: "#00F0FF", Component: lazy(() => import("../apps/Voice")),         group: "ai" },
+  { id: "voice",      name: "Cortex",       icon: "fa-microphone",     color: "#4A9EFF", Component: lazy(() => import("../apps/Voice")),         group: "ai" },
   { id: "memory",     name: "Memory",       icon: "fa-brain",          color: "#2DD4BF", Component: lazy(() => import("../apps/Memory")),        group: "ai" },
 
   // ─── Productivity ──────────────────────────────────────────────────────

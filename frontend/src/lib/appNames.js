@@ -14,7 +14,7 @@ export const APP_NAMES = {
   dashboard:  "Dashboard",
   chat:       "AI Chat",
   image:      "Image Gen",
-  voice:      "Voice",
+  voice:      "Cortex",
   memory:     "Memory",
   notes:      "Notes",
   tasks:      "Tasks",

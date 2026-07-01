@@ -21,7 +21,7 @@ export const APP_META = [
   { id: "dashboard",  name: "Dashboard",    icon: "fa-grip",           color: "#00F0FF", group: "core"         },
   { id: "chat",       name: "AI Chat",      icon: "fa-comments",       color: "#00F0FF", group: "ai"           },
   { id: "image",      name: "Image Gen",    icon: "fa-image",          color: "#A855F7", group: "ai"           },
-  { id: "voice",      name: "Voice",        icon: "fa-microphone",     color: "#00F0FF", group: "ai"           },
+  { id: "voice",      name: "Cortex",       icon: "fa-microphone",     color: "#4A9EFF", group: "ai"           },
   { id: "memory",     name: "Memory",       icon: "fa-brain",          color: "#2DD4BF", group: "ai"           },
   // ── Productivity ────────────────────────────────────────────────────────
   { id: "notes",      name: "Notes",        icon: "fa-note-sticky",    color: "#F59E0B", group: "productivity" },
