@@ -1036,10 +1036,11 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     }
   }, [navigate, globalPage, showDrawer, resetPeek]);
 
+  // Priority 3 — tighter spring + reduced x offset matches iOS/Android page transitions
   const pageVariants = {
-    initial: (dir) => ({ opacity: 0, x: dir > 0 ?  "28%" : "-28%" }),
-    animate:          { opacity: 1, x: "0%" },
-    exit:    (dir) => ({ opacity: 0, x: dir > 0 ? "-28%" :  "28%" }),
+    initial: (dir) => ({ opacity: 0, x: dir > 0 ?  "18%" : "-18%", scale: 0.97 }),
+    animate:          { opacity: 1, x: "0%",                         scale: 1    },
+    exit:    (dir) => ({ opacity: 0, x: dir > 0 ? "-18%" :  "18%",  scale: 0.97 }),
   };
 
   return (
@@ -1069,7 +1070,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ type: "spring", damping: 32, stiffness: 340, mass: 0.45 }}
+              transition={{ type: "spring", damping: 26, stiffness: 380, mass: 0.35 }}
               style={{ position: "absolute", inset: 0 }}
             >
               {globalPage === 0 ? (

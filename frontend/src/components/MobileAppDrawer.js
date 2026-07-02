@@ -63,11 +63,14 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
       transition={{ delay, type: "spring", damping: 20, stiffness: 400, mass: 0.28 }}
       style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
     >
-      <button
+      {/* Priority 5 — spring-physics press animation via motion.button */}
+      <motion.button
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => { setPressed(false); onPress(app.id); }}
         onPointerLeave={() => setPressed(false)}
         onPointerCancel={() => setPressed(false)}
+        animate={{ scale: pressed ? 0.78 : 1 }}
+        transition={{ type: "spring", stiffness: 600, damping: 20, mass: 0.18 }}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -81,8 +84,6 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           touchAction: "manipulation",
           userSelect: "none",
           minWidth: 64,
-          transform: pressed ? "scale3d(0.80,0.80,1)" : "scale3d(1,1,1)",
-          transition: "transform 0.12s cubic-bezier(0.34,1.56,0.64,1)",
           willChange: "transform",
         }}
       >
@@ -130,7 +131,7 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
         }}>
           {app.name}
         </span>
-      </button>
+      </motion.button>
     </motion.div>
   );
 }

@@ -178,13 +178,41 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
           gap: 2,
         }}
       >
-        <div
+        {/* Priority 4 — active glow halo behind icon (AnimatePresence for exit) */}
+        <AnimatePresence>
+          {isActive && (
+            <motion.div
+              key="halo"
+              initial={{ opacity: 0, scale: 0.55 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.55 }}
+              transition={{ type: "spring", damping: 18, stiffness: 340, mass: 0.25 }}
+              style={{
+                position: "absolute",
+                top: 4, left: "50%", translateX: "-50%",
+                width: 48, height: 48, borderRadius: 16,
+                background: `radial-gradient(ellipse at 50% 30%, ${app.color}36 0%, transparent 72%)`,
+                boxShadow: `0 0 24px ${app.color}55`,
+                pointerEvents: "none", zIndex: 0,
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        <motion.div
           className="flex items-center justify-center"
+          animate={{
+            background: isActive ? `${app.color}22` : "rgba(255,255,255,0.06)",
+            borderColor: isActive ? `${app.color}55` : "rgba(255,255,255,0.07)",
+            boxShadow: isActive
+              ? `inset 0 1px 0 rgba(255,255,255,0.12), 0 0 14px ${app.color}30`
+              : "none",
+          }}
+          transition={{ duration: 0.22 }}
           style={{
             width: 44, height: 44, borderRadius: 12,
-            background: isActive ? `${app.color}18` : "rgba(255,255,255,0.06)",
-            border: isActive ? `1.5px solid ${app.color}40` : "1px solid rgba(255,255,255,0.06)",
-            transition: "background 0.22s ease, border-color 0.22s ease",
+            border: "1.5px solid",
+            position: "relative", zIndex: 1,
           }}
         >
           <i
@@ -192,12 +220,12 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
             style={{
               color: app.color, fontSize: 20,
               filter: isActive
-                ? `drop-shadow(0 0 7px ${app.color}) drop-shadow(0 0 14px ${app.color}60)`
-                : "none",
+                ? `drop-shadow(0 0 8px ${app.color}) drop-shadow(0 0 16px ${app.color}70)`
+                : `drop-shadow(0 0 3px ${app.color}30)`,
               transition: "filter 0.22s ease",
             }}
           />
-        </div>
+        </motion.div>
 
         <span style={{
           fontSize: 9.5,
