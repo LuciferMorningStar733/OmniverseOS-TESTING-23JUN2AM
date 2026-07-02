@@ -24,6 +24,15 @@ export const yToRow = (px) => Math.max(0, Math.round(px / (CELL_H + GAP)));
 
 export const WIDGET_REGISTRY = [
   {
+    id: "cortex-smart",
+    name: "Cortex Smart Widget",
+    icon: "fa-sparkles",
+    color: "#00F0FF",
+    defaultW: 1, defaultH: 4,
+    minW: 1, minH: 3, maxW: 2, maxH: 5,
+    Component: lazy(() => import("./widgets/CortexSmartWidget")),
+  },
+  {
     id: "chrono",
     name: "Chrono-Atmo",
     icon: "fa-satellite-dish",
@@ -135,9 +144,9 @@ export const WIDGET_REGISTRY = [
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
-// Default desktop layout — only clock & weather shown by default.
+// Default mobile layout — Cortex Smart Widget shown by default.
 // All other widgets are added manually via the Widget Store (+).
-export const LAYOUT_VERSION = 4;
+export const LAYOUT_VERSION = 5;
 export const DEFAULT_LAYOUT = [
-  { id: "chrono", x: 0, y: 0, w: 1, h: 3, collapsed: false, pinned: false },
+  { id: "cortex-smart", x: 0, y: 0, w: 1, h: 4, collapsed: false, pinned: true },
 ];

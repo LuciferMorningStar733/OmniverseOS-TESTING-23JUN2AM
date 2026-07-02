@@ -16,12 +16,12 @@ const GLASS = {
 
 // Featured widgets for onboarding — enhanced with descriptions
 const FEATURED_WIDGETS = [
-  { id: "weather",    name: "Weather",     description: "Local forecast & conditions",  icon: "fa-cloud-sun",    color: "#FB923C" },
-  { id: "ai-summary", name: "AI Summary",  description: "Daily briefing by Cortex",    icon: "fa-sparkles",     color: "#2DD4BF" },
-  { id: "calendar",   name: "Calendar",    description: "Your upcoming events",        icon: "fa-calendar",     color: "#60A5FA" },
-  { id: "memory",     name: "Memory",      description: "Cortex learning & notes",     icon: "fa-brain",        color: "#A855F7" },
-  { id: "tasks",      name: "Tasks",       description: "Your to-do list",             icon: "fa-list-check",   color: "#39FF14" },
-  { id: "clipboard",  name: "Clipboard",   description: "Copy & paste sync",           icon: "fa-clipboard",    color: "#F59E0B" },
+  { id: "cortex-smart", name: "Cortex Smart Widget", description: "Clock · Weather · AI Brief · Tasks", icon: "fa-sparkles",   color: "#00F0FF" },
+  { id: "chrono",       name: "Chrono-Atmo",          description: "Clock + live weather radar",        icon: "fa-satellite-dish", color: "#A855F7" },
+  { id: "cortex",       name: "Cortex AI",            description: "Daily briefing by Cortex",          icon: "fa-brain",      color: "#2DD4BF" },
+  { id: "calendar",     name: "Calendar",             description: "Your upcoming events",              icon: "fa-calendar",   color: "#60A5FA" },
+  { id: "todo",         name: "Tasks",                description: "Your to-do list",                   icon: "fa-list-check", color: "#39FF14" },
+  { id: "focus",        name: "Focus Timer",          description: "Pomodoro & deep work",              icon: "fa-stopwatch",  color: "#F59E0B" },
 ];
 
 function Loader() {

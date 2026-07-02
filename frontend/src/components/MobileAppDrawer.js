@@ -2,8 +2,6 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { APPS } from "../lib/apps";
 
-// ── Group definitions ──────────────────────────────────────────────────────────
-
 const GROUPS = [
   { id: "all",          label: "All" },
   { id: "ai",           label: "AI" },
@@ -14,7 +12,21 @@ const GROUPS = [
   { id: "social",       label: "Social" },
 ];
 
-// ── App icon ───────────────────────────────────────────────────────────────────
+// Detect device refresh rate — sets target for spring physics
+let SCREEN_HZ = 60;
+(function detectHz() {
+  let last = null, frames = 0, sum = 0;
+  function tick(ts) {
+    if (last !== null) {
+      const delta = ts - last;
+      if (delta > 0 && delta < 100) { sum += delta; frames++; }
+    }
+    last = ts;
+    if (frames < 20) requestAnimationFrame(tick);
+    else SCREEN_HZ = Math.round(1000 / (sum / frames));
+  }
+  requestAnimationFrame(tick);
+})();
 
 function AppDrawerIcon({ app, onPress, delay = 0 }) {
   const [pressed, setPressed] = useState(false);
@@ -43,8 +55,10 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           touchAction: "manipulation",
           userSelect: "none",
           minWidth: 64,
-          transform: pressed ? "scale(0.80)" : "scale(1)",
+          // GPU-composited scale-only transform — no layout recalc
+          transform: pressed ? "scale3d(0.80,0.80,1)" : "scale3d(1,1,1)",
           transition: "transform 0.12s cubic-bezier(0.34,1.56,0.64,1)",
+          willChange: "transform",
         }}
       >
         <div style={{
@@ -52,14 +66,14 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           background: `linear-gradient(145deg, ${app.color}22 0%, ${app.color}09 100%)`,
           border: `1px solid ${app.color}30`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: pressed
-            ? `0 2px 8px rgba(0,0,0,0.60), 0 0 16px ${app.color}25`
-            : `0 6px 24px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.09)`,
+          // Static shadow — no recalc on state change
+          boxShadow: `0 6px 24px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.09)`,
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           position: "relative",
           overflow: "hidden",
-          transition: "box-shadow 0.12s ease",
+          // Promote to own compositor layer
+          transform: "translateZ(0)",
         }}>
           <div style={{
             position: "absolute", inset: 0,
@@ -98,8 +112,17 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
   );
 }
 
-// ── Main Drawer ────────────────────────────────────────────────────────────────
-// Uses direct DOM manipulation during gesture — zero React re-renders at 120fps.
+// ── CSS injected once ──────────────────────────────────────────────────────────
+const DRAWER_CSS = `
+  @keyframes drawerIn {
+    from { transform: translate3d(0, 100%, 0); }
+    to   { transform: translate3d(0, 0, 0); }
+  }
+  @keyframes backdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+`;
 
 export default function MobileAppDrawer({ onClose, onOpenApp }) {
   const [search, setSearch]           = useState("");
@@ -108,22 +131,22 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
   const inputRef                      = useRef(null);
   const sheetRef                      = useRef(null);
   const backdropRef                   = useRef(null);
-  const listRef                       = useRef(null);   // inner scroll list — for swipe guard
+  const listRef                       = useRef(null);
 
-  // Gesture tracking — all refs, never touches React state during drag
+  // Gesture tracking — all refs, zero React state during drag
   const touchStartY    = useRef(0);
   const touchStartX    = useRef(0);
   const lastY          = useRef(0);
   const lastT          = useRef(0);
-  const velocity       = useRef(0);         // px/ms
-  const dragY          = useRef(0);         // current translated px
+  const velocity       = useRef(0);
+  const dragY          = useRef(0);
   const dragging       = useRef(false);
-  const axisLocked     = useRef(null);      // "v" | "h" | null
+  const axisLocked     = useRef(null);
   const rafId          = useRef(null);
   const sheetH         = useRef(0);
-  const closeTimerId   = useRef(null);      // setTimeout for close animation
+  const closeTimerId   = useRef(null);
 
-  // Entry: double-rAF — both ids must be tracked separately for correct cleanup
+  // Double-rAF entry — ensures paint before first frame, prevents jank
   useEffect(() => {
     let id2 = null;
     const id1 = requestAnimationFrame(() => {
@@ -135,10 +158,9 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     };
   }, []);
 
-  // Cancel any in-flight close timer on unmount (rapid open/close race)
   useEffect(() => {
     return () => {
-      if (rafId.current)      cancelAnimationFrame(rafId.current);
+      if (rafId.current)        cancelAnimationFrame(rafId.current);
       if (closeTimerId.current) clearTimeout(closeTimerId.current);
     };
   }, []);
@@ -147,7 +169,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     if (sheetRef.current) sheetH.current = sheetRef.current.offsetHeight;
   }, [mounted]);
 
-  // ── Native touch — fires on compositor thread, no React re-renders ──────────
+  // ── Native touch — compositor thread, zero React re-renders ─────────────────
 
   const handleTouchStart = useCallback((e) => {
     touchStartY.current = e.touches[0].clientY;
@@ -173,11 +195,9 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
 
     const rawDy = y - touchStartY.current;
 
-    // Only start drag when pulling downward AND inner list is scrolled to top.
-    // This prevents the sheet from hijacking normal list scrolling.
     if (!dragging.current && rawDy > 3) {
       const listAtTop = !listRef.current || listRef.current.scrollTop < 4;
-      if (!listAtTop) return;   // let the inner list scroll normally
+      if (!listAtTop) return;
       dragging.current = true;
       if (sheetRef.current) {
         sheetRef.current.style.transition = "none";
@@ -186,13 +206,12 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     }
     if (!dragging.current) return;
 
-    // Track velocity
     const dt = e.timeStamp - lastT.current;
     if (dt > 0) velocity.current = (y - lastY.current) / dt;
     lastY.current = y;
     lastT.current = e.timeStamp;
 
-    // Rubber-band resistance when pulling past closed state (upward)
+    // Rubber-band resistance on upward pull
     let translated = rawDy < 0 ? rawDy * 0.06 : rawDy;
     dragY.current = translated;
 
@@ -215,10 +234,9 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     if (rafId.current) cancelAnimationFrame(rafId.current);
 
     const h   = sheetH.current || window.innerHeight * 0.88;
-    const vel = velocity.current;  // px/ms, positive = moving down
+    const vel = velocity.current;
     const dy  = dragY.current;
 
-    // Close when dragged > 28% of height OR flicked down at > 0.5 px/ms
     const shouldClose = dy > h * 0.28 || vel > 0.50;
 
     if (!sheetRef.current) return;
@@ -234,7 +252,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
       if (closeTimerId.current) clearTimeout(closeTimerId.current);
       closeTimerId.current = setTimeout(() => { closeTimerId.current = null; onClose(); }, 260);
     } else {
-      // Spring snap-back — slight overshoot feel
+      // iOS-style spring snap-back with subtle overshoot
       sheetRef.current.style.transition = "transform 0.44s cubic-bezier(0.175,0.885,0.32,1.10)";
       sheetRef.current.style.transform  = "translate3d(0,0,0)";
       if (backdropRef.current) {
@@ -244,7 +262,6 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     }
   }, [onClose]);
 
-  // Filtered app list
   const filteredApps = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (q) return APPS.filter((a) =>
@@ -256,7 +273,9 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
 
   return (
     <>
-      {/* GPU-composited backdrop */}
+      <style>{DRAWER_CSS}</style>
+
+      {/* GPU-composited backdrop — own layer, opacity-only animation */}
       <div
         ref={backdropRef}
         onClick={onClose}
@@ -266,12 +285,15 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
           opacity: mounted ? 1 : 0,
-          transition: "opacity 0.22s ease",
+          transition: mounted ? "opacity 0.22s ease" : "none",
           willChange: "opacity",
+          // Own compositor layer — never triggers layout
+          transform: "translateZ(0)",
+          contain: "strict",
         }}
       />
 
-      {/* Sheet — CSS transition only, no Framer Motion on the container */}
+      {/* Sheet — pure CSS transform, no Framer Motion on container */}
       <div
         ref={sheetRef}
         onTouchStart={handleTouchStart}
@@ -292,16 +314,17 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          // Entry: starts off-screen, slides up with iOS-style curve
+          // GPU-accelerated entry: no layout thrashing, pure transform on compositor thread
           transform: mounted ? "translate3d(0,0,0)" : "translate3d(0,100%,0)",
           transition: mounted
-            ? "transform 0.50s cubic-bezier(0.32,0.72,0,1)"
+            ? "transform 0.42s cubic-bezier(0.32,0.72,0,1)"
             : "none",
           willChange: "transform",
+          // Isolate paint to this layer
           contain: "layout style paint",
         }}
       >
-        {/* Subtle top glow line */}
+        {/* Top glow line */}
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, height: 1,
           background: "linear-gradient(90deg, transparent, rgba(0,240,255,0.22), rgba(167,139,250,0.22), transparent)",
@@ -313,6 +336,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           display: "flex", justifyContent: "center",
           paddingTop: 12, paddingBottom: 8, flexShrink: 0,
           cursor: "ns-resize",
+          // Promote handle area to its own layer for touch responsiveness
+          transform: "translateZ(0)",
         }}>
           <div style={{
             width: 40, height: 4, borderRadius: 2,
@@ -436,13 +461,16 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           )}
         </div>
 
-        {/* App grid — momentum scrolling, no React overhead */}
+        {/* App grid — momentum scroll, GPU layer, no React overhead during scroll */}
         <div ref={listRef} style={{
           flex: 1, overflowY: "auto", overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
           padding: "0 12px 64px",
           scrollbarWidth: "none", msOverflowStyle: "none",
           overscrollBehavior: "contain",
+          // Own compositor layer — scroll on GPU thread
+          transform: "translateZ(0)",
+          contain: "content",
         }}>
           <AnimatePresence mode="wait">
             {filteredApps.length > 0 ? (
@@ -456,6 +484,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
                   display: "grid",
                   gridTemplateColumns: "repeat(4, 1fr)",
                   gap: "2px 0",
+                  // Hint browser that grid contents will be transformed independently
+                  willChange: "contents",
                 }}
               >
                 {filteredApps.map((app, i) => (
