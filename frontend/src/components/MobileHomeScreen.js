@@ -775,10 +775,11 @@ function HomePage({ onOpenApp, onOpenSearch, onOpenDrawer }) {
   const weather = useWeather();
   const [is24h, toggleFormat] = useClockFormat();
 
-  const theme = useMemo(() => getTheme(now.getHours()), [now]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hour   = now.getHours();
+  const theme  = useMemo(() => getTheme(hour), [hour]);
   const status = useMemo(
-    () => getCortexStatus(now.getHours(), weather, battery, network),
-    [now, weather, battery, network] // eslint-disable-line react-hooks/exhaustive-deps
+    () => getCortexStatus(hour, weather, battery, network),
+    [hour, weather, battery, network]
   );
 
   return (
