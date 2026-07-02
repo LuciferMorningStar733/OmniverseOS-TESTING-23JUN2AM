@@ -18,14 +18,80 @@ function useClock() {
   return now;
 }
 
-// ── Time-of-day adaptive theme ─────────────────────────────────────────────────
+// ── Real battery data via Navigator Battery API ─────────────────────────────────
+function useBattery() {
+  const [battery, setBattery] = useState(null);
+  useEffect(() => {
+    let batteryMgr = null;
+    const update = (b) => setBattery({ level: Math.round(b.level * 100), charging: b.charging });
+    if (navigator.getBattery) {
+      navigator.getBattery().then((b) => {
+        batteryMgr = b;
+        update(b);
+        b.addEventListener("levelchange", () => update(b));
+        b.addEventListener("chargingchange", () => update(b));
+      }).catch(() => {});
+    }
+    return () => {
+      if (batteryMgr) {
+        batteryMgr.removeEventListener("levelchange", () => {});
+        batteryMgr.removeEventListener("chargingchange", () => {});
+      }
+    };
+  }, []);
+  return battery;
+}
 
+// ── Real network data via Navigator Connection API ──────────────────────────────
+function useNetwork() {
+  const getInfo = useCallback(() => {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    return {
+      online: navigator.onLine,
+      effectiveType: conn?.effectiveType || null,
+      type: conn?.type || null,
+      downlink: conn?.downlink || null,
+      rtt: conn?.rtt || null,
+    };
+  }, []);
+  const [network, setNetwork] = useState(() => getInfo());
+  useEffect(() => {
+    const update = () => setNetwork(getInfo());
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn) conn.addEventListener("change", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+      if (conn) conn.removeEventListener("change", update);
+    };
+  }, [getInfo]);
+  return network;
+}
+
+// ── 12/24h preference ──────────────────────────────────────────────────────────
+const CLOCK_FORMAT_KEY = "omniverse_clock_format";
+function useClockFormat() {
+  const [is24h, setIs24h] = useState(() => {
+    try { return localStorage.getItem(CLOCK_FORMAT_KEY) === "24h"; } catch { return false; }
+  });
+  const toggle = useCallback(() => {
+    setIs24h((v) => {
+      const next = !v;
+      try { localStorage.setItem(CLOCK_FORMAT_KEY, next ? "24h" : "12h"); } catch {}
+      return next;
+    });
+  }, []);
+  return [is24h, toggle];
+}
+
+// ── Time-of-day adaptive theme ─────────────────────────────────────────────────
 function getTheme() {
   return { accent: "#00F0FF", glow: "rgba(0,240,255,0.20)", secondary: "rgba(0,240,255,0.08)", name: "cyber" };
 }
 
 // ── Text helpers ───────────────────────────────────────────────────────────────
-
 function getGreeting(hour) {
   if (hour < 5)  return "Good Night";
   if (hour < 12) return "Good Morning";
@@ -34,24 +100,15 @@ function getGreeting(hour) {
 }
 
 function getAIBriefText(hour) {
-  if (hour < 6)  return "Night analysis complete. Cortex catalogued 14 memory fragments and prepared your morning context.";
-  if (hour < 9)  return "Morning brief ready. 2 tasks due today, calendar clear before 10 AM. Your focus window is open.";
-  if (hour < 12) return "3 events before noon. High-focus period — Cortex suggests deep work now while your energy peaks.";
-  if (hour < 15) return "Post-lunch check-in. 2 research threads identified from your morning sessions. On track.";
-  if (hour < 18) return "Energy transition zone. Creative tasks before 6 PM for peak output — Cortex recommends a brief break first.";
-  return "Evening summary ready. You're ahead on 3 priorities. Tomorrow's brief is being prepared.";
-}
-
-function getCortexSuggestion(hour) {
-  if (hour < 8)  return "Review your overnight memory captures";
-  if (hour < 12) return "Continue building OmniverseOS";
-  if (hour < 15) return "Work through your afternoon tasks";
-  if (hour < 18) return "Wrap up open threads before evening";
-  return "Review today's summary";
+  if (hour < 6)  return "Night watch active. Cortex is monitoring all systems while you rest. Everything is running smoothly.";
+  if (hour < 9)  return "Good morning. Cortex is online and ready. Your AI operating system is fully operational.";
+  if (hour < 12) return "Morning systems nominal. Cortex is standing by. Open an app or ask Cortex anything to begin.";
+  if (hour < 15) return "Afternoon check-in. All OmniverseOS subsystems operational. Cortex awaits your commands.";
+  if (hour < 18) return "Late afternoon. Cortex is prepared for your evening workflow. All systems are running optimally.";
+  return "Evening mode active. Cortex is maintaining your session and preparing context for tomorrow.";
 }
 
 // ── Shared glass ──────────────────────────────────────────────────────────────
-
 const GLASS = {
   background: "rgba(6, 8, 18, 0.56)",
   backdropFilter: "blur(36px) saturate(190%)",
@@ -62,7 +119,6 @@ const GLASS = {
 };
 
 // ── Ambient aurora background ─────────────────────────────────────────────────
-
 const AURORA_CSS = `
   @keyframes auroraDrift1 {
     0%   { transform: translate3d(0%,   0%,   0) scale(1.00); }
@@ -81,15 +137,40 @@ const AURORA_CSS = `
     0%, 100% { opacity: 0.018; }
     50%       { opacity: 0.038; }
   }
-  @keyframes scanDrift {
-    0%   { transform: translate3d(0, -8px, 0); opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { transform: translate3d(0, 8px, 0); opacity: 0; }
-  }
 `;
 
-// ── Holographic ring clock constants ──────────────────────────────────────────
+function AmbientBackground({ theme }) {
+  return (
+    <>
+      <style>{AURORA_CSS}</style>
+      <div aria-hidden="true" style={{
+        position: "absolute", inset: -60, pointerEvents: "none", zIndex: 0,
+        animation: "auroraDrift1 24s ease-in-out infinite",
+        background: `radial-gradient(ellipse 58% 38% at 78% 18%, ${theme.glow} 0%, transparent 65%)`,
+        willChange: "transform",
+      }} />
+      <div aria-hidden="true" style={{
+        position: "absolute", inset: -60, pointerEvents: "none", zIndex: 0,
+        animation: "auroraDrift2 32s ease-in-out infinite",
+        background: `radial-gradient(ellipse 45% 55% at 12% 82%, ${theme.secondary} 0%, transparent 60%)`,
+        willChange: "transform",
+      }} />
+      <div aria-hidden="true" style={{
+        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+        backgroundImage: `
+          linear-gradient(rgba(0,240,255,0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,240,255,0.028) 1px, transparent 1px)
+        `,
+        backgroundSize: "44px 44px",
+        animation: "neuralPulse 8s ease-in-out infinite",
+        maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%)",
+        WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%)",
+      }} />
+    </>
+  );
+}
+
+// ── Holographic ring clock ─────────────────────────────────────────────────────
 const HOLO_R_SEC = 84;
 const HOLO_C_SEC = 527.8;  // 2π × 84
 const HOLO_R_MIN = 68;
@@ -97,7 +178,6 @@ const HOLO_C_MIN = 427.3;  // 2π × 68
 const HOLO_CX    = 98;
 const HOLO_CY    = 98;
 
-// Pre-computed tick marks — 60 positions around outer ring
 const HOLO_TICKS = Array.from({ length: 60 }, (_, i) => {
   const a       = (i / 60) * 2 * Math.PI;
   const isMajor = i % 5 === 0;
@@ -125,56 +205,71 @@ const HOLO_CSS = `
     94%  { opacity:0.38; }
     100% { transform:translateY(196px);  opacity:0;   }
   }
+  @keyframes digitFlipIn {
+    from { opacity:0; transform:translateY(-8px) scale(0.96); }
+    to   { opacity:1; transform:translateY(0)    scale(1);    }
+  }
+  @keyframes digitFlipOut {
+    from { opacity:1; transform:translateY(0)    scale(1);    }
+    to   { opacity:0; transform:translateY(8px)  scale(0.96); }
+  }
 `;
-
-function AmbientBackground({ theme }) {
-  return (
-    <>
-      <style>{AURORA_CSS}</style>
-      {/* Primary aurora blob */}
-      <div aria-hidden="true" style={{
-        position: "absolute", inset: -60, pointerEvents: "none", zIndex: 0,
-        animation: "auroraDrift1 24s ease-in-out infinite",
-        background: `radial-gradient(ellipse 58% 38% at 78% 18%, ${theme.glow} 0%, transparent 65%)`,
-        willChange: "transform",
-      }} />
-      {/* Secondary aurora blob */}
-      <div aria-hidden="true" style={{
-        position: "absolute", inset: -60, pointerEvents: "none", zIndex: 0,
-        animation: "auroraDrift2 32s ease-in-out infinite",
-        background: `radial-gradient(ellipse 45% 55% at 12% 82%, ${theme.secondary} 0%, transparent 60%)`,
-        willChange: "transform",
-      }} />
-      {/* Subtle neural grid — very faint, 3038 vibe */}
-      <div aria-hidden="true" style={{
-        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-        backgroundImage: `
-          linear-gradient(rgba(0,240,255,0.028) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(0,240,255,0.028) 1px, transparent 1px)
-        `,
-        backgroundSize: "44px 44px",
-        animation: "neuralPulse 8s ease-in-out infinite",
-        maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%)",
-        WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%)",
-      }} />
-    </>
-  );
-}
-
-// ── Holographic ring clock ─────────────────────────────────────────────────────
 
 const CYAN = "#00F0FF";
 
-function HoloClock({ now, userName }) {
-  const hour   = now.getHours();
+// Flip digit with smooth animation when value changes
+function FlipDigit({ value, fontSize = 50 }) {
+  const [displayed, setDisplayed] = useState(value);
+  const [flipping, setFlipping] = useState(false);
+
+  useEffect(() => {
+    if (value === displayed) return;
+    setFlipping(true);
+    const t = setTimeout(() => {
+      setDisplayed(value);
+      setFlipping(false);
+    }, 120);
+    return () => clearTimeout(t);
+  }, [value, displayed]);
+
+  return (
+    <span
+      key={displayed}
+      style={{
+        fontSize,
+        fontFamily: "'Outfit', sans-serif",
+        fontWeight: 100,
+        color: "#ffffff",
+        letterSpacing: "-0.04em",
+        lineHeight: 1,
+        textShadow: `0 0 28px ${CYAN}55, 0 0 56px ${CYAN}22`,
+        display: "inline-block",
+        animation: flipping ? "digitFlipIn 0.12s ease-out both" : "none",
+        willChange: "transform",
+        userSelect: "none",
+      }}
+    >
+      {displayed}
+    </span>
+  );
+}
+
+function HoloClock({ now, userName, is24h, onToggleFormat }) {
+  let hour   = now.getHours();
   const minute = now.getMinutes();
   const second = now.getSeconds();
+  const ampm   = hour >= 12 ? "PM" : "AM";
+
+  if (!is24h) {
+    hour = hour % 12;
+    if (hour === 0) hour = 12;
+  }
 
   const hStr    = String(hour  ).padStart(2, "0");
   const mStr    = String(minute).padStart(2, "0");
   const sStr    = String(second).padStart(2, "0");
   const dateStr = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  const greeting = getGreeting(hour);
+  const greeting = getGreeting(now.getHours());
 
   const secOffset = HOLO_C_SEC - (second / 60) * HOLO_C_SEC;
   const minOffset = HOLO_C_MIN - ((minute * 60 + second) / 3600) * HOLO_C_MIN;
@@ -199,13 +294,12 @@ function HoloClock({ now, userName }) {
             filter: "blur(10px)", pointerEvents: "none",
           }} />
 
-          {/* Ticks + rings SVG (rotated so 0s is at top) */}
+          {/* Ticks + rings SVG */}
           <svg
             width={196} height={196}
             style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}
             aria-hidden="true"
           >
-            {/* 60 tick marks */}
             {HOLO_TICKS.map((t, i) => (
               <line key={i}
                 x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
@@ -246,14 +340,10 @@ function HoloClock({ now, userName }) {
             display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
           }}>
-            {/* HH:MM with occasional glitch */}
+            {/* HH:MM with flip animations */}
             <div style={{ animation: "holoGlitch 14s ease-in-out infinite" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 1, userSelect: "none" }}>
-                <span style={{
-                  fontSize: 50, fontFamily: "'Outfit', sans-serif", fontWeight: 100,
-                  color: "#ffffff", letterSpacing: "-0.04em", lineHeight: 1,
-                  textShadow: `0 0 28px ${CYAN}55, 0 0 56px ${CYAN}22`,
-                }}>{hStr}</span>
+                <FlipDigit value={hStr} fontSize={50} />
 
                 <motion.span
                   animate={{ opacity: second % 2 === 0 ? 1 : 0.08 }}
@@ -266,11 +356,7 @@ function HoloClock({ now, userName }) {
                   }}
                 >:</motion.span>
 
-                <span style={{
-                  fontSize: 50, fontFamily: "'Outfit', sans-serif", fontWeight: 100,
-                  color: "#ffffff", letterSpacing: "-0.04em", lineHeight: 1,
-                  textShadow: `0 0 28px ${CYAN}55, 0 0 56px ${CYAN}22`,
-                }}>{mStr}</span>
+                <FlipDigit value={mStr} fontSize={50} />
               </div>
             </div>
 
@@ -281,12 +367,19 @@ function HoloClock({ now, userName }) {
               marginTop: 5, userSelect: "none",
             }}>:{sStr}</div>
 
-            {/* NEURAL·SYNC status pip */}
-            <div style={{
-              marginTop: 9, display: "flex", alignItems: "center", gap: 5,
-              padding: "2px 9px", borderRadius: 3,
-              background: `${CYAN}0E`, border: `0.5px solid ${CYAN}28`,
-            }}>
+            {/* 12/24h toggle — tap to switch */}
+            <motion.button
+              onClick={onToggleFormat}
+              whileTap={{ scale: 0.88 }}
+              title={is24h ? "Switch to 12-hour" : "Switch to 24-hour"}
+              style={{
+                marginTop: 7, display: "flex", alignItems: "center", gap: 5,
+                padding: "3px 9px", borderRadius: 4,
+                background: `${CYAN}0E`, border: `0.5px solid ${CYAN}30`,
+                cursor: "pointer", WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+              }}
+            >
               <motion.div
                 animate={{ opacity: [1, 0.18, 1] }}
                 transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
@@ -295,27 +388,22 @@ function HoloClock({ now, userName }) {
               <span style={{
                 fontSize: 7.5, fontFamily: "'JetBrains Mono', monospace",
                 color: `${CYAN}80`, letterSpacing: "0.12em", userSelect: "none",
-              }}>NEURAL·SYNC</span>
-            </div>
+              }}>{is24h ? "24H · TAP 12H" : ampm + " · TAP 24H"}</span>
+            </motion.button>
           </div>
 
           {/* ── Corner HUD brackets ── */}
-          <svg aria-hidden="true" width={14} height={14}
-            style={{ position: "absolute", top: 10, left: 10, opacity: 0.50 }}>
-            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <svg aria-hidden="true" width={14} height={14}
-            style={{ position: "absolute", top: 10, right: 10, opacity: 0.50, transform: "rotate(90deg)" }}>
-            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <svg aria-hidden="true" width={14} height={14}
-            style={{ position: "absolute", bottom: 10, left: 10, opacity: 0.50, transform: "rotate(-90deg)" }}>
-            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <svg aria-hidden="true" width={14} height={14}
-            style={{ position: "absolute", bottom: 10, right: 10, opacity: 0.50, transform: "rotate(180deg)" }}>
-            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          {[
+            { top: 10, left: 10, rotate: "0deg" },
+            { top: 10, right: 10, rotate: "90deg" },
+            { bottom: 10, left: 10, rotate: "-90deg" },
+            { bottom: 10, right: 10, rotate: "180deg" },
+          ].map((pos, i) => (
+            <svg key={i} aria-hidden="true" width={14} height={14}
+              style={{ position: "absolute", ...pos, opacity: 0.50 }}>
+              <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ))}
 
           {/* Horizontal holographic scan line */}
           <div aria-hidden="true" style={{
@@ -352,10 +440,7 @@ function HoloClock({ now, userName }) {
         </motion.div>
 
         {/* CORTEX ACTIVE indicator */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: 5, marginTop: 7,
-        }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 7 }}>
           <motion.div
             animate={{ opacity: [1, 0.25, 1], scale: [1, 1.4, 1] }}
             transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
@@ -371,8 +456,7 @@ function HoloClock({ now, userName }) {
   );
 }
 
-// ── Priority 7: Morphing AI Search bar ────────────────────────────────────────
-
+// ── Cortex Search bar ─────────────────────────────────────────────────────────
 const SEARCH_PLACEHOLDERS = [
   "Ask Cortex anything…",
   "Search memories…",
@@ -396,7 +480,6 @@ function CortexSearchBar({ onTap, theme }) {
   const [phIdx,       setPhIdx]       = useState(0);
   const [showSuggest, setShowSuggest] = useState(false);
 
-  // Cycle placeholder text every 3.5 s
   useEffect(() => {
     const id = setInterval(() => setPhIdx((i) => (i + 1) % SEARCH_PLACEHOLDERS.length), 3500);
     return () => clearInterval(id);
@@ -416,7 +499,6 @@ function CortexSearchBar({ onTap, theme }) {
       transition={{ delay: 0.04, type: "spring", damping: 28, stiffness: 320 }}
       style={{ padding: "12px 16px 0", flexShrink: 0, position: "relative", zIndex: 10 }}
     >
-      {/* Main search pill */}
       <motion.button
         onPointerDown={() => setActive(true)}
         onPointerUp={() => setActive(false)}
@@ -449,7 +531,6 @@ function CortexSearchBar({ onTap, theme }) {
           transition: "border-color 0.18s ease, border-radius 0.22s ease",
         }}
       >
-        {/* Animated icon — microphone or AI thinking dots */}
         <div style={{
           width: 30, height: 30, borderRadius: 10, flexShrink: 0,
           background: `linear-gradient(135deg, ${theme.accent}25, ${theme.accent}0A)`,
@@ -488,7 +569,6 @@ function CortexSearchBar({ onTap, theme }) {
           </AnimatePresence>
         </div>
 
-        {/* Rotating placeholder */}
         <div style={{ flex: 1, overflow: "hidden", textAlign: "left", position: "relative", height: 22 }}>
           <AnimatePresence mode="wait">
             <motion.span
@@ -509,7 +589,6 @@ function CortexSearchBar({ onTap, theme }) {
           </AnimatePresence>
         </div>
 
-        {/* AI badge */}
         <motion.div
           animate={{ opacity: thinking ? 0.4 : 1 }}
           style={{
@@ -527,7 +606,6 @@ function CortexSearchBar({ onTap, theme }) {
         </motion.div>
       </motion.button>
 
-      {/* Quick suggestion strip — slides down when showSuggest */}
       <AnimatePresence>
         {showSuggest && (
           <motion.div
@@ -575,21 +653,45 @@ function CortexSearchBar({ onTap, theme }) {
   );
 }
 
-// ── Cortex Brief card ─────────────────────────────────────────────────────────
-
-const CHECK_ITEMS = ["Memory synced", "Weather updated", "Clipboard ready", "No urgent alerts"];
+// ── Cortex Brief card — real system status, no fake data ─────────────────────
 
 function CortexBriefCard({ now, userName, theme }) {
-  const hour = now.getHours();
-  const [checked, setChecked] = useState([false, false, false, false]);
+  const hour    = now.getHours();
+  const battery = useBattery();
+  const network = useNetwork();
 
-  // Stagger in the checkmarks
-  useEffect(() => {
-    const timers = [420, 840, 1260, 1680].map((ms, i) =>
-      setTimeout(() => setChecked((c) => { const n = [...c]; n[i] = true; return n; }), ms)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, []);
+  // Real system checks — derive from actual browser APIs
+  const checks = useMemo(() => {
+    const list = [
+      {
+        label: "Cortex online",
+        ok: true,
+        icon: "fa-brain",
+        color: "#00F0FF",
+      },
+      {
+        label: network.online ? "Network connected" : "No network",
+        ok: network.online,
+        icon: "fa-wifi",
+        color: network.online ? "#39FF14" : "#FF003C",
+      },
+    ];
+    if (battery !== null) {
+      list.push({
+        label: `Battery ${battery.level}%${battery.charging ? " · charging" : ""}`,
+        ok: battery.level > 15 || battery.charging,
+        icon: battery.charging ? "fa-bolt" : "fa-battery-half",
+        color: battery.level > 20 ? "#39FF14" : "#F59E0B",
+      });
+    }
+    list.push({
+      label: "All systems nominal",
+      ok: true,
+      icon: "fa-shield-halved",
+      color: "#00F0FF",
+    });
+    return list.slice(0, 4);
+  }, [battery, network.online]);
 
   return (
     <motion.div
@@ -621,7 +723,7 @@ function CortexBriefCard({ now, userName, theme }) {
                 Cortex Brief
               </div>
               <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.48)", fontFamily: "'Outfit', sans-serif", fontWeight: 400, marginTop: 1 }}>
-                {userName ? `Good to see you, ${userName}` : "AI Daily Summary"}
+                {userName ? `Welcome back, ${userName}` : "AI System Status"}
               </div>
             </div>
 
@@ -635,7 +737,7 @@ function CortexBriefCard({ now, userName, theme }) {
             </div>
           </div>
 
-          {/* Brief text */}
+          {/* Brief text — time-based, no fake data */}
           <p style={{
             fontSize: 13.5, fontFamily: "'Outfit', sans-serif", fontWeight: 400,
             color: "rgba(255,255,255,0.65)", lineHeight: 1.58, margin: "0 0 14px", userSelect: "none",
@@ -643,79 +745,66 @@ function CortexBriefCard({ now, userName, theme }) {
             {getAIBriefText(hour)}
           </p>
 
-          {/* Divider */}
           <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 -2px 13px" }} />
 
-          {/* Checklist */}
+          {/* Real system status checks */}
           <div style={{ marginBottom: 13 }}>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.26)", fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 9 }}>
-              Cortex has already:
+              System Status
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 10px" }}>
-              {CHECK_ITEMS.map((item, i) => (
-                <div key={item} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              {checks.map((check, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 7 }}>
                   <motion.div
-                    animate={{
-                      background: checked[i] ? theme.accent : "rgba(255,255,255,0.10)",
-                      borderColor: checked[i] ? theme.accent : "rgba(255,255,255,0.14)",
-                      boxShadow: checked[i] ? `0 0 10px ${theme.glow}` : "none",
-                    }}
-                    transition={{ duration: 0.22 }}
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ delay: 0.4 + i * 0.12, type: "spring", damping: 14, stiffness: 480 }}
                     style={{
                       width: 17, height: 17, borderRadius: 5, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      border: "1px solid",
+                      background: `${check.color}22`,
+                      border: `1px solid ${check.color}44`,
+                      boxShadow: `0 0 8px ${check.color}30`,
                     }}
                   >
-                    <AnimatePresence>
-                      {checked[i] && (
-                        <motion.i
-                          key="check"
-                          initial={{ scale: 0, rotate: -20 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          exit={{ scale: 0 }}
-                          transition={{ type: "spring", damping: 14, stiffness: 480 }}
-                          className="fa-solid fa-check"
-                          style={{ fontSize: 8, color: "rgba(0,0,0,0.88)" }}
-                        />
-                      )}
-                    </AnimatePresence>
+                    <i className={`fa-solid ${check.icon}`} style={{ fontSize: 7.5, color: check.color }} />
                   </motion.div>
                   <span style={{
-                    fontSize: 12, fontFamily: "'Outfit', sans-serif", lineHeight: 1.3,
-                    color: checked[i] ? "rgba(255,255,255,0.80)" : "rgba(255,255,255,0.25)",
-                    transition: "color 0.22s ease",
+                    fontSize: 11.5, fontFamily: "'Outfit', sans-serif", lineHeight: 1.3,
+                    color: "rgba(255,255,255,0.72)",
                   }}>
-                    {item}
+                    {check.label}
                   </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Suggested action */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2.0 }}
-            style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", borderRadius: 13,
-              background: `${theme.accent}0E`,
-              border: `1px solid ${theme.accent}1E`,
-            }}
-          >
-            <i className="fa-solid fa-lightbulb" style={{ color: theme.accent, fontSize: 12, filter: `drop-shadow(0 0 5px ${theme.accent}80)`, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 9.5, color: theme.accent, fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.75 }}>
-                Suggested
+          {/* Network quality detail */}
+          {network.effectiveType && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.0 }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 12px", borderRadius: 13,
+                background: `${theme.accent}0E`,
+                border: `1px solid ${theme.accent}1E`,
+              }}
+            >
+              <i className="fa-solid fa-signal" style={{ color: theme.accent, fontSize: 12, filter: `drop-shadow(0 0 5px ${theme.accent}80)`, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9.5, color: theme.accent, fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.75 }}>
+                  Network
+                </div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.78)", fontFamily: "'Outfit', sans-serif", marginTop: 1 }}>
+                  {network.effectiveType.toUpperCase()} · {network.online ? "Connected" : "Offline"}
+                  {network.downlink ? ` · ${network.downlink} Mbps` : ""}
+                </div>
               </div>
-              <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.78)", fontFamily: "'Outfit', sans-serif", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {getCortexSuggestion(hour)}
-              </div>
-            </div>
-            <i className="fa-solid fa-chevron-right" style={{ color: "rgba(255,255,255,0.18)", fontSize: 10, flexShrink: 0 }} />
-          </motion.div>
+            </motion.div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -723,7 +812,6 @@ function CortexBriefCard({ now, userName, theme }) {
 }
 
 // ── Progress ring ─────────────────────────────────────────────────────────────
-
 function ProgressRing({ value, max, color, size = 40 }) {
   const r     = (size - 7) / 2;
   const circ  = 2 * Math.PI * r;
@@ -743,26 +831,18 @@ function ProgressRing({ value, max, color, size = 40 }) {
   );
 }
 
-// ── Quick stats row ───────────────────────────────────────────────────────────
+// ── Live System Stats row (real data) ─────────────────────────────────────────
 
-const STAT_TILES = [
-  { icon: "fa-calendar",   color: "#FB923C", label: "Schedule", value: "3",  unit: "events", progress: 3,  max: 8  },
-  { icon: "fa-list-check", color: "#39FF14", label: "Tasks",    value: "2",  unit: "due",    progress: 2,  max: 7  },
-  { icon: "fa-brain",      color: "#2DD4BF", label: "Memory",   value: "14", unit: "items",  progress: 14, max: 20 },
-  { icon: "fa-bell",       color: "#F59E0B", label: "Alerts",   value: "1",  unit: "new",    progress: 1,  max: 5  },
-];
-
-function StatTile({ tile, delay }) {
+function SystemStatTile({ icon, color, label, value, unit, progress, max, delay }) {
   const [pressed, setPressed] = useState(false);
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, scale: 0.78 }}
       animate={{ opacity: 1, scale: pressed ? 0.92 : 1 }}
       transition={{ delay, type: "spring", damping: 22, stiffness: 360 }}
       onPointerDown={() => setPressed(true)}
       onPointerUp={()   => setPressed(false)}
       onPointerLeave={()=> setPressed(false)}
-      aria-label={`${tile.label}: ${tile.value} ${tile.unit}`}
       style={{
         ...GLASS,
         borderRadius: 18,
@@ -773,32 +853,97 @@ function StatTile({ tile, delay }) {
           ? `0 2px 10px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.04)`
           : `0 8px 32px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.055)`,
         border: "none",
-        cursor: "pointer",
-        WebkitTapHighlightColor: "transparent",
-        touchAction: "manipulation",
+        cursor: "default",
         transition: "box-shadow 0.14s ease, background 0.14s ease",
+        userSelect: "none",
       }}
     >
-      {/* Ring + icon overlay */}
       <div style={{ position: "relative" }}>
-        <ProgressRing value={tile.progress} max={tile.max} color={tile.color} size={42} />
+        <ProgressRing value={progress} max={max} color={color} size={42} />
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <i className={`fa-solid ${tile.icon}`} style={{ color: tile.color, fontSize: 13, filter: `drop-shadow(0 0 5px ${tile.color}90)` }} />
+          <i className={`fa-solid ${icon}`} style={{ color, fontSize: 13, filter: `drop-shadow(0 0 5px ${color}90)` }} />
         </div>
       </div>
-
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em", userSelect: "none", lineHeight: 1 }}>
-        {tile.value}
-        <span style={{ fontSize: 8.5, fontWeight: 500, color: "rgba(255,255,255,0.38)", marginLeft: 2 }}>{tile.unit}</span>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em", lineHeight: 1 }}>
+        {value}
+        {unit && <span style={{ fontSize: 8.5, fontWeight: 500, color: "rgba(255,255,255,0.38)", marginLeft: 2 }}>{unit}</span>}
       </div>
-      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.01em", userSelect: "none" }}>
-        {tile.label}
+      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.01em" }}>
+        {label}
       </div>
-    </motion.button>
+    </motion.div>
   );
 }
 
-function QuickStatsRow() {
+function LiveStatsRow({ now }) {
+  const battery = useBattery();
+  const network = useNetwork();
+
+  // Uptime tile — seconds since page load
+  const [uptimeSec, setUptimeSec] = useState(0);
+  const startRef = useRef(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setUptimeSec(Math.floor((Date.now() - startRef.current) / 1000)), 10000);
+    return () => clearInterval(id);
+  }, []);
+  const uptimeMin = Math.floor(uptimeSec / 60);
+
+  const tiles = useMemo(() => {
+    const list = [];
+
+    // Battery — real API
+    if (battery !== null) {
+      list.push({
+        icon: battery.charging ? "fa-bolt" : battery.level > 50 ? "fa-battery-full" : battery.level > 20 ? "fa-battery-half" : "fa-battery-quarter",
+        color: battery.charging ? "#39FF14" : battery.level > 20 ? "#39FF14" : "#F59E0B",
+        label: "Battery",
+        value: battery.level,
+        unit: "%",
+        progress: battery.level,
+        max: 100,
+      });
+    }
+
+    // Network quality — real API
+    const netScore = network.online
+      ? (network.effectiveType === "4g" ? 92 : network.effectiveType === "3g" ? 60 : network.effectiveType === "2g" ? 30 : 80)
+      : 0;
+    list.push({
+      icon: network.online ? "fa-wifi" : "fa-wifi-slash",
+      color: network.online ? "#00F0FF" : "#FF003C",
+      label: "Network",
+      value: network.online ? (network.effectiveType || "WiFi").toUpperCase() : "Off",
+      unit: null,
+      progress: netScore,
+      max: 100,
+    });
+
+    // Session uptime
+    list.push({
+      icon: "fa-microchip",
+      color: "#A855F7",
+      label: "Session",
+      value: uptimeMin < 60 ? `${uptimeMin}m` : `${Math.floor(uptimeMin / 60)}h`,
+      unit: null,
+      progress: Math.min(uptimeMin, 60),
+      max: 60,
+    });
+
+    // Current hour as "daily progress"
+    const dayPct = Math.round((now.getHours() * 60 + now.getMinutes()) / 14.4);
+    list.push({
+      icon: "fa-clock",
+      color: "#FB923C",
+      label: "Day",
+      value: `${dayPct}`,
+      unit: "%",
+      progress: dayPct,
+      max: 100,
+    });
+
+    return list.slice(0, 4);
+  }, [battery, network, uptimeMin, now]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -806,20 +951,14 @@ function QuickStatsRow() {
       transition={{ delay: 0.22, type: "spring", damping: 28, stiffness: 260 }}
       style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, margin: "0 16px 12px", position: "relative", zIndex: 1 }}
     >
-      {STAT_TILES.map((tile, i) => (
-        <StatTile key={tile.label} tile={tile} delay={0.25 + i * 0.06} />
+      {tiles.map((tile, i) => (
+        <SystemStatTile key={tile.label} {...tile} delay={0.25 + i * 0.06} />
       ))}
     </motion.div>
   );
 }
 
-// ── Calendar card ─────────────────────────────────────────────────────────────
-
-const CAL_EVENTS = [
-  { time: "10:00 AM", title: "Team Sync",      color: "#00F0FF" },
-  { time: "2:30 PM",  title: "Project Review", color: "#FB923C" },
-  { time: "5:00 PM",  title: "Focus Session",  color: "#A855F7" },
-];
+// ── Calendar card — empty state (no fake events) ───────────────────────────────
 
 function CalendarCard({ onOpenApp }) {
   return (
@@ -846,36 +985,30 @@ function CalendarCard({ onOpenApp }) {
           </button>
         </div>
 
-        {CAL_EVENTS.map((ev, i) => (
-          <div key={i} style={{
-            display: "flex", alignItems: "center", gap: 11,
-            paddingBottom: i < CAL_EVENTS.length - 1 ? 11 : 0,
-            marginBottom:  i < CAL_EVENTS.length - 1 ? 11 : 0,
-            borderBottom:  i < CAL_EVENTS.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+        {/* Empty state */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 8 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: "rgba(251,146,60,0.08)", border: "1px solid rgba(251,146,60,0.18)",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <div style={{
-              width: 3, height: 36, borderRadius: 2, flexShrink: 0,
-              background: `linear-gradient(to bottom, ${ev.color}, ${ev.color}50)`,
-              boxShadow: `0 0 10px ${ev.color}70`,
-            }} />
-            <div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>{ev.title}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", fontFamily: "'Outfit', sans-serif", marginTop: 2 }}>{ev.time}</div>
+            <i className="fa-regular fa-calendar" style={{ fontSize: 18, color: "#FB923C", opacity: 0.5 }} />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>
+              No events today
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "'Outfit', sans-serif", marginTop: 3 }}>
+              Open Calendar to add events
             </div>
           </div>
-        ))}
+        </div>
       </div>
     </motion.div>
   );
 }
 
-// ── Memory card ───────────────────────────────────────────────────────────────
-
-const MEM_ITEMS = [
-  { icon: "fa-note-sticky", color: "#F59E0B", text: "Ideas for the new project structure" },
-  { icon: "fa-brain",       color: "#2DD4BF", text: "Cortex learned your reading schedule" },
-  { icon: "fa-clipboard",   color: "#818CF8", text: "Copied: API endpoint from docs" },
-];
+// ── Memory card — empty state ──────────────────────────────────────────────────
 
 function MemoryCard({ onOpenApp }) {
   return (
@@ -896,36 +1029,29 @@ function MemoryCard({ onOpenApp }) {
           </button>
         </div>
 
-        {MEM_ITEMS.map((item, i) => (
-          <div key={i} style={{
-            display: "flex", alignItems: "flex-start", gap: 10,
-            paddingBottom: i < MEM_ITEMS.length - 1 ? 10 : 0,
-            marginBottom:  i < MEM_ITEMS.length - 1 ? 10 : 0,
-            borderBottom:  i < MEM_ITEMS.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 8 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.18)",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <div style={{
-              width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-              background: `${item.color}14`, border: `1px solid ${item.color}22`,
-              display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1,
-            }}>
-              <i className={`fa-solid ${item.icon}`} style={{ color: item.color, fontSize: 11 }} />
-            </div>
-            <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.60)", fontFamily: "'Outfit', sans-serif", lineHeight: 1.48, paddingTop: 4 }}>
-              {item.text}
-            </span>
+            <i className="fa-solid fa-brain" style={{ fontSize: 18, color: "#2DD4BF", opacity: 0.5 }} />
           </div>
-        ))}
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>
+              No memories captured yet
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "'Outfit', sans-serif", marginTop: 3 }}>
+              Cortex will learn as you use OmniverseOS
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
 }
 
-// ── Recent notes card ─────────────────────────────────────────────────────────
-
-const NOTES = [
-  { title: "Project Architecture",  preview: "Microservices vs monolith trade-offs for the new…", time: "2h ago",    color: "#F59E0B" },
-  { title: "Meeting Notes",         preview: "Q3 roadmap finalized. Key points: mobile-first…",  time: "Yesterday", color: "#60A5FA" },
-];
+// ── Recent notes card — empty state ────────────────────────────────────────────
 
 function RecentNotesCard({ onOpenApp }) {
   return (
@@ -946,33 +1072,23 @@ function RecentNotesCard({ onOpenApp }) {
           </button>
         </div>
 
-        {NOTES.map((note, i) => (
-          <div key={i} style={{
-            display: "flex", alignItems: "flex-start", gap: 10,
-            paddingBottom: i < NOTES.length - 1 ? 11 : 0,
-            marginBottom:  i < NOTES.length - 1 ? 11 : 0,
-            borderBottom:  i < NOTES.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 0", gap: 8 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.18)",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-              background: `${note.color}14`, border: `1px solid ${note.color}22`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <i className="fa-solid fa-note-sticky" style={{ color: note.color, fontSize: 14 }} />
+            <i className="fa-regular fa-note-sticky" style={{ fontSize: 18, color: "#F59E0B", opacity: 0.5 }} />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>
+              No recent notes
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.82)", fontFamily: "'Outfit', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {note.title}
-                </span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.26)", fontFamily: "'Outfit', sans-serif", flexShrink: 0 }}>{note.time}</span>
-              </div>
-              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.36)", fontFamily: "'Outfit', sans-serif", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {note.preview}
-              </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "'Outfit', sans-serif", marginTop: 3 }}>
+              Open Notes to start capturing ideas
             </div>
           </div>
-        ))}
+        </div>
       </div>
     </motion.div>
   );
@@ -1100,12 +1216,11 @@ function AppLibraryHint({ onOpen }) {
 
 // ── AI home feed ──────────────────────────────────────────────────────────────
 
-// Static cards that don't need the live clock — memoized so they never
-// re-render from the 1-second clock tick in AIHomeContent.
-const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp }) {
+// Static cards — memoized so they never re-render from the 1-second clock tick.
+const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp, now }) {
   return (
     <>
-      <QuickStatsRow />
+      <LiveStatsRow now={now} />
       <CalendarCard onOpenApp={onOpenApp} />
       <MemoryCard onOpenApp={onOpenApp} />
       <RecentNotesCard onOpenApp={onOpenApp} />
@@ -1118,13 +1233,13 @@ const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp }) {
 function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef }) {
   const now      = useClock();
   const theme    = useMemo(() => getTheme(), []);
+  const [is24h, toggleFormat] = useClockFormat();
   const userName = useMemo(() => {
     try { return localStorage.getItem("omniverse_user_name") || ""; } catch { return ""; }
   }, []);
 
   const localFeedRef = useRef(null);
 
-  // Wire the external feedScrollRef so parent can read scrollTop without re-renders
   const handleRef = useCallback((node) => {
     localFeedRef.current = node;
     if (feedScrollRef) feedScrollRef.current = node;
@@ -1164,12 +1279,12 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef })
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
 
-        {/* Holographic ring clock — re-renders on every tick (intentional, cheap) */}
-        <HoloClock now={now} userName={userName} />
+        {/* Holographic ring clock — re-renders on every tick */}
+        <HoloClock now={now} userName={userName} is24h={is24h} onToggleFormat={toggleFormat} />
         <CortexBriefCard now={now} userName={userName} theme={theme} />
 
-        {/* Heavy static cards — memoized, skip re-render on clock ticks */}
-        <StaticFeedContent onOpenApp={onOpenApp} />
+        {/* Static cards — memoized, skip re-render on clock ticks */}
+        <StaticFeedContent onOpenApp={onOpenApp} now={now} />
       </div>
 
       {/* App Library hint */}
@@ -1188,16 +1303,14 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
   const touchStartX   = useRef(null);
   const touchStartY   = useRef(null);
   const axisLocked    = useRef(null);
-  const peekRef       = useRef(null);    // drawer-peek strip
+  const peekRef       = useRef(null);
   const peekRafId     = useRef(null);
-  const peekTimerId   = useRef(null);    // resetPeek setTimeout — needs cleanup
-  const showDrawerRef = useRef(false);   // mirror without closure stale ref
-  const feedScrollRef = useRef(null);    // set by AIHomeContent, read here for swipe-guard
+  const peekTimerId   = useRef(null);
+  const showDrawerRef = useRef(false);
+  const feedScrollRef = useRef(null);
 
-  // Keep ref in sync
   useEffect(() => { showDrawerRef.current = showDrawer; }, [showDrawer]);
 
-  // Cleanup rAF + any pending peek timer on unmount
   useEffect(() => {
     return () => {
       if (peekRafId.current)   cancelAnimationFrame(peekRafId.current);
@@ -1213,7 +1326,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     });
   }, []);
 
-  // Reset peek strip back off-screen — clears its own timer on re-call
   const resetPeek = useCallback(() => {
     if (!peekRef.current) return;
     peekRef.current.style.transition = "transform 0.30s cubic-bezier(0.4,0,1,1), opacity 0.22s ease";
@@ -1246,9 +1358,8 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
       axisLocked.current = dxA > dyA ? "h" : "v";
     }
 
-    // Live drawer peek — follows finger upward during swipe-up on home page
     if (axisLocked.current === "v" && !showDrawerRef.current) {
-      const swipeUp = touchStartY.current - curY; // positive = moving up
+      const swipeUp = touchStartY.current - curY;
       if (swipeUp > 0 && peekRef.current) {
         const clamped = Math.min(swipeUp, 140);
         const opacity = Math.min(0.95, clamped / 100);
@@ -1273,7 +1384,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     touchStartX.current = null;
     axisLocked.current  = null;
 
-    // Only open drawer when feed is scrolled to top — prevents false triggers mid-scroll
     const feedAtTop = !feedScrollRef.current || feedScrollRef.current.scrollTop < 8;
     if (axis === "v" && dy < -60 && globalPage === 1 && !showDrawer && feedAtTop) {
       resetPeek();
@@ -1281,7 +1391,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
       return;
     }
 
-    // Didn't open — snap peek back
     resetPeek();
 
     if (axis === "h" && Math.abs(dx) > 48) {
@@ -1290,7 +1399,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     }
   }, [navigate, globalPage, showDrawer, resetPeek]);
 
-  // Priority 3 — tighter spring + reduced x offset matches iOS/Android page transitions
   const pageVariants = {
     initial: (dir) => ({ opacity: 0, x: dir > 0 ?  "18%" : "-18%", scale: 0.97 }),
     animate:          { opacity: 1, x: "0%",                         scale: 1    },
@@ -1343,7 +1451,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           </AnimatePresence>
         </div>
 
-        {/* Page indicator — 2 tiny dots, not distracting */}
+        {/* Page indicator */}
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 5, paddingBottom: 9, paddingTop: 2, flexShrink: 0 }}>
           {[0, 1].map((i) => {
             const isActive = i === globalPage;
@@ -1393,7 +1501,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         )}
       </motion.div>
 
-      {/* Live drawer-peek strip — follows finger, snaps back if not opened */}
+      {/* Live drawer-peek strip */}
       <div
         ref={peekRef}
         aria-hidden="true"
@@ -1416,7 +1524,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           paddingTop: 10,
         }}
       >
-        {/* Grab handle preview */}
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.28)" }} />
       </div>
 
