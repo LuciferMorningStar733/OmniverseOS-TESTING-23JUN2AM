@@ -286,6 +286,39 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
   );
 });
 
+// ─── Priority 9: Mobile dock with touch-magnification physics ─────────────────
+
+function useMobileDockMagnification(count) {
+  const [touchX, setTouchX] = useState(null);
+  const pillRef = useRef(null);
+
+  const getScales = useCallback((tx) => {
+    if (tx === null || !pillRef.current) return Array(count).fill(1);
+    const rect   = pillRef.current.getBoundingClientRect();
+    const slotW  = rect.width / count;
+    return Array.from({ length: count }, (_, i) => {
+      const iconCenterX = rect.left + slotW * i + slotW / 2;
+      const dist        = Math.abs(tx - iconCenterX);
+      const maxDist     = slotW * 1.8;
+      if (dist >= maxDist) return 1;
+      const t = 1 - dist / maxDist;
+      return 1 + t * t * 0.38;           // max 1.38× at touch center
+    });
+  }, [count]);
+
+  const scales = useMemo(() => getScales(touchX), [getScales, touchX]);
+
+  const onTouchMove = useCallback((e) => {
+    setTouchX(e.touches[0]?.clientX ?? null);
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    setTouchX(null);
+  }, []);
+
+  return { pillRef, scales, onTouchMove, onTouchEnd };
+}
+
 function MobileDock() {
   const { openApp, closeWindow, windows, activeId, focusWindow } = useOS();
 
@@ -294,6 +327,9 @@ function MobileDock() {
          .sort((a, b) => PINNED_APP_IDS.indexOf(a.id) - PINNED_APP_IDS.indexOf(b.id)),
     []
   );
+
+  const { pillRef, scales, onTouchMove, onTouchEnd } =
+    useMobileDockMagnification(pinnedApps.length);
 
   // Auto-hide dock when user scrolls down in the home feed
   const [dockVisible, setDockVisible] = useState(true);
@@ -322,7 +358,6 @@ function MobileDock() {
       transition={{
         y:       { type: "spring", damping: 28, stiffness: 280 },
         opacity: { duration: 0.20 },
-        // Initial entrance still uses delay
         ...(dockVisible === true && lastScrollY.current === 0
           ? { delay: 0.22 }
           : {}),
@@ -340,6 +375,10 @@ function MobileDock() {
     >
       {/* Floating glass pill */}
       <div
+        ref={pillRef}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         style={{
           pointerEvents: "auto",
           background: "rgba(5, 7, 15, 0.84)",
@@ -353,18 +392,25 @@ function MobileDock() {
           paddingLeft: 14,
           paddingRight: 14,
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-end",
           justifyContent: "space-around",
           gap: 2,
           minWidth: 232,
         }}
       >
-        {pinnedApps.map((app) => (
-          <MobileDockIcon
-            key={app.id} app={app}
-            windows={windows} activeId={activeId}
-            openApp={openApp} focusWindow={focusWindow} closeWindow={closeWindow}
-          />
+        {pinnedApps.map((app, i) => (
+          <motion.div
+            key={app.id}
+            animate={{ scale: scales[i], y: scales[i] > 1 ? -(scales[i] - 1) * 28 : 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 28, mass: 0.18 }}
+            style={{ transformOrigin: "bottom center" }}
+          >
+            <MobileDockIcon
+              app={app}
+              windows={windows} activeId={activeId}
+              openApp={openApp} focusWindow={focusWindow} closeWindow={closeWindow}
+            />
+          </motion.div>
         ))}
       </div>
     </motion.div>

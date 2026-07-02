@@ -256,69 +256,206 @@ function PremiumClock({ now, theme, userName }) {
   );
 }
 
-// ── Cortex search bar ─────────────────────────────────────────────────────────
+// ── Priority 7: Morphing AI Search bar ────────────────────────────────────────
+
+const SEARCH_PLACEHOLDERS = [
+  "Ask Cortex anything…",
+  "Search memories…",
+  "What's on my calendar?",
+  "Set a reminder…",
+  "Search the web…",
+  "Open an app…",
+  "What did I copy?",
+];
+
+const SEARCH_SUGGESTIONS = [
+  { icon: "fa-brain",      text: "Summarize my day",       col: "#2DD4BF" },
+  { icon: "fa-calendar",   text: "Next event",             col: "#FB923C" },
+  { icon: "fa-clipboard",  text: "Recent clipboard",       col: "#818CF8" },
+  { icon: "fa-bolt",       text: "Quick note",             col: "#F59E0B" },
+];
 
 function CortexSearchBar({ onTap, theme }) {
-  const [active, setActive] = useState(false);
+  const [active,      setActive]      = useState(false);
+  const [thinking,    setThinking]    = useState(false);
+  const [phIdx,       setPhIdx]       = useState(0);
+  const [showSuggest, setShowSuggest] = useState(false);
+
+  // Cycle placeholder text every 3.5 s
+  useEffect(() => {
+    const id = setInterval(() => setPhIdx((i) => (i + 1) % SEARCH_PLACEHOLDERS.length), 3500);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleTap = useCallback(() => {
+    setThinking(true);
+    setTimeout(() => { setThinking(false); onTap(); }, 320);
+  }, [onTap]);
+
+  const handleLongPress = useCallback(() => setShowSuggest((s) => !s), []);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.04, duration: 0.32, ease: "easeOut" }}
-      style={{ padding: "12px 16px 0", flexShrink: 0, position: "relative", zIndex: 1 }}
+      transition={{ delay: 0.04, type: "spring", damping: 28, stiffness: 320 }}
+      style={{ padding: "12px 16px 0", flexShrink: 0, position: "relative", zIndex: 10 }}
     >
+      {/* Main search pill */}
       <motion.button
         onPointerDown={() => setActive(true)}
         onPointerUp={() => setActive(false)}
         onPointerLeave={() => setActive(false)}
-        onClick={onTap}
+        onClick={handleTap}
+        onContextMenu={(e) => { e.preventDefault(); handleLongPress(); }}
         aria-label="Search Cortex"
-        whileTap={{ scale: 0.975 }}
         animate={{
+          scale:     active ? 0.978 : 1,
           boxShadow: active
-            ? `0 0 0 2px ${theme.accent}50, 0 0 28px ${theme.glow}, 0 4px 16px rgba(0,0,0,0.45)`
-            : `0 0 0 1px rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.35)`,
+            ? `0 0 0 2px ${theme.accent}55, 0 0 32px ${theme.glow}, 0 8px 24px rgba(0,0,0,0.50)`
+            : showSuggest
+            ? `0 0 0 1.5px ${theme.accent}30, 0 0 24px ${theme.glow}, 0 4px 16px rgba(0,0,0,0.40)`
+            : `0 0 0 1px rgba(255,255,255,0.06), 0 4px 16px rgba(0,0,0,0.35)`,
         }}
-        transition={{ duration: 0.18 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
         style={{
           width: "100%",
           display: "flex", alignItems: "center", gap: 10,
-          padding: "13px 16px", borderRadius: 18,
-          background: "rgba(8, 10, 24, 0.70)",
-          backdropFilter: "blur(40px) saturate(210%)",
-          WebkitBackdropFilter: "blur(40px) saturate(210%)",
-          border: `1px solid ${active ? `${theme.accent}40` : "rgba(255,255,255,0.10)"}`,
+          padding: "12px 14px",
+          borderRadius: showSuggest ? "18px 18px 0 0" : 18,
+          background: "rgba(6, 8, 22, 0.78)",
+          backdropFilter: "blur(44px) saturate(220%)",
+          WebkitBackdropFilter: "blur(44px) saturate(220%)",
+          border: `1px solid ${active || showSuggest ? `${theme.accent}35` : "rgba(255,255,255,0.09)"}`,
+          borderBottom: showSuggest ? `1px solid ${theme.accent}15` : undefined,
           cursor: "pointer",
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation",
-          transition: "border-color 0.18s ease",
+          transition: "border-color 0.18s ease, border-radius 0.22s ease",
         }}
       >
+        {/* Animated icon — microphone or AI thinking dots */}
         <div style={{
-          width: 28, height: 28, borderRadius: 9, flexShrink: 0,
-          background: `linear-gradient(135deg, ${theme.accent}28, ${theme.accent}0C)`,
-          border: `1px solid ${theme.accent}35`,
+          width: 30, height: 30, borderRadius: 10, flexShrink: 0,
+          background: `linear-gradient(135deg, ${theme.accent}25, ${theme.accent}0A)`,
+          border: `1px solid ${theme.accent}30`,
           display: "flex", alignItems: "center", justifyContent: "center",
+          position: "relative", overflow: "hidden",
         }}>
-          <i className="fa-solid fa-microphone" style={{ color: theme.accent, fontSize: 12, filter: `drop-shadow(0 0 5px ${theme.accent}90)` }} />
+          <AnimatePresence mode="wait">
+            {thinking ? (
+              <motion.div
+                key="thinking"
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                style={{ display: "flex", gap: 3 }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }}
+                    style={{ width: 4, height: 4, borderRadius: "50%", background: theme.accent }}
+                  />
+                ))}
+              </motion.div>
+            ) : (
+              <motion.i
+                key="mic"
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                className="fa-solid fa-magnifying-glass"
+                style={{ color: theme.accent, fontSize: 12, filter: `drop-shadow(0 0 5px ${theme.accent}90)` }}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
-        <span style={{
-          flex: 1, fontSize: 14.5, fontFamily: "'Outfit', sans-serif",
-          fontWeight: 400, color: "rgba(255,255,255,0.30)",
-          textAlign: "left", userSelect: "none", letterSpacing: "0.005em",
-        }}>
-          Ask Cortex anything…
-        </span>
+        {/* Rotating placeholder */}
+        <div style={{ flex: 1, overflow: "hidden", textAlign: "left", position: "relative", height: 22 }}>
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={phIdx}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.26, ease: "easeOut" }}
+              style={{
+                position: "absolute", inset: 0, display: "flex", alignItems: "center",
+                fontSize: 14, fontFamily: "'Outfit', sans-serif",
+                fontWeight: 400, color: "rgba(255,255,255,0.28)", userSelect: "none",
+                letterSpacing: "0.005em", whiteSpace: "nowrap",
+              }}
+            >
+              {SEARCH_PLACEHOLDERS[phIdx]}
+            </motion.span>
+          </AnimatePresence>
+        </div>
 
-        <div style={{
-          padding: "4px 11px", borderRadius: 20,
-          background: `${theme.accent}16`, border: `1px solid ${theme.accent}28`, flexShrink: 0,
-        }}>
+        {/* AI badge */}
+        <motion.div
+          animate={{ opacity: thinking ? 0.4 : 1 }}
+          style={{
+            padding: "3px 9px", borderRadius: 20, flexShrink: 0,
+            background: `${theme.accent}14`, border: `1px solid ${theme.accent}25`,
+            display: "flex", alignItems: "center", gap: 4,
+          }}
+        >
+          <motion.div
+            animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
+            transition={{ duration: 2.4, repeat: Infinity }}
+            style={{ width: 4, height: 4, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 6px ${theme.accent}` }}
+          />
           <span style={{ fontSize: 9, color: theme.accent, fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.10em" }}>AI</span>
-        </div>
+        </motion.div>
       </motion.button>
+
+      {/* Quick suggestion strip — slides down when showSuggest */}
+      <AnimatePresence>
+        {showSuggest && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ type: "spring", damping: 28, stiffness: 340 }}
+            style={{
+              overflow: "hidden",
+              background: "rgba(6,8,22,0.88)",
+              backdropFilter: "blur(44px) saturate(220%)",
+              WebkitBackdropFilter: "blur(44px) saturate(220%)",
+              border: `1px solid ${theme.accent}30`,
+              borderTop: "none",
+              borderRadius: "0 0 18px 18px",
+            }}
+          >
+            <div style={{ display: "flex", gap: 6, padding: "8px 10px 10px", overflowX: "auto", scrollbarWidth: "none" }}>
+              {SEARCH_SUGGESTIONS.map((s, i) => (
+                <motion.button
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.88 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.06, type: "spring", damping: 22, stiffness: 380 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => { setShowSuggest(false); onTap(); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "6px 11px", borderRadius: 20, flexShrink: 0,
+                    background: `${s.col}0F`, border: `1px solid ${s.col}22`,
+                    cursor: "pointer", WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <i className={`fa-solid ${s.icon}`} style={{ color: s.col, fontSize: 11 }} />
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap" }}>
+                    {s.text}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

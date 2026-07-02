@@ -3,7 +3,6 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#05050A" />
     <meta name="description" content="OmniverseOS — a futuristic AI operating system" />
 
@@ -16,10 +15,17 @@
     <meta name="apple-mobile-web-app-title" content="OmniverseOS" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
 
-    <!-- Android chrome -->
+    <!-- Android chrome / Priority 11 native -->
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#05050A" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#05050A" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark" />
+    <!-- Edge-to-edge on Android (status bar + nav bar immersive) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
+    <!-- Disable phone-number auto-detection -->
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
 
-    <!-- Prevent tap highlight on mobile */-->
+    <!-- Prevent tap highlight on mobile -->
     <style>
       * { -webkit-tap-highlight-color: transparent; }
       body {
@@ -27,6 +33,18 @@
         overscroll-behavior: none;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        /* Android edge-to-edge: extend into status bar + nav bar */
+        background-color: #05050A;
+        color-scheme: dark;
+      }
+      /* Pull-to-refresh guard on Android Chrome */
+      html { overscroll-behavior-y: none; }
+      /* Safe area fill so content doesn't bleed into notch */
+      #root {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
       }
     </style>
 

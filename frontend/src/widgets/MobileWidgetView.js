@@ -16,12 +16,13 @@ const GLASS = {
 
 // Featured widgets for onboarding — enhanced with descriptions
 const FEATURED_WIDGETS = [
-  { id: "ai-command-center", name: "AI Command Center", description: "Clock · Weather · Battery · Network · AI State", icon: "fa-microchip-ai", color: "#00F0FF" },
-  { id: "cortex-smart", name: "Cortex Smart Widget", description: "Clock · Weather · AI Brief · Tasks", icon: "fa-sparkles",   color: "#00F0FF" },
-  { id: "chrono",       name: "Chrono-Atmo",          description: "Clock + live weather radar",        icon: "fa-satellite-dish", color: "#A855F7" },
-  { id: "cortex",       name: "Cortex AI",            description: "Daily briefing by Cortex",          icon: "fa-brain",      color: "#2DD4BF" },
-  { id: "calendar",     name: "Calendar",             description: "Your upcoming events",              icon: "fa-calendar",   color: "#60A5FA" },
-  { id: "todo",         name: "Tasks",                description: "Your to-do list",                   icon: "fa-list-check", color: "#39FF14" },
+  { id: "ai-command-center", name: "AI Command Center", description: "Clock · Weather · Battery · Network · AI State", icon: "fa-microchip-ai",   color: "#00F0FF" },
+  { id: "cortex-living",     name: "Cortex Living AI",  description: "Living OS AI · typed messages · activity",      icon: "fa-brain",           color: "#00F0FF" },
+  { id: "cortex-smart",      name: "Cortex Smart",      description: "Clock · Weather · AI Brief · Tasks",            icon: "fa-sparkles",        color: "#00F0FF" },
+  { id: "chrono",            name: "Chrono-Atmo",       description: "Clock + live weather radar",                    icon: "fa-satellite-dish",  color: "#A855F7" },
+  { id: "cortex",            name: "Cortex AI",         description: "Daily briefing by Cortex",                      icon: "fa-brain",           color: "#2DD4BF" },
+  { id: "calendar",          name: "Calendar",          description: "Your upcoming events",                          icon: "fa-calendar",        color: "#60A5FA" },
+  { id: "todo",              name: "Tasks",             description: "Your to-do list",                               icon: "fa-list-check",      color: "#39FF14" },
 ];
 
 function Loader() {

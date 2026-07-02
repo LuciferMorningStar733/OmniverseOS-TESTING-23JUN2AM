@@ -33,6 +33,15 @@ export const WIDGET_REGISTRY = [
     Component: lazy(() => import("./widgets/AICommandCenter")),
   },
   {
+    id: "cortex-living",
+    name: "Cortex Living AI",
+    icon: "fa-brain",
+    color: "#00F0FF",
+    defaultW: 1, defaultH: 4,
+    minW: 1, minH: 3, maxW: 2, maxH: 5,
+    Component: lazy(() => import("./widgets/CortexLivingWidget")),
+  },
+  {
     id: "cortex-smart",
     name: "Cortex Smart Widget",
     icon: "fa-sparkles",
