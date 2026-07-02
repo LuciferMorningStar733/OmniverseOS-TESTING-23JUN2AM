@@ -68,17 +68,27 @@ const GLASS = {
 
 const AURORA_CSS = `
   @keyframes auroraDrift1 {
-    0%   { transform: translate(0%,   0%)   scale(1.00); }
-    25%  { transform: translate(4%,  -6%)   scale(1.07); }
-    50%  { transform: translate(-3%,  5%)   scale(0.95); }
-    75%  { transform: translate(2%,  -3%)   scale(1.03); }
-    100% { transform: translate(0%,   0%)   scale(1.00); }
+    0%   { transform: translate3d(0%,   0%,   0) scale(1.00); }
+    25%  { transform: translate3d(4%,  -6%,   0) scale(1.07); }
+    50%  { transform: translate3d(-3%,  5%,   0) scale(0.95); }
+    75%  { transform: translate3d(2%,  -3%,   0) scale(1.03); }
+    100% { transform: translate3d(0%,   0%,   0) scale(1.00); }
   }
   @keyframes auroraDrift2 {
-    0%   { transform: translate(0%,   0%)   scale(1.00); }
-    33%  { transform: translate(-6%,  4%)   scale(1.05); }
-    66%  { transform: translate(4%,  -5%)   scale(0.96); }
-    100% { transform: translate(0%,   0%)   scale(1.00); }
+    0%   { transform: translate3d(0%,   0%,   0) scale(1.00); }
+    33%  { transform: translate3d(-6%,  4%,   0) scale(1.05); }
+    66%  { transform: translate3d(4%,  -5%,   0) scale(0.96); }
+    100% { transform: translate3d(0%,   0%,   0) scale(1.00); }
+  }
+  @keyframes neuralPulse {
+    0%, 100% { opacity: 0.018; }
+    50%       { opacity: 0.038; }
+  }
+  @keyframes scanDrift {
+    0%   { transform: translate3d(0, -8px, 0); opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { transform: translate3d(0, 8px, 0); opacity: 0; }
   }
 `;
 
@@ -86,17 +96,31 @@ function AmbientBackground({ theme }) {
   return (
     <>
       <style>{AURORA_CSS}</style>
+      {/* Primary aurora blob */}
       <div aria-hidden="true" style={{
         position: "absolute", inset: -60, pointerEvents: "none", zIndex: 0,
         animation: "auroraDrift1 24s ease-in-out infinite",
         background: `radial-gradient(ellipse 58% 38% at 78% 18%, ${theme.glow} 0%, transparent 65%)`,
         willChange: "transform",
       }} />
+      {/* Secondary aurora blob */}
       <div aria-hidden="true" style={{
         position: "absolute", inset: -60, pointerEvents: "none", zIndex: 0,
         animation: "auroraDrift2 32s ease-in-out infinite",
         background: `radial-gradient(ellipse 45% 55% at 12% 82%, ${theme.secondary} 0%, transparent 60%)`,
         willChange: "transform",
+      }} />
+      {/* Subtle neural grid — very faint, 3038 vibe */}
+      <div aria-hidden="true" style={{
+        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+        backgroundImage: `
+          linear-gradient(rgba(0,240,255,0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,240,255,0.028) 1px, transparent 1px)
+        `,
+        backgroundSize: "44px 44px",
+        animation: "neuralPulse 8s ease-in-out infinite",
+        maskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%)",
+        WebkitMaskImage: "radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%)",
       }} />
     </>
   );
@@ -846,7 +870,7 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
       {/* Search bar — sticky at top */}
       <CortexSearchBar onTap={onOpenSearch} theme={theme} />
 
-      {/* Scrollable feed */}
+      {/* Scrollable feed — GPU-native momentum scroll */}
       <div
         ref={feedRef}
         onScroll={handleScroll}
@@ -857,8 +881,10 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
           msOverflowStyle: "none",
+          overscrollBehavior: "contain",
           position: "relative",
           zIndex: 1,
+          contain: "content",
         }}
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
@@ -886,9 +912,15 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
   const [globalPage, setGlobalPage] = useState(1);
   const [direction,  setDirection]  = useState(0);
 
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
-  const axisLocked  = useRef(null);
+  const touchStartX  = useRef(null);
+  const touchStartY  = useRef(null);
+  const axisLocked   = useRef(null);
+  const peekRef      = useRef(null);   // drawer-peek strip
+  const peekRafId    = useRef(null);
+  const showDrawerRef = useRef(false); // mirror without closure stale ref
+
+  // Keep ref in sync
+  useEffect(() => { showDrawerRef.current = showDrawer; }, [showDrawer]);
 
   const navigate = useCallback((delta) => {
     setGlobalPage((p) => {
@@ -898,38 +930,78 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     });
   }, []);
 
+  // Reset peek strip back off-screen
+  const resetPeek = useCallback(() => {
+    if (!peekRef.current) return;
+    peekRef.current.style.transition = "transform 0.30s cubic-bezier(0.4,0,1,1), opacity 0.22s ease";
+    peekRef.current.style.transform  = "translate3d(0,0,0)";
+    peekRef.current.style.opacity    = "0";
+    setTimeout(() => {
+      if (peekRef.current) peekRef.current.style.transition = "none";
+    }, 320);
+  }, []);
+
   const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     axisLocked.current  = null;
+    if (peekRef.current) {
+      peekRef.current.style.transition = "none";
+    }
   }, []);
 
   const handleTouchMove = useCallback((e) => {
     if (touchStartX.current === null) return;
-    const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
-    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
-    if (axisLocked.current === null && (dx > 8 || dy > 8)) {
-      axisLocked.current = dx > dy ? "h" : "v";
+    const curX = e.touches[0].clientX;
+    const curY = e.touches[0].clientY;
+    const dxA  = Math.abs(curX - touchStartX.current);
+    const dyA  = Math.abs(curY - touchStartY.current);
+
+    if (axisLocked.current === null && (dxA > 7 || dyA > 7)) {
+      axisLocked.current = dxA > dyA ? "h" : "v";
+    }
+
+    // Live drawer peek — follows finger upward during swipe-up on home page
+    if (axisLocked.current === "v" && !showDrawerRef.current) {
+      const swipeUp = touchStartY.current - curY; // positive = moving up
+      if (swipeUp > 0 && peekRef.current) {
+        const clamped = Math.min(swipeUp, 140);
+        const opacity = Math.min(0.95, clamped / 100);
+        if (peekRafId.current) cancelAnimationFrame(peekRafId.current);
+        peekRafId.current = requestAnimationFrame(() => {
+          if (peekRef.current) {
+            peekRef.current.style.transform = `translate3d(0,${-clamped}px,0)`;
+            peekRef.current.style.opacity   = String(opacity);
+          }
+        });
+      }
     }
   }, []);
 
   const handleTouchEnd = useCallback((e) => {
     if (touchStartX.current === null) return;
+    if (peekRafId.current) cancelAnimationFrame(peekRafId.current);
+
     const dx   = e.changedTouches[0].clientX - touchStartX.current;
     const dy   = e.changedTouches[0].clientY - touchStartY.current;
     const axis = axisLocked.current;
     touchStartX.current = null;
     axisLocked.current  = null;
 
-    if (axis === "v" && dy < -70 && globalPage === 1 && !showDrawer) {
+    if (axis === "v" && dy < -60 && globalPage === 1 && !showDrawer) {
+      resetPeek();
       setShowDrawer(true);
       return;
     }
-    if (axis === "h" && Math.abs(dx) > 50) {
+
+    // Didn't open — snap peek back
+    resetPeek();
+
+    if (axis === "h" && Math.abs(dx) > 48) {
       if (dx < 0) navigate(1);
       if (dx > 0) navigate(-1);
     }
-  }, [navigate, globalPage, showDrawer]);
+  }, [navigate, globalPage, showDrawer, resetPeek]);
 
   const pageVariants = {
     initial: (dir) => ({ opacity: 0, x: dir > 0 ?  "28%" : "-28%" }),
@@ -980,27 +1052,25 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           </AnimatePresence>
         </div>
 
-        {/* Page indicator dots */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, paddingBottom: 12, paddingTop: 4, flexShrink: 0 }}>
+        {/* Page indicator — 2 tiny dots, not distracting */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 5, paddingBottom: 9, paddingTop: 2, flexShrink: 0 }}>
           {[0, 1].map((i) => {
             const isActive = i === globalPage;
+            const accent   = i === 0 ? "#7C3AED" : "#00F0FF";
             return (
-              <motion.button
+              <motion.div
                 key={i}
                 onClick={() => { setDirection(i > globalPage ? 1 : -1); setGlobalPage(i); }}
                 animate={{
-                  width: isActive ? 20 : 6,
-                  background: isActive
-                    ? (i === 0 ? "#7C3AED" : "#00F0FF")
-                    : "rgba(255,255,255,0.20)",
+                  scale:   isActive ? 1 : 0.60,
+                  opacity: isActive ? 1 : 0.30,
+                  background: isActive ? accent : "#ffffff",
                 }}
-                transition={{ type: "spring", damping: 22, stiffness: 320 }}
+                transition={{ type: "spring", damping: 20, stiffness: 340 }}
                 style={{
-                  height: 6, borderRadius: 3,
-                  border: "none", padding: 0, cursor: "pointer",
-                  boxShadow: isActive
-                    ? `0 0 10px ${i === 0 ? "rgba(124,58,237,0.65)" : "rgba(0,240,255,0.65)"}`
-                    : "none",
+                  width: 5, height: 5, borderRadius: "50%",
+                  cursor: "pointer",
+                  boxShadow: isActive ? `0 0 7px ${accent}` : "none",
                   WebkitTapHighlightColor: "transparent",
                 }}
               />
@@ -1031,6 +1101,33 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           </motion.div>
         )}
       </motion.div>
+
+      {/* Live drawer-peek strip — follows finger, snaps back if not opened */}
+      <div
+        ref={peekRef}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          bottom: -90, left: 0, right: 0,
+          height: 110,
+          borderRadius: "22px 22px 0 0",
+          background: "rgba(12,12,20,0.80)",
+          backdropFilter: "blur(30px) saturate(180%)",
+          WebkitBackdropFilter: "blur(30px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderBottom: "none",
+          zIndex: 30,
+          pointerEvents: "none",
+          opacity: 0,
+          transform: "translate3d(0,0,0)",
+          willChange: "transform, opacity",
+          display: "flex", alignItems: "flex-start", justifyContent: "center",
+          paddingTop: 10,
+        }}
+      >
+        {/* Grab handle preview */}
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.28)" }} />
+      </div>
 
       {/* App Drawer */}
       <AnimatePresence>
