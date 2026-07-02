@@ -336,6 +336,11 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         sheetRef.current.style.willChange = "transform";
         // Temporarily remove the CSS animation so explicit transform wins
         sheetRef.current.classList.remove("omni-force-fps-sheet");
+        // ✨ PERF: Suspend expensive 64px blur during gesture.
+        // The GPU must re-composite the blur every frame while transform changes —
+        // this is the single biggest cause of sub-60fps drag. Restore after snap.
+        sheetRef.current.style.backdropFilter = "none";
+        sheetRef.current.style.webkitBackdropFilter = "none";
       }
     }
     if (!dragging.current) return;
@@ -388,12 +393,22 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
       if (closeTimerId.current) clearTimeout(closeTimerId.current);
       closeTimerId.current = setTimeout(() => { closeTimerId.current = null; onClose(); }, 260);
     } else {
-      sheetRef.current.style.transition = "transform 0.44s cubic-bezier(0.175,0.885,0.32,1.10)";
+      // Use the iOS-style deceleration spring for snap-back
+      sheetRef.current.style.transition = "transform 0.42s cubic-bezier(0.22,1,0.36,1)";
       sheetRef.current.style.transform  = "translate3d(0,0,0)";
       if (backdropRef.current) {
-        backdropRef.current.style.transition = "opacity 0.32s ease";
+        backdropRef.current.style.transition = "opacity 0.30s ease";
         backdropRef.current.style.opacity    = "1";
       }
+      // ✨ PERF: Restore the blur after snap animation completes.
+      // Defer slightly past the animation end so the compositor isn't doing
+      // both a spring-settle AND a blur re-paint simultaneously.
+      setTimeout(() => {
+        if (sheetRef.current) {
+          sheetRef.current.style.backdropFilter = "blur(64px) saturate(240%)";
+          sheetRef.current.style.webkitBackdropFilter = "blur(64px) saturate(240%)";
+        }
+      }, 460);
     }
   }, [onClose, forceFps]);
 
