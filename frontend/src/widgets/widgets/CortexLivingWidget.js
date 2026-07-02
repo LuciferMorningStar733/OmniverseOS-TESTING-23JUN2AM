@@ -196,8 +196,9 @@ function ActivityTicker({ color }) {
 export default function CortexLivingWidget() {
   const { user, openApp } = useOS();
   const now   = useRealClock();
-  const theme = useMemo(() => getTheme(now.getHours()), [now.getHours()]);
-  const messages = useMemo(() => buildMessages(now.getHours(), user?.name), [now.getHours(), user?.name]);
+  const hour     = now.getHours();
+  const theme    = useMemo(() => getTheme(hour), [hour]);
+  const messages = useMemo(() => buildMessages(hour, user?.name), [hour, user?.name]);
 
   const [msgIdx,   setMsgIdx]   = useState(0);
   const [typing,   setTyping]   = useState(true);

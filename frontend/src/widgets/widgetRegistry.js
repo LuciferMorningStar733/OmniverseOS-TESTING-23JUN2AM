@@ -33,6 +33,15 @@ export const WIDGET_REGISTRY = [
     Component: lazy(() => import("./widgets/AICommandCenter")),
   },
   {
+    id: "plasma",
+    name: "Plasma Core",
+    icon: "fa-circle-nodes",
+    color: "#00F0FF",
+    defaultW: 1, defaultH: 4,
+    minW: 1, minH: 3, maxW: 2, maxH: 5,
+    Component: lazy(() => import("./widgets/PlasmaWidget")),
+  },
+  {
     id: "cortex-living",
     name: "Cortex Living AI",
     icon: "fa-brain",

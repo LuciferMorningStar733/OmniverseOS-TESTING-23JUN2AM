@@ -453,7 +453,8 @@ export default function AICommandCenter() {
   const clipboard = useClipboard();
   const screenMins = useScreenTime();
 
-  const theme = useMemo(() => getTheme(now.getHours()), [now.getHours()]);
+  const hour  = now.getHours();
+  const theme = useMemo(() => getTheme(hour), [hour]);
 
   return (
     <motion.div
