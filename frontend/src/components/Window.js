@@ -153,29 +153,32 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
 
       <button
         onClick={onClose}
+        aria-label="Close"
         style={{
-          width: 52, height: 52,
+          width: 36, height: 36,
           display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(255,0,60,0.10)",
-          border: "1px solid rgba(255,0,60,0.25)",
-          borderRadius: 12,
+          background: "rgba(255,255,255,0.055)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 10,
           cursor: "pointer",
-          color: "#FF003C", fontSize: 18, zIndex: 2,
+          color: "rgba(255,255,255,0.48)", zIndex: 2,
           marginLeft: "auto",
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation", flexShrink: 0,
-          transition: "background 0.15s, box-shadow 0.15s",
+          transition: "background 0.14s, border-color 0.14s, color 0.14s",
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255,0,60,0.22)";
-          e.currentTarget.style.boxShadow = "0 0 12px rgba(255,0,60,0.3)";
+        onPointerEnter={(e) => {
+          e.currentTarget.style.background = "rgba(255,50,80,0.16)";
+          e.currentTarget.style.borderColor = "rgba(255,50,80,0.35)";
+          e.currentTarget.style.color = "#FF6080";
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "rgba(255,0,60,0.10)";
-          e.currentTarget.style.boxShadow = "none";
+        onPointerLeave={(e) => {
+          e.currentTarget.style.background = "rgba(255,255,255,0.055)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+          e.currentTarget.style.color = "rgba(255,255,255,0.48)";
         }}
       >
-        <i className="fa-solid fa-xmark" />
+        <i className="fa-solid fa-xmark" style={{ fontSize: 13 }} />
       </button>
     </div>
   );

@@ -925,7 +925,11 @@ export default function AIChat() {
 
       {/* Messages */}
       <div className="relative flex-1 overflow-hidden">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 space-y-4">
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto">
+        {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
+        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: "8px 14px 4px", gap: 10 }}>
+        {messages.length > 0 && <div style={{ flex: 1 }} />}
+
         {messages.length === 0 && !streaming && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6" style={{ minHeight: 200, paddingTop: 24, paddingBottom: 32 }}>
             {/* Animated Cortex orb hero */}
@@ -1058,11 +1062,11 @@ export default function AIChat() {
                 </span>
               </div>
             ) : m.role === "assistant" ? (
-              <div className="max-w-[82%] w-full" style={{ maxWidth: "min(82%, 680px)" }}>
+              <div style={{ maxWidth: "min(82%, 680px)" }}>
                 {m.modelUsed && <FallbackBadge modelId={m.modelUsed} />}
                 <div
                   className="group relative glass-light rounded-2xl"
-                  style={{ padding: "12px 16px 10px" }}
+                  style={{ padding: "10px 14px" }}
                 >
                   {/* Thinking indicator — premium wave when waiting for first token */}
                   {m.pending && !m.content && i === messages.length - 1 && (
@@ -1158,6 +1162,7 @@ export default function AIChat() {
 
         <StatusPanel status={streamStatus} />
         <div ref={endRef} />
+        </div>{/* end inner flex column */}
       </div>
 
       {/* Jump to bottom — floats inside messages area when user scrolls up */}
@@ -1269,13 +1274,15 @@ export default function AIChat() {
               ? "memory: 20 msgs (max context)"
               : `memory: ${contextCount} msg${contextCount !== 1 ? "s" : ""} in context`}
           </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {userLocation?.city && (
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, maxWidth: 110, overflow: "hidden" }}>
                 <svg width="9" height="9" viewBox="0 0 10 13" fill="none" style={{ flexShrink: 0 }}>
                   <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5 1.5 1.5 0 0 1 5 6.5z" fill="#00F0FF" fillOpacity="0.6"/>
                 </svg>
-                {[userLocation.city, userLocation.country].filter(Boolean).join(", ")}
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {userLocation.city}
+                </span>
               </span>
             )}
             <button
