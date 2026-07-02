@@ -1192,7 +1192,9 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         transition={{ duration: 0.22, ease: "easeOut" }}
         style={{
           position: "absolute",
-          top: 60, left: 0, right: 0, bottom: 88,
+          top: "calc(60px + env(safe-area-inset-top, 0px))",
+          left: 0, right: 0,
+          bottom: "calc(88px + env(safe-area-inset-bottom, 0px))",
           display: "flex", flexDirection: "column",
           zIndex: 8, pointerEvents: "auto", overflowX: "hidden",
         }}
