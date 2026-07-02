@@ -11,6 +11,7 @@ import MarkdownRenderer from "../components/MarkdownRenderer";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
 import { detectAmbiguity } from "../lib/ambiguityDetector";
 import CortexClarificationModal from "../components/CortexClarificationModal";
+import { playAIProcess, playAIReady } from "../lib/soundEngine";
 
 const SESSION_ID = "main";
 
@@ -628,6 +629,7 @@ export default function AIChat() {
     ]);
     setStreaming(true);
     setActiveProvider(null);
+    playAIProcess();
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -739,6 +741,7 @@ export default function AIChat() {
         setStreaming(false);
         setStreamStatus(null);
         setActiveProvider(null);
+        playAIReady();
         // Auto-resume listening after AI responds — continuous voice conversation.
         // Only fires in voice mode and only when the stream wasn't manually aborted.
         if (voiceModeRef.current && !ctrl.signal.aborted) {
