@@ -24,6 +24,15 @@ export const yToRow = (px) => Math.max(0, Math.round(px / (CELL_H + GAP)));
 
 export const WIDGET_REGISTRY = [
   {
+    id: "ai-command-center",
+    name: "AI Command Center",
+    icon: "fa-microchip-ai",
+    color: "#00F0FF",
+    defaultW: 1, defaultH: 5,
+    minW: 1, minH: 4, maxW: 2, maxH: 6,
+    Component: lazy(() => import("./widgets/AICommandCenter")),
+  },
+  {
     id: "cortex-smart",
     name: "Cortex Smart Widget",
     icon: "fa-sparkles",
@@ -144,9 +153,9 @@ export const WIDGET_REGISTRY = [
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
-// Default mobile layout — Cortex Smart Widget shown by default.
+// Default mobile layout — AI Command Center shown by default.
 // All other widgets are added manually via the Widget Store (+).
-export const LAYOUT_VERSION = 5;
+export const LAYOUT_VERSION = 6;
 export const DEFAULT_LAYOUT = [
-  { id: "cortex-smart", x: 0, y: 0, w: 1, h: 4, collapsed: false, pinned: true },
+  { id: "ai-command-center", x: 0, y: 0, w: 1, h: 5, collapsed: false, pinned: true },
 ];

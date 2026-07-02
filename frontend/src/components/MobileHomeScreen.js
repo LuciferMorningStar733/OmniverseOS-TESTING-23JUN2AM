@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import MobileWidgetView from "../widgets/MobileWidgetView";
 import MobileAppDrawer from "./MobileAppDrawer";
+import NeuralWallpaper from "../widgets/widgets/NeuralWallpaper";
 
 // Dock pinned apps — Cortex, Browser, Files, Settings (4 apps only)
 export const PINNED_APP_IDS = ["voice", "browser", "files", "settings"];
@@ -885,8 +886,10 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef })
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative", overflow: "hidden" }}>
-      {/* Ambient aurora — behind everything */}
-      <AmbientBackground theme={theme} />
+      {/* Living neural wallpaper — behind everything */}
+      <NeuralWallpaper style={{ zIndex: 0 }} />
+      {/* Dark overlay to keep content readable */}
+      <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "rgba(3,4,12,0.55)", zIndex: 0, pointerEvents: "none" }} />
 
       {/* Search bar — sticky at top */}
       <CortexSearchBar onTap={onOpenSearch} theme={theme} />
