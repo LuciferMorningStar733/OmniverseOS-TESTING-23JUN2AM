@@ -1,0 +1,169 @@
+15. CORTEX LIVE CONVERSATION MODE
+
+Current behavior:
+
+User presses mic.
+Speaks.
+Cortex responds.
+Conversation ends.
+Context is lost.
+
+This must be redesigned.
+
+Cortex should behave like Gemini Live or ChatGPT Voice.
+
+Requirements:
+
+• Maintain conversation context across consecutive voice interactions.
+
+• Manual Push-to-Talk must NOT reset the conversation.
+
+Example:
+
+User:
+"What's the Honda NX200?"
+
+Cortex:
+"The Honda NX200 is essentially a rebranded CB200X..."
+
+User presses the microphone again.
+
+User:
+"So what's different from my CB200X?"
+
+Cortex must understand:
+
+"my CB200X" refers to the previous discussion.
+
+DO NOT start a new conversation.
+
+────────────────────────────
+
+LIVE MODE
+
+After Cortex finishes speaking:
+
+• Automatically return to listening mode.
+
+• Show a subtle "Listening..." animation.
+
+• No need to press the microphone again.
+
+Conversation continues naturally.
+
+Timeout after configurable inactivity.
+
+────────────────────────────
+
+MANUAL MODE
+
+If Live Mode is disabled:
+
+Push-to-talk should still preserve conversation history.
+
+Each press simply continues the same session.
+
+Never clear context unless:
+
+• User taps New Conversation.
+• User explicitly says:
+  - Start over.
+  - New chat.
+  - Forget this conversation.
+• Conversation timeout expires.
+• User closes Cortex (configurable).
+
+────────────────────────────
+
+SESSION MEMORY
+
+Maintain:
+
+• Previous user messages.
+• Previous assistant responses.
+• Tool outputs.
+• Search results.
+• Generated images.
+• Current topic.
+
+Only summarize older messages when context becomes too large.
+
+Never discard recent context unnecessarily.
+
+────────────────────────────
+
+LIVE INDICATORS
+
+Listening
+
+Thinking
+
+Speaking
+
+Idle
+
+Each state has its own animation.
+
+────────────────────────────
+
+INTERRUPTION SUPPORT
+
+While Cortex is speaking:
+
+User can interrupt.
+
+Speech stops immediately.
+
+Cortex begins listening.
+
+Just like Gemini Live.
+
+────────────────────────────
+
+SETTINGS
+
+Conversation Timeout
+
+• Never
+• 5 minutes
+• 15 minutes
+• 30 minutes
+• 1 hour
+
+Auto Resume Listening
+
+ON/OFF
+
+Wake Word
+
+ON/OFF
+
+Continuous Conversation
+
+ON/OFF
+
+Voice Feedback
+
+ON/OFF
+
+────────────────────────────
+
+ARCHITECTURE
+
+Separate:
+
+Voice Recognition
+
+Conversation State
+
+LLM Context
+
+Text-to-Speech
+
+Wake Word
+
+These must be modular.
+
+Future providers (Gemini, OpenAI, Claude, Grok, DeepSeek, etc.) should plug into the same conversation state without code duplication.
+
+The conversation state should persist independently of the speech engine.

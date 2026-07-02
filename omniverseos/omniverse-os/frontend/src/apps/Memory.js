@@ -1,0 +1,902 @@
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { api } from "../lib/api";
+import { toast } from "sonner";
+
+const CATEGORIES = ["All", "Personal", "Preferences", "Devices", "Vehicles", "Projects", "Work", "Contacts", "Locations", "Other"];
+const CATEGORY_ICONS = {
+  All: "fa-brain",
+  Personal: "fa-user",
+  Preferences: "fa-sliders",
+  Devices: "fa-laptop",
+  Vehicles: "fa-car",
+  Projects: "fa-code-branch",
+  Work: "fa-briefcase",
+  Contacts: "fa-address-book",
+  Locations: "fa-location-dot",
+  Other: "fa-tag",
+};
+
+const IMPORTANCE_LABELS = ["Low", "Medium", "High", "Critical"];
+function importanceLabel(score) {
+  if (score >= 0.85) return "Critical";
+  if (score >= 0.65) return "High";
+  if (score >= 0.4) return "Medium";
+  return "Low";
+}
+function importanceColor(score) {
+  if (score >= 0.85) return "#FF003C";
+  if (score >= 0.65) return "#F59E0B";
+  if (score >= 0.4) return "#00F0FF";
+  return "rgba(255,255,255,0.35)";
+}
+
+const memApi = {
+  list: () => api.get("/memories").then(r => r.data),
+  create: (data) => api.post("/memories", data).then(r => r.data),
+  update: (id, data) => api.put(`/memories/${id}`, data).then(r => r.data),
+  remove: (id) => api.delete(`/memories/${id}`).then(r => r.data),
+};
+
+function MemoryCard({ mem, onEdit, onDelete, onTogglePin, onToggleNeverForget }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      style={{
+        background: mem.never_forget
+          ? "rgba(255,0,60,0.06)"
+          : mem.pinned
+          ? "rgba(0,240,255,0.06)"
+          : "rgba(255,255,255,0.03)",
+        border: mem.never_forget
+          ? "1px solid rgba(255,0,60,0.3)"
+          : mem.pinned
+          ? "1px solid rgba(0,240,255,0.25)"
+          : "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 10,
+        padding: "12px 14px",
+        transition: "all 0.15s",
+        cursor: "pointer",
+        position: "relative",
+      }}
+      onClick={() => setExpanded(e => !e)}
+    >
+      {/* Top row */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {mem.pinned && (
+              <i className="fa-solid fa-thumbtack" style={{ fontSize: 9, color: "#00F0FF" }} />
+            )}
+            {mem.never_forget && (
+              <i className="fa-solid fa-infinity" style={{ fontSize: 9, color: "#FF003C" }} />
+            )}
+            <span style={{
+              fontSize: 12, fontWeight: 600, color: "#E2E8F0",
+              fontFamily: "'Inter', sans-serif", wordBreak: "break-word",
+            }}>
+              {mem.title || mem.content.slice(0, 60)}
+            </span>
+          </div>
+          {expanded && (
+            <div style={{
+              marginTop: 6, fontSize: 12.5, color: "rgba(255,255,255,0.7)",
+              lineHeight: 1.55, wordBreak: "break-word",
+            }}>
+              {mem.content}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{
+              fontSize: 9.5, fontFamily: "monospace",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 4, padding: "1px 6px", color: "rgba(255,255,255,0.45)",
+            }}>
+              <i className={`fa-solid ${CATEGORY_ICONS[mem.category] || "fa-tag"} mr-1`} style={{ fontSize: 8 }} />
+              {mem.category}
+            </span>
+            <span style={{
+              fontSize: 9.5, fontFamily: "monospace",
+              color: importanceColor(mem.importance_score),
+              border: `1px solid ${importanceColor(mem.importance_score)}40`,
+              borderRadius: 4, padding: "1px 6px",
+              background: `${importanceColor(mem.importance_score)}10`,
+            }}>
+              {importanceLabel(mem.importance_score)}
+            </span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>
+              {new Date(mem.created_at).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: 5, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <ActionBtn icon="fa-thumbtack" active={mem.pinned} activeColor="#00F0FF" title="Pin" onClick={() => onTogglePin(mem)} />
+          <ActionBtn icon="fa-infinity" active={mem.never_forget} activeColor="#FF003C" title="Never forget" onClick={() => onToggleNeverForget(mem)} />
+          <ActionBtn icon="fa-pen" title="Edit" onClick={() => onEdit(mem)} />
+          <ActionBtn icon="fa-trash" title="Delete" onClick={() => onDelete(mem.id)} danger />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionBtn({ icon, active, activeColor, title, onClick, danger }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      style={{
+        width: 26, height: 26, borderRadius: 6, border: "none",
+        background: active ? `${activeColor}18` : "rgba(255,255,255,0.06)",
+        color: active ? activeColor : danger ? "rgba(255,0,60,0.5)" : "rgba(255,255,255,0.35)",
+        cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "all 0.15s",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = active ? `${activeColor}28` : danger ? "rgba(255,0,60,0.12)" : "rgba(255,255,255,0.1)";
+        e.currentTarget.style.color = active ? activeColor : danger ? "#FF003C" : "rgba(255,255,255,0.7)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = active ? `${activeColor}18` : "rgba(255,255,255,0.06)";
+        e.currentTarget.style.color = active ? activeColor : danger ? "rgba(255,0,60,0.5)" : "rgba(255,255,255,0.35)";
+      }}
+    >
+      <i className={`fa-solid ${icon}`} />
+    </button>
+  );
+}
+
+function EditModal({ mem, onSave, onClose }) {
+  const [form, setForm] = useState({
+    title: mem?.title || "",
+    content: mem?.content || "",
+    category: mem?.category || "Other",
+    importance_score: mem?.importance_score ?? 0.5,
+    pinned: mem?.pinned || false,
+    never_forget: mem?.never_forget || false,
+  });
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: "min(480px, 95vw)", background: "rgba(8,10,18,0.98)",
+          border: "1px solid rgba(0,240,255,0.2)", borderRadius: 14,
+          padding: 24, boxShadow: "0 24px 60px rgba(0,0,0,0.8)",
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#00F0FF", marginBottom: 16, fontFamily: "monospace" }}>
+          <i className="fa-solid fa-brain mr-2" /> {mem ? "Edit Memory" : "New Memory"}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>TITLE</label>
+            <input
+              value={form.title}
+              onChange={e => set("title", e.target.value)}
+              placeholder="Short label..."
+              className="input-cyber"
+              style={{ width: "100%", marginTop: 4, boxSizing: "border-box" }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>CONTENT *</label>
+            <textarea
+              value={form.content}
+              onChange={e => set("content", e.target.value)}
+              placeholder="The memorable fact..."
+              rows={3}
+              className="input-cyber"
+              style={{ width: "100%", marginTop: 4, resize: "vertical", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>CATEGORY</label>
+              <select
+                value={form.category}
+                onChange={e => set("category", e.target.value)}
+                className="input-cyber"
+                style={{ width: "100%", marginTop: 4 }}
+              >
+                {CATEGORIES.filter(c => c !== "All").map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>
+                IMPORTANCE: {importanceLabel(form.importance_score)}
+              </label>
+              <input
+                type="range" min={0} max={1} step={0.05}
+                value={form.importance_score}
+                onChange={e => set("importance_score", parseFloat(e.target.value))}
+                style={{ width: "100%", marginTop: 10, accentColor: importanceColor(form.importance_score) }}
+              />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+              <input type="checkbox" checked={form.pinned} onChange={e => set("pinned", e.target.checked)} style={{ accentColor: "#00F0FF" }} />
+              <i className="fa-solid fa-thumbtack" style={{ color: "#00F0FF", fontSize: 10 }} /> Pin
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+              <input type="checkbox" checked={form.never_forget} onChange={e => set("never_forget", e.target.checked)} style={{ accentColor: "#FF003C" }} />
+              <i className="fa-solid fa-infinity" style={{ color: "#FF003C", fontSize: 10 }} /> Never Forget
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button
+              onClick={() => { if (form.content.trim()) onSave(form); }}
+              className="neon-btn primary"
+              style={{ flex: 1 }}
+            >
+              <i className="fa-solid fa-floppy-disk mr-2" /> Save
+            </button>
+            <button onClick={onClose} className="neon-btn" style={{ flex: 1 }}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const CATEGORY_COLORS = {
+  Personal:    "#00F0FF",
+  Preferences: "#A78BFA",
+  Devices:     "#34D399",
+  Vehicles:    "#F59E0B",
+  Projects:    "#F97316",
+  Work:        "#60A5FA",
+  Contacts:    "#EC4899",
+  Locations:   "#10B981",
+  Other:       "rgba(255,255,255,0.35)",
+};
+
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAY_LABELS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function heatColor(count, max) {
+  if (!count || count === 0) return "rgba(255,255,255,0.05)";
+  const intensity = Math.min(1, count / Math.max(1, max));
+  // Cyan gradient: very light → vivid cyan
+  if (intensity < 0.25) return "rgba(0,240,255,0.18)";
+  if (intensity < 0.5)  return "rgba(0,240,255,0.38)";
+  if (intensity < 0.75) return "rgba(0,240,255,0.62)";
+  return "rgba(0,240,255,0.90)";
+}
+
+function heatBorder(count, max) {
+  if (!count || count === 0) return "rgba(255,255,255,0.07)";
+  const intensity = Math.min(1, count / Math.max(1, max));
+  if (intensity < 0.25) return "rgba(0,240,255,0.25)";
+  return "rgba(0,240,255,0.50)";
+}
+
+function TimelineHeatmap({ data }) {
+  const [tooltip, setTooltip] = React.useState(null); // {x, y, date, count}
+
+  if (!data) return (
+    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 30, fontSize: 13 }}>
+      No timeline data yet. Chat with Cortex to build activity history.
+    </div>
+  );
+
+  const { days, total_active_days, total_retrievals, max_count } = data;
+
+  // Build 52-week grid (weeks = columns, days = rows Sun-Sat)
+  // Pad start so first day aligns to correct weekday
+  const firstDay = days.length > 0 ? new Date(days[0].date + "T12:00:00Z") : new Date();
+  const startDow = firstDay.getDay(); // 0=Sun
+
+  // Build columns of 7 days each
+  const paddedDays = [];
+  for (let i = 0; i < startDow; i++) paddedDays.push(null); // empty leading cells
+  for (const d of days) paddedDays.push(d);
+
+  const weeks = [];
+  for (let w = 0; w < Math.ceil(paddedDays.length / 7); w++) {
+    weeks.push(paddedDays.slice(w * 7, w * 7 + 7));
+  }
+
+  // Month label positions: find first week of each month
+  const monthLabels = [];
+  for (let w = 0; w < weeks.length; w++) {
+    const firstReal = weeks[w].find(d => d !== null);
+    if (firstReal) {
+      const d = new Date(firstReal.date + "T12:00:00Z");
+      if (d.getDate() <= 7) {
+        monthLabels.push({ w, label: MONTH_LABELS[d.getMonth()] });
+      }
+    }
+  }
+
+  const CELL = 10; // px per cell
+  const GAP = 2;
+
+  return (
+    <div>
+      {/* Summary stats */}
+      <div style={{ display: "flex", gap: 20, marginBottom: 16, flexWrap: "wrap" }}>
+        {[
+          ["fa-calendar-check", total_active_days + " active days", "#00F0FF"],
+          ["fa-brain",          total_retrievals + " total retrievals", "#A78BFA"],
+          ["fa-fire-flame-curved", (max_count || 0) + " peak in one day", "#F97316"],
+        ].map(([icon, label, color]) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, fontFamily: "monospace" }}>
+            <i className={"fa-solid " + icon} style={{ color, fontSize: 11 }} />
+            <span style={{ color: "rgba(255,255,255,0.65)" }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Grid */}
+      <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+        <div style={{ display: "inline-flex", flexDirection: "column", gap: 0 }}>
+          {/* Month labels row */}
+          <div style={{ display: "flex", gap: GAP, paddingLeft: 28, marginBottom: 2 }}>
+            {weeks.map((_, w) => {
+              const label = monthLabels.find(m => m.w === w);
+              return (
+                <div key={w} style={{
+                  width: CELL, fontSize: 7.5, fontFamily: "monospace",
+                  color: label ? "rgba(255,255,255,0.4)" : "transparent",
+                  userSelect: "none", textAlign: "center", letterSpacing: 0,
+                }}>
+                  {label?.label || "·"}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Day rows */}
+          {[0, 1, 2, 3, 4, 5, 6].map(dow => (
+            <div key={dow} style={{ display: "flex", alignItems: "center", gap: GAP, marginBottom: GAP }}>
+              {/* Day label */}
+              <div style={{
+                width: 22, fontSize: 7.5, fontFamily: "monospace",
+                color: "rgba(255,255,255,0.25)", textAlign: "right",
+                userSelect: "none", paddingRight: 4, flexShrink: 0,
+              }}>
+                {dow % 2 === 1 ? DAY_LABELS[dow] : ""}
+              </div>
+              {/* Week cells */}
+              {weeks.map((week, w) => {
+                const cell = week[dow];
+                if (!cell) {
+                  return <div key={w} style={{ width: CELL, height: CELL, borderRadius: 2 }} />;
+                }
+                const bgColor = heatColor(cell.count, max_count);
+                const bdColor = heatBorder(cell.count, max_count);
+                const dateLabel = new Date(cell.date + "T12:00:00Z").toLocaleDateString(undefined, {
+                  month: "short", day: "numeric", year: "numeric",
+                });
+                return (
+                  <div
+                    key={w}
+                    style={{
+                      width: CELL, height: CELL, borderRadius: 2,
+                      background: bgColor,
+                      border: "1px solid " + bdColor,
+                      cursor: cell.count > 0 ? "pointer" : "default",
+                      boxShadow: cell.count > 0 ? "0 0 4px " + bgColor : "none",
+                      transition: "transform 0.1s, box-shadow 0.1s",
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={e => {
+                      if (cell.count > 0) {
+                        e.currentTarget.style.transform = "scale(1.4)";
+                        e.currentTarget.style.zIndex = "10";
+                      }
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltip({ x: rect.left, y: rect.top, date: dateLabel, count: cell.count });
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = "scale(1)";
+                      e.currentTarget.style.zIndex = "auto";
+                      setTooltip(null);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.3)" }}>
+        <span>Less</span>
+        {[0, 0.2, 0.45, 0.7, 1.0].map((v, i) => (
+          <div key={i} style={{
+            width: 9, height: 9, borderRadius: 2,
+            background: heatColor(v * 5, 5),
+            border: "1px solid " + heatBorder(v * 5, 5),
+          }} />
+        ))}
+        <span>More</span>
+      </div>
+
+      {/* Tooltip portal (fixed position) */}
+      {tooltip && (
+        <div style={{
+          position: "fixed",
+          left: tooltip.x + 14,
+          top: tooltip.y - 36,
+          background: "rgba(6,8,16,0.97)",
+          border: "1px solid rgba(0,240,255,0.3)",
+          borderRadius: 8,
+          padding: "5px 10px",
+          fontSize: 11,
+          fontFamily: "monospace",
+          color: "#E2E8F0",
+          zIndex: 99999,
+          pointerEvents: "none",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.7)",
+          whiteSpace: "nowrap",
+        }}>
+          <span style={{ color: "#00F0FF", fontWeight: 700 }}>{tooltip.count} retrieval{tooltip.count !== 1 ? "s" : ""}</span>
+          {" · "}{tooltip.date}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function StrengthGraph({ onClose }) {
+  const [stats, setStats] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [view, setView] = React.useState("top"); // "top" | "categories" | "timeline"
+  const [timeline, setTimeline] = React.useState(null);
+
+  React.useEffect(() => {
+    Promise.all([
+      api.get("/memories/stats").catch(() => ({ data: null })),
+      api.get("/memories/timeline").catch(() => ({ data: null })),
+    ]).then(([statsRes, tlRes]) => {
+      if (statsRes.data) setStats(statsRes.data);
+      if (tlRes.data) setTimeline(tlRes.data);
+      setLoading(false);
+    });
+  }, []);
+
+  const maxUses = stats?.top_by_usage?.[0]?.use_count || 1;
+
+  const catEntries = stats
+    ? Object.entries(stats.by_category)
+        .sort((a, b) => b[1].uses - a[1].uses)
+    : [];
+  const maxCatUses = catEntries[0]?.[1]?.uses || 1;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)",
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: "min(560px, 96vw)", maxHeight: "80vh",
+          background: "rgba(6,8,16,0.98)",
+          border: "1px solid rgba(0,240,255,0.2)", borderRadius: 16,
+          display: "flex", flexDirection: "column",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.85), 0 0 40px rgba(0,240,255,0.05)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#00F0FF", fontFamily: "'JetBrains Mono', monospace" }}>
+              <i className="fa-solid fa-chart-bar mr-2" style={{ fontSize: 13 }} />
+              Memory Strength
+            </div>
+            {stats && (
+              <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", fontFamily: "monospace", marginTop: 2 }}>
+                {stats.total} memories · {stats.total_uses} total retrievals by Cortex
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 8, color: "rgba(255,255,255,0.5)", width: 30, height: 30,
+            cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        {/* View toggle */}
+        <div style={{
+          padding: "10px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)",
+          display: "flex", gap: 6, flexShrink: 0,
+        }}>
+          {[["top", "fa-ranking-star", "Most Used"], ["categories", "fa-layer-group", "By Category"], ["timeline", "fa-calendar-days", "Timeline"]].map(([v, icon, label]) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                padding: "5px 12px", borderRadius: 8, fontSize: 11,
+                fontFamily: "'JetBrains Mono', monospace",
+                background: view === v ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.04)",
+                border: view === v ? "1px solid rgba(0,240,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                color: view === v ? "#00F0FF" : "rgba(255,255,255,0.45)",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <i className={"fa-solid " + icon} style={{ fontSize: 9 }} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+          {loading ? (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 40, fontSize: 13 }}>
+              <i className="fa-solid fa-brain fa-pulse mr-2" /> Loading memory stats...
+            </div>
+          ) : view === "timeline" ? (
+            <TimelineHeatmap data={timeline} />
+          ) : view === "top" ? (
+            <>
+              {stats?.top_by_usage?.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 30, fontSize: 13 }}>
+                  No memory retrievals yet. Chat with Cortex to build memory strength.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {stats.top_by_usage.map((m, i) => {
+                    const pct = Math.max(4, (m.use_count / maxUses) * 100);
+                    const color = CATEGORY_COLORS[m.category] || "#00F0FF";
+                    return (
+                      <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0 }}>
+                            <span style={{
+                              fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.3)",
+                              width: 16, textAlign: "right", flexShrink: 0,
+                            }}>#{i + 1}</span>
+                            <span style={{
+                              fontSize: 11.5, color: "#E2E8F0", fontFamily: "'Inter', sans-serif",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>
+                              {m.never_forget && <i className="fa-solid fa-infinity mr-1" style={{ color: "#FF003C", fontSize: 8 }} />}
+                              {m.pinned && <i className="fa-solid fa-thumbtack mr-1" style={{ color: "#00F0FF", fontSize: 8 }} />}
+                              {m.title}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 8 }}>
+                            <span style={{
+                              fontSize: 9, fontFamily: "monospace",
+                              background: color + "18",
+                              border: "1px solid " + color + "40",
+                              borderRadius: 4, padding: "1px 5px",
+                              color: color,
+                            }}>{m.category}</span>
+                            <span style={{
+                              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                              color: color, fontWeight: 700, minWidth: 28, textAlign: "right",
+                            }}>
+                              {m.use_count}×
+                            </span>
+                          </div>
+                        </div>
+                        {/* Bar */}
+                        <div style={{
+                          height: 6, borderRadius: 3,
+                          background: "rgba(255,255,255,0.06)", overflow: "hidden",
+                          marginLeft: 23,
+                        }}>
+                          <div style={{
+                            height: "100%", width: pct + "%",
+                            borderRadius: 3,
+                            background: "linear-gradient(90deg, " + color + "cc, " + color + "60)",
+                            boxShadow: "0 0 8px " + color + "50",
+                            transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)",
+                          }} />
+                        </div>
+                        {m.last_used && (
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "monospace", marginLeft: 23 }}>
+                            Last used {new Date(m.last_used).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            /* Category breakdown */
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {catEntries.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 30, fontSize: 13 }}>
+                  No memories yet.
+                </div>
+              ) : catEntries.map(([cat, d]) => {
+                const color = CATEGORY_COLORS[cat] || "#00F0FF";
+                const pct = Math.max(4, (d.uses / maxCatUses) * 100);
+                const memPct = Math.max(4, (d.count / (stats?.total || 1)) * 100);
+                return (
+                  <div key={cat} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <i className={"fa-solid " + (CATEGORY_ICONS[cat] || "fa-tag")} style={{ color, fontSize: 10, width: 14, textAlign: "center" }} />
+                        <span style={{ fontSize: 12, color: "#E2E8F0", fontFamily: "'Inter', sans-serif" }}>{cat}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 14, fontSize: 10.5, fontFamily: "monospace" }}>
+                        <span style={{ color: "rgba(255,255,255,0.4)" }}>{d.count} memories</span>
+                        <span style={{ color }}>{d.uses}× used</span>
+                      </div>
+                    </div>
+                    {/* Dual bars: memory count + usage */}
+                    <div style={{ paddingLeft: 22, display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 36, fontSize: 8.5, fontFamily: "monospace", color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>count</div>
+                        <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: memPct + "%", borderRadius: 3, background: color + "60" }} />
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 36, fontSize: 8.5, fontFamily: "monospace", color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>used</div>
+                        <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", width: pct + "%", borderRadius: 3,
+                            background: "linear-gradient(90deg, " + color + ", " + color + "80)",
+                            boxShadow: "0 0 6px " + color + "40",
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer hint */}
+        <div style={{
+          padding: "10px 20px", borderTop: "1px solid rgba(255,255,255,0.06)",
+          fontSize: 9.5, color: "rgba(255,255,255,0.22)", fontFamily: "monospace", flexShrink: 0,
+        }}>
+          Strength = how often Cortex retrieved this memory to answer your questions
+        </div>
+      </div>
+    </div>
+  );
+}
+export default function Memory() {
+  const [memories, setMemories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [editTarget, setEditTarget] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showStrength, setShowStrength] = useState(false);
+
+  const load = useCallback(() => {
+    memApi.list().then(data => {
+      setMemories(data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = memories.filter(m => {
+    const matchCat = activeCategory === "All" || m.category === activeCategory;
+    const q = search.toLowerCase();
+    const matchSearch = !q || m.content?.toLowerCase().includes(q) || m.title?.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+
+  const handleSave = async (form) => {
+    try {
+      if (editTarget && editTarget.id) {
+        await memApi.update(editTarget.id, form);
+        toast.success("Memory updated");
+      } else {
+        await memApi.create(form);
+        toast.success("Memory stored");
+      }
+      setEditTarget(null);
+      setShowAddModal(false);
+      load();
+    } catch {
+      toast.error("Failed to save memory");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await memApi.remove(id);
+      toast.success("Memory forgotten");
+      setMemories(ms => ms.filter(m => m.id !== id));
+    } catch {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleTogglePin = async (mem) => {
+    try {
+      const updated = await memApi.update(mem.id, { ...mem, pinned: !mem.pinned });
+      setMemories(ms => ms.map(m => m.id === mem.id ? updated : m));
+    } catch { toast.error("Failed to update"); }
+  };
+
+  const handleToggleNeverForget = async (mem) => {
+    try {
+      const updated = await memApi.update(mem.id, { ...mem, never_forget: !mem.never_forget });
+      setMemories(ms => ms.map(m => m.id === mem.id ? updated : m));
+      toast.success(updated.never_forget ? "Marked as Never Forget" : "Removed Never Forget");
+    } catch { toast.error("Failed to update"); }
+  };
+
+  const pinnedCount = memories.filter(m => m.pinned).length;
+  const neverForgetCount = memories.filter(m => m.never_forget).length;
+
+  return (
+    <div className="flex flex-col sm:flex-row h-full text-white" data-testid="memory-app">
+      {/* Sidebar */}
+      <div style={{
+        width: 200, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.08)",
+        padding: "16px 10px", display: "flex", flexDirection: "column", gap: 4,
+        overflowY: "auto",
+      }} className="hidden sm:flex">
+        <div style={{ fontFamily: "monospace", fontSize: 9.5, color: "rgba(0,240,255,0.5)", letterSpacing: "0.15em", marginBottom: 8, paddingLeft: 8 }}>
+          // CORTEX MEMORY
+        </div>
+
+        {CATEGORIES.map(cat => {
+          const count = cat === "All" ? memories.length : memories.filter(m => m.category === cat).length;
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 8,
+                background: activeCategory === cat ? "rgba(0,240,255,0.1)" : "transparent",
+                border: activeCategory === cat ? "1px solid rgba(0,240,255,0.2)" : "1px solid transparent",
+                color: activeCategory === cat ? "#00F0FF" : "rgba(255,255,255,0.55)",
+                fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                transition: "all 0.12s",
+              }}
+            >
+              <i className={`fa-solid ${CATEGORY_ICONS[cat]}`} style={{ fontSize: 11, width: 14, textAlign: "center" }} />
+              <span style={{ flex: 1 }}>{cat}</span>
+              {count > 0 && (
+                <span style={{ fontSize: 9.5, fontFamily: "monospace", opacity: 0.5 }}>{count}</span>
+              )}
+            </button>
+          );
+        })}
+
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 8, paddingTop: 8 }}>
+          {pinnedCount > 0 && (
+            <div style={{ fontSize: 10, color: "rgba(0,240,255,0.45)", fontFamily: "monospace", padding: "3px 10px" }}>
+              <i className="fa-solid fa-thumbtack mr-1" /> {pinnedCount} pinned
+            </div>
+          )}
+          {neverForgetCount > 0 && (
+            <div style={{ fontSize: 10, color: "rgba(255,0,60,0.5)", fontFamily: "monospace", padding: "3px 10px" }}>
+              <i className="fa-solid fa-infinity mr-1" /> {neverForgetCount} never forget
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        {/* Toolbar */}
+        <div style={{
+          padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+          display: "flex", gap: 8, alignItems: "center", flexShrink: 0,
+        }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <i className="fa-solid fa-magnifying-glass" style={{
+              position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+              fontSize: 11, color: "rgba(255,255,255,0.3)",
+            }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search memories..."
+              className="input-cyber"
+              style={{ width: "100%", paddingLeft: 28, boxSizing: "border-box" }}
+            />
+          </div>
+          <button
+            onClick={() => setShowStrength(true)}
+            className="neon-btn"
+            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            title="Memory Strength"
+          >
+            <i className="fa-solid fa-chart-bar mr-1" /> Strength
+          </button>
+          <button
+            onClick={() => { setEditTarget(null); setShowAddModal(true); }}
+            className="neon-btn primary"
+            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+          >
+            <i className="fa-solid fa-plus mr-1" /> Store
+          </button>
+        </div>
+
+        {/* Category tabs on mobile */}
+        <div className="flex sm:hidden overflow-x-auto" style={{ padding: "8px 12px", gap: 6, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                flexShrink: 0, padding: "4px 10px", borderRadius: 20, fontSize: 11,
+                background: activeCategory === cat ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.04)",
+                border: activeCategory === cat ? "1px solid rgba(0,240,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                color: activeCategory === cat ? "#00F0FF" : "rgba(255,255,255,0.5)",
+                cursor: "pointer",
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Memory list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {loading ? (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", paddingTop: 40, fontSize: 13 }}>
+              <i className="fa-solid fa-brain fa-pulse mr-2" /> Loading memories...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", paddingTop: 40, fontSize: 13 }}>
+              {search ? "No memories match your search." : `No memories in ${activeCategory}.`}
+              <div style={{ marginTop: 8, fontSize: 11 }}>Chat with Cortex — it will remember important things automatically.</div>
+            </div>
+          ) : (
+            filtered.map(mem => (
+              <MemoryCard
+                key={mem.id}
+                mem={mem}
+                onEdit={m => { setEditTarget(m); setShowAddModal(true); }}
+                onDelete={handleDelete}
+                onTogglePin={handleTogglePin}
+                onToggleNeverForget={handleToggleNeverForget}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Strength Graph Modal */}
+      {showStrength && (
+        <StrengthGraph onClose={() => setShowStrength(false)} />
+      )}
+
+      {/* Edit/Add Modal */}
+      {showAddModal && (
+        <EditModal
+          mem={editTarget}
+          onSave={handleSave}
+          onClose={() => { setShowAddModal(false); setEditTarget(null); }}
+        />
+      )}
+    </div>
+  );
+}

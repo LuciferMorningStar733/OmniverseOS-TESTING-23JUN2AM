@@ -1,0 +1,67 @@
+{
+  "short_name": "OmniverseOS",
+  "name": "OmniverseOS — AI Operating System",
+  "description": "The world's first believable AI Operating System. Year 3038.",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#05050A",
+  "background_color": "#05050A",
+  "scope": "/",
+  "id": "/",
+  "handle_links": "preferred",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Open Cortex",
+      "short_name": "Cortex",
+      "description": "Speak to your AI",
+      "url": "/?app=voice",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Quick Note",
+      "short_name": "Note",
+      "description": "Capture a thought",
+      "url": "/?app=notes",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Chat",
+      "short_name": "AI",
+      "description": "Chat with Cortex AI",
+      "url": "/?app=chat",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}
