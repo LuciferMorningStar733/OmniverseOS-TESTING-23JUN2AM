@@ -64,6 +64,8 @@ function TypedMessage({ text, color, onDone }) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
   const idx = useRef(0);
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
 
   useEffect(() => {
     idx.current = 0;
@@ -77,7 +79,7 @@ function TypedMessage({ text, color, onDone }) {
       } else {
         clearInterval(id);
         setDone(true);
-        onDone?.();
+        onDoneRef.current?.();
       }
     }, speed);
     return () => clearInterval(id);
