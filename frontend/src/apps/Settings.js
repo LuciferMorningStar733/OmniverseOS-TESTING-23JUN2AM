@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import WallpaperStudio from "../components/WallpaperStudio";
@@ -10,6 +10,10 @@ import LocationSetup, { isLocationSetupDone, getStoredCity } from "../components
 import { resetBootFlag } from "../components/BootScreen";
 import { resetOnboarding } from "../components/OnboardingExperience";
 import { toast } from "sonner";
+import {
+  getAllSoundPrefs, setSoundsEnabled, setSoundCategory,
+  playClick, playNotification, playBoot, playAIProcess, playAmbientTick,
+} from "../lib/soundEngine";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
 function ToggleRow({ label, desc, value, onChange }) {
@@ -260,6 +264,9 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* System Sounds — Priority 10 */}
+      <SoundSettingsSection />
+
       {/* Cortex AI Provider */}
       <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
         <div className="mono-label">// Cortex</div>
@@ -445,6 +452,214 @@ export default function Settings() {
       <button onClick={logout} className="neon-btn danger w-full justify-center">
         <i className="fa-solid fa-right-from-bracket mr-2" />Logout
       </button>
+    </div>
+  );
+}
+
+/* ── Sound Settings section ────────────────────────────────────────────────── */
+function SoundSettingsSection() {
+  const [prefs, setPrefs] = useState(() => getAllSoundPrefs());
+
+  const setMaster = useCallback((on) => {
+    setSoundsEnabled(on);
+    setPrefs((p) => ({ ...p, master: on }));
+    if (on) setTimeout(() => playClick(), 80);
+  }, []);
+
+  const setCat = useCallback((cat, on) => {
+    setSoundCategory(cat, on);
+    setPrefs((p) => ({ ...p, [cat]: on }));
+    // Play a preview of the toggled category after a short delay
+    if (on) {
+      setTimeout(() => {
+        if (cat === "clicks")  playClick();
+        if (cat === "notifs")  playNotification();
+        if (cat === "startup") playBoot();
+        if (cat === "ai")      playAIProcess();
+        if (cat === "ambient") playAmbientTick();
+      }, 100);
+    }
+  }, []);
+
+  const CATEGORIES = [
+    {
+      key: "clicks",
+      label: "UI Sounds",
+      desc: "Clicks, window opens/closes, hover pings",
+      icon: "fa-computer-mouse",
+      color: "#00F0FF",
+    },
+    {
+      key: "notifs",
+      label: "Notifications",
+      desc: "Alert chimes and error tones",
+      icon: "fa-bell",
+      color: "#A855F7",
+    },
+    {
+      key: "startup",
+      label: "Startup",
+      desc: "JARVIS boot sequence sound",
+      icon: "fa-power-off",
+      color: "#39FF14",
+    },
+    {
+      key: "ai",
+      label: "AI Processing",
+      desc: "Neural pulse when Cortex is thinking",
+      icon: "fa-brain",
+      color: "#CF9EFF",
+    },
+    {
+      key: "ambient",
+      label: "Ambient Ticks",
+      desc: "Subtle system heartbeat in background",
+      icon: "fa-wave-square",
+      color: "#F59E0B",
+    },
+  ];
+
+  return (
+    <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+      <div className="mono-label">// System Sounds</div>
+      <h3 className="font-heading text-base font-bold mb-1">Sound Engine</h3>
+      <p className="text-xs text-slate-500 mb-4">
+        Procedurally synthesized — no audio files. All sounds are generated in real-time by the Web Audio API.
+      </p>
+
+      {/* Master toggle */}
+      <div
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 14px", borderRadius: 12, marginBottom: 12,
+          background: prefs.master
+            ? "linear-gradient(135deg, rgba(0,240,255,0.08), rgba(0,240,255,0.03))"
+            : "rgba(255,255,255,0.03)",
+          border: prefs.master
+            ? "1px solid rgba(0,240,255,0.25)"
+            : "1px solid rgba(255,255,255,0.08)",
+          transition: "all 0.25s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <i
+            className={`fa-solid ${prefs.master ? "fa-volume-high" : "fa-volume-xmark"}`}
+            style={{
+              color: prefs.master ? "#00F0FF" : "rgba(255,255,255,0.25)",
+              fontSize: 16,
+              filter: prefs.master ? "drop-shadow(0 0 6px rgba(0,240,255,0.7))" : "none",
+              transition: "all 0.25s ease",
+            }}
+          />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: prefs.master ? "#fff" : "rgba(255,255,255,0.45)" }}>
+              System Sounds
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+              {prefs.master ? "All synthesized audio active" : "All audio disabled"}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setMaster(!prefs.master)}
+          style={{
+            width: 48, height: 28, borderRadius: 14, flexShrink: 0,
+            background: prefs.master ? "#00F0FF" : "rgba(255,255,255,0.10)",
+            border: "none", cursor: "pointer", position: "relative",
+            transition: "background 0.25s ease",
+            boxShadow: prefs.master ? "0 0 16px rgba(0,240,255,0.55)" : "none",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <div style={{
+            position: "absolute",
+            top: 4, left: prefs.master ? 23 : 4,
+            width: 20, height: 20, borderRadius: "50%",
+            background: "#fff",
+            transition: "left 0.25s ease",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+          }} />
+        </button>
+      </div>
+
+      {/* Per-category toggles */}
+      {prefs.master && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2 }}
+          style={{
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.07)",
+            overflow: "hidden",
+          }}
+        >
+          {CATEGORIES.map((cat, i) => (
+            <div
+              key={cat.key}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "11px 14px",
+                borderBottom: i < CATEGORIES.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                background: prefs[cat.key]
+                  ? `linear-gradient(90deg, ${cat.color}06, transparent)`
+                  : "transparent",
+                transition: "background 0.2s ease",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <i
+                  className={`fa-solid ${cat.icon}`}
+                  style={{
+                    color: prefs[cat.key] ? cat.color : "rgba(255,255,255,0.20)",
+                    fontSize: 13,
+                    width: 16, textAlign: "center",
+                    filter: prefs[cat.key] ? `drop-shadow(0 0 4px ${cat.color}80)` : "none",
+                    transition: "all 0.2s ease",
+                  }}
+                />
+                <div>
+                  <div style={{
+                    fontSize: 13, fontWeight: 600,
+                    color: prefs[cat.key] ? "rgba(255,255,255,0.90)" : "rgba(255,255,255,0.35)",
+                    transition: "color 0.2s ease",
+                  }}>
+                    {cat.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                    {cat.desc}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setCat(cat.key, !prefs[cat.key])}
+                style={{
+                  width: 40, height: 24, borderRadius: 12, flexShrink: 0,
+                  background: prefs[cat.key] ? cat.color : "rgba(255,255,255,0.08)",
+                  border: "none", cursor: "pointer", position: "relative",
+                  transition: "background 0.22s ease",
+                  boxShadow: prefs[cat.key] ? `0 0 10px ${cat.color}50` : "none",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <div style={{
+                  position: "absolute",
+                  top: 3, left: prefs[cat.key] ? 19 : 3,
+                  width: 18, height: 18, borderRadius: "50%",
+                  background: "#fff",
+                  transition: "left 0.22s ease",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }} />
+              </button>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      <p className="text-xs text-slate-600 mt-3">
+        Toggling a category plays a preview. Sounds require a user interaction to initialize the audio context.
+      </p>
     </div>
   );
 }
