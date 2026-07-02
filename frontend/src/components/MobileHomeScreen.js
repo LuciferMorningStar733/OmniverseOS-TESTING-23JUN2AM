@@ -23,19 +23,27 @@ function useBattery() {
   const [battery, setBattery] = useState(null);
   useEffect(() => {
     let batteryMgr = null;
-    const update = (b) => setBattery({ level: Math.round(b.level * 100), charging: b.charging });
+    let mounted    = true;
+
+    // Stable named handlers so removeEventListener can find them later
+    const onLevelChange  = () => { if (mounted && batteryMgr) setBattery({ level: Math.round(batteryMgr.level * 100), charging: batteryMgr.charging }); };
+    const onChargeChange = () => { if (mounted && batteryMgr) setBattery({ level: Math.round(batteryMgr.level * 100), charging: batteryMgr.charging }); };
+
     if (navigator.getBattery) {
       navigator.getBattery().then((b) => {
+        if (!mounted) return;          // guard: component may have unmounted
         batteryMgr = b;
-        update(b);
-        b.addEventListener("levelchange", () => update(b));
-        b.addEventListener("chargingchange", () => update(b));
+        setBattery({ level: Math.round(b.level * 100), charging: b.charging });
+        b.addEventListener("levelchange",   onLevelChange);
+        b.addEventListener("chargingchange", onChargeChange);
       }).catch(() => {});
     }
+
     return () => {
+      mounted = false;
       if (batteryMgr) {
-        batteryMgr.removeEventListener("levelchange", () => {});
-        batteryMgr.removeEventListener("chargingchange", () => {});
+        batteryMgr.removeEventListener("levelchange",   onLevelChange);
+        batteryMgr.removeEventListener("chargingchange", onChargeChange);
       }
     };
   }, []);
@@ -479,15 +487,19 @@ function CortexSearchBar({ onTap, theme }) {
   const [thinking,    setThinking]    = useState(false);
   const [phIdx,       setPhIdx]       = useState(0);
   const [showSuggest, setShowSuggest] = useState(false);
+  const thinkTimerRef = useRef(null);
 
   useEffect(() => {
     const id = setInterval(() => setPhIdx((i) => (i + 1) % SEARCH_PLACEHOLDERS.length), 3500);
     return () => clearInterval(id);
   }, []);
 
+  // Clear pending think-timer on unmount
+  useEffect(() => () => { if (thinkTimerRef.current) clearTimeout(thinkTimerRef.current); }, []);
+
   const handleTap = useCallback(() => {
     setThinking(true);
-    setTimeout(() => { setThinking(false); onTap(); }, 320);
+    thinkTimerRef.current = setTimeout(() => { setThinking(false); onTap(); }, 320);
   }, [onTap]);
 
   const handleLongPress = useCallback(() => setShowSuggest((s) => !s), []);
@@ -875,7 +887,8 @@ function SystemStatTile({ icon, color, label, value, unit, progress, max, delay 
   );
 }
 
-function LiveStatsRow({ now }) {
+function LiveStatsRow() {
+  const now     = useClock();      // own 1-second tick — isolated from parent
   const battery = useBattery();
   const network = useNetwork();
 
@@ -1217,10 +1230,11 @@ function AppLibraryHint({ onOpen }) {
 // ── AI home feed ──────────────────────────────────────────────────────────────
 
 // Static cards — memoized so they never re-render from the 1-second clock tick.
-const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp, now }) {
+// LiveStatsRow drives its own useClock() internally, so this tree stays stable.
+const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp }) {
   return (
     <>
-      <LiveStatsRow now={now} />
+      <LiveStatsRow />
       <CalendarCard onOpenApp={onOpenApp} />
       <MemoryCard onOpenApp={onOpenApp} />
       <RecentNotesCard onOpenApp={onOpenApp} />
@@ -1284,7 +1298,7 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef })
         <CortexBriefCard now={now} userName={userName} theme={theme} />
 
         {/* Static cards — memoized, skip re-render on clock ticks */}
-        <StaticFeedContent onOpenApp={onOpenApp} now={now} />
+        <StaticFeedContent onOpenApp={onOpenApp} />
       </div>
 
       {/* App Library hint */}
