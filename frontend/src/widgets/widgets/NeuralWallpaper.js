@@ -436,19 +436,17 @@ export default function NeuralWallpaper({ style }) {
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
-      canvas.width  = canvas.offsetWidth  * dpr;
-      canvas.height = canvas.offsetHeight * dpr;
-      ctx.scale(dpr, dpr);
+      const w   = canvas.offsetWidth;
+      const h   = canvas.offsetHeight;
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+      // Use setTransform to reset + apply DPR in one call — avoids scale accumulation
+      // on repeated ResizeObserver firings (orientation changes, layout shifts).
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (netRef.current) {
-        netRef.current.resize(canvas.offsetWidth, canvas.offsetHeight);
+        netRef.current.resize(w, h);
       } else {
-        netRef.current = new NeuralNetwork(
-          canvas.offsetWidth,
-          canvas.offsetHeight,
-          baseColors,
-          weatherCode,
-          battery,
-        );
+        netRef.current = new NeuralNetwork(w, h, baseColors, weatherCode, battery);
       }
     };
     resize();
