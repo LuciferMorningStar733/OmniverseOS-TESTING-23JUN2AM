@@ -12,22 +12,47 @@ const GROUPS = [
   { id: "social",       label: "Social" },
 ];
 
-// Detect device refresh rate — sets target for spring physics
+// ── Refresh-rate detector — samples 40 frames for accuracy ───────────────────
 let SCREEN_HZ = 60;
+let HZ_READY   = false;
+const HZ_CALLBACKS = [];
+function onHzReady(fn) { HZ_READY ? fn(SCREEN_HZ) : HZ_CALLBACKS.push(fn); }
+
 (function detectHz() {
   let last = null, frames = 0, sum = 0;
   function tick(ts) {
     if (last !== null) {
-      const delta = ts - last;
-      if (delta > 0 && delta < 100) { sum += delta; frames++; }
+      const d = ts - last;
+      if (d > 0 && d < 100) { sum += d; frames++; }
     }
     last = ts;
-    if (frames < 20) requestAnimationFrame(tick);
-    else SCREEN_HZ = Math.round(1000 / (sum / frames));
+    if (frames < 40) { requestAnimationFrame(tick); return; }
+    SCREEN_HZ = Math.round(1000 / (sum / frames));
+    HZ_READY  = true;
+    HZ_CALLBACKS.forEach(fn => fn(SCREEN_HZ));
+    HZ_CALLBACKS.length = 0;
   }
   requestAnimationFrame(tick);
 })();
 
+// ── Force-FPS heartbeat — keeps compositor at native refresh rate ─────────────
+// Without this, browsers may power-gate to 60hz even on 120hz displays when
+// no "interesting" animation is running.  A no-op rAF loop is enough to keep
+// the VSync budget open.
+let hbRaf = null;
+let hbActive = false;
+function startHeartbeat() {
+  if (hbActive) return;
+  hbActive = true;
+  function beat() { if (hbActive) hbRaf = requestAnimationFrame(beat); }
+  hbRaf = requestAnimationFrame(beat);
+}
+function stopHeartbeat() {
+  hbActive = false;
+  if (hbRaf) { cancelAnimationFrame(hbRaf); hbRaf = null; }
+}
+
+// ── App icon ─────────────────────────────────────────────────────────────────
 function AppDrawerIcon({ app, onPress, delay = 0 }) {
   const [pressed, setPressed] = useState(false);
 
@@ -42,6 +67,7 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => { setPressed(false); onPress(app.id); }}
         onPointerLeave={() => setPressed(false)}
+        onPointerCancel={() => setPressed(false)}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -55,7 +81,6 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           touchAction: "manipulation",
           userSelect: "none",
           minWidth: 64,
-          // GPU-composited scale-only transform — no layout recalc
           transform: pressed ? "scale3d(0.80,0.80,1)" : "scale3d(1,1,1)",
           transition: "transform 0.12s cubic-bezier(0.34,1.56,0.64,1)",
           willChange: "transform",
@@ -66,13 +91,11 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           background: `linear-gradient(145deg, ${app.color}22 0%, ${app.color}09 100%)`,
           border: `1px solid ${app.color}30`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          // Static shadow — no recalc on state change
-          boxShadow: `0 6px 24px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.09)`,
+          boxShadow: "0 6px 24px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.09)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
           position: "relative",
           overflow: "hidden",
-          // Promote to own compositor layer
           transform: "translateZ(0)",
         }}>
           <div style={{
@@ -112,7 +135,81 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
   );
 }
 
-// ── CSS injected once ──────────────────────────────────────────────────────────
+// ── Force-FPS pill button ─────────────────────────────────────────────────────
+function FpsPill({ detectedHz, forced, onToggle }) {
+  const targetHz = Math.max(detectedHz, 60);
+  const label    = forced ? `${targetHz}hz ✓` : `${targetHz}hz`;
+  const color    = forced ? "#39FF14" : "rgba(255,255,255,0.28)";
+  const bg       = forced ? "rgba(57,255,20,0.12)" : "rgba(255,255,255,0.055)";
+  const border   = forced ? "rgba(57,255,20,0.36)" : "rgba(255,255,255,0.09)";
+  const glow     = forced ? "0 0 14px rgba(57,255,20,0.30)" : "none";
+
+  return (
+    <motion.button
+      whileTap={{ scale: 0.86 }}
+      onClick={onToggle}
+      title={forced ? "Force FPS active — tap to disable" : "Tap to force max refresh rate"}
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        padding: "5px 10px", borderRadius: 20,
+        background: bg,
+        border: `1px solid ${border}`,
+        cursor: "pointer",
+        WebkitTapHighlightColor: "transparent",
+        boxShadow: glow,
+        transition: "all 0.18s ease",
+        flexShrink: 0,
+      }}
+    >
+      {/* Indicator dot */}
+      <motion.div
+        animate={forced
+          ? { opacity: [1, 0.25, 1], scale: [1, 1.5, 1] }
+          : { opacity: 1, scale: 1 }
+        }
+        transition={forced
+          ? { repeat: Infinity, duration: 1.4, ease: "easeInOut" }
+          : {}
+        }
+        style={{
+          width: 5, height: 5, borderRadius: "50%",
+          background: color,
+          boxShadow: forced ? `0 0 6px ${color}` : "none",
+          flexShrink: 0,
+        }}
+      />
+      {/* Icon */}
+      <i
+        className="fa-solid fa-gauge-high"
+        style={{
+          fontSize: 10,
+          color,
+          filter: forced ? `drop-shadow(0 0 4px ${color})` : "none",
+          transition: "all 0.18s ease",
+        }}
+      />
+      {/* Label */}
+      <span style={{
+        fontSize: 10,
+        fontFamily: "'Outfit', sans-serif",
+        fontWeight: forced ? 700 : 500,
+        color,
+        letterSpacing: "0.04em",
+        lineHeight: 1,
+        transition: "all 0.18s ease",
+        userSelect: "none",
+      }}>
+        {label}
+      </span>
+    </motion.button>
+  );
+}
+
+// ── CSS injected once ─────────────────────────────────────────────────────────
+// The @keyframes below run a zero-visual-delta animation on the sheet and
+// backdrop. On Chromium/WebKit, an active CSS animation keeps the layer on the
+// high-refresh VSync budget — this is the same trick game engines use to avoid
+// the browser dropping to 60hz after a few seconds of "stillness".
 const DRAWER_CSS = `
   @keyframes drawerIn {
     from { transform: translate3d(0, 100%, 0); }
@@ -122,31 +219,66 @@ const DRAWER_CSS = `
     from { opacity: 0; }
     to   { opacity: 1; }
   }
+  @keyframes hbSheet {
+    0%,100% { transform: translate3d(0,0,0) translateZ(0); }
+    50%     { transform: translate3d(0,0,0) translateZ(0.001px); }
+  }
+  @keyframes hbBackdrop {
+    0%,100% { opacity: 1; }
+    50%     { opacity: 0.9999; }
+  }
+  .omni-force-fps-sheet    { animation: hbSheet    8s linear infinite !important; }
+  .omni-force-fps-backdrop { animation: hbBackdrop 8s linear infinite !important; }
 `;
 
 export default function MobileAppDrawer({ onClose, onOpenApp }) {
-  const [search, setSearch]           = useState("");
+  const [search,      setSearch]      = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
-  const [mounted, setMounted]         = useState(false);
-  const inputRef                      = useRef(null);
-  const sheetRef                      = useRef(null);
-  const backdropRef                   = useRef(null);
-  const listRef                       = useRef(null);
+  const [mounted,     setMounted]     = useState(false);
+  const [detectedHz,  setDetectedHz]  = useState(SCREEN_HZ);
+  const [forceFps,    setForceFps]    = useState(false);
 
-  // Gesture tracking — all refs, zero React state during drag
-  const touchStartY    = useRef(0);
-  const touchStartX    = useRef(0);
-  const lastY          = useRef(0);
-  const lastT          = useRef(0);
-  const velocity       = useRef(0);
-  const dragY          = useRef(0);
-  const dragging       = useRef(false);
-  const axisLocked     = useRef(null);
-  const rafId          = useRef(null);
-  const sheetH         = useRef(0);
-  const closeTimerId   = useRef(null);
+  const inputRef    = useRef(null);
+  const sheetRef    = useRef(null);
+  const backdropRef = useRef(null);
+  const listRef     = useRef(null);
 
-  // Double-rAF entry — ensures paint before first frame, prevents jank
+  // Gesture tracking refs — zero React state during drag
+  const touchStartY  = useRef(0);
+  const touchStartX  = useRef(0);
+  const lastY        = useRef(0);
+  const lastT        = useRef(0);
+  const velocity     = useRef(0);
+  const dragY        = useRef(0);
+  const dragging     = useRef(false);
+  const axisLocked   = useRef(null);
+  const rafId        = useRef(null);
+  const sheetH       = useRef(0);
+  const closeTimerId = useRef(null);
+
+  // Read Hz once detector finishes
+  useEffect(() => {
+    onHzReady(hz => setDetectedHz(hz));
+  }, []);
+
+  // Force-FPS: start/stop rAF heartbeat + CSS animation classes
+  useEffect(() => {
+    if (forceFps) {
+      startHeartbeat();
+      sheetRef.current?.classList.add("omni-force-fps-sheet");
+      backdropRef.current?.classList.add("omni-force-fps-backdrop");
+    } else {
+      stopHeartbeat();
+      sheetRef.current?.classList.remove("omni-force-fps-sheet");
+      backdropRef.current?.classList.remove("omni-force-fps-backdrop");
+    }
+    return () => {
+      // Always clean up on unmount — never leak the heartbeat
+      stopHeartbeat();
+    };
+  }, [forceFps]);
+
+  // Double-rAF entry: ensures browser has painted before first animated frame
   useEffect(() => {
     let id2 = null;
     const id1 = requestAnimationFrame(() => {
@@ -169,7 +301,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     if (sheetRef.current) sheetH.current = sheetRef.current.offsetHeight;
   }, [mounted]);
 
-  // ── Native touch — compositor thread, zero React re-renders ─────────────────
+  // ── Native touch — compositor thread, zero React re-renders during drag ──────
 
   const handleTouchStart = useCallback((e) => {
     touchStartY.current = e.touches[0].clientY;
@@ -202,6 +334,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
       if (sheetRef.current) {
         sheetRef.current.style.transition = "none";
         sheetRef.current.style.willChange = "transform";
+        // Temporarily remove the CSS animation so explicit transform wins
+        sheetRef.current.classList.remove("omni-force-fps-sheet");
       }
     }
     if (!dragging.current) return;
@@ -212,7 +346,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     lastT.current = e.timeStamp;
 
     // Rubber-band resistance on upward pull
-    let translated = rawDy < 0 ? rawDy * 0.06 : rawDy;
+    const translated = rawDy < 0 ? rawDy * 0.06 : rawDy;
     dragY.current = translated;
 
     if (rafId.current) cancelAnimationFrame(rafId.current);
@@ -241,6 +375,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
 
     if (!sheetRef.current) return;
     sheetRef.current.style.willChange = "auto";
+    // Re-apply force-fps animation after gesture ends
+    if (forceFps) sheetRef.current.classList.add("omni-force-fps-sheet");
 
     if (shouldClose) {
       sheetRef.current.style.transition = "transform 0.26s cubic-bezier(0.4,0,1,1)";
@@ -252,7 +388,6 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
       if (closeTimerId.current) clearTimeout(closeTimerId.current);
       closeTimerId.current = setTimeout(() => { closeTimerId.current = null; onClose(); }, 260);
     } else {
-      // iOS-style spring snap-back with subtle overshoot
       sheetRef.current.style.transition = "transform 0.44s cubic-bezier(0.175,0.885,0.32,1.10)";
       sheetRef.current.style.transform  = "translate3d(0,0,0)";
       if (backdropRef.current) {
@@ -260,7 +395,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         backdropRef.current.style.opacity    = "1";
       }
     }
-  }, [onClose]);
+  }, [onClose, forceFps]);
 
   const filteredApps = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -287,13 +422,12 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           opacity: mounted ? 1 : 0,
           transition: mounted ? "opacity 0.22s ease" : "none",
           willChange: "opacity",
-          // Own compositor layer — never triggers layout
           transform: "translateZ(0)",
           contain: "strict",
         }}
       />
 
-      {/* Sheet — pure CSS transform, no Framer Motion on container */}
+      {/* Sheet */}
       <div
         ref={sheetRef}
         onTouchStart={handleTouchStart}
@@ -314,13 +448,11 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          // GPU-accelerated entry: no layout thrashing, pure transform on compositor thread
           transform: mounted ? "translate3d(0,0,0)" : "translate3d(0,100%,0)",
           transition: mounted
             ? "transform 0.42s cubic-bezier(0.32,0.72,0,1)"
             : "none",
           willChange: "transform",
-          // Isolate paint to this layer
           contain: "layout style paint",
         }}
       >
@@ -336,7 +468,6 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           display: "flex", justifyContent: "center",
           paddingTop: 12, paddingBottom: 8, flexShrink: 0,
           cursor: "ns-resize",
-          // Promote handle area to its own layer for touch responsiveness
           transform: "translateZ(0)",
         }}>
           <div style={{
@@ -350,9 +481,10 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         <div style={{ padding: "4px 20px 0", flexShrink: 0 }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 14,
+            marginBottom: 14, gap: 10,
           }}>
-            <div>
+            {/* Title */}
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontSize: 20, fontWeight: 700, color: "#fff",
                 fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em",
@@ -367,6 +499,15 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
                 {APPS.length} Applications · Cortex Indexed
               </div>
             </div>
+
+            {/* Force FPS pill */}
+            <FpsPill
+              detectedHz={detectedHz}
+              forced={forceFps}
+              onToggle={() => setForceFps(f => !f)}
+            />
+
+            {/* Close */}
             <motion.button
               whileTap={{ scale: 0.84 }}
               onClick={onClose}
@@ -380,6 +521,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
                 color: "rgba(255,255,255,0.50)",
                 fontSize: 13,
                 boxShadow: "0 2px 12px rgba(0,0,0,0.30)",
+                flexShrink: 0,
               }}
             >
               <i className="fa-solid fa-xmark" />
@@ -434,6 +576,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
               display: "flex", gap: 7, overflowX: "auto",
               paddingBottom: 14, scrollbarWidth: "none",
               WebkitOverflowScrolling: "touch",
+              // Isolate horizontal scroll from vertical swipe detection
+              touchAction: "pan-x",
             }}>
               {GROUPS.map((g) => {
                 const active = activeGroup === g.id;
@@ -468,7 +612,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           padding: "0 12px 64px",
           scrollbarWidth: "none", msOverflowStyle: "none",
           overscrollBehavior: "contain",
-          // Own compositor layer — scroll on GPU thread
+          // Vertical pan only so horizontal swipe can't escape
+          touchAction: "pan-y",
           transform: "translateZ(0)",
           contain: "content",
         }}>
@@ -484,7 +629,6 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
                   display: "grid",
                   gridTemplateColumns: "repeat(4, 1fr)",
                   gap: "2px 0",
-                  // Hint browser that grid contents will be transformed independently
                   willChange: "contents",
                 }}
               >
