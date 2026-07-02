@@ -253,9 +253,10 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
   const dragY        = useRef(0);
   const dragging     = useRef(false);
   const axisLocked   = useRef(null);
-  const rafId        = useRef(null);
-  const sheetH       = useRef(0);
-  const closeTimerId = useRef(null);
+  const rafId             = useRef(null);
+  const sheetH            = useRef(0);
+  const closeTimerId      = useRef(null);
+  const blurRestoreTimerId = useRef(null); // tracks the deferred blur-restore so we can cancel on re-drag
 
   // Read Hz once detector finishes
   useEffect(() => {
@@ -293,8 +294,9 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
 
   useEffect(() => {
     return () => {
-      if (rafId.current)        cancelAnimationFrame(rafId.current);
-      if (closeTimerId.current) clearTimeout(closeTimerId.current);
+      if (rafId.current)              cancelAnimationFrame(rafId.current);
+      if (closeTimerId.current)       clearTimeout(closeTimerId.current);
+      if (blurRestoreTimerId.current) clearTimeout(blurRestoreTimerId.current);
     };
   }, []);
 
@@ -340,6 +342,11 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         // ✨ PERF: Suspend expensive 64px blur during gesture.
         // The GPU must re-composite the blur every frame while transform changes —
         // this is the single biggest cause of sub-60fps drag. Restore after snap.
+        // Cancel any pending restore from a previous drag before starting a new one.
+        if (blurRestoreTimerId.current) {
+          clearTimeout(blurRestoreTimerId.current);
+          blurRestoreTimerId.current = null;
+        }
         sheetRef.current.style.backdropFilter = "none";
         sheetRef.current.style.webkitBackdropFilter = "none";
       }
@@ -402,9 +409,9 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         backdropRef.current.style.opacity    = "1";
       }
       // ✨ PERF: Restore the blur after snap animation completes.
-      // Defer slightly past the animation end so the compositor isn't doing
-      // both a spring-settle AND a blur re-paint simultaneously.
-      setTimeout(() => {
+      // Store in a ref so it can be cancelled if a new drag starts before it fires.
+      blurRestoreTimerId.current = setTimeout(() => {
+        blurRestoreTimerId.current = null;
         if (sheetRef.current) {
           sheetRef.current.style.backdropFilter = "blur(64px) saturate(240%)";
           sheetRef.current.style.webkitBackdropFilter = "blur(64px) saturate(240%)";

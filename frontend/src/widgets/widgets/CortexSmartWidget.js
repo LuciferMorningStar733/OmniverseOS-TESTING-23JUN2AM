@@ -108,18 +108,19 @@ function useBattery() {
   useEffect(() => {
     if (!navigator.getBattery) return;
     let batt = null;
-    const update = (b) =>
-      setBattery({ level: Math.round(b.level * 100), charging: b.charging });
+    // Stable named handlers so addEventListener/removeEventListener can be paired correctly
+    const onLevel    = () => setBattery({ level: Math.round(batt.level * 100), charging: batt.charging });
+    const onCharging = () => setBattery({ level: Math.round(batt.level * 100), charging: batt.charging });
     navigator.getBattery().then((b) => {
       batt = b;
-      update(b);
-      b.addEventListener("levelchange",   () => update(b));
-      b.addEventListener("chargingchange",() => update(b));
+      setBattery({ level: Math.round(b.level * 100), charging: b.charging });
+      b.addEventListener("levelchange",    onLevel);
+      b.addEventListener("chargingchange", onCharging);
     }).catch(() => {});
     return () => {
       if (batt) {
-        batt.removeEventListener("levelchange",   () => {});
-        batt.removeEventListener("chargingchange",() => {});
+        batt.removeEventListener("levelchange",    onLevel);
+        batt.removeEventListener("chargingchange", onCharging);
       }
     };
   }, []);

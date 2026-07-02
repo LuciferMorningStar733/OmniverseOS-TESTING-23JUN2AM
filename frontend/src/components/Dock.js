@@ -189,12 +189,14 @@ const MobileDockIcon = memo(function MobileDockIcon({ app, windows, activeId, op
               transition={{ type: "spring", damping: 18, stiffness: 340, mass: 0.25 }}
               style={{
                 position: "absolute",
-                top: 4, left: "50%", translateX: "-50%",
+                top: 4, left: "50%",
                 width: 48, height: 48, borderRadius: 16,
                 background: `radial-gradient(ellipse at 50% 30%, ${app.color}36 0%, transparent 72%)`,
                 boxShadow: `0 0 24px ${app.color}55`,
                 pointerEvents: "none", zIndex: 0,
               }}
+              // Use motion x prop instead of CSS translateX for cross-browser consistency
+              x="-50%"
             />
           )}
         </AnimatePresence>
