@@ -6,7 +6,7 @@ import { useMobilePrefs, LOCK_TIMEOUT_OPTIONS } from "../hooks/useMobilePrefs";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs, authApi } from "../lib/api";
 import { useBrightnessContext } from "../context/BrightnessContext";
-import LocationSetup, { isLocationSetupDone, getStoredCity } from "../components/LocationSetup";
+import LocationSetup, { getStoredCity } from "../components/LocationSetup";
 import { resetBootFlag } from "../components/BootScreen";
 import { resetOnboarding } from "../components/OnboardingExperience";
 import { toast } from "sonner";
