@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo, memo } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo, memo } from "react";
 import { motion, AnimatePresence, useAnimate } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
