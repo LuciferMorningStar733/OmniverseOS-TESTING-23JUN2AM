@@ -271,7 +271,6 @@ function CortexSearchBar({ onTap, theme }) {
         onPointerDown={() => setActive(true)}
         onPointerUp={() => setActive(false)}
         onPointerLeave={() => setActive(false)}
-        onTouchEnd={onTap}
         onClick={onTap}
         aria-label="Search Cortex"
         whileTap={{ scale: 0.975 }}
@@ -823,11 +822,11 @@ function AppLibraryHint({ onOpen }) {
       style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 4, paddingBottom: 10, gap: 3, flexShrink: 0, position: "relative", zIndex: 1 }}
     >
       <motion.button
-        onTouchEnd={onOpen}
         onClick={onOpen}
         style={{
           background: "none", border: "none", cursor: "pointer",
           padding: "8px 28px", WebkitTapHighlightColor: "transparent",
+          touchAction: "manipulation",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
         }}
         aria-label="Open App Library"
@@ -848,7 +847,22 @@ function AppLibraryHint({ onOpen }) {
 
 // ── AI home feed ──────────────────────────────────────────────────────────────
 
-function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
+// Static cards that don't need the live clock — memoized so they never
+// re-render from the 1-second clock tick in AIHomeContent.
+const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp }) {
+  return (
+    <>
+      <QuickStatsRow />
+      <CalendarCard onOpenApp={onOpenApp} />
+      <MemoryCard onOpenApp={onOpenApp} />
+      <RecentNotesCard onOpenApp={onOpenApp} />
+      <QuickAccessRow onOpenApp={onOpenApp} />
+      <div style={{ height: 16 }} />
+    </>
+  );
+});
+
+function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef }) {
   const now      = useClock();
   const hour     = now.getHours();
   const theme    = useMemo(() => getTheme(hour), [hour]);
@@ -856,10 +870,17 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
     try { return localStorage.getItem("omniverse_user_name") || ""; } catch { return ""; }
   }, []);
 
-  const feedRef = useRef(null);
+  const localFeedRef = useRef(null);
+
+  // Wire the external feedScrollRef so parent can read scrollTop without re-renders
+  const handleRef = useCallback((node) => {
+    localFeedRef.current = node;
+    if (feedScrollRef) feedScrollRef.current = node;
+  }, [feedScrollRef]);
+
   const handleScroll = useCallback(() => {
-    if (!feedRef.current) return;
-    window.dispatchEvent(new CustomEvent("aiHomeScroll", { detail: { scrollY: feedRef.current.scrollTop } }));
+    if (!localFeedRef.current) return;
+    window.dispatchEvent(new CustomEvent("aiHomeScroll", { detail: { scrollY: localFeedRef.current.scrollTop } }));
   }, []);
 
   return (
@@ -872,7 +893,7 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
 
       {/* Scrollable feed — GPU-native momentum scroll */}
       <div
-        ref={feedRef}
+        ref={handleRef}
         onScroll={handleScroll}
         style={{
           flex: 1,
@@ -889,14 +910,12 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch }) {
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
 
+        {/* Clock + brief re-render on every tick (intentional, cheap) */}
         <PremiumClock now={now} theme={theme} userName={userName} />
         <CortexBriefCard now={now} userName={userName} theme={theme} />
-        <QuickStatsRow />
-        <CalendarCard onOpenApp={onOpenApp} />
-        <MemoryCard onOpenApp={onOpenApp} />
-        <RecentNotesCard onOpenApp={onOpenApp} />
-        <QuickAccessRow onOpenApp={onOpenApp} />
-        <div style={{ height: 16 }} />
+
+        {/* Heavy static cards — memoized, skip re-render on clock ticks */}
+        <StaticFeedContent onOpenApp={onOpenApp} />
       </div>
 
       {/* App Library hint */}
@@ -912,15 +931,25 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
   const [globalPage, setGlobalPage] = useState(1);
   const [direction,  setDirection]  = useState(0);
 
-  const touchStartX  = useRef(null);
-  const touchStartY  = useRef(null);
-  const axisLocked   = useRef(null);
-  const peekRef      = useRef(null);   // drawer-peek strip
-  const peekRafId    = useRef(null);
-  const showDrawerRef = useRef(false); // mirror without closure stale ref
+  const touchStartX   = useRef(null);
+  const touchStartY   = useRef(null);
+  const axisLocked    = useRef(null);
+  const peekRef       = useRef(null);    // drawer-peek strip
+  const peekRafId     = useRef(null);
+  const peekTimerId   = useRef(null);    // resetPeek setTimeout — needs cleanup
+  const showDrawerRef = useRef(false);   // mirror without closure stale ref
+  const feedScrollRef = useRef(null);    // set by AIHomeContent, read here for swipe-guard
 
   // Keep ref in sync
   useEffect(() => { showDrawerRef.current = showDrawer; }, [showDrawer]);
+
+  // Cleanup rAF + any pending peek timer on unmount
+  useEffect(() => {
+    return () => {
+      if (peekRafId.current)   cancelAnimationFrame(peekRafId.current);
+      if (peekTimerId.current) clearTimeout(peekTimerId.current);
+    };
+  }, []);
 
   const navigate = useCallback((delta) => {
     setGlobalPage((p) => {
@@ -930,14 +959,16 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     });
   }, []);
 
-  // Reset peek strip back off-screen
+  // Reset peek strip back off-screen — clears its own timer on re-call
   const resetPeek = useCallback(() => {
     if (!peekRef.current) return;
     peekRef.current.style.transition = "transform 0.30s cubic-bezier(0.4,0,1,1), opacity 0.22s ease";
     peekRef.current.style.transform  = "translate3d(0,0,0)";
     peekRef.current.style.opacity    = "0";
-    setTimeout(() => {
+    if (peekTimerId.current) clearTimeout(peekTimerId.current);
+    peekTimerId.current = setTimeout(() => {
       if (peekRef.current) peekRef.current.style.transition = "none";
+      peekTimerId.current = null;
     }, 320);
   }, []);
 
@@ -988,7 +1019,9 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
     touchStartX.current = null;
     axisLocked.current  = null;
 
-    if (axis === "v" && dy < -60 && globalPage === 1 && !showDrawer) {
+    // Only open drawer when feed is scrolled to top — prevents false triggers mid-scroll
+    const feedAtTop = !feedScrollRef.current || feedScrollRef.current.scrollTop < 8;
+    if (axis === "v" && dy < -60 && globalPage === 1 && !showDrawer && feedAtTop) {
       resetPeek();
       setShowDrawer(true);
       return;
@@ -1046,6 +1079,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
                   onOpenApp={onOpenApp}
                   onOpenDrawer={() => setShowDrawer(true)}
                   onOpenSearch={onOpenSearch}
+                  feedScrollRef={feedScrollRef}
                 />
               )}
             </motion.div>

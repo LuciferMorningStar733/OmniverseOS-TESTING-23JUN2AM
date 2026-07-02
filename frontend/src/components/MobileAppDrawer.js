@@ -108,26 +108,39 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
   const inputRef                      = useRef(null);
   const sheetRef                      = useRef(null);
   const backdropRef                   = useRef(null);
+  const listRef                       = useRef(null);   // inner scroll list — for swipe guard
 
   // Gesture tracking — all refs, never touches React state during drag
-  const touchStartY  = useRef(0);
-  const touchStartX  = useRef(0);
-  const lastY        = useRef(0);
-  const lastT        = useRef(0);
-  const velocity     = useRef(0);       // px/ms
-  const dragY        = useRef(0);       // current translated px
-  const dragging     = useRef(false);
-  const axisLocked   = useRef(null);    // "v" | "h" | null
-  const rafId        = useRef(null);
-  const sheetH       = useRef(0);
+  const touchStartY    = useRef(0);
+  const touchStartX    = useRef(0);
+  const lastY          = useRef(0);
+  const lastT          = useRef(0);
+  const velocity       = useRef(0);         // px/ms
+  const dragY          = useRef(0);         // current translated px
+  const dragging       = useRef(false);
+  const axisLocked     = useRef(null);      // "v" | "h" | null
+  const rafId          = useRef(null);
+  const sheetH         = useRef(0);
+  const closeTimerId   = useRef(null);      // setTimeout for close animation
 
-  // Entry: double-rAF ensures CSS transition fires after browser paint
+  // Entry: double-rAF — both ids must be tracked separately for correct cleanup
   useEffect(() => {
+    let id2 = null;
     const id1 = requestAnimationFrame(() => {
-      const id2 = requestAnimationFrame(() => setMounted(true));
-      return () => cancelAnimationFrame(id2);
+      id2 = requestAnimationFrame(() => setMounted(true));
     });
-    return () => cancelAnimationFrame(id1);
+    return () => {
+      cancelAnimationFrame(id1);
+      if (id2 !== null) cancelAnimationFrame(id2);
+    };
+  }, []);
+
+  // Cancel any in-flight close timer on unmount (rapid open/close race)
+  useEffect(() => {
+    return () => {
+      if (rafId.current)      cancelAnimationFrame(rafId.current);
+      if (closeTimerId.current) clearTimeout(closeTimerId.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -160,8 +173,11 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
 
     const rawDy = y - touchStartY.current;
 
-    // Only start if pulling downward
+    // Only start drag when pulling downward AND inner list is scrolled to top.
+    // This prevents the sheet from hijacking normal list scrolling.
     if (!dragging.current && rawDy > 3) {
+      const listAtTop = !listRef.current || listRef.current.scrollTop < 4;
+      if (!listAtTop) return;   // let the inner list scroll normally
       dragging.current = true;
       if (sheetRef.current) {
         sheetRef.current.style.transition = "none";
@@ -215,7 +231,8 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         backdropRef.current.style.transition = "opacity 0.24s ease";
         backdropRef.current.style.opacity    = "0";
       }
-      setTimeout(onClose, 260);
+      if (closeTimerId.current) clearTimeout(closeTimerId.current);
+      closeTimerId.current = setTimeout(() => { closeTimerId.current = null; onClose(); }, 260);
     } else {
       // Spring snap-back — slight overshoot feel
       sheetRef.current.style.transition = "transform 0.44s cubic-bezier(0.175,0.885,0.32,1.10)";
@@ -420,7 +437,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         </div>
 
         {/* App grid — momentum scrolling, no React overhead */}
-        <div style={{
+        <div ref={listRef} style={{
           flex: 1, overflowY: "auto", overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
           padding: "0 12px 64px",
