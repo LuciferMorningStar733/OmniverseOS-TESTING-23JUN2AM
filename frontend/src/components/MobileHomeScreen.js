@@ -201,25 +201,31 @@ const HOLO_TICKS = Array.from({ length: 60 }, (_, i) => {
 });
 
 const HOLO_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&display=swap');
+
   @keyframes holoGlitch {
-    0%,88%,100% { opacity:1; transform:none; }
-    90%  { opacity:0.84; transform:skewX(0.6deg); }
+    0%,88%,100% { opacity:1; transform:none; filter:none; }
+    90%  { opacity:0.84; transform:skewX(0.6deg); filter:hue-rotate(15deg); }
     92%  { opacity:0.93; transform:skewX(-0.4deg); }
-    94%  { opacity:1;    transform:none; }
+    94%  { opacity:1;    transform:none; filter:none; }
   }
   @keyframes holoScan {
     0%   { transform:translateY(0px);    opacity:0;   }
-    6%   { opacity:0.38; }
-    94%  { opacity:0.38; }
+    6%   { opacity:0.52; }
+    94%  { opacity:0.52; }
     100% { transform:translateY(196px);  opacity:0;   }
   }
   @keyframes digitFlipIn {
-    from { opacity:0; transform:translateY(-8px) scale(0.96); }
-    to   { opacity:1; transform:translateY(0)    scale(1);    }
+    from { opacity:0; transform:translateY(-10px) scale(0.94); filter:blur(3px); }
+    to   { opacity:1; transform:translateY(0)     scale(1);    filter:blur(0); }
   }
-  @keyframes digitFlipOut {
-    from { opacity:1; transform:translateY(0)    scale(1);    }
-    to   { opacity:0; transform:translateY(8px)  scale(0.96); }
+  @keyframes cyanPulse {
+    0%,100% { text-shadow: 0 0 10px #00F0FF, 0 0 22px #00F0FFBB, 0 0 44px #00F0FF66, 0 0 88px #00F0FF33; }
+    50%     { text-shadow: 0 0 14px #00F0FF, 0 0 30px #00F0FFCC, 0 0 60px #00F0FF88, 0 0 110px #00F0FF44; }
+  }
+  @keyframes innerGlow {
+    0%,100% { opacity: 0.22; }
+    50%     { opacity: 0.40; }
   }
 `;
 
@@ -245,16 +251,19 @@ function FlipDigit({ value, fontSize = 50 }) {
       key={displayed}
       style={{
         fontSize,
-        fontFamily: "'Outfit', sans-serif",
-        fontWeight: 100,
-        color: "#ffffff",
-        letterSpacing: "-0.04em",
+        fontFamily: "'Orbitron', monospace",
+        fontWeight: 800,
+        color: CYAN,
+        letterSpacing: "0.06em",
         lineHeight: 1,
-        textShadow: `0 0 28px ${CYAN}55, 0 0 56px ${CYAN}22`,
         display: "inline-block",
-        animation: flipping ? "digitFlipIn 0.12s ease-out both" : "none",
-        willChange: "transform",
+        animation: flipping
+          ? "digitFlipIn 0.14s cubic-bezier(0.22,1,0.36,1) both, cyanPulse 2.8s ease-in-out infinite"
+          : "cyanPulse 2.8s ease-in-out infinite",
+        willChange: "transform, text-shadow",
         userSelect: "none",
+        /* multi-layer neon glow — base state (animation overrides dynamically) */
+        textShadow: `0 0 10px ${CYAN}, 0 0 22px ${CYAN}BB, 0 0 44px ${CYAN}66, 0 0 88px ${CYAN}33`,
       }}
     >
       {displayed}
@@ -295,11 +304,22 @@ function HoloClock({ now, userName, is24h, onToggleFormat }) {
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
         <div style={{ position: "relative", width: 196, height: 196 }}>
 
-          {/* Ambient radial glow */}
+          {/* Ambient radial glow — stronger so digits feel lit from within */}
           <div aria-hidden="true" style={{
-            position: "absolute", inset: -20, borderRadius: "50%",
-            background: `radial-gradient(ellipse, ${CYAN}0B 0%, transparent 70%)`,
-            filter: "blur(10px)", pointerEvents: "none",
+            position: "absolute", inset: -28, borderRadius: "50%",
+            background: `radial-gradient(ellipse 60% 60% at 50% 50%, ${CYAN}22 0%, ${CYAN}08 50%, transparent 75%)`,
+            filter: "blur(16px)", pointerEvents: "none",
+            animation: "innerGlow 3.6s ease-in-out infinite",
+          }} />
+          {/* Dark glass behind digits so cyan pops against the background */}
+          <div aria-hidden="true" style={{
+            position: "absolute",
+            top: "50%", left: "50%",
+            width: 118, height: 118,
+            transform: "translate(-50%, -50%)",
+            borderRadius: "50%",
+            background: "radial-gradient(ellipse, rgba(2,4,14,0.72) 0%, rgba(2,4,14,0.40) 65%, transparent 100%)",
+            pointerEvents: "none",
           }} />
 
           {/* Ticks + rings SVG */}
@@ -354,13 +374,15 @@ function HoloClock({ now, userName, is24h, onToggleFormat }) {
                 <FlipDigit value={hStr} fontSize={50} />
 
                 <motion.span
-                  animate={{ opacity: second % 2 === 0 ? 1 : 0.08 }}
-                  transition={{ duration: 0.08 }}
+                  animate={{ opacity: second % 2 === 0 ? 1 : 0.12 }}
+                  transition={{ duration: 0.06 }}
                   style={{
-                    fontSize: 38, fontFamily: "'Outfit', sans-serif", fontWeight: 100,
-                    color: CYAN, lineHeight: 1, paddingBottom: 3,
-                    filter: `drop-shadow(0 0 10px ${CYAN})`,
+                    fontSize: 36, fontFamily: "'Orbitron', monospace", fontWeight: 800,
+                    color: CYAN, lineHeight: 1, paddingBottom: 2,
+                    textShadow: `0 0 12px ${CYAN}, 0 0 28px ${CYAN}CC`,
+                    filter: `drop-shadow(0 0 8px ${CYAN})`,
                     userSelect: "none",
+                    letterSpacing: 0,
                   }}
                 >:</motion.span>
 
@@ -368,11 +390,13 @@ function HoloClock({ now, userName, is24h, onToggleFormat }) {
               </div>
             </div>
 
-            {/* :SS mono */}
+            {/* :SS — Orbitron, cyan, monospaced feel */}
             <div style={{
-              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-              color: `${CYAN}BB`, letterSpacing: "0.22em",
-              marginTop: 5, userSelect: "none",
+              fontSize: 11, fontFamily: "'Orbitron', monospace", fontWeight: 600,
+              color: CYAN, letterSpacing: "0.30em",
+              marginTop: 6, userSelect: "none",
+              textShadow: `0 0 8px ${CYAN}CC, 0 0 18px ${CYAN}66`,
+              opacity: 0.80,
             }}>:{sStr}</div>
 
             {/* 12/24h toggle — tap to switch */}
