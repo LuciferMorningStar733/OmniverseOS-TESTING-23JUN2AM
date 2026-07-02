@@ -20,12 +20,8 @@ function useClock() {
 
 // ── Time-of-day adaptive theme ─────────────────────────────────────────────────
 
-function getTheme(hour) {
-  if (hour >= 5  && hour < 8)  return { accent: "#FF8C42", glow: "rgba(255,140,66,0.22)", secondary: "rgba(255,180,80,0.10)", name: "dawn"      };
-  if (hour >= 8  && hour < 12) return { accent: "#00F0FF", glow: "rgba(0,240,255,0.16)",  secondary: "rgba(0,200,255,0.07)",  name: "morning"   };
-  if (hour >= 12 && hour < 17) return { accent: "#A78BFA", glow: "rgba(167,139,250,0.16)",secondary: "rgba(124,58,237,0.08)", name: "afternoon" };
-  if (hour >= 17 && hour < 21) return { accent: "#F59E0B", glow: "rgba(245,158,11,0.20)", secondary: "rgba(251,146,60,0.09)", name: "evening"   };
-  return                               { accent: "#4F46E5", glow: "rgba(79,70,229,0.20)",  secondary: "rgba(99,102,241,0.08)", name: "night"     };
+function getTheme() {
+  return { accent: "#00F0FF", glow: "rgba(0,240,255,0.20)", secondary: "rgba(0,240,255,0.08)", name: "cyber" };
 }
 
 // ── Text helpers ───────────────────────────────────────────────────────────────
@@ -93,6 +89,44 @@ const AURORA_CSS = `
   }
 `;
 
+// ── Holographic ring clock constants ──────────────────────────────────────────
+const HOLO_R_SEC = 84;
+const HOLO_C_SEC = 527.8;  // 2π × 84
+const HOLO_R_MIN = 68;
+const HOLO_C_MIN = 427.3;  // 2π × 68
+const HOLO_CX    = 98;
+const HOLO_CY    = 98;
+
+// Pre-computed tick marks — 60 positions around outer ring
+const HOLO_TICKS = Array.from({ length: 60 }, (_, i) => {
+  const a       = (i / 60) * 2 * Math.PI;
+  const isMajor = i % 5 === 0;
+  const rOuter  = 91;
+  const rInner  = isMajor ? 85 : 88;
+  return {
+    x1: HOLO_CX + Math.cos(a) * rOuter,
+    y1: HOLO_CY + Math.sin(a) * rOuter,
+    x2: HOLO_CX + Math.cos(a) * rInner,
+    y2: HOLO_CY + Math.sin(a) * rInner,
+    isMajor,
+  };
+});
+
+const HOLO_CSS = `
+  @keyframes holoGlitch {
+    0%,88%,100% { opacity:1; transform:none; }
+    90%  { opacity:0.84; transform:skewX(0.6deg); }
+    92%  { opacity:0.93; transform:skewX(-0.4deg); }
+    94%  { opacity:1;    transform:none; }
+  }
+  @keyframes holoScan {
+    0%   { transform:translateY(0px);    opacity:0;   }
+    6%   { opacity:0.38; }
+    94%  { opacity:0.38; }
+    100% { transform:translateY(196px);  opacity:0;   }
+  }
+`;
+
 function AmbientBackground({ theme }) {
   return (
     <>
@@ -127,131 +161,212 @@ function AmbientBackground({ theme }) {
   );
 }
 
-// ── Premium clock ─────────────────────────────────────────────────────────────
+// ── Holographic ring clock ─────────────────────────────────────────────────────
 
-function PremiumClock({ now, theme, userName }) {
+const CYAN = "#00F0FF";
+
+function HoloClock({ now, userName }) {
   const hour   = now.getHours();
   const minute = now.getMinutes();
   const second = now.getSeconds();
 
-  const hStr = String(hour  ).padStart(2, "0");
-  const mStr = String(minute).padStart(2, "0");
-  const colonOn = second % 2 === 0;
-  const secPct  = second / 60;
+  const hStr    = String(hour  ).padStart(2, "0");
+  const mStr    = String(minute).padStart(2, "0");
+  const sStr    = String(second).padStart(2, "0");
+  const dateStr = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  const greeting = getGreeting(hour);
 
-  const dateStr   = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  const greeting  = getGreeting(hour);
+  const secOffset = HOLO_C_SEC - (second / 60) * HOLO_C_SEC;
+  const minOffset = HOLO_C_MIN - ((minute * 60 + second) / 3600) * HOLO_C_MIN;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08, type: "spring", damping: 30, stiffness: 280 }}
-      style={{ padding: "22px 20px 14px", position: "relative", zIndex: 1 }}
+      style={{ padding: "16px 16px 8px", position: "relative", zIndex: 1 }}
     >
-      {/* Split clock */}
-      <div style={{ display: "flex", alignItems: "flex-end", userSelect: "none" }}>
-        <span style={{
-          fontSize: "clamp(56px, 15vw, 76px)",
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 100,
-          color: "#ffffff",
-          letterSpacing: "-0.04em",
-          lineHeight: 1,
-          textShadow: `0 0 80px ${theme.glow}, 0 2px 22px rgba(0,0,0,0.65)`,
-        }}>
-          {hStr}
-        </span>
+      <style>{HOLO_CSS}</style>
 
-        {/* Pulsing colon */}
-        <motion.span
-          animate={{ opacity: colonOn ? 1 : 0.10 }}
-          transition={{ duration: 0.10 }}
-          style={{
-            fontSize: "clamp(46px, 12vw, 62px)",
-            fontFamily: "'Outfit', sans-serif",
-            fontWeight: 100,
-            color: theme.accent,
-            letterSpacing: "-0.04em",
-            lineHeight: 1,
-            paddingBottom: 3,
-            filter: colonOn ? `drop-shadow(0 0 14px ${theme.accent})` : "none",
-          }}
-        >
-          :
-        </motion.span>
+      {/* ── Holographic ring ── */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+        <div style={{ position: "relative", width: 196, height: 196 }}>
 
-        <span style={{
-          fontSize: "clamp(56px, 15vw, 76px)",
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 100,
-          color: "#ffffff",
-          letterSpacing: "-0.04em",
-          lineHeight: 1,
-          textShadow: `0 0 80px ${theme.glow}, 0 2px 22px rgba(0,0,0,0.65)`,
-        }}>
-          {mStr}
-        </span>
+          {/* Ambient radial glow */}
+          <div aria-hidden="true" style={{
+            position: "absolute", inset: -20, borderRadius: "50%",
+            background: `radial-gradient(ellipse, ${CYAN}0B 0%, transparent 70%)`,
+            filter: "blur(10px)", pointerEvents: "none",
+          }} />
+
+          {/* Ticks + rings SVG (rotated so 0s is at top) */}
+          <svg
+            width={196} height={196}
+            style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}
+            aria-hidden="true"
+          >
+            {/* 60 tick marks */}
+            {HOLO_TICKS.map((t, i) => (
+              <line key={i}
+                x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                stroke={t.isMajor ? `${CYAN}52` : `${CYAN}1E`}
+                strokeWidth={t.isMajor ? 1.5 : 0.8}
+              />
+            ))}
+
+            {/* Outer seconds track */}
+            <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_SEC}
+              fill="none" stroke={`${CYAN}10`} strokeWidth={2} />
+            <motion.circle
+              cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_SEC}
+              fill="none" stroke={CYAN} strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeDasharray={String(HOLO_C_SEC)}
+              animate={{ strokeDashoffset: secOffset }}
+              transition={{ duration: 1.0, ease: "linear" }}
+              style={{ filter: `drop-shadow(0 0 5px ${CYAN}CC)` }}
+            />
+
+            {/* Inner minutes track */}
+            <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_MIN}
+              fill="none" stroke={`${CYAN}0C`} strokeWidth={1.5} />
+            <motion.circle
+              cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_MIN}
+              fill="none" stroke={`${CYAN}72`} strokeWidth={2}
+              strokeLinecap="round"
+              strokeDasharray={String(HOLO_C_MIN)}
+              animate={{ strokeDashoffset: minOffset }}
+              transition={{ duration: 1.0, ease: "linear" }}
+            />
+          </svg>
+
+          {/* ── Center digit display ── */}
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            {/* HH:MM with occasional glitch */}
+            <div style={{ animation: "holoGlitch 14s ease-in-out infinite" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 1, userSelect: "none" }}>
+                <span style={{
+                  fontSize: 50, fontFamily: "'Outfit', sans-serif", fontWeight: 100,
+                  color: "#ffffff", letterSpacing: "-0.04em", lineHeight: 1,
+                  textShadow: `0 0 28px ${CYAN}55, 0 0 56px ${CYAN}22`,
+                }}>{hStr}</span>
+
+                <motion.span
+                  animate={{ opacity: second % 2 === 0 ? 1 : 0.08 }}
+                  transition={{ duration: 0.08 }}
+                  style={{
+                    fontSize: 38, fontFamily: "'Outfit', sans-serif", fontWeight: 100,
+                    color: CYAN, lineHeight: 1, paddingBottom: 3,
+                    filter: `drop-shadow(0 0 10px ${CYAN})`,
+                    userSelect: "none",
+                  }}
+                >:</motion.span>
+
+                <span style={{
+                  fontSize: 50, fontFamily: "'Outfit', sans-serif", fontWeight: 100,
+                  color: "#ffffff", letterSpacing: "-0.04em", lineHeight: 1,
+                  textShadow: `0 0 28px ${CYAN}55, 0 0 56px ${CYAN}22`,
+                }}>{mStr}</span>
+              </div>
+            </div>
+
+            {/* :SS mono */}
+            <div style={{
+              fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+              color: `${CYAN}BB`, letterSpacing: "0.22em",
+              marginTop: 5, userSelect: "none",
+            }}>:{sStr}</div>
+
+            {/* NEURAL·SYNC status pip */}
+            <div style={{
+              marginTop: 9, display: "flex", alignItems: "center", gap: 5,
+              padding: "2px 9px", borderRadius: 3,
+              background: `${CYAN}0E`, border: `0.5px solid ${CYAN}28`,
+            }}>
+              <motion.div
+                animate={{ opacity: [1, 0.18, 1] }}
+                transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: CYAN, boxShadow: `0 0 6px ${CYAN}` }}
+              />
+              <span style={{
+                fontSize: 7.5, fontFamily: "'JetBrains Mono', monospace",
+                color: `${CYAN}80`, letterSpacing: "0.12em", userSelect: "none",
+              }}>NEURAL·SYNC</span>
+            </div>
+          </div>
+
+          {/* ── Corner HUD brackets ── */}
+          <svg aria-hidden="true" width={14} height={14}
+            style={{ position: "absolute", top: 10, left: 10, opacity: 0.50 }}>
+            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <svg aria-hidden="true" width={14} height={14}
+            style={{ position: "absolute", top: 10, right: 10, opacity: 0.50, transform: "rotate(90deg)" }}>
+            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <svg aria-hidden="true" width={14} height={14}
+            style={{ position: "absolute", bottom: 10, left: 10, opacity: 0.50, transform: "rotate(-90deg)" }}>
+            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <svg aria-hidden="true" width={14} height={14}
+            style={{ position: "absolute", bottom: 10, right: 10, opacity: 0.50, transform: "rotate(180deg)" }}>
+            <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+
+          {/* Horizontal holographic scan line */}
+          <div aria-hidden="true" style={{
+            position: "absolute", top: 0, left: 0, right: 0,
+            height: 1,
+            background: `linear-gradient(90deg, transparent, ${CYAN}55, transparent)`,
+            animation: "holoScan 7s ease-in-out infinite",
+            pointerEvents: "none",
+          }} />
+        </div>
       </div>
 
-      {/* Seconds progress bar */}
-      <div style={{
-        height: 2, borderRadius: 2,
-        background: "rgba(255,255,255,0.07)",
-        marginTop: 9, overflow: "hidden",
-      }}>
-        <motion.div
-          style={{
-            height: "100%", borderRadius: 2,
-            background: `linear-gradient(90deg, ${theme.accent}70, ${theme.accent})`,
-            boxShadow: `0 0 10px ${theme.accent}90`,
-          }}
-          animate={{ width: `${secPct * 100}%` }}
-          transition={{ duration: 0.7, ease: "linear" }}
-        />
-      </div>
-
-      {/* Date row + AI status pill */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 9, gap: 8 }}>
-        <span style={{
-          fontSize: 13, fontFamily: "'Outfit', sans-serif", fontWeight: 400,
-          color: "rgba(255,255,255,0.38)", userSelect: "none", letterSpacing: "0.01em",
+      {/* ── Date + greeting below ring ── */}
+      <div style={{ textAlign: "center" }}>
+        <div style={{
+          fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+          color: "rgba(255,255,255,0.30)", letterSpacing: "0.08em",
+          textTransform: "uppercase", userSelect: "none",
         }}>
           {dateStr}
-        </span>
+        </div>
 
-        {/* AI status pill */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.30 }}
+          style={{
+            fontSize: 21, fontFamily: "'Outfit', sans-serif", fontWeight: 600,
+            color: "rgba(255,255,255,0.90)", marginTop: 7, letterSpacing: "-0.02em",
+            userSelect: "none", textShadow: "0 2px 18px rgba(0,0,0,0.55)",
+          }}
+        >
+          {greeting}{userName ? `, ${userName}` : ""}
+        </motion.div>
+
+        {/* CORTEX ACTIVE indicator */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 5,
-          padding: "4px 10px", borderRadius: 20, flexShrink: 0,
-          background: "rgba(6,8,20,0.65)",
-          border: `1px solid ${theme.accent}28`,
-          backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 5, marginTop: 7,
         }}>
           <motion.div
             animate={{ opacity: [1, 0.25, 1], scale: [1, 1.4, 1] }}
             transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
-            style={{ width: 5, height: 5, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 8px ${theme.accent}` }}
+            style={{ width: 5, height: 5, borderRadius: "50%", background: CYAN, boxShadow: `0 0 8px ${CYAN}` }}
           />
-          <span style={{ fontSize: 9, color: theme.accent, fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.07em", userSelect: "none" }}>
-            CORTEX ACTIVE
-          </span>
+          <span style={{
+            fontSize: 9, color: CYAN, fontFamily: "'Outfit', sans-serif",
+            fontWeight: 700, letterSpacing: "0.07em", userSelect: "none",
+          }}>CORTEX ACTIVE</span>
         </div>
       </div>
-
-      {/* Greeting */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.30 }}
-        style={{
-          fontSize: 22, fontFamily: "'Outfit', sans-serif", fontWeight: 600,
-          color: "rgba(255,255,255,0.90)", marginTop: 18, letterSpacing: "-0.02em",
-          userSelect: "none", textShadow: "0 2px 18px rgba(0,0,0,0.55)",
-        }}
-      >
-        {greeting}{userName ? `, ${userName}` : ""}
-      </motion.div>
     </motion.div>
   );
 }
@@ -1002,8 +1117,7 @@ const StaticFeedContent = React.memo(function StaticFeedContent({ onOpenApp }) {
 
 function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef }) {
   const now      = useClock();
-  const hour     = now.getHours();
-  const theme    = useMemo(() => getTheme(hour), [hour]);
+  const theme    = useMemo(() => getTheme(), []);
   const userName = useMemo(() => {
     try { return localStorage.getItem("omniverse_user_name") || ""; } catch { return ""; }
   }, []);
@@ -1050,8 +1164,8 @@ function AIHomeContent({ onOpenApp, onOpenDrawer, onOpenSearch, feedScrollRef })
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
 
-        {/* Clock + brief re-render on every tick (intentional, cheap) */}
-        <PremiumClock now={now} theme={theme} userName={userName} />
+        {/* Holographic ring clock — re-renders on every tick (intentional, cheap) */}
+        <HoloClock now={now} userName={userName} />
         <CortexBriefCard now={now} userName={userName} theme={theme} />
 
         {/* Heavy static cards — memoized, skip re-render on clock ticks */}
