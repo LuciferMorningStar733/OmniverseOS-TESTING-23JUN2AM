@@ -132,12 +132,28 @@ function useWeather() {
     let cancelled = false;
     const load = async () => {
       try {
-        if (!navigator.geolocation) { setWeather(await fetchWeatherByCity("London")); return; }
+        if (!navigator.geolocation) {
+          // No geolocation — fallback to city, guard after await
+          try {
+            const data = await fetchWeatherByCity("London");
+            if (!cancelled) setWeather(data);
+          } catch { /* silent */ }
+          return;
+        }
         navigator.geolocation.getCurrentPosition(
           async ({ coords }) => {
-            if (!cancelled) setWeather(await fetchWeatherByCoords(coords.latitude, coords.longitude));
+            try {
+              const data = await fetchWeatherByCoords(coords.latitude, coords.longitude);
+              // Re-check after the async fetch completes — component may have unmounted
+              if (!cancelled) setWeather(data);
+            } catch { /* silent */ }
           },
-          async () => { if (!cancelled) setWeather(await fetchWeatherByCity("London")); },
+          async () => {
+            try {
+              const data = await fetchWeatherByCity("London");
+              if (!cancelled) setWeather(data);
+            } catch { /* silent */ }
+          },
           { timeout: 5000 }
         );
       } catch { /* silent */ }
@@ -476,17 +492,16 @@ function SecondsSweep({ seconds, accent, gradB }) {
           transformOrigin: "left center",
         }}
       />
-      {/* Leading dot */}
-      <motion.div
-        animate={{ left: `calc(${pct * 100}% - 3px)` }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        style={{
-          position: "absolute", top: -2, width: 6, height: 6,
-          borderRadius: "50%",
-          background: accent,
-          boxShadow: `0 0 8px ${accent}`,
-        }}
-      />
+      {/* Leading dot — percentage left + CSS transition, fine for a 2px element */}
+      <div style={{
+        position: "absolute", top: -2,
+        left: `${pct * 100}%`,
+        width: 6, height: 6, borderRadius: "50%",
+        background: accent,
+        boxShadow: `0 0 8px ${accent}`,
+        transform: "translateX(-3px)",
+        transition: "left 0.6s cubic-bezier(0.22,1,0.36,1)",
+      }} />
     </div>
   );
 }
