@@ -94,6 +94,25 @@ function useClockFormat() {
   return [is24h, toggle];
 }
 
+// ── Device orientation for 3D parallax ────────────────────────────────────────
+function useDeviceOrientation() {
+  const [tilt, setTilt] = useState({ beta: 0, gamma: 0 });
+  useEffect(() => {
+    if (!window.DeviceOrientationEvent) return;
+    let mounted = true;
+    const handler = (e) => {
+      if (!mounted) return;
+      setTilt({
+        beta:  Math.max(-25, Math.min(25, e.beta  || 0)),
+        gamma: Math.max(-25, Math.min(25, e.gamma || 0)),
+      });
+    };
+    window.addEventListener("deviceorientation", handler, { passive: true });
+    return () => { mounted = false; window.removeEventListener("deviceorientation", handler); };
+  }, []);
+  return tilt;
+}
+
 // ── Time-of-day adaptive theme ─────────────────────────────────────────────────
 function getTheme() {
   return { accent: "#00F0FF", glow: "rgba(0,240,255,0.20)", secondary: "rgba(0,240,255,0.08)", name: "cyber" };
@@ -178,12 +197,188 @@ function AmbientBackground({ theme }) {
   );
 }
 
+// ── Touch-reactive canvas particle overlay ────────────────────────────────────
+function TouchParticleCanvas() {
+  const canvasRef    = useRef(null);
+  const particlesRef = useRef([]);
+  const rafRef       = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    resize();
+    window.addEventListener("resize", resize, { passive: true });
+
+    const onPointer = (e) => {
+      for (let i = 0; i < 12; i++) {
+        const angle = (Math.PI * 2 * i / 12) + Math.random() * 0.5;
+        const speed = 1.8 + Math.random() * 3.5;
+        particlesRef.current.push({
+          x: e.clientX, y: e.clientY,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          alpha: 0.9, size: 1.5 + Math.random() * 2.5,
+          color: Math.random() > 0.35 ? "#00F0FF" : "#A855F7",
+          ring: false,
+        });
+      }
+      // Expanding ring burst
+      particlesRef.current.push({ x: e.clientX, y: e.clientY, vx: 0, vy: 0, alpha: 0.8, size: 1.5, color: "#00F0FF", ring: true, ringR: 2, ringTarget: 40 });
+    };
+    window.addEventListener("pointerdown", onPointer, { passive: true });
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particlesRef.current = particlesRef.current.filter((p) => p.alpha > 0.015);
+      for (const p of particlesRef.current) {
+        if (p.ring) {
+          p.ringR  += (p.ringTarget - p.ringR) * 0.20;
+          p.alpha  *= 0.88;
+          ctx.save(); ctx.globalAlpha = p.alpha;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.ringR, 0, Math.PI * 2);
+          ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; ctx.shadowBlur = 8; ctx.shadowColor = p.color; ctx.stroke();
+          ctx.restore();
+        } else {
+          p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.alpha *= 0.87;
+          ctx.save(); ctx.globalAlpha = p.alpha;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = p.color; ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.fill();
+          ctx.restore();
+        }
+      }
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("pointerdown", onPointer);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, mixBlendMode: "screen" }} />;
+}
+
+// ── Canvas spectrum bars — Cortex breathing visualization ─────────────────────
+const SPEC_N      = 24;
+const SPEC_PHASES = Array.from({ length: SPEC_N }, () => Math.random() * Math.PI * 2);
+const SPEC_FREQS  = Array.from({ length: SPEC_N }, () => 0.5 + Math.random() * 1.8);
+const SPEC_AMPS   = Array.from({ length: SPEC_N }, (_, i) => {
+  const center = 1 - Math.abs(i - SPEC_N / 2) / (SPEC_N / 2);
+  return 0.28 + center * 0.72;
+});
+
+function SpectrumBars() {
+  const canvasRef = useRef(null);
+  const rafRef    = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    const barW = 3, gap = (W - SPEC_N * barW) / (SPEC_N + 1);
+
+    const draw = (ts) => {
+      ctx.clearRect(0, 0, W, H);
+      const t = ts / 1000;
+      for (let i = 0; i < SPEC_N; i++) {
+        const h = Math.max(2, SPEC_AMPS[i] * H * 0.88 * (0.5 + 0.5 * Math.sin(t * SPEC_FREQS[i] + SPEC_PHASES[i])));
+        const x = gap + i * (barW + gap), y = H - h;
+        const grd = ctx.createLinearGradient(0, y, 0, H);
+        grd.addColorStop(0, "#00F0FF"); grd.addColorStop(1, "#00F0FF33");
+        ctx.fillStyle = grd; ctx.shadowBlur = 6; ctx.shadowColor = "#00F0FF";
+        ctx.fillRect(x, y, barW, h);
+      }
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    rafRef.current = requestAnimationFrame(draw);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  return <canvas ref={canvasRef} width={190} height={28} aria-hidden="true" style={{ display: "block", opacity: 0.58 }} />;
+}
+
+// ── Neural activity waveform ──────────────────────────────────────────────────
+function NeuralWaveform() {
+  const canvasRef = useRef(null);
+  const rafRef    = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+
+    const draw = (ts) => {
+      ctx.clearRect(0, 0, W, H);
+      const t = ts / 1000;
+
+      [
+        { color: "#00F0FF", freq: 1.2, phase: 0,   amp: 0.38, alpha: 0.72 },
+        { color: "#A855F7", freq: 0.8, phase: 1.1, amp: 0.28, alpha: 0.48 },
+      ].forEach(({ color, freq, phase, amp, alpha }) => {
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 1) {
+          const envelope = Math.sin((x / W) * Math.PI);
+          const y = H / 2 + amp * H * envelope * Math.sin((x / W) * Math.PI * 5 * freq + t * 2.6 + phase);
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 7;
+        ctx.shadowColor = color;
+        ctx.globalAlpha = alpha;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    rafRef.current = requestAnimationFrame(draw);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  return (
+    <canvas ref={canvasRef} width={280} height={38} aria-hidden="true"
+      style={{ display: "block", width: "100%", height: 38, opacity: 0.72 }} />
+  );
+}
+
+// ── Typewriter AI text reveal ─────────────────────────────────────────────────
+function TypewriterText({ text, speed = 24 }) {
+  const [count, setCount] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => { setCount(0); }, [text]);
+  useEffect(() => {
+    if (count >= text.length) return;
+    timerRef.current = setTimeout(() => setCount((c) => c + 1), speed);
+    return () => clearTimeout(timerRef.current);
+  }, [count, text, speed]);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  return (
+    <>
+      {text.slice(0, count)}
+      {count < text.length && (
+        <span style={{ animation: "cursorBlink 0.65s step-end infinite", color: "#00F0FF", fontWeight: 300 }}>▌</span>
+      )}
+    </>
+  );
+}
+
 // ── Holographic ring clock ─────────────────────────────────────────────────────
 const HOLO_R_SEC = 84;
 const HOLO_C_SEC = 527.8;  // 2π × 84
-const HOLO_R_MIN = 68;
-const HOLO_C_MIN = 427.3;  // 2π × 68
-const HOLO_CX    = 98;
+const HOLO_R_MIN  = 68;
+const HOLO_C_MIN  = 427.3;  // 2π × 68
+const HOLO_R_HOUR = 52;
+const HOLO_C_HOUR = 326.7;  // 2π × 52
+const HOLO_CX     = 98;
 const HOLO_CY    = 98;
 
 const HOLO_TICKS = Array.from({ length: 60 }, (_, i) => {
@@ -226,6 +421,18 @@ const HOLO_CSS = `
   @keyframes innerGlow {
     0%,100% { opacity: 0.22; }
     50%     { opacity: 0.40; }
+  }
+  @keyframes radarRotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes cursorBlink {
+    0%,100% { opacity: 1; }
+    50%     { opacity: 0; }
+  }
+  @keyframes hudFloat {
+    0%,100% { transform: translateY(0px);  opacity: 0.55; }
+    50%     { transform: translateY(-2px); opacity: 0.85; }
   }
 `;
 
@@ -272,7 +479,9 @@ function FlipDigit({ value, fontSize = 50 }) {
 }
 
 function HoloClock({ now, userName, is24h, onToggleFormat }) {
-  let hour   = now.getHours();
+  const tilt   = useDeviceOrientation();
+  const hour24 = now.getHours();
+  let hour     = hour24;
   const minute = now.getMinutes();
   const second = now.getSeconds();
   const ampm   = hour >= 12 ? "PM" : "AM";
@@ -286,10 +495,16 @@ function HoloClock({ now, userName, is24h, onToggleFormat }) {
   const mStr    = String(minute).padStart(2, "0");
   const sStr    = String(second).padStart(2, "0");
   const dateStr = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  const greeting = getGreeting(now.getHours());
+  const greeting = getGreeting(hour24);
 
-  const secOffset = HOLO_C_SEC - (second / 60) * HOLO_C_SEC;
-  const minOffset = HOLO_C_MIN - ((minute * 60 + second) / 3600) * HOLO_C_MIN;
+  const secOffset  = HOLO_C_SEC  - (second / 60) * HOLO_C_SEC;
+  const minOffset  = HOLO_C_MIN  - ((minute * 60 + second) / 3600) * HOLO_C_MIN;
+  const hourOffset = HOLO_C_HOUR - ((hour24 % 12 * 3600 + minute * 60 + second) / 43200) * HOLO_C_HOUR;
+
+  // HUD badge data — derived from real APIs
+  const tz        = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const tzShort   = tz.split("/").pop().replace(/_/g, " ").slice(0, 10).toUpperCase();
+  const dayOfYear = Math.ceil((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
 
   return (
     <motion.div
@@ -300,152 +515,173 @@ function HoloClock({ now, userName, is24h, onToggleFormat }) {
     >
       <style>{HOLO_CSS}</style>
 
-      {/* ── Holographic ring ── */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
-        <div style={{ position: "relative", width: 196, height: 196 }}>
+      {/* ── Holographic ring — 3 orbital rings + radar sweep + 3D parallax ── */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+        {/* Outer wrapper holds HUD data badges */}
+        <div style={{ position: "relative", width: 224, height: 224, display: "flex", alignItems: "center", justifyContent: "center" }}>
 
-          {/* Ambient radial glow — stronger so digits feel lit from within */}
-          <div aria-hidden="true" style={{
-            position: "absolute", inset: -28, borderRadius: "50%",
-            background: `radial-gradient(ellipse 60% 60% at 50% 50%, ${CYAN}22 0%, ${CYAN}08 50%, transparent 75%)`,
-            filter: "blur(16px)", pointerEvents: "none",
-            animation: "innerGlow 3.6s ease-in-out infinite",
-          }} />
-          {/* Dark glass behind digits so cyan pops against the background */}
-          <div aria-hidden="true" style={{
-            position: "absolute",
-            top: "50%", left: "50%",
-            width: 118, height: 118,
-            transform: "translate(-50%, -50%)",
-            borderRadius: "50%",
-            background: "radial-gradient(ellipse, rgba(2,4,14,0.72) 0%, rgba(2,4,14,0.40) 65%, transparent 100%)",
-            pointerEvents: "none",
-          }} />
-
-          {/* Ticks + rings SVG */}
-          <svg
-            width={196} height={196}
-            style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}
-            aria-hidden="true"
-          >
-            {HOLO_TICKS.map((t, i) => (
-              <line key={i}
-                x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-                stroke={t.isMajor ? `${CYAN}52` : `${CYAN}1E`}
-                strokeWidth={t.isMajor ? 1.5 : 0.8}
-              />
-            ))}
-
-            {/* Outer seconds track */}
-            <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_SEC}
-              fill="none" stroke={`${CYAN}10`} strokeWidth={2} />
-            <motion.circle
-              cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_SEC}
-              fill="none" stroke={CYAN} strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeDasharray={String(HOLO_C_SEC)}
-              animate={{ strokeDashoffset: secOffset }}
-              transition={{ duration: 1.0, ease: "linear" }}
-              style={{ filter: `drop-shadow(0 0 5px ${CYAN}CC)` }}
-            />
-
-            {/* Inner minutes track */}
-            <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_MIN}
-              fill="none" stroke={`${CYAN}0C`} strokeWidth={1.5} />
-            <motion.circle
-              cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_MIN}
-              fill="none" stroke={`${CYAN}72`} strokeWidth={2}
-              strokeLinecap="round"
-              strokeDasharray={String(HOLO_C_MIN)}
-              animate={{ strokeDashoffset: minOffset }}
-              transition={{ duration: 1.0, ease: "linear" }}
-            />
-          </svg>
-
-          {/* ── Center digit display ── */}
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            {/* HH:MM with flip animations */}
-            <div style={{ animation: "holoGlitch 14s ease-in-out infinite" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 1, userSelect: "none" }}>
-                <FlipDigit value={hStr} fontSize={50} />
-
-                <motion.span
-                  animate={{ opacity: second % 2 === 0 ? 1 : 0.12 }}
-                  transition={{ duration: 0.06 }}
-                  style={{
-                    fontSize: 36, fontFamily: "'Orbitron', monospace", fontWeight: 800,
-                    color: CYAN, lineHeight: 1, paddingBottom: 2,
-                    textShadow: `0 0 12px ${CYAN}, 0 0 28px ${CYAN}CC`,
-                    filter: `drop-shadow(0 0 8px ${CYAN})`,
-                    userSelect: "none",
-                    letterSpacing: 0,
-                  }}
-                >:</motion.span>
-
-                <FlipDigit value={mStr} fontSize={50} />
-              </div>
-            </div>
-
-            {/* :SS — Orbitron, cyan, monospaced feel */}
-            <div style={{
-              fontSize: 11, fontFamily: "'Orbitron', monospace", fontWeight: 600,
-              color: CYAN, letterSpacing: "0.30em",
-              marginTop: 6, userSelect: "none",
-              textShadow: `0 0 8px ${CYAN}CC, 0 0 18px ${CYAN}66`,
-              opacity: 0.80,
-            }}>:{sStr}</div>
-
-            {/* 12/24h toggle — tap to switch */}
-            <motion.button
-              onClick={onToggleFormat}
-              whileTap={{ scale: 0.88 }}
-              title={is24h ? "Switch to 12-hour" : "Switch to 24-hour"}
-              style={{
-                marginTop: 7, display: "flex", alignItems: "center", gap: 5,
-                padding: "3px 9px", borderRadius: 4,
-                background: `${CYAN}0E`, border: `0.5px solid ${CYAN}30`,
-                cursor: "pointer", WebkitTapHighlightColor: "transparent",
-                touchAction: "manipulation",
-              }}
-            >
-              <motion.div
-                animate={{ opacity: [1, 0.18, 1] }}
-                transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-                style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: CYAN, boxShadow: `0 0 6px ${CYAN}` }}
-              />
-              <span style={{
-                fontSize: 7.5, fontFamily: "'JetBrains Mono', monospace",
-                color: `${CYAN}80`, letterSpacing: "0.12em", userSelect: "none",
-              }}>{is24h ? "24H · TAP 12H" : ampm + " · TAP 24H"}</span>
-            </motion.button>
-          </div>
-
-          {/* ── Corner HUD brackets ── */}
+          {/* ── 4 floating HUD badges (real data) ── */}
           {[
-            { top: 10, left: 10, rotate: "0deg" },
-            { top: 10, right: 10, rotate: "90deg" },
-            { bottom: 10, left: 10, rotate: "-90deg" },
-            { bottom: 10, right: 10, rotate: "180deg" },
-          ].map((pos, i) => (
-            <svg key={i} aria-hidden="true" width={14} height={14}
-              style={{ position: "absolute", ...pos, opacity: 0.50 }}>
-              <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            { label: tzShort,       pos: { top: 5,    left: 5    }, color: CYAN,      delay: 0    },
+            { label: `DAY·${dayOfYear}`, pos: { top: 5, right: 5 }, color: "#A855F7", delay: 0.9  },
+            { label: "CORTEX:ON",   pos: { bottom: 5, left: 5    }, color: "#39FF14", delay: 1.8  },
+            { label: "SYS:OK",      pos: { bottom: 5, right: 5   }, color: CYAN,      delay: 2.7  },
+          ].map((b, i) => (
+            <div key={i} aria-hidden="true" style={{
+              position: "absolute", ...b.pos,
+              fontSize: 7, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+              color: b.color, letterSpacing: "0.05em",
+              textShadow: `0 0 10px ${b.color}`,
+              animation: "hudFloat 4s ease-in-out infinite",
+              animationDelay: `${b.delay}s`,
+              userSelect: "none", pointerEvents: "none", whiteSpace: "nowrap",
+            }}>{b.label}</div>
           ))}
 
-          {/* Horizontal holographic scan line */}
-          <div aria-hidden="true" style={{
-            position: "absolute", top: 0, left: 0, right: 0,
-            height: 1,
-            background: `linear-gradient(90deg, transparent, ${CYAN}55, transparent)`,
-            animation: "holoScan 7s ease-in-out infinite",
-            pointerEvents: "none",
-          }} />
+          {/* ── 196×196 ring, 3D-tilted by device orientation ── */}
+          <div style={{
+            position: "relative", width: 196, height: 196,
+            transform: `perspective(700px) rotateX(${tilt.beta * 0.10}deg) rotateY(${tilt.gamma * 0.13}deg)`,
+            willChange: "transform",
+            transition: "transform 0.14s ease-out",
+          }}>
+            {/* Ambient radial glow */}
+            <div aria-hidden="true" style={{
+              position: "absolute", inset: -28, borderRadius: "50%",
+              background: `radial-gradient(ellipse 60% 60% at 50% 50%, ${CYAN}22 0%, ${CYAN}08 50%, transparent 75%)`,
+              filter: "blur(16px)", pointerEvents: "none",
+              animation: "innerGlow 3.6s ease-in-out infinite",
+            }} />
+            {/* Dark glass behind digits */}
+            <div aria-hidden="true" style={{
+              position: "absolute", top: "50%", left: "50%",
+              width: 118, height: 118, transform: "translate(-50%, -50%)",
+              borderRadius: "50%",
+              background: "radial-gradient(ellipse, rgba(2,4,14,0.80) 0%, rgba(2,4,14,0.44) 65%, transparent 100%)",
+              pointerEvents: "none",
+            }} />
+
+            {/* ── 3-ring + ticks SVG ── */}
+            <svg width={196} height={196}
+              style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}
+              aria-hidden="true"
+            >
+              {HOLO_TICKS.map((t, i) => (
+                <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                  stroke={t.isMajor ? `${CYAN}52` : `${CYAN}1E`}
+                  strokeWidth={t.isMajor ? 1.5 : 0.8}
+                />
+              ))}
+
+              {/* Outer: seconds (cyan) */}
+              <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_SEC} fill="none" stroke={`${CYAN}10`} strokeWidth={2} />
+              <motion.circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_SEC}
+                fill="none" stroke={CYAN} strokeWidth={2.5} strokeLinecap="round"
+                strokeDasharray={String(HOLO_C_SEC)}
+                animate={{ strokeDashoffset: secOffset }}
+                transition={{ duration: 1.0, ease: "linear" }}
+                style={{ filter: `drop-shadow(0 0 5px ${CYAN}CC)` }}
+              />
+
+              {/* Mid: minutes (cyan/dim) */}
+              <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_MIN} fill="none" stroke={`${CYAN}0C`} strokeWidth={1.5} />
+              <motion.circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_MIN}
+                fill="none" stroke={`${CYAN}72`} strokeWidth={2} strokeLinecap="round"
+                strokeDasharray={String(HOLO_C_MIN)}
+                animate={{ strokeDashoffset: minOffset }}
+                transition={{ duration: 1.0, ease: "linear" }}
+              />
+
+              {/* Inner: hours (purple — Arc Reactor third ring) */}
+              <circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_HOUR} fill="none" stroke="rgba(168,85,247,0.14)" strokeWidth={1.5} />
+              <motion.circle cx={HOLO_CX} cy={HOLO_CY} r={HOLO_R_HOUR}
+                fill="none" stroke="#A855F7" strokeWidth={2.5} strokeLinecap="round"
+                strokeDasharray={String(HOLO_C_HOUR)}
+                animate={{ strokeDashoffset: hourOffset }}
+                transition={{ duration: 1.0, ease: "linear" }}
+                style={{ filter: "drop-shadow(0 0 6px rgba(168,85,247,0.90))" }}
+              />
+            </svg>
+
+            {/* ── Rotating radar sweep (conic comet tail) ── */}
+            <div aria-hidden="true" style={{
+              position: "absolute", inset: 0, borderRadius: "50%",
+              background: "conic-gradient(transparent 0deg, transparent 310deg, rgba(0,240,255,0) 310deg, rgba(0,240,255,0.32) 350deg, rgba(0,240,255,0.06) 360deg)",
+              animation: "radarRotate 4s linear infinite",
+              pointerEvents: "none",
+              maskImage: "radial-gradient(circle, transparent 41%, rgba(0,0,0,1) 55%, rgba(0,0,0,1) 87%, transparent 95%)",
+              WebkitMaskImage: "radial-gradient(circle, transparent 41%, rgba(0,0,0,1) 55%, rgba(0,0,0,1) 87%, transparent 95%)",
+              willChange: "transform",
+            }} />
+
+            {/* Center digit display */}
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ animation: "holoGlitch 14s ease-in-out infinite" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 1, userSelect: "none" }}>
+                  <FlipDigit value={hStr} fontSize={50} />
+                  <motion.span
+                    animate={{ opacity: second % 2 === 0 ? 1 : 0.12 }}
+                    transition={{ duration: 0.06 }}
+                    style={{
+                      fontSize: 36, fontFamily: "'Orbitron', monospace", fontWeight: 800,
+                      color: CYAN, lineHeight: 1, paddingBottom: 2,
+                      textShadow: `0 0 12px ${CYAN}, 0 0 28px ${CYAN}CC`,
+                      filter: `drop-shadow(0 0 8px ${CYAN})`,
+                      userSelect: "none", letterSpacing: 0,
+                    }}
+                  >:</motion.span>
+                  <FlipDigit value={mStr} fontSize={50} />
+                </div>
+              </div>
+
+              <div style={{
+                fontSize: 11, fontFamily: "'Orbitron', monospace", fontWeight: 600,
+                color: CYAN, letterSpacing: "0.30em", marginTop: 6, userSelect: "none",
+                textShadow: `0 0 8px ${CYAN}CC, 0 0 18px ${CYAN}66`, opacity: 0.80,
+              }}>:{sStr}</div>
+
+              <motion.button onClick={onToggleFormat} whileTap={{ scale: 0.88 }}
+                title={is24h ? "Switch to 12-hour" : "Switch to 24-hour"}
+                style={{
+                  marginTop: 7, display: "flex", alignItems: "center", gap: 5,
+                  padding: "3px 9px", borderRadius: 4,
+                  background: `${CYAN}0E`, border: `0.5px solid ${CYAN}30`,
+                  cursor: "pointer", WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+                }}
+              >
+                <motion.div
+                  animate={{ opacity: [1, 0.18, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                  style={{ width: 3.5, height: 3.5, borderRadius: "50%", background: CYAN, boxShadow: `0 0 6px ${CYAN}` }}
+                />
+                <span style={{ fontSize: 7.5, fontFamily: "'JetBrains Mono', monospace", color: `${CYAN}80`, letterSpacing: "0.12em", userSelect: "none" }}>
+                  {is24h ? "24H · TAP 12H" : ampm + " · TAP 24H"}
+                </span>
+              </motion.button>
+            </div>
+
+            {/* Corner HUD brackets */}
+            {[{ top: 10, left: 10 }, { top: 10, right: 10 }, { bottom: 10, left: 10 }, { bottom: 10, right: 10 }].map((pos, i) => (
+              <svg key={i} aria-hidden="true" width={14} height={14}
+                style={{ position: "absolute", ...pos, opacity: 0.50, transform: `rotate(${i * 90}deg)` }}>
+                <path d="M0 11 L0 0 L11 0" fill="none" stroke={CYAN} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ))}
+
+            {/* Holographic scan line */}
+            <div aria-hidden="true" style={{
+              position: "absolute", top: 0, left: 0, right: 0, height: 1,
+              background: `linear-gradient(90deg, transparent, ${CYAN}55, transparent)`,
+              animation: "holoScan 7s ease-in-out infinite",
+              pointerEvents: "none",
+            }} />
+          </div>
         </div>
+      </div>
+
+      {/* Cortex spectrum bars — breathing audio visualization */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
+        <SpectrumBars />
       </div>
 
       {/* ── Date + greeting below ring ── */}
@@ -773,12 +1009,12 @@ function CortexBriefCard({ now, userName, theme }) {
             </div>
           </div>
 
-          {/* Brief text — time-based, no fake data */}
+          {/* Brief text — AI typewriter reveal */}
           <p style={{
             fontSize: 13.5, fontFamily: "'Outfit', sans-serif", fontWeight: 400,
             color: "rgba(255,255,255,0.65)", lineHeight: 1.58, margin: "0 0 14px", userSelect: "none",
           }}>
-            {getAIBriefText(hour)}
+            <TypewriterText text={getAIBriefText(hour)} speed={22} />
           </p>
 
           <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 -2px 13px" }} />
@@ -814,6 +1050,11 @@ function CortexBriefCard({ now, userName, theme }) {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Neural activity waveform */}
+          <div style={{ margin: "4px -2px 10px", borderRadius: 10, overflow: "hidden", background: "rgba(0,0,0,0.18)" }}>
+            <NeuralWaveform />
           </div>
 
           {/* Network quality detail */}
@@ -1445,6 +1686,9 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
 
   return (
     <>
+      {/* Global touch-particle canvas — fixed, always on top */}
+      <TouchParticleCanvas />
+
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
