@@ -622,8 +622,9 @@ function QuickApp({ app, onPress, delay }) {
         ? { type: "spring", stiffness: 700, damping: 18, mass: 0.14 }
         : { delay, type: "spring", damping: 22, stiffness: 380 }
       }
+      onClick={() => { if (navigator.vibrate) navigator.vibrate(8); onPress(app.id); }}
       onPointerDown={() => setPressed(true)}
-      onPointerUp={() => { setPressed(false); if (navigator.vibrate) navigator.vibrate(8); onPress(app.id); }}
+      onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
       aria-label={`Open ${app.name}`}
@@ -720,8 +721,9 @@ function CortexSearchBar({ onTap, theme }) {
       style={{ padding: "0 14px" }}
     >
       <motion.button
+        onClick={handleTap}
         onPointerDown={() => setActive(true)}
-        onPointerUp={() => { setActive(false); handleTap(); }}
+        onPointerUp={() => setActive(false)}
         onPointerLeave={() => setActive(false)}
         aria-label="Open Cortex search"
         animate={{

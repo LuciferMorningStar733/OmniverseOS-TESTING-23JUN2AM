@@ -273,13 +273,20 @@ const ActiveProviderBadge = React.memo(function ActiveProviderBadge({ provider, 
 /* ── Copy button ─────────────────────────────────────────────────────────────── */
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef(null);
+
+  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
 
   const handleCopy = useCallback(() => {
     if (!text) return;
+    const resetAfter = () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    };
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       toast.success("Response copied!", { duration: 1500, style: { fontSize: 13 } });
-      setTimeout(() => setCopied(false), 2000);
+      resetAfter();
     }).catch(() => {
       try {
         const el = document.createElement("textarea");
@@ -291,7 +298,7 @@ function CopyButton({ text }) {
         document.execCommand("copy");
         document.body.removeChild(el);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        resetAfter();
       } catch {
         toast.error("Copy failed");
       }
@@ -392,6 +399,7 @@ export default function AIChat() {
   const [pendingMessage, setPendingMessage] = useState("");
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [touchedMsgIdx, setTouchedMsgIdx]   = useState(null);
+  const touchTimerRef = useRef(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
   const endRef             = useRef();
@@ -404,6 +412,9 @@ export default function AIChat() {
   const sendRef   = useRef(null);
   const micBaseRef = useRef("");
   const micInputSnapshotRef = useRef("");
+
+  // Cleanup touch-reveal timer on unmount
+  useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
 
   const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
   const windowsRef    = useRef([]);
@@ -577,21 +588,39 @@ export default function AIChat() {
   }, [messages, streamStatus]);
 
   // ── Visual viewport resize: scroll to bottom when mobile keyboard opens ───────
+  // Only fires on touch devices and only when the chat input is focused.
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+    if (!vv || !("ontouchstart" in window)) return;
+    let inputFocused = false;
+    let rafId = null;
+    const onFocus = () => { inputFocused = true; };
+    const onBlur  = () => { inputFocused = false; };
+    const inputEl = document.querySelector("[data-testid='chat-input']");
+    if (inputEl) {
+      inputEl.addEventListener("focus", onFocus);
+      inputEl.addEventListener("blur",  onBlur);
+    }
     const handle = () => {
-      const container = scrollContainerRef.current;
-      if (!container) return;
-      const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
-      if (dist < 320) {
-        requestAnimationFrame(() => {
-          container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-        });
-      }
+      if (!inputFocused) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (dist < 320) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      });
     };
     vv.addEventListener("resize", handle, { passive: true });
-    return () => vv.removeEventListener("resize", handle);
+    return () => {
+      vv.removeEventListener("resize", handle);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (inputEl) {
+        inputEl.removeEventListener("focus", onFocus);
+        inputEl.removeEventListener("blur",  onBlur);
+      }
+    };
   }, []);
 
   const send = useCallback(async (forcedText) => {
@@ -1049,7 +1078,11 @@ export default function AIChat() {
             style={{ animationDelay: `${Math.min(i * 0.03, 0.15)}s` }}
             onMouseEnter={() => setHoveredMsgIdx(i)}
             onMouseLeave={() => setHoveredMsgIdx(null)}
-            onTouchStart={() => { setTouchedMsgIdx(i); setTimeout(() => setTouchedMsgIdx(null), 2500); }}
+            onTouchStart={() => {
+              if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+              setTouchedMsgIdx(i);
+              touchTimerRef.current = setTimeout(() => setTouchedMsgIdx(null), 2500);
+            }}
           >
             {m.error ? (
               <div
