@@ -11,6 +11,7 @@ import MarkdownRenderer from "../components/MarkdownRenderer";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
 import { detectAmbiguity } from "../lib/ambiguityDetector";
 import CortexClarificationModal from "../components/CortexClarificationModal";
+import { playAIProcess, playAIReady } from "../lib/soundEngine";
 
 const SESSION_ID = "main";
 
@@ -144,37 +145,79 @@ function ModelSelect({ value, onChange, disabled }) {
 const StatusPanel = React.memo(function StatusPanel({ status }) {
   if (!status) return null;
 
-  const isFailover  = status.stage === "unavailable" || status.stage === "switching";
+  const isFailover   = status.stage === "unavailable" || status.stage === "switching";
   const isGenerating = status.stage === "generating";
+  const isConnecting = status.stage === "connecting";
 
-  const headerLabel = {
-    connecting:  "CORTEX ONLINE",
-    generating:  "CORTEX ONLINE",
-    unavailable: "NODE FAILOVER",
-    switching:   "REROUTING",
-  }[status.stage] || "CORTEX ONLINE";
+  const accentColor = isFailover ? "#F59E0B" : isGenerating ? "#39FF14" : "#00F0FF";
+  const glowColor   = isFailover ? "rgba(245,158,11,0.3)" : isGenerating ? "rgba(57,255,20,0.25)" : "rgba(0,240,255,0.25)";
 
-  const dotColor = isFailover
-    ? "bg-yellow-400"
-    : isGenerating
-    ? "bg-emerald-400"
-    : "bg-[#00F0FF]";
+  const stageLabel = {
+    connecting:  "Connecting",
+    generating:  "Generating",
+    unavailable: "Rerouting",
+    switching:   "Switching",
+  }[status.stage] || "Processing";
 
   return (
-    <div className="flex justify-start">
-      <div className="px-3 py-2 rounded border border-white/10 bg-black/60 font-mono text-[11px] leading-relaxed min-w-[190px] backdrop-blur-sm">
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse ${dotColor}`} />
-          <span className="text-white/35 uppercase tracking-[0.18em] text-[9px]">
-            {headerLabel}
-          </span>
+    <div className="flex justify-start" style={{ animation: "fadeSlideUp 0.2s ease both" }}>
+      <div style={{
+        display: "flex", alignItems: "flex-start", gap: 10,
+        padding: "10px 14px",
+        borderRadius: 14,
+        background: "rgba(6,8,16,0.75)",
+        border: `1px solid ${accentColor}22`,
+        backdropFilter: "blur(16px)",
+        boxShadow: `0 0 20px ${glowColor}, 0 4px 16px rgba(0,0,0,0.3)`,
+        maxWidth: 320,
+        minWidth: 160,
+      }}>
+        {/* Animated orb indicator */}
+        <div style={{
+          width: 28, height: 28, borderRadius: "50%", flexShrink: 0, marginTop: 1,
+          background: `radial-gradient(circle at 38% 35%, ${accentColor}cc 0%, ${accentColor}44 60%, transparent 100%)`,
+          boxShadow: `0 0 12px ${glowColor}`,
+          animation: isGenerating ? "thinkingOrb 1.4s ease-in-out infinite" : "orbPulse 2s ease-in-out infinite",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <i className={`fa-solid ${isFailover ? "fa-arrow-right-arrow-left" : "fa-wand-magic-sparkles"}`}
+            style={{ fontSize: 10, color: "rgba(255,255,255,0.9)", textShadow: `0 0 6px ${accentColor}` }} />
         </div>
-        <div className={`pl-3 ${isFailover ? "text-yellow-300/80" : "text-[#00F0FF]/80"}`}>
-          {status.text}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.14em", textTransform: "uppercase",
+            color: `${accentColor}88`, marginBottom: 3,
+          }}>
+            {stageLabel}
+          </div>
+          <div style={{
+            fontSize: 12.5, color: isFailover ? "#FCD34D" : isGenerating ? "rgba(255,255,255,0.75)" : "rgba(0,240,255,0.8)",
+            lineHeight: 1.4, fontFamily: "'Outfit', sans-serif",
+          }}>
+            {status.text}
+          </div>
+          {status.model && !isGenerating && (
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>
+              {status.model}
+            </div>
+          )}
+          {/* Progress bar during generation */}
+          {isGenerating && (
+            <div style={{
+              marginTop: 6, height: 2, borderRadius: 2,
+              background: "rgba(255,255,255,0.06)",
+              overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%", width: "40%",
+                background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
+                animation: "scanline 1.2s linear infinite",
+                backgroundSize: "200% 100%",
+              }} />
+            </div>
+          )}
         </div>
-        {status.model && status.stage !== "generating" && (
-          <div className="pl-3 mt-0.5 text-white/25">{status.model}</div>
-        )}
       </div>
     </div>
   );
@@ -393,10 +436,16 @@ export default function AIChat() {
   const [isRecording, setIsRecording] = useState(false);
   const micRecogRef   = useRef(null);
   const micActiveRef  = useRef(false);
+  const startMicRef   = useRef(null);  // stable ref for auto-resume after AI response
+  const voiceModeRef  = useRef(false); // true = in voice conversation mode (auto-resume mic)
 
   const startMic = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR || micActiveRef.current) return;
+
+    // Interrupt any active AI response so the user can speak immediately
+    abortRef.current?.abort();
+    voiceModeRef.current = true;
 
     const r = new SR();
     r.continuous      = false;
@@ -433,7 +482,16 @@ export default function AIChat() {
       }
     };
 
-    r.onend = () => { micActiveRef.current = false; if (mountedRef.current) setIsRecording(false); };
+    r.onend = () => {
+      micActiveRef.current = false;
+      if (mountedRef.current) setIsRecording(false);
+      // Auto-submit recognized text — enables Gemini-Live-style continuous conversation.
+      // Use micBaseRef (final transcript) first, fall back to whatever is in the input field.
+      const transcribed = (micBaseRef.current || inputRef.current || "").trim();
+      if (transcribed && voiceModeRef.current && sendRef.current && mountedRef.current) {
+        sendRef.current(transcribed);
+      }
+    };
     r.onerror = () => { micActiveRef.current = false; if (mountedRef.current) setIsRecording(false); };
 
     micRecogRef.current = r;
@@ -571,6 +629,7 @@ export default function AIChat() {
     ]);
     setStreaming(true);
     setActiveProvider(null);
+    playAIProcess();
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -682,12 +741,19 @@ export default function AIChat() {
         setStreaming(false);
         setStreamStatus(null);
         setActiveProvider(null);
+        playAIReady();
+        // Auto-resume listening after AI responds — continuous voice conversation.
+        // Only fires in voice mode and only when the stream wasn't manually aborted.
+        if (voiceModeRef.current && !ctrl.signal.aborted) {
+          setTimeout(() => { if (mountedRef.current) startMicRef.current?.(); }, 600);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, model]);
 
   useEffect(() => { sendRef.current = send; }, [send]);
+  useEffect(() => { startMicRef.current = startMic; }, [startMic]);
 
   // ── Clarification modal: user selected an option ──────────────────────────
   const handleClarificationSelect = useCallback((option) => {
@@ -737,8 +803,12 @@ export default function AIChat() {
 
       <style>{`
         @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(6px); }
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes msgEntrance {
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes providerFade {
           from { opacity: 0; transform: scale(0.9); }
@@ -748,48 +818,201 @@ export default function AIChat() {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0; }
         }
-        @keyframes typingDot {
-          0%, 80%, 100% { transform: translateY(0);   opacity: 0.35; }
-          40%           { transform: translateY(-4px); opacity: 1; }
+        @keyframes typingWave {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+          30%           { transform: translateY(-6px); opacity: 1; }
         }
         @keyframes streamPulse {
           0%, 100% { box-shadow: 0 0 4px rgba(0,240,255,0.4); }
-          50%       { box-shadow: 0 0 10px rgba(0,240,255,0.8); }
+          50%       { box-shadow: 0 0 16px rgba(0,240,255,0.9); }
+        }
+        @keyframes orbPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(0,240,255,0.25), 0 0 12px rgba(0,240,255,0.15); }
+          50%       { box-shadow: 0 0 0 8px rgba(0,240,255,0), 0 0 28px rgba(0,240,255,0.35); }
+        }
+        @keyframes orbGlow {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50%       { opacity: 1; transform: scale(1.08); }
+        }
+        @keyframes listenRipple {
+          0%   { transform: scale(1);   opacity: 0.6; }
+          100% { transform: scale(2.4); opacity: 0; }
+        }
+        @keyframes cortexIdleFloat {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-6px); }
+        }
+        @keyframes promptChipIn {
+          from { opacity: 0; transform: translateY(12px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes scanline {
+          0%   { background-position: 0 0; }
+          100% { background-position: 0 100px; }
+        }
+        @keyframes thinkingOrb {
+          0%, 100% { opacity: 0.5; transform: scale(0.92); filter: blur(0px); }
+          50%       { opacity: 1;   transform: scale(1.08); filter: blur(1px); }
+        }
+        @keyframes statusBarIn {
+          from { opacity: 0; transform: scaleX(0); transform-origin: left; }
+          to   { opacity: 1; transform: scaleX(1); }
         }
         .copy-reveal-row { opacity: 0; transition: opacity 0.18s ease; }
         .group:hover .copy-reveal-row { opacity: 1; }
+        .cortex-msg-user   { animation: msgEntrance 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .cortex-msg-ai     { animation: msgEntrance 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .cortex-prompt-chip { animation: promptChipIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
       `}</style>
 
-      {/* Header */}
-      <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 flex-shrink-0">
-        <div>
-          <div className="mono-label">// Cortex Online</div>
-          <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
+      {/* Slim status strip — orb + live status + model selector in one compact 36px row */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "6px 14px",
+        borderBottom: "1px solid rgba(255,255,255,0.055)",
+        background: "rgba(4,6,12,0.55)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        flexShrink: 0, gap: 10, minHeight: 0,
+      }}>
+        {/* Left: micro-orb + live status text */}
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: "50%",
+              background: streaming
+                ? "radial-gradient(circle at 40% 35%, rgba(207,158,255,0.9) 0%, rgba(0,240,255,0.5) 100%)"
+                : "radial-gradient(circle at 40% 35%, rgba(0,240,255,0.95) 0%, rgba(0,180,220,0.4) 100%)",
+              boxShadow: streaming ? "0 0 10px rgba(207,158,255,0.35)" : "0 0 8px rgba(0,240,255,0.25)",
+              animation: streaming ? "thinkingOrb 1.4s ease-in-out infinite" : "orbPulse 3s ease-in-out infinite",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 7, color: "rgba(255,255,255,0.95)", textShadow: "0 0 5px rgba(0,240,255,0.9)" }} />
+            </div>
+            {isRecording && (
+              <>
+                <span style={{ position: "absolute", inset: -3, borderRadius: "50%", border: "1.5px solid rgba(255,0,60,0.65)", animation: "listenRipple 1.2s ease-out infinite" }} />
+                <span style={{ position: "absolute", inset: -3, borderRadius: "50%", border: "1.5px solid rgba(255,0,60,0.35)", animation: "listenRipple 1.2s ease-out 0.4s infinite" }} />
+              </>
+            )}
+          </div>
+          <span style={{
+            fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.13em", textTransform: "uppercase",
+            color: streaming ? "rgba(207,158,255,0.80)" : isRecording ? "rgba(255,100,100,0.9)" : "rgba(0,240,255,0.60)",
+          }}>
+            {streaming ? "thinking…" : isRecording ? "● listening" : "● online"}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+        {/* Right: provider badge + model picker */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
-          <ModelSelect
-            value={modelValue}
-            onChange={setModelValue}
-            disabled={streaming}
-          />
+          <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
         </div>
       </div>
 
       {/* Messages */}
       <div className="relative flex-1 overflow-hidden">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center text-slate-500 pt-10">
-            <i className="fa-solid fa-wand-magic-sparkles text-4xl text-[#00F0FF] opacity-50" />
-            <div className="mt-3 text-sm">Ask me anything. I remember our conversation.</div>
+      <div
+        ref={scrollContainerRef}
+        className="h-full overflow-y-auto"
+        style={{ padding: "10px 14px 6px", display: "flex", flexDirection: "column", gap: 10 }}
+      >
+        {messages.length === 0 && !streaming && (
+          <div className="flex flex-col items-center justify-center h-full text-center px-6" style={{ minHeight: 200, paddingTop: 24, paddingBottom: 32 }}>
+            {/* Animated Cortex orb hero */}
+            <div style={{ position: "relative", marginBottom: 28 }}>
+              {/* Outer glow rings */}
+              <div style={{
+                position: "absolute", inset: -20, borderRadius: "50%",
+                border: "1px solid rgba(0,240,255,0.08)",
+                animation: "listenRipple 3s ease-out infinite",
+              }} />
+              <div style={{
+                position: "absolute", inset: -12, borderRadius: "50%",
+                border: "1px solid rgba(0,240,255,0.12)",
+                animation: "listenRipple 3s ease-out 1s infinite",
+              }} />
+              {/* Main orb */}
+              <div style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: "radial-gradient(circle at 38% 32%, rgba(0,240,255,0.95) 0%, rgba(0,160,200,0.6) 45%, rgba(100,80,200,0.4) 100%)",
+                boxShadow: "0 0 0 1px rgba(0,240,255,0.3), 0 0 40px rgba(0,240,255,0.25), 0 8px 32px rgba(0,0,0,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                animation: "cortexIdleFloat 4s ease-in-out infinite",
+              }}>
+                <i className="fa-solid fa-wand-magic-sparkles" style={{
+                  fontSize: 26, color: "rgba(255,255,255,0.95)",
+                  textShadow: "0 0 16px rgba(0,240,255,1), 0 0 32px rgba(0,240,255,0.5)",
+                }} />
+              </div>
+            </div>
+
+            {/* Greeting */}
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", letterSpacing: "-0.4px", marginBottom: 6, animation: "fadeSlideUp 0.4s ease 0.1s both" }}>
+              {(() => { const h = new Date().getHours(); return h < 5 ? "Good night." : h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening."; })()}
+            </div>
+            <div style={{
+              fontSize: 13, color: "rgba(148,163,184,0.7)", marginBottom: 32, maxWidth: 280, lineHeight: 1.55,
+              animation: "fadeSlideUp 0.4s ease 0.18s both",
+            }}>
+              Ask me anything — I have context on your whole OS.
+            </div>
+
+            {/* Suggested prompts */}
+            <div className="flex flex-wrap gap-2 justify-center" style={{ maxWidth: 340, animation: "fadeSlideUp 0.4s ease 0.26s both" }}>
+              {[
+                { label: "Summarize my day", icon: "fa-sun" },
+                { label: "Help me focus", icon: "fa-brain" },
+                { label: "What can you do?", icon: "fa-wand-magic-sparkles" },
+                { label: "Open my last app", icon: "fa-clock-rotate-left" },
+              ].map((p, idx) => (
+                <button
+                  key={p.label}
+                  className="cortex-prompt-chip"
+                  onClick={() => sendRef.current?.(p.label)}
+                  style={{
+                    animationDelay: `${0.32 + idx * 0.06}s`,
+                    display: "flex", alignItems: "center", gap: 7,
+                    padding: "8px 14px",
+                    borderRadius: 24,
+                    background: "rgba(0,240,255,0.06)",
+                    border: "1px solid rgba(0,240,255,0.16)",
+                    color: "rgba(200,246,255,0.75)",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    letterSpacing: "0.01em",
+                    backdropFilter: "blur(8px)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(0,240,255,0.13)";
+                    e.currentTarget.style.borderColor = "rgba(0,240,255,0.35)";
+                    e.currentTarget.style.color = "#00F0FF";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,240,255,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(0,240,255,0.06)";
+                    e.currentTarget.style.borderColor = "rgba(0,240,255,0.16)";
+                    e.currentTarget.style.color = "rgba(200,246,255,0.75)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <i className={`fa-solid ${p.icon}`} style={{ fontSize: 10, opacity: 0.8 }} />
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${m.role === "user" ? "justify-end cortex-msg-user" : "justify-start cortex-msg-ai"}`}
+            style={{ animationDelay: `${Math.min(i * 0.03, 0.15)}s` }}
             onMouseEnter={() => setHoveredMsgIdx(i)}
             onMouseLeave={() => setHoveredMsgIdx(null)}
           >
@@ -827,39 +1050,58 @@ export default function AIChat() {
                 </span>
               </div>
             ) : m.role === "assistant" ? (
-              <div className="max-w-[82%] w-full" style={{ maxWidth: "min(82%, 680px)" }}>
+              <div style={{ maxWidth: "min(84%, 680px)" }}>
                 {m.modelUsed && <FallbackBadge modelId={m.modelUsed} />}
                 <div
-                  className="group relative glass-light rounded-2xl"
-                  style={{ padding: "12px 16px 10px" }}
+                  className="group relative"
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 18,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    wordBreak: "break-word",
+                  }}
                 >
-                  {/* Typing indicator — three animated dots when waiting for first token */}
+                  {/* Thinking indicator — premium wave when waiting for first token */}
                   {m.pending && !m.content && i === messages.length - 1 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 0" }}>
-                      {[0, 1, 2].map((di) => (
-                        <span
-                          key={di}
-                          style={{
-                            display: "inline-block",
-                            width: 5, height: 5, borderRadius: "50%",
-                            background: "#00F0FF",
-                            animation: `typingDot 1.2s ease-in-out ${di * 0.18}s infinite`,
-                          }}
-                        />
-                      ))}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 16 }}>
+                        {[0, 1, 2, 3, 4].map((di) => (
+                          <span
+                            key={di}
+                            style={{
+                              display: "inline-block",
+                              width: 3,
+                              height: [10, 14, 16, 14, 10][di],
+                              borderRadius: 3,
+                              background: `rgba(0,240,255,${[0.4,0.6,0.9,0.6,0.4][di]})`,
+                              animation: `typingWave 1.4s ease-in-out ${di * 0.1}s infinite`,
+                              boxShadow: `0 0 6px rgba(0,240,255,${[0.3,0.4,0.6,0.4,0.3][di]})`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                        color: "rgba(0,240,255,0.45)", letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                      }}>
+                        thinking
+                      </span>
                     </div>
                   )}
 
-                  {/* Streaming cursor — blinking block appended during streaming */}
+                  {/* Streaming cursor — premium blinking cursor during generation */}
                   {m.pending && m.content && i === messages.length - 1 && (
                     <span style={{
                       display: "inline-block",
-                      width: 7, height: "1em",
-                      background: "#00F0FF",
+                      width: 2.5, height: "1.1em",
+                      background: "linear-gradient(180deg, #00F0FF, #CF9EFF)",
                       verticalAlign: "text-bottom",
-                      marginLeft: 2,
-                      borderRadius: 1,
-                      animation: "cortexCursorBlink 0.9s step-end infinite",
+                      marginLeft: 3,
+                      borderRadius: 2,
+                      animation: "cortexCursorBlink 0.75s ease-in-out infinite",
+                      boxShadow: "0 0 8px rgba(0,240,255,0.7)",
                     }} />
                   )}
 
@@ -886,14 +1128,15 @@ export default function AIChat() {
                 )}
               </div>
             ) : (
-              <div className="max-w-[80%]">
+              <div style={{ maxWidth: "min(84%, 480px)" }}>
                 <div
-                  className="rounded-2xl text-sm"
                   style={{
-                    padding: "10px 16px",
+                    padding: "10px 14px",
+                    borderRadius: 18,
                     background: "rgba(0,240,255,0.10)",
-                    border: "1px solid rgba(0,240,255,0.22)",
+                    border: "1px solid rgba(0,240,255,0.18)",
                     color: "#E2E8F0",
+                    fontSize: 14,
                     lineHeight: 1.65,
                     wordBreak: "break-word",
                   }}
@@ -1025,13 +1268,15 @@ export default function AIChat() {
               ? "memory: 20 msgs (max context)"
               : `memory: ${contextCount} msg${contextCount !== 1 ? "s" : ""} in context`}
           </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {userLocation?.city && (
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, maxWidth: 110, overflow: "hidden" }}>
                 <svg width="9" height="9" viewBox="0 0 10 13" fill="none" style={{ flexShrink: 0 }}>
                   <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5 1.5 1.5 0 0 1 5 6.5z" fill="#00F0FF" fillOpacity="0.6"/>
                 </svg>
-                {[userLocation.city, userLocation.country].filter(Boolean).join(", ")}
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {userLocation.city}
+                </span>
               </span>
             )}
             <button
@@ -1072,17 +1317,26 @@ export default function AIChat() {
           onClick={toggleMic}
           disabled={streaming}
           title={isRecording ? "Stop recording" : "Speak to Cortex"}
-          className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200"
+          className="flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200"
           style={{
-            background: isRecording ? "rgba(255,0,60,0.15)" : "rgba(255,255,255,0.05)",
-            border: isRecording ? "1px solid rgba(255,0,60,0.5)" : "1px solid rgba(255,255,255,0.10)",
-            color: isRecording ? "#FF003C" : "#64748B",
-            boxShadow: isRecording ? "0 0 16px rgba(255,0,60,0.3)" : "none",
-            animation: isRecording ? "pulse 1s ease-in-out infinite" : "none",
+            position: "relative",
+            width: 36, height: 36,
+            background: isRecording
+              ? "radial-gradient(circle, rgba(255,0,60,0.2) 0%, rgba(255,0,60,0.08) 100%)"
+              : "rgba(255,255,255,0.04)",
+            border: isRecording ? "1px solid rgba(255,0,60,0.55)" : "1px solid rgba(255,255,255,0.09)",
+            color: isRecording ? "#FF4466" : "#64748B",
+            boxShadow: isRecording ? "0 0 20px rgba(255,0,60,0.28), inset 0 0 12px rgba(255,0,60,0.1)" : "none",
             opacity: streaming ? 0.3 : 1,
             cursor: streaming ? "not-allowed" : "pointer",
           }}
         >
+          {isRecording && (
+            <>
+              <span style={{ position:"absolute", inset:-4, borderRadius:"50%", border:"1.5px solid rgba(255,0,60,0.4)", animation:"listenRipple 1.2s ease-out infinite", pointerEvents:"none" }} />
+              <span style={{ position:"absolute", inset:-4, borderRadius:"50%", border:"1.5px solid rgba(255,0,60,0.25)", animation:"listenRipple 1.2s ease-out 0.5s infinite", pointerEvents:"none" }} />
+            </>
+          )}
           <i className={`fa-solid ${isRecording ? "fa-stop" : "fa-microphone"} text-sm`} />
         </button>
 
@@ -1094,17 +1348,18 @@ export default function AIChat() {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               if (isRecording) stopMic();
+              voiceModeRef.current = false; // manual keyboard send exits voice mode
               send();
             }
           }}
-          placeholder={isRecording ? "Listening…" : "Message the cortex…"}
+          placeholder={isRecording ? "Listening…" : "Message Cortex…"}
           className="input-cyber flex-1 transition-all duration-200"
           style={isRecording ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" } : {}}
         />
 
         <button
           data-testid="chat-send"
-          onClick={send}
+          onClick={() => { voiceModeRef.current = false; send(); }} // manual click exits voice mode
           disabled={streaming || !input.trim()}
           className="neon-btn primary !py-2 flex-shrink-0"
         >
