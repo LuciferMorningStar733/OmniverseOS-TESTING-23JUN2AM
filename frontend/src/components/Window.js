@@ -155,11 +155,11 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
         onClick={onClose}
         aria-label="Close"
         style={{
-          width: 36, height: 36,
+          width: 44, height: 44,
           display: "flex", alignItems: "center", justifyContent: "center",
           background: "rgba(255,255,255,0.055)",
           border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 10,
+          borderRadius: 12,
           cursor: "pointer",
           color: "rgba(255,255,255,0.48)", zIndex: 2,
           marginLeft: "auto",

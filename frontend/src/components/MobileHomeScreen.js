@@ -489,9 +489,10 @@ function CortexClock({ now, is24h, onToggle, theme, battery, weather }) {
 
       {/* Date line */}
       <div style={{
-        fontSize: 11.5, fontFamily: "'Outfit', sans-serif",
-        color: "rgba(255,255,255,0.30)", letterSpacing: "0.05em",
+        fontSize: 12, fontFamily: "'Outfit', sans-serif",
+        color: "rgba(255,255,255,0.32)", letterSpacing: "0.06em",
         textTransform: "uppercase", userSelect: "none", textAlign: "center",
+        fontWeight: 500,
       }}>
         {dateStr}
       </div>
@@ -523,9 +524,9 @@ function CortexStatusLine({ status, theme }) {
         }}
       />
       <span style={{
-        fontSize: 12, color: "rgba(255,255,255,0.54)",
+        fontSize: 13, color: "rgba(255,255,255,0.58)",
         fontFamily: "'Outfit', sans-serif", fontWeight: 400,
-        userSelect: "none",
+        userSelect: "none", letterSpacing: "0.01em",
       }}>
         {status}
       </span>
@@ -583,10 +584,10 @@ function QuickApp({ app, onPress, delay }) {
         <i className={`fa-solid ${app.icon}`} style={{ color: app.color, fontSize: 19, filter: `drop-shadow(0 0 8px ${app.color}80)`, position: "relative", zIndex: 1 }} />
       </div>
       <span style={{
-        fontSize: 9, fontFamily: "'Outfit', sans-serif", fontWeight: 500,
-        color: "rgba(255,255,255,0.55)", textAlign: "center",
-        maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        userSelect: "none",
+        fontSize: 11, fontFamily: "'Outfit', sans-serif", fontWeight: 500,
+        color: "rgba(255,255,255,0.60)", textAlign: "center",
+        maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        userSelect: "none", letterSpacing: "0.005em",
       }}>
         {app.name}
       </span>
@@ -712,8 +713,8 @@ function CortexSearchBar({ onTap, theme }) {
               transition={{ duration: 0.22, ease: "easeOut" }}
               style={{
                 position: "absolute", inset: 0, display: "flex", alignItems: "center",
-                fontSize: 13.5, fontFamily: "'Outfit', sans-serif",
-                color: "rgba(255,255,255,0.25)", userSelect: "none", whiteSpace: "nowrap",
+                fontSize: 14, fontFamily: "'Outfit', sans-serif",
+                color: "rgba(255,255,255,0.28)", userSelect: "none", whiteSpace: "nowrap",
               }}
             >
               {SEARCH_PHRASES[phIdx]}
@@ -732,7 +733,7 @@ function CortexSearchBar({ onTap, theme }) {
             transition={{ duration: 2.2, repeat: Infinity }}
             style={{ width: 4, height: 4, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 6px ${theme.accent}` }}
           />
-          <span style={{ fontSize: 9, color: theme.accent, fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.10em" }}>AI</span>
+          <span style={{ fontSize: 10, color: theme.accent, fontFamily: "'Outfit', sans-serif", fontWeight: 700, letterSpacing: "0.10em" }}>AI</span>
         </div>
       </motion.button>
     </motion.div>
@@ -758,9 +759,9 @@ function AppLibraryHint({ onOpen }) {
         className="fa-solid fa-chevron-up"
         animate={{ y: [-2, 2, -2] }}
         transition={{ duration: 2.0, repeat: Infinity, ease: "easeInOut" }}
-        style={{ fontSize: 10, color: "rgba(255,255,255,0.22)" }}
+        style={{ fontSize: 11, color: "rgba(255,255,255,0.28)" }}
       />
-      <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.18)", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.05em" }}>
+      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", fontFamily: "'Outfit', sans-serif", letterSpacing: "0.04em" }}>
         App Library
       </span>
     </motion.button>

@@ -120,6 +120,33 @@ button, a {
     overscroll-behavior-x: contain;
   }
 
+  /* ── Mobile typography scale ──────────────────────────── */
+  /* App window headings: tighter on small screens */
+  [data-testid$="-app"] h1 {
+    font-size: clamp(1.15rem, 5.5vw, 1.6rem) !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.25 !important;
+  }
+  [data-testid$="-app"] h2 {
+    font-size: clamp(1rem, 4.5vw, 1.3rem) !important;
+    letter-spacing: -0.015em !important;
+    line-height: 1.3 !important;
+  }
+  [data-testid$="-app"] h3 {
+    font-size: clamp(0.9rem, 3.8vw, 1.1rem) !important;
+    line-height: 1.35 !important;
+  }
+  /* Body copy: improve readability at mobile sizes */
+  [data-testid$="-app"] p,
+  [data-testid$="-app"] li {
+    line-height: 1.6 !important;
+  }
+  /* Caption / label text: never go below 11px */
+  [data-testid$="-app"] .text-xs {
+    font-size: clamp(11px, 2.8vw, 12px) !important;
+    line-height: 1.5 !important;
+  }
+
   /* ══ DASHBOARD ═══════════════════════════════════════════ */
   [data-testid="dashboard-app"] {
     padding: 1rem !important;
@@ -546,6 +573,24 @@ button, a {
     font-size: 0.55rem !important;
     min-height: 28px !important;
   }
+
+  /* Dock: tighter on 320px */
+  [data-testid="dock-root"] > div {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    gap: 0 !important;
+  }
+}
+
+/* ── 320px–359px refinements ──────────────────────────────── */
+@media (max-width: 359px) {
+  [data-testid="ai-chat-app"] .max-w-\[80\%\] {
+    max-width: 94% !important;
+  }
+  [data-testid="ai-chat-input"] {
+    padding: 0.5rem !important;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem)) !important;
+  }
 }
 
 /* ── Landscape phones ─────────────────────────────────────── */
@@ -560,8 +605,9 @@ button, a {
     padding-bottom: 4px !important;
   }
 
-  [data-testid="ai-chat-messages"] {
-    /* messages area already has internal padding — no override needed in landscape */
+  /* Landscape: give back button and header a bit more breathing room */
+  [data-testid="ai-chat-header"] {
+    padding: 0.4rem 0.875rem !important;
   }
 }
 
