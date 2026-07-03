@@ -788,7 +788,7 @@ function HomePage({ onOpenApp, onOpenSearch, onOpenDrawer }) {
       position: "absolute", inset: 0, overflow: "hidden",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "space-between",
-      padding: "12px 0 10px",
+      padding: "12px 0 calc(96px + env(safe-area-inset-bottom, 0px))",
     }}>
       <AmbientBackground theme={theme} />
 
@@ -935,7 +935,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           position: "absolute",
           top: "calc(60px + env(safe-area-inset-top, 0px))",
           left: 0, right: 0,
-          bottom: "calc(88px + env(safe-area-inset-bottom, 0px))",
+          bottom: 0,
           zIndex: 8, pointerEvents: "auto", overflowX: "hidden",
         }}
         onTouchStart={handleTouchStart}
