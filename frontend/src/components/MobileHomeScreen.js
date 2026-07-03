@@ -129,6 +129,23 @@ function useWeather() {
   return data;
 }
 
+// ─── Focus mode ───────────────────────────────────────────────────────────────
+const FOCUS_MODE_KEY = "omniverse_focus_mode";
+function useFocusMode() {
+  const [enabled, setEnabled] = useState(() => {
+    try { return localStorage.getItem(FOCUS_MODE_KEY) === "on"; } catch { return false; }
+  });
+  const toggle = useCallback(() => {
+    setEnabled((v) => {
+      const next = !v;
+      try { localStorage.setItem(FOCUS_MODE_KEY, next ? "on" : "off"); } catch {}
+      if (navigator.vibrate) navigator.vibrate(next ? [8, 40, 8] : [8]);
+      return next;
+    });
+  }, []);
+  return [enabled, toggle];
+}
+
 // ─── 12 / 24h preference ──────────────────────────────────────────────────────
 const CLOCK_FMT_KEY = "omniverse_clock_format";
 function useClockFormat() {
@@ -155,22 +172,27 @@ function getTheme(h) {
 }
 
 // ─── Contextual one-line Cortex status (no generic greetings) ─────────────────
-function getCortexStatus(h, weather, battery, network) {
-  if (battery && battery.level <= 15 && !battery.charging) return "Low power — consider charging";
+function getCortexStatus(h, weather, battery, network, focusMode) {
+  if (focusMode) return "Focus mode active · Notifications silenced";
+  if (battery && battery.level <= 15 && !battery.charging) return "Low power · Charge soon";
   if (!network.online) return "Offline mode · Local functions active";
   if (battery && battery.charging && battery.level >= 98) return "Fully charged · Cortex ready";
+  const net = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const type = net?.effectiveType;
+  if (type === "2g") return "Slow connection detected · Some features may be limited";
   if (weather) {
-    if (weather.code >= 95) return `Thunderstorm · ${weather.temp}°C · Stay safe`;
-    if (weather.code >= 71) return `Snow conditions · ${weather.temp}°C`;
-    if (weather.code >= 61) return `Rain outside · ${weather.temp}°C`;
+    if (weather.code >= 95) return `⚡ Thunderstorm · ${weather.temp}°C · Stay safe`;
+    if (weather.code >= 71) return `Snow · ${weather.temp}°C · Roads may be icy`;
+    if (weather.code >= 61) return `Rain · ${weather.temp}°C · Grab a jacket`;
   }
-  if (h < 5)  return "Night mode · All systems nominal";
-  if (h < 9)  return "Morning systems online · Ask Cortex anything";
-  if (h < 12) return "Morning · Systems running optimally";
-  if (h < 14) return "Midday · What would you like to do?";
-  if (h < 17) return "Afternoon · All subsystems operational";
-  if (h < 21) return "Evening · Context prepared for tomorrow";
-  return "Night watch active · Everything nominal";
+  if (h < 5)  return "Night watch active · Systems nominal";
+  if (h < 7)  return "Early morning · Cortex standing by";
+  if (h < 9)  return "Good morning · Systems online";
+  if (h < 12) return "Morning · Ask me anything";
+  if (h < 14) return "Midday · Context loaded";
+  if (h < 17) return "Afternoon · All systems operational";
+  if (h < 20) return "Evening · Context prepared for tomorrow";
+  return "Night mode · Everything nominal";
 }
 
 // ─── Shared glass style ───────────────────────────────────────────────────────
@@ -534,6 +556,52 @@ function CortexStatusLine({ status, theme }) {
   );
 }
 
+// ─── Focus mode toggle pill ───────────────────────────────────────────────────
+function FocusModeToggle({ enabled, onToggle, theme }) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.88 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.42, type: "spring", damping: 24, stiffness: 300 }}
+      onClick={onToggle}
+      whileTap={{ scale: 0.93 }}
+      aria-label={enabled ? "Disable focus mode" : "Enable focus mode"}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "5px 13px", borderRadius: 20,
+        background: enabled ? "rgba(57,255,20,0.10)" : "rgba(255,255,255,0.04)",
+        border: `1px solid ${enabled ? "rgba(57,255,20,0.30)" : "rgba(255,255,255,0.09)"}`,
+        backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+        cursor: "pointer", WebkitTapHighlightColor: "transparent",
+        touchAction: "manipulation", userSelect: "none",
+        transition: "background 0.22s ease, border-color 0.22s ease",
+      }}
+    >
+      <motion.i
+        className="fa-solid fa-moon"
+        animate={{ color: enabled ? "#39FF14" : "rgba(255,255,255,0.35)", scale: enabled ? 1 : 0.9 }}
+        transition={{ duration: 0.2 }}
+        style={{ fontSize: 10, filter: enabled ? "drop-shadow(0 0 5px rgba(57,255,20,0.70))" : "none" }}
+      />
+      <span style={{
+        fontSize: 11, fontFamily: "'Outfit', sans-serif", fontWeight: 600,
+        color: enabled ? "#39FF14" : "rgba(255,255,255,0.35)",
+        letterSpacing: "0.04em", textTransform: "uppercase",
+        transition: "color 0.22s ease",
+      }}>
+        {enabled ? "Focus On" : "Focus"}
+      </span>
+      {enabled && (
+        <motion.div
+          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.35, 1] }}
+          transition={{ duration: 2.0, repeat: Infinity, ease: "easeInOut" }}
+          style={{ width: 4, height: 4, borderRadius: "50%", background: "#39FF14", boxShadow: "0 0 6px #39FF14", flexShrink: 0 }}
+        />
+      )}
+    </motion.button>
+  );
+}
+
 // ─── Quick app icons ──────────────────────────────────────────────────────────
 const QUICK_APPS = [
   { id: "chat",     name: "AI Chat",  icon: "fa-comments",    color: "#00F0FF" },
@@ -555,7 +623,7 @@ function QuickApp({ app, onPress, delay }) {
         : { delay, type: "spring", damping: 22, stiffness: 380 }
       }
       onPointerDown={() => setPressed(true)}
-      onPointerUp={() => { setPressed(false); onPress(app.id); }}
+      onPointerUp={() => { setPressed(false); if (navigator.vibrate) navigator.vibrate(8); onPress(app.id); }}
       onPointerLeave={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
       aria-label={`Open ${app.name}`}
@@ -774,13 +842,14 @@ function HomePage({ onOpenApp, onOpenSearch, onOpenDrawer }) {
   const battery = useBattery();
   const network = useNetwork();
   const weather = useWeather();
-  const [is24h, toggleFormat] = useClockFormat();
+  const [is24h, toggleFormat]       = useClockFormat();
+  const [focusMode, toggleFocusMode] = useFocusMode();
 
   const hour   = now.getHours();
   const theme  = useMemo(() => getTheme(hour), [hour]);
   const status = useMemo(
-    () => getCortexStatus(hour, weather, battery, network),
-    [hour, weather, battery, network]
+    () => getCortexStatus(hour, weather, battery, network, focusMode),
+    [hour, weather, battery, network, focusMode]
   );
 
   return (
@@ -807,6 +876,7 @@ function HomePage({ onOpenApp, onOpenSearch, onOpenDrawer }) {
           weather={weather}
         />
         <CortexStatusLine status={status} theme={theme} />
+        <FocusModeToggle enabled={focusMode} onToggle={toggleFocusMode} theme={theme} />
       </div>
 
       {/* ── Quick Apps ── */}

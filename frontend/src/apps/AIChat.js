@@ -391,6 +391,7 @@ export default function AIChat() {
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
+  const [touchedMsgIdx, setTouchedMsgIdx]   = useState(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
   const endRef             = useRef();
@@ -574,6 +575,24 @@ export default function AIChat() {
       container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     }
   }, [messages, streamStatus]);
+
+  // ── Visual viewport resize: scroll to bottom when mobile keyboard opens ───────
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handle = () => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (dist < 320) {
+        requestAnimationFrame(() => {
+          container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+        });
+      }
+    };
+    vv.addEventListener("resize", handle, { passive: true });
+    return () => vv.removeEventListener("resize", handle);
+  }, []);
 
   const send = useCallback(async (forcedText) => {
     const rawText = typeof forcedText === "string" ? forcedText : input;
@@ -863,6 +882,9 @@ export default function AIChat() {
         .cortex-msg-user   { animation: msgEntrance 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
         .cortex-msg-ai     { animation: msgEntrance 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
         .cortex-prompt-chip { animation: promptChipIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+        @media (hover: none) {
+          .copy-reveal-row { opacity: 0.55 !important; }
+        }
       `}</style>
 
       {/* Header */}
@@ -1027,6 +1049,7 @@ export default function AIChat() {
             style={{ animationDelay: `${Math.min(i * 0.03, 0.15)}s` }}
             onMouseEnter={() => setHoveredMsgIdx(i)}
             onMouseLeave={() => setHoveredMsgIdx(null)}
+            onTouchStart={() => { setTouchedMsgIdx(i); setTimeout(() => setTouchedMsgIdx(null), 2500); }}
           >
             {m.error ? (
               <div
@@ -1126,8 +1149,8 @@ export default function AIChat() {
                     </div>
                   )}
                 </div>
-                {/* Timestamp — fades in on hover */}
-                {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
+                {/* Timestamp — fades in on hover or tap */}
+                {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, paddingLeft: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
                     {formatMessageTime(m.ts)}
                   </div>
@@ -1148,8 +1171,8 @@ export default function AIChat() {
                 >
                   {m.content}
                 </div>
-                {/* Timestamp — fades in on hover */}
-                {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
+                {/* Timestamp — fades in on hover or tap */}
+                {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, textAlign: "right", paddingRight: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
                     {formatMessageTime(m.ts)}
                   </div>
@@ -1360,6 +1383,11 @@ export default function AIChat() {
           }}
           placeholder={isRecording ? "Listening…" : "Message Cortex…"}
           className="input-cyber flex-1 transition-all duration-200"
+          enterKeyHint="send"
+          inputMode="text"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck="true"
           style={isRecording ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" } : {}}
         />
 

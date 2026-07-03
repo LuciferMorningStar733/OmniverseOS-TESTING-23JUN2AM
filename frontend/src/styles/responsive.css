@@ -562,6 +562,31 @@ button, a {
   }
 }
 
+/* ── AI Chat: touch-device polish ────────────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  /* Active provider badge — show only icon on touch to avoid overflow */
+  [data-testid="ai-chat-header"] .text-\[10px\].font-mono.px-2.py-0\.5 span:last-of-type {
+    display: none !important;
+  }
+
+  /* Timestamps: always slightly visible on touch (no hover state) */
+  .cortex-msg-user  > div > div[style*="9.5"],
+  .cortex-msg-ai    > div > div[style*="9.5"] {
+    opacity: 0.5 !important;
+  }
+
+  /* Make the model select trigger tall enough to be easily tappable */
+  [data-testid="model-select"] {
+    min-height: 40px !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+
+  /* Smooth overscroll for message list */
+  [data-testid="ai-chat-messages"] > div {
+    overscroll-behavior-y: contain !important;
+  }
+}
+
 /* ── Very small phones (< 360px) ──────────────────────────── */
 @media (max-width: 359px) {
   [data-testid="dashboard-app"] h1 {
