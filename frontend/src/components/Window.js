@@ -353,7 +353,7 @@ export default function Window({ win, children }) {
 
   /* ── Geometry ────────────────────────────────────────────────────────── */
   const topPad    = isMobile ? 60 : 56;
-  const bottomPad = isMobile ? 80 : 96;
+  const bottomPad = isMobile ? 0  : 96; // dock hides when windows open → fill to screen edge
   const availH    = viewport.h - topPad - bottomPad;
 
   let animX, animY, animW, animH, dragEnabled;
