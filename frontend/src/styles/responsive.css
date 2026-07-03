@@ -162,21 +162,17 @@ button, a {
     height: 100% !important;
   }
 
-  [data-testid="ai-chat-app"] > div:first-child {
-    padding: 0.75rem 1rem !important;
+  /* Cortex info bar (orb + name + model selector) */
+  [data-testid="ai-chat-header"] {
     flex-shrink: 0 !important;
+    padding: 0.6rem 0.875rem !important;
   }
 
-  [data-testid="ai-chat-app"] > div:first-child h2 {
-    font-size: 1.1rem !important;
-  }
-
-  [data-testid="ai-chat-app"] > div:nth-child(2) {
+  /* Scrollable message thread */
+  [data-testid="ai-chat-messages"] {
     flex: 1 1 0% !important;
-    overflow-y: auto !important;
-    padding: 0.75rem 0.875rem !important;
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior: contain !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
   }
 
   [data-testid="ai-chat-app"] .max-w-\[80\%\] {
@@ -186,7 +182,8 @@ button, a {
     line-height: 1.55 !important;
   }
 
-  [data-testid="ai-chat-app"] > div:last-child {
+  /* Input composer bar */
+  [data-testid="ai-chat-input"] {
     flex-shrink: 0 !important;
     padding: 0.625rem 0.75rem !important;
     padding-bottom: max(0.625rem, env(safe-area-inset-bottom, 0.625rem)) !important;
@@ -196,12 +193,12 @@ button, a {
     align-items: center !important;
   }
 
-  [data-testid="ai-chat-app"] > div:last-child input {
+  [data-testid="ai-chat-input"] input {
     min-height: 48px !important;
     font-size: 16px !important;
   }
 
-  [data-testid="ai-chat-app"] > div:last-child button {
+  [data-testid="ai-chat-input"] button {
     min-width: 48px !important;
     min-height: 48px !important;
     width: 48px !important;
@@ -563,8 +560,8 @@ button, a {
     padding-bottom: 4px !important;
   }
 
-  [data-testid="ai-chat-app"] > div:nth-child(2) {
-    padding: 0.5rem 0.875rem !important;
+  [data-testid="ai-chat-messages"] {
+    /* messages area already has internal padding — no override needed in landscape */
   }
 }
 

@@ -866,7 +866,7 @@ export default function AIChat() {
       `}</style>
 
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
+      <div data-testid="ai-chat-header" className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
         style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(10px)" }}>
         <div className="flex items-center gap-3">
           {/* Cortex orb indicator */}
@@ -924,7 +924,7 @@ export default function AIChat() {
       </div>
 
       {/* Messages */}
-      <div className="relative flex-1 overflow-hidden">
+      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
         <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: "8px 14px 4px", gap: 10 }}>
@@ -1317,7 +1317,7 @@ export default function AIChat() {
       )}
 
       {/* Input bar */}
-      <div className="p-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
+      <div data-testid="ai-chat-input" className="p-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
         {/* Mic button */}
         <button
           onClick={toggleMic}
