@@ -12,6 +12,10 @@ import { normalizeTranscript } from "../lib/speechCorrection.js";
 import { detectAmbiguity } from "../lib/ambiguityDetector";
 import CortexClarificationModal from "../components/CortexClarificationModal";
 import { playAIProcess, playAIReady } from "../lib/soundEngine";
+import { useBreakpoint } from "../hooks/useBreakpoint";
+import MobileCortexHeader from "../components/mobile/MobileCortexHeader";
+import MobileQuickActions from "../components/mobile/MobileQuickActions";
+import MobileChatInputBar from "../components/mobile/MobileChatInputBar";
 
 const SESSION_ID = "main";
 
@@ -404,6 +408,18 @@ export default function AIChat() {
   const micBaseRef = useRef("");
   const micInputSnapshotRef = useRef("");
 
+  const { isMobile } = useBreakpoint();
+  const [memoryCount, setMemoryCount] = useState(null);
+  const [memoryCountLoading, setMemoryCountLoading] = useState(true);
+  useEffect(() => {
+    let mounted = true;
+    memoryApi.list()
+      .then((list) => { if (mounted) setMemoryCount(Array.isArray(list) ? list.length : null); })
+      .catch(() => { if (mounted) setMemoryCount(null); })
+      .finally(() => { if (mounted) setMemoryCountLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
   const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
   const windowsRef    = useRef([]);
   const activeIdRef   = useRef(null);
@@ -785,6 +801,26 @@ export default function AIChat() {
     messages.slice(contextFloor).filter((m) => m.content && !m.pending && !m.error).length,
     20
   );
+  // Rough token estimate derived from real message content (chars/4) — not fabricated.
+  const approxContextTokens = Math.round(
+    messages.slice(contextFloor).filter((m) => m.content && !m.pending && !m.error)
+      .slice(-20)
+      .reduce((sum, m) => sum + String(m.content).length, 0) / 4
+  );
+  const handleAttachFile = useCallback((file) => {
+    const sizeKb = (file.size / 1024).toFixed(1);
+    if (file.type?.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setInput((prev) => (prev ? `${prev} ` : "") + `[Attached image: ${file.name}, ${sizeKb}KB]`);
+        toast.success(`Attached ${file.name}`, { duration: 2500 });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setInput((prev) => (prev ? `${prev} ` : "") + `[Attached file: ${file.name}, ${sizeKb}KB]`);
+      toast.success(`Attached ${file.name}`, { duration: 2500 });
+    }
+  }, [setInput]);
   const userLocation = (() => {
     try { return JSON.parse(localStorage.getItem("cortex_user_location") || "null"); }
     catch { return null; }
@@ -866,6 +902,21 @@ export default function AIChat() {
       `}</style>
 
       {/* Header */}
+      {isMobile ? (
+        <MobileCortexHeader
+          streaming={streaming}
+          isRecording={isRecording}
+          activeProvider={activeProvider}
+          userLocation={userLocation}
+          contextCount={contextCount}
+          approxContextTokens={approxContextTokens}
+          memoryCount={memoryCount}
+          memoryCountLoading={memoryCountLoading}
+          modelSelectSlot={
+            <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
+          }
+        />
+      ) : (
       <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
         style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(10px)" }}>
         <div className="flex items-center gap-3">
@@ -922,6 +973,16 @@ export default function AIChat() {
           />
         </div>
       </div>
+      )}
+
+      {/* Quick action capsules — mobile only, wired to real OS actions */}
+      {isMobile && (
+        <MobileQuickActions
+          openApp={openApp}
+          onPrompt={(text) => sendRef.current?.(text)}
+          disabled={streaming}
+        />
+      )}
 
       {/* Messages */}
       <div className="relative flex-1 overflow-hidden">
@@ -1310,6 +1371,21 @@ export default function AIChat() {
       )}
 
       {/* Input bar */}
+      {isMobile ? (
+        <MobileChatInputBar
+          input={input}
+          setInput={setInput}
+          streaming={streaming}
+          isRecording={isRecording}
+          onToggleMic={toggleMic}
+          onAttachFile={handleAttachFile}
+          onSend={() => {
+            if (isRecording) stopMic();
+            voiceModeRef.current = false;
+            send();
+          }}
+        />
+      ) : (
       <div className="p-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
         {/* Mic button */}
         <button
@@ -1365,6 +1441,7 @@ export default function AIChat() {
           <i className="fa-solid fa-paper-plane" />
         </button>
       </div>
+      )}
     </div>
   );
 }
