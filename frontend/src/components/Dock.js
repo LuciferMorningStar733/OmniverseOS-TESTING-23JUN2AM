@@ -331,37 +331,57 @@ function MobileDock() {
   const { pillRef, scales, onTouchMove, onTouchEnd } =
     useMobileDockMagnification(pinnedApps.length);
 
-  // Auto-hide dock when user scrolls down in the home feed
-  const [dockVisible, setDockVisible] = useState(true);
+  // ── Visibility rule: dock only lives on the homescreen ───────────────────
+  // Any non-minimized window → dock vanishes with a futuristic exit sequence.
+  const hasOpenWindows = windows.some((w) => !w.minimized);
+
+  // Auto-hide when user scrolls down in the home feed (existing behaviour)
+  const [scrollHidden, setScrollHidden] = useState(false);
   const lastScrollY = useRef(0);
   useEffect(() => {
     const handler = ({ detail }) => {
       const y = detail?.scrollY ?? 0;
-      if (y > lastScrollY.current + 18 && y > 55) {
-        setDockVisible(false);
-      } else if (y < lastScrollY.current - 10 || y < 30) {
-        setDockVisible(true);
-      }
+      if (y > lastScrollY.current + 18 && y > 55) setScrollHidden(true);
+      else if (y < lastScrollY.current - 10 || y < 30) setScrollHidden(false);
       lastScrollY.current = y;
     };
     window.addEventListener("aiHomeScroll", handler);
     return () => window.removeEventListener("aiHomeScroll", handler);
   }, []);
 
+  // Clear scroll-hide the moment the user returns to the homescreen
+  useEffect(() => {
+    if (!hasOpenWindows) setScrollHidden(false);
+  }, [hasOpenWindows]);
+
+  const dockVisible = !hasOpenWindows && !scrollHidden;
+  const n = pinnedApps.length;
+
+  // Track appearance events so the scan-line re-fires every time the dock
+  // materialises (AnimatePresence key trick).
+  const [scanKey, setScanKey] = useState(0);
+  const prevVisible = useRef(false);
+  useEffect(() => {
+    if (dockVisible && !prevVisible.current) setScanKey((k) => k + 1);
+    prevVisible.current = dockVisible;
+  }, [dockVisible]);
+
   return (
     <motion.div
-      initial={{ y: 120, opacity: 0 }}
+      initial={{ y: 120, opacity: 0, scale: 0.88 }}
       animate={{
-        y: dockVisible ? 0 : 120,
-        opacity: dockVisible ? 1 : 0,
+        y:       dockVisible ? 0   : 110,
+        opacity: dockVisible ? 1   : 0,
+        scale:   dockVisible ? 1   : 0.84,
       }}
-      transition={{
-        y:       { type: "spring", damping: 28, stiffness: 280 },
-        opacity: { duration: 0.20 },
-        ...(dockVisible === true && lastScrollY.current === 0
-          ? { delay: 0.22 }
-          : {}),
-      }}
+      transition={dockVisible
+        /* Spring entry — slightly delayed so icons can stagger in cleanly */
+        ? { type: "spring", damping: 26, stiffness: 260, delay: 0.06,
+            opacity: { duration: 0.22, delay: 0.06 } }
+        /* Ease-in exit — snappy collapse that clears before the app settles */
+        : { duration: 0.28, ease: [0.55, 0, 1, 0.45],
+            opacity: { duration: 0.20 }, scale: { duration: 0.24 } }
+      }
       className="absolute left-0 right-0 bottom-0 z-40 pointer-events-none"
       data-testid="dock-root"
       style={{
@@ -373,14 +393,16 @@ function MobileDock() {
         paddingTop: 10,
       }}
     >
-      {/* Floating glass pill */}
+      {/* ── Floating glass pill ─────────────────────────────────────────── */}
       <div
         ref={pillRef}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
         style={{
-          pointerEvents: "auto",
+          pointerEvents: dockVisible ? "auto" : "none",
+          position: "relative",
+          overflow: "hidden",
           background: "rgba(5, 7, 15, 0.84)",
           backdropFilter: "blur(56px) saturate(230%)",
           WebkitBackdropFilter: "blur(56px) saturate(230%)",
@@ -398,12 +420,69 @@ function MobileDock() {
           minWidth: 232,
         }}
       >
+        {/* ── Cyan scan-line sweep on every dock materialisation ────────
+            Fires a light beam across the pill immediately after the pill
+            springs into view, giving a "system online" boot feel.       */}
+        <AnimatePresence>
+          {dockVisible && (
+            <motion.div
+              key={`scan-${scanKey}`}
+              initial={{ x: "-120%", opacity: 1 }}
+              animate={{ x: "180%",  opacity: 0 }}
+              exit={{}}
+              transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.18 }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "50%",
+                background:
+                  "linear-gradient(90deg, transparent 0%, rgba(0,240,255,0.10) 30%, rgba(0,240,255,0.28) 50%, rgba(0,240,255,0.10) 70%, transparent 100%)",
+                pointerEvents: "none",
+                zIndex: 20,
+                borderRadius: "inherit",
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* ── Dock icons with staggered entry / exit ────────────────────
+            Entry:  left → right stagger, spring bounce, blur clears
+            Exit:   right → left stagger, scale crush, blur spreads      */}
         {pinnedApps.map((app, i) => (
           <motion.div
             key={app.id}
-            animate={{ scale: scales[i], y: scales[i] > 1 ? -(scales[i] - 1) * 28 : 0 }}
-            transition={{ type: "spring", stiffness: 500, damping: 28, mass: 0.18 }}
-            style={{ transformOrigin: "bottom center" }}
+            initial={{ opacity: 0, scale: 0.3, y: 22, filter: "blur(6px)" }}
+            animate={dockVisible
+              ? {
+                  /* Magnification drives scale+y; opacity+blur are appearance */
+                  scale:  scales[i],
+                  y:      scales[i] > 1 ? -(scales[i] - 1) * 28 : 0,
+                  opacity: 1,
+                  filter: "blur(0px)",
+                }
+              : {
+                  scale:   0.3,
+                  y:       22,
+                  opacity: 0,
+                  filter:  "blur(6px)",
+                }
+            }
+            transition={dockVisible
+              /* Entry: spring with left-to-right stagger */
+              ? {
+                  type: "spring", stiffness: 460, damping: 22, mass: 0.24,
+                  delay: 0.10 + i * 0.07,
+                  opacity: { duration: 0.22, ease: "easeOut", delay: 0.10 + i * 0.07 },
+                  filter:  { duration: 0.18, ease: "easeOut", delay: 0.10 + i * 0.07 },
+                }
+              /* Exit: ease-in with right-to-left (reverse) stagger */
+              : {
+                  duration: 0.18,
+                  ease: [0.4, 0, 1, 1],
+                  delay: (n - 1 - i) * 0.048,
+                }
+            }
+            style={{ transformOrigin: "bottom center", willChange: "transform, opacity, filter" }}
           >
             <MobileDockIcon
               app={app}
