@@ -840,7 +840,7 @@ export default function Memory() {
         </div>
 
         {/* Category tabs on mobile */}
-        <div className="flex sm:hidden overflow-x-auto" style={{ padding: "8px 12px", gap: 6, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <div className="flex sm:hidden overflow-x-auto scrollbar-none" style={{ padding: "8px 12px 9px", gap: 6, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
           {CATEGORIES.map(cat => (
             <button
               key={cat}
