@@ -474,8 +474,13 @@ export default function Music() {
                         src={thumb(t.id)}
                         alt=""
                         className="w-full h-full object-cover"
+                        style={{ display: isBad ? "none" : undefined }}
                         onError={(e) => { e.target.style.display = "none"; }}
                       />
+                      {/* Placeholder icon — always rendered behind the img; visible when img fails or is skipped */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <i className={`fa-solid ${isBad ? "fa-triangle-exclamation" : "fa-music"} text-xs ${isBad ? "text-yellow-400/50" : "text-slate-600/40"}`} />
+                      </div>
                       {isActive && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                           {loading
@@ -556,6 +561,7 @@ export default function Music() {
                 src={thumb(track.id)}
                 alt={track.title}
                 className="w-full h-full object-cover"
+                style={{ display: isBroken ? "none" : undefined }}
                 onError={(e) => {
                   e.target.style.display = "none";
                   e.target.parentElement.style.background = "#0a0a12";
