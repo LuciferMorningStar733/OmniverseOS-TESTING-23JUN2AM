@@ -257,14 +257,14 @@ export default function CalendarApp() {
 
       {/* Header */}
       <div className="flex-shrink-0 px-4 sm:px-5 pt-4 pb-3" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div>
             <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-slate-500 mb-0.5">// Schedule</div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button onClick={()=>setMonth(new Date(y,m-1))} className="neon-btn !py-1 !px-2.5">
                 <i className="fa-solid fa-chevron-left text-xs"/>
               </button>
-              <h2 className="font-heading text-xl sm:text-2xl font-black min-w-0">
+              <h2 className="font-heading text-lg sm:text-2xl font-black min-w-0 truncate">
                 {month.toLocaleString("default",{month:"long",year:"numeric"})}
               </h2>
               <button onClick={()=>setMonth(new Date(y,m+1))} className="neon-btn !py-1 !px-2.5">
@@ -272,7 +272,7 @@ export default function CalendarApp() {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
             <button onClick={()=>setMonth(new Date())} className="neon-btn !py-1 !px-2.5 text-xs">Today</button>
             <button onClick={()=>{ setAddDate(new Date()); setShowAdd(true); }} className="neon-btn primary !py-1.5 !px-3 text-xs">
               <i className="fa-solid fa-plus text-[10px]"/> Add
