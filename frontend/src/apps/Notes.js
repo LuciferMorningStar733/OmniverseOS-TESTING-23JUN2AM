@@ -259,16 +259,15 @@ export default function Notes() {
             >
               {/* Toolbar */}
               <div
-                className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
+                className="px-4 py-3 flex items-center gap-x-3 gap-y-2 flex-wrap flex-shrink-0"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
               >
                 <input
                   value={sel.title}
                   onChange={(e) => save({ title: e.target.value })}
-                  className="bg-transparent outline-none font-heading text-lg sm:text-xl font-bold flex-1 min-w-0"
-                    style={{ letterSpacing: "-0.01em" }}
+                  className="bg-transparent outline-none font-heading text-lg sm:text-xl font-bold basis-full sm:basis-auto sm:flex-1 min-w-0"
+                  style={{ letterSpacing: "-0.01em", caretColor: sel.color }}
                   placeholder="Untitled"
-                  style={{ caretColor: sel.color }}
                 />
 
                 {/* Color swatches */}
