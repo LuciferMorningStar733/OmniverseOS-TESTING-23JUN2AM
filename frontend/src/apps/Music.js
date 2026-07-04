@@ -470,17 +470,17 @@ export default function Music() {
                   >
                     {/* Thumbnail */}
                     <div className="relative flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-slate-800">
-                      <img
-                        src={thumb(t.id)}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        style={{ display: isBad ? "none" : undefined }}
-                        onError={(e) => { e.target.style.display = "none"; }}
-                      />
-                      {/* Placeholder icon — always rendered behind the img; visible when img fails or is skipped */}
+                      {/* Placeholder — rendered first so img paints on top in DOM order */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <i className={`fa-solid ${isBad ? "fa-triangle-exclamation" : "fa-music"} text-xs ${isBad ? "text-yellow-400/50" : "text-slate-600/40"}`} />
                       </div>
+                      <img
+                        src={thumb(t.id)}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover"
+                        style={{ display: isBad ? "none" : undefined }}
+                        onError={(e) => { e.target.style.display = "none"; }}
+                      />
                       {isActive && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                           {loading
