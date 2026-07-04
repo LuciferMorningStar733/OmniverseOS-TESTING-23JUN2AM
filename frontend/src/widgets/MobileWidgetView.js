@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useState, useMemo } from "react";
+import React, { Suspense, useCallback, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWidgetManager } from "./WidgetManagerContext";
 import { getWidgetDef } from "./widgetRegistry";
@@ -47,14 +47,29 @@ function Loader() {
 function MobileWidgetCard({ item, def }) {
   const { toggleCollapse, removeWidget, togglePin } = useWidgetManager();
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState({ openUpward: false, alignRight: true });
   const [pressTimer, setPressTimer] = useState(null);
+  const cardRef = useRef(null);
 
   const accentColor = def?.color || "#00F0FF";
 
-  const handleTouchStart = useCallback(() => {
-    const t = setTimeout(() => setShowMenu(true), 500);
-    setPressTimer(t);
+  const MENU_HEIGHT = 170; // approx height of the 3-item context menu
+  const MENU_WIDTH = 170;
+
+  const openMenu = useCallback(() => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (rect) {
+      const openUpward = rect.top + 50 + MENU_HEIGHT > window.innerHeight;
+      const alignRight = rect.right - MENU_WIDTH >= 0;
+      setMenuPos({ openUpward, alignRight });
+    }
+    setShowMenu(true);
   }, []);
+
+  const handleTouchStart = useCallback(() => {
+    const t = setTimeout(openMenu, 500);
+    setPressTimer(t);
+  }, [openMenu]);
 
   const handleTouchEnd = useCallback(() => {
     clearTimeout(pressTimer);
@@ -76,6 +91,8 @@ function MobileWidgetCard({ item, def }) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
+      onContextMenu={(e) => { e.preventDefault(); openMenu(); }}
+      ref={cardRef}
       style={{ position: "relative", marginBottom: 12, touchAction: "pan-y" }}
     >
       <div
@@ -189,7 +206,10 @@ function MobileWidgetCard({ item, def }) {
             transition={{ type: "spring", stiffness: 420, damping: 28 }}
             style={{
               position: "absolute",
-              top: 50, right: 12,
+              top: menuPos.openUpward ? "auto" : 50,
+              bottom: menuPos.openUpward ? 50 : "auto",
+              right: menuPos.alignRight ? 12 : "auto",
+              left: menuPos.alignRight ? "auto" : 12,
               background: "rgba(10,12,22,0.96)",
               backdropFilter: "blur(32px)",
               WebkitBackdropFilter: "blur(32px)",
@@ -198,6 +218,7 @@ function MobileWidgetCard({ item, def }) {
               padding: "6px 0",
               zIndex: 200,
               minWidth: 160,
+              maxWidth: "calc(100vw - 24px)",
               boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
             }}
           >

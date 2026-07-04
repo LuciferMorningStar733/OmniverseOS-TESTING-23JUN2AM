@@ -805,11 +805,14 @@ export default function Memory() {
       {/* Main content */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         {/* Toolbar */}
-        <div style={{
-          padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)",
-          display: "flex", gap: 8, alignItems: "center", flexShrink: 0,
-        }}>
-          <div style={{ position: "relative", flex: 1 }}>
+        <div
+          className="flex flex-wrap sm:flex-nowrap"
+          style={{
+            padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+            gap: 8, alignItems: "center", flexShrink: 0,
+          }}
+        >
+          <div className="w-full sm:flex-1 sm:w-auto" style={{ position: "relative" }}>
             <i className="fa-solid fa-magnifying-glass" style={{
               position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
               fontSize: 11, color: "rgba(255,255,255,0.3)",
@@ -822,21 +825,23 @@ export default function Memory() {
               style={{ width: "100%", paddingLeft: 28, boxSizing: "border-box" }}
             />
           </div>
-          <button
-            onClick={() => setShowStrength(true)}
-            className="neon-btn"
-            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-            title="Memory Strength"
-          >
-            <i className="fa-solid fa-chart-bar mr-1" /> Strength
-          </button>
-          <button
-            onClick={() => { setEditTarget(null); setShowAddModal(true); }}
-            className="neon-btn primary"
-            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-          >
-            <i className="fa-solid fa-plus mr-1" /> Store
-          </button>
+          <div className="flex w-full sm:w-auto" style={{ gap: 8 }}>
+            <button
+              onClick={() => setShowStrength(true)}
+              className="neon-btn flex-1 sm:flex-none"
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              title="Memory Strength"
+            >
+              <i className="fa-solid fa-chart-bar mr-1" /> Strength
+            </button>
+            <button
+              onClick={() => { setEditTarget(null); setShowAddModal(true); }}
+              className="neon-btn primary flex-1 sm:flex-none"
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              <i className="fa-solid fa-plus mr-1" /> Store
+            </button>
+          </div>
         </div>
 
         {/* Category tabs on mobile */}
