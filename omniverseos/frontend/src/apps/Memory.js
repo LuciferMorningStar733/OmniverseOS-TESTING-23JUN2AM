@@ -754,12 +754,12 @@ export default function Memory() {
 
   return (
     <div className="flex flex-col sm:flex-row h-full text-white" data-testid="memory-app">
-      {/* Sidebar */}
+      {/* Sidebar — desktop/tablet only, never rendered on mobile */}
       <div style={{
         width: 200, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.08)",
         padding: "16px 10px", display: "flex", flexDirection: "column", gap: 4,
         overflowY: "auto",
-      }} className="hidden sm:flex">
+      }} className="hidden md:flex">
         <div style={{ fontFamily: "monospace", fontSize: 9.5, color: "rgba(0,240,255,0.5)", letterSpacing: "0.15em", marginBottom: 8, paddingLeft: 8 }}>
           // CORTEX MEMORY
         </div>
@@ -805,11 +805,11 @@ export default function Memory() {
       {/* Main content */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         {/* Toolbar */}
-        <div style={{
+        <div className="flex flex-wrap md:flex-nowrap" style={{
           padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)",
-          display: "flex", gap: 8, alignItems: "center", flexShrink: 0,
+          gap: 8, alignItems: "center", flexShrink: 0,
         }}>
-          <div style={{ position: "relative", flex: 1 }}>
+          <div className="w-full md:flex-1 md:w-auto" style={{ position: "relative" }} data-search-row>
             <i className="fa-solid fa-magnifying-glass" style={{
               position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
               fontSize: 11, color: "rgba(255,255,255,0.3)",
@@ -822,35 +822,43 @@ export default function Memory() {
               style={{ width: "100%", paddingLeft: 28, boxSizing: "border-box" }}
             />
           </div>
-          <button
-            onClick={() => setShowStrength(true)}
-            className="neon-btn"
-            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-            title="Memory Strength"
-          >
-            <i className="fa-solid fa-chart-bar mr-1" /> Strength
-          </button>
-          <button
-            onClick={() => { setEditTarget(null); setShowAddModal(true); }}
-            className="neon-btn primary"
-            style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-          >
-            <i className="fa-solid fa-plus mr-1" /> Store
-          </button>
+          <div className="flex w-full md:w-auto" style={{ gap: 8 }} data-btn-row>
+            <button
+              onClick={() => setShowStrength(true)}
+              className="neon-btn flex-1 md:flex-none"
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              title="Memory Strength"
+            >
+              <i className="fa-solid fa-chart-bar mr-1" /> Strength
+            </button>
+            <button
+              onClick={() => { setEditTarget(null); setShowAddModal(true); }}
+              className="neon-btn primary flex-1 md:flex-none"
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              <i className="fa-solid fa-plus mr-1" /> Store
+            </button>
+          </div>
         </div>
 
-        {/* Category tabs on mobile */}
-        <div className="flex sm:hidden overflow-x-auto" style={{ padding: "8px 12px", gap: 6, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        {/* Category tabs on mobile/tablet */}
+        <div
+          className="flex md:hidden overflow-x-auto"
+          style={{
+            padding: "8px 12px", gap: 6, borderBottom: "1px solid rgba(255,255,255,0.06)",
+            flexShrink: 0, WebkitOverflowScrolling: "touch", scrollbarWidth: "none",
+          }}
+        >
           {CATEGORIES.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
               style={{
-                flexShrink: 0, padding: "4px 10px", borderRadius: 20, fontSize: 11,
+                flexShrink: 0, padding: "6px 12px", borderRadius: 20, fontSize: 11.5,
                 background: activeCategory === cat ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.04)",
                 border: activeCategory === cat ? "1px solid rgba(0,240,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
                 color: activeCategory === cat ? "#00F0FF" : "rgba(255,255,255,0.5)",
-                cursor: "pointer",
+                cursor: "pointer", whiteSpace: "nowrap",
               }}
             >
               {cat}

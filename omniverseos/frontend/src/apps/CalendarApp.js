@@ -256,23 +256,23 @@ export default function CalendarApp() {
       style={{ background:"linear-gradient(135deg, rgba(251,146,60,0.02) 0%, transparent 60%)" }}>
 
       {/* Header */}
-      <div className="flex-shrink-0 px-4 sm:px-5 pt-4 pb-3" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
+      <div className="flex-shrink-0 px-3 sm:px-5 pt-4 pb-3" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-slate-500 mb-0.5">// Schedule</div>
-            <div className="flex items-center gap-3">
-              <button onClick={()=>setMonth(new Date(y,m-1))} className="neon-btn !py-1 !px-2.5">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <button onClick={()=>setMonth(new Date(y,m-1))} className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0">
                 <i className="fa-solid fa-chevron-left text-xs"/>
               </button>
-              <h2 className="font-heading text-xl sm:text-2xl font-black min-w-0">
+              <h2 className="font-heading text-base sm:text-xl md:text-2xl font-black min-w-0 flex-1 truncate whitespace-nowrap text-center sm:text-left">
                 {month.toLocaleString("default",{month:"long",year:"numeric"})}
               </h2>
-              <button onClick={()=>setMonth(new Date(y,m+1))} className="neon-btn !py-1 !px-2.5">
+              <button onClick={()=>setMonth(new Date(y,m+1))} className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0">
                 <i className="fa-solid fa-chevron-right text-xs"/>
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-center sm:justify-end order-3 sm:order-none">
             <button onClick={()=>setMonth(new Date())} className="neon-btn !py-1 !px-2.5 text-xs">Today</button>
             <button onClick={()=>{ setAddDate(new Date()); setShowAdd(true); }} className="neon-btn primary !py-1.5 !px-3 text-xs">
               <i className="fa-solid fa-plus text-[10px]"/> Add
@@ -281,10 +281,10 @@ export default function CalendarApp() {
         </div>
 
         {/* View tabs */}
-        <div className="flex gap-1 mt-3">
+        <div className="flex gap-1 mt-3 overflow-x-auto" style={{ WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
           {VIEWS.map(v=>(
             <button key={v.id} onClick={()=>setView(v.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all flex-shrink-0 whitespace-nowrap"
               style={{ background:view===v.id?"rgba(251,146,60,0.12)":"rgba(255,255,255,0.04)", border:view===v.id?"1px solid rgba(251,146,60,0.3)":"1px solid rgba(255,255,255,0.06)", color:view===v.id?"#FB923C":"rgba(255,255,255,0.45)", cursor:"pointer" }}>
               <i className={`fa-solid ${v.icon} text-[10px]`}/>{v.label}
             </button>
