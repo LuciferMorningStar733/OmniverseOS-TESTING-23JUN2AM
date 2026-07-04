@@ -978,7 +978,7 @@ export default function AIChat() {
       <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
-        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: "8px 14px 4px", gap: 10 }}>
+        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
 
         {messages.length === 0 && !streaming && (
