@@ -308,7 +308,7 @@ export default function WidgetStore({ onClose }) {
               cursor: isMobile ? "default" : "grab",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, overflow: "hidden" }}>
               {!isMobile && (
                 <div style={{
                   display: "flex", flexDirection: "column", gap: 2.5,
@@ -331,6 +331,7 @@ export default function WidgetStore({ onClose }) {
                 fontSize: 12, fontFamily: "monospace",
                 letterSpacing: "0.14em", color: "rgba(255,255,255,0.85)",
                 textTransform: "uppercase", whiteSpace: "nowrap",
+                overflow: "hidden", textOverflow: "ellipsis", minWidth: 0,
               }}>
                 Widget Store
               </span>
