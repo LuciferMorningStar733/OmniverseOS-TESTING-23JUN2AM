@@ -1566,7 +1566,7 @@ export default function AIChat() {
         </button>
       </div>
 
-      </div>{/* end main chat flex column */}
-    </div>{/* end outer flex row */}
+      </div>
+    </div>
   );
 }
