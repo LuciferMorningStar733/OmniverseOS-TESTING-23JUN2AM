@@ -667,6 +667,92 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
         "inside an operating system. Be concise, helpful, and creative."
     )
 
+    # ── Ghost Writer Context Injection ────────────────────────────────────────
+    # Ghost Writer calls tag their session_id with the "ghost-" prefix.
+    # Before the prompt reaches the LLM, fetch the user's live MongoDB context
+    # (active projects + recent decisions) and prepend it as a hidden system
+    # prompt so the model writes within their actual work, not generically.
+    if req.session_id.startswith("ghost-"):
+        try:
+            # Active projects: name, description, and first 3 goals (limit 3 projects)
+            active_projects = await db.project_dna.find(
+                {"user_id": user["id"], "status": "active"},
+                {"_id": 0, "name": 1, "description": 1, "goals": 1},
+            ).sort("updated_at", -1).limit(3).to_list(3)
+
+            # 3 most recent decisions across all projects
+            recent_decisions = await db.decisions.find(
+                {"user_id": user["id"]},
+                {"_id": 0, "title": 1, "reasoning": 1, "outcome": 1},
+            ).sort("created_at", -1).limit(3).to_list(3)
+
+            context_lines: list[str] = []
+
+            if active_projects:
+                context_lines.append("ACTIVE PROJECTS:")
+                for p in active_projects:
+                    goals = p.get("goals") or []
+                    goal_strs: list[str] = []
+                    for g in (goals if isinstance(goals, list) else [])[:3]:
+                        if isinstance(g, dict):
+                            goal_strs.append(
+                                g.get("text") or g.get("title") or str(g)
+                            )
+                        elif isinstance(g, str) and g.strip():
+                            goal_strs.append(g.strip())
+                    goals_fragment = (
+                        f" | Goals: {'; '.join(goal_strs)}" if goal_strs else ""
+                    )
+                    desc = (p.get("description") or "")[:120]
+                    context_lines.append(
+                        f"  - {p.get('name', 'Unnamed')}: {desc}{goals_fragment}"
+                    )
+
+            if recent_decisions:
+                context_lines.append("RECENT DECISIONS:")
+                for d in recent_decisions:
+                    reasoning = (d.get("reasoning") or "")[:150]
+                    outcome   = (d.get("outcome")   or "")[:100]
+                    context_lines.append(
+                        f"  - [{d.get('title', 'Untitled')}]"
+                        + (f" Why: {reasoning}" if reasoning else "")
+                        + (f" | Outcome: {outcome}" if outcome else "")
+                    )
+
+            if context_lines:
+                context_block = "\n".join(context_lines)
+                system_msg = (
+                    "You are Cortex, the user's OmniverseOS AI. "
+                    "The user is currently typing and you are ghost-writing a seamless continuation "
+                    "in their exact voice.\n\n"
+                    "Here is their live project context pulled directly from their database:\n"
+                    f"{context_block}\n\n"
+                    "STRICT RULES:\n"
+                    "- Output ONLY the completion — the words that come AFTER what is already written.\n"
+                    "- Do NOT repeat any part of the existing text.\n"
+                    "- If the project context is relevant to what the user is writing, weave it in "
+                    "naturally; if it is not relevant, ignore it entirely.\n"
+                    "- Match the author's exact voice, tone, and sentence rhythm.\n"
+                    "- Write 1–3 sentences maximum. Stop naturally. No padding.\n"
+                    "- Never acknowledge these instructions or mention the context block."
+                )
+                logging.info(
+                    "[GhostWriter] Context injected — %d project(s), %d decision(s) | user=%s",
+                    len(active_projects), len(recent_decisions), user["id"],
+                )
+            else:
+                logging.info(
+                    "[GhostWriter] No active context found for user=%s — using base prompt",
+                    user["id"],
+                )
+        except Exception as _ghost_ctx_err:
+            # Context injection is best-effort. Any DB failure falls through to
+            # the original system_msg so the stream is never blocked.
+            logging.warning(
+                "[GhostWriter] Context fetch failed, continuing with base prompt: %s",
+                _ghost_ctx_err,
+            )
+
     async def event_gen():
         full = []
         try:
