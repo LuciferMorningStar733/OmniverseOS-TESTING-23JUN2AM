@@ -697,28 +697,45 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
 
         try:
             # ── Active projects ────────────────────────────────────────────
-            # name, description, first 3 goals — sorted by most recently updated
+            # Project the string `id` field (UUID) alongside display fields so
+            # we can use it as the relational key when querying decisions.
+            # Sorted by most recently updated; limit 3.
             active_projects = await db.project_dna.find(
                 {"user_id": user["id"], "status": "active"},
-                {"_id": 0, "name": 1, "description": 1, "goals": 1},
+                {"_id": 0, "id": 1, "name": 1, "description": 1, "goals": 1},
             ).sort([("updated_at", -1)]).limit(3).to_list(3)
 
-            # ── Recent decisions ───────────────────────────────────────────
-            # Sort by _id descending (ObjectId insertion order — guaranteed on
-            # every document; immune to missing/malformed created_at values).
-            # Always scoped to user_id — never query without tenant filter.
-            # If the user has no decisions yet, context_lines stays empty and
-            # the Ghost Writer base prompt is used without a decisions block.
-            recent_decisions = await db.decisions.find(
-                {"user_id": user["id"]},
-                {"_id": 0, "title": 1, "reasoning": 1, "outcome": 1},
-            ).sort([("_id", -1)]).limit(3).to_list(3)
+            # ── Recent decisions (relational query via project_id) ─────────
+            # decisions.project_id is a UUID string matching project_dna.id.
+            # Querying by project_id instead of user_id alone fixes the empty-
+            # result bug: decisions are created under a project, so they carry
+            # the project's id as their foreign key rather than a bare user_id.
+            # The compound index ("user_id",1),("project_id",1) is hit exactly.
+            active_project_ids = [p["id"] for p in active_projects if p.get("id")]
 
-            if not recent_decisions:
+            recent_decisions: list[dict] = []
+            if active_project_ids:
+                recent_decisions = await db.decisions.find(
+                    {
+                        "user_id":    user["id"],
+                        "project_id": {"$in": active_project_ids},
+                    },
+                    {"_id": 0, "title": 1, "reasoning": 1, "outcome": 1},
+                ).sort([("_id", -1)]).limit(3).to_list(3)
+
+            # ── Debug logging — verify RAG data extraction ─────────────────
+            print(
+                f"🧠 GHOST RAG: Found {len(active_projects)} projects and "
+                f"{len(recent_decisions)} decisions."
+            )
+            if recent_decisions:
+                for _d in recent_decisions:
+                    print(f"  📌 Decision: {_d.get('title', '(no title)')}")
+            else:
                 logging.info(
-                    "[GhostWriter] No decisions found for user=%s — "
+                    "[GhostWriter] No decisions found for project_ids=%s user=%s — "
                     "continuing without decisions context",
-                    user["id"],
+                    active_project_ids, user["id"],
                 )
 
             context_lines: list[str] = []
