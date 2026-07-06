@@ -1416,7 +1416,7 @@ async def search_conversations(req: ConversationSearchReq, user=Depends(get_curr
             "session_id": sid,
             "session_title": sess.get("title") or "Untitled",
             "updated_at": sess.get("updated_at"),
-            "excerpt": f"Session title matches "{q}"",
+            "excerpt": f'Session title matches "{q}"',
             "match_type": "title",
             "role": None,
         })

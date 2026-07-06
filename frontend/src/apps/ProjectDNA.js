@@ -463,16 +463,26 @@ function ProjectDetail({ project, onUpdate, onDelete }) {
     }
   }, [tab, project.id]);
 
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(saveTimer.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const update = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
     setDirty(true);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      if (!mountedRef.current) return;
       setSaving(true);
       projectsApi.update(project.id, { [k]: v })
-        .then((updated) => { onUpdate(updated); setDirty(false); })
-        .catch(() => toast.error("Save failed"))
-        .finally(() => setSaving(false));
+        .then((updated) => { if (mountedRef.current) { onUpdate(updated); setDirty(false); } })
+        .catch(() => { if (mountedRef.current) toast.error("Save failed"); })
+        .finally(() => { if (mountedRef.current) setSaving(false); });
     }, 800);
   };
 

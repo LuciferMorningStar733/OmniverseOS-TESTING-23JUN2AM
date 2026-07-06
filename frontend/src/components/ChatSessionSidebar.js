@@ -365,8 +365,18 @@ export default function ChatSessionSidebar({
   const [searchVal, setSearchVal] = useState("");
   const [semanticResults, setSemanticResults] = useState(null); // null = not searched
   const [semanticLoading, setSemanticLoading] = useState(false);
-  const searchTimeout = useRef(null);
+  const searchTimeout  = useRef(null);
   const semanticTimeout = useRef(null);
+  const mountedRef    = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(searchTimeout.current);
+      clearTimeout(semanticTimeout.current);
+    };
+  }, []);
 
   const handleSearch = useCallback((q) => {
     setSearchVal(q);
