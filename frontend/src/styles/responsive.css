@@ -635,13 +635,10 @@ button, a {
     padding-bottom: 2px !important;
   }
 
-  /* Week view: horizontal scroll on narrow screens */
-  [data-testid="calendar-app"] .grid-cols-7:not(.text-\\[10px\\]) {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    display: grid !important;
-    grid-template-columns: repeat(7, minmax(44px, 1fr)) !important;
-  }
+  /* Week view: horizontal scroll is handled in CalendarApp.js directly
+     (overflow-x-auto on the wrapper + minWidth inline style on the grid).
+     A CSS .grid-cols-7 selector here would also hit the MonthView day grid
+     and unintentionally force horizontal scroll there too. */
 
   /* ══ FILE MANAGER — toolbar buttons ═══════════════════════ */
   /* Folder/File buttons in the header toolbar must not go full-width */
