@@ -318,7 +318,7 @@ export default function Window({ win, children }) {
     color: "#00F0FF", group: "unknown",
   };
   const isActive = activeId === win.id;
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isTablet, isTouch } = useBreakpoint();
 
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [isDragging, setIsDragging] = useState(false);
@@ -352,13 +352,15 @@ export default function Window({ win, children }) {
   if (win.minimized) return null;
 
   /* ── Geometry ────────────────────────────────────────────────────────── */
-  const topPad    = isMobile ? 60 : 56;
-  const bottomPad = isMobile ? 0  : 96; // dock hides when windows open → fill to screen edge
+  // topPad: space below topbar. Mobile=60px, Tablet=48px, Desktop=56px
+  const topPad    = isMobile ? 60 : isTablet ? 48 : 56;
+  const bottomPad = isTouch ? 0 : 96; // dock hides when windows open → fill to screen edge
   const availH    = viewport.h - topPad - bottomPad;
 
   let animX, animY, animW, animH, dragEnabled;
 
-  if (isMobile) {
+  if (isTouch) {
+    // Phones and tablets: fullscreen windows, no drag
     animX = 0; animY = 0;
     animW = viewport.w; animH = availH;
     dragEnabled = false;
@@ -385,8 +387,8 @@ export default function Window({ win, children }) {
     bottom: viewport.h - bottomPad - win.y - 40,
   } : false;
 
-  /* ══ MOBILE ══════════════════════════════════════════════════════════════ */
-  if (isMobile) {
+  /* ══ TOUCH (MOBILE + TABLET) — fullscreen window ══════════════════════════ */
+  if (isTouch) {
     return (
       <motion.div
         key={win.id}

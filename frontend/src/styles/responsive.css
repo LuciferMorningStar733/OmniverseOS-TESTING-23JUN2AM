@@ -25,12 +25,348 @@ button, a {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── TABLET (768px – 1023px) ─────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   TABLET (768px – 1023px) — iPadOS / Android tablet
+   All rules use !important to override Tailwind sm: classes
+   (sm: fires at 640px, so tablet always lands in sm: range)
+══════════════════════════════════════════════════════════ */
 @media (max-width: 1023px) and (min-width: 768px) {
+
+  /* ── Safe area (iPad notch / home bar) ──────────────────── */
+  [data-testid="desktop-root"] {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* ── Scrollbar hiding ────────────────────────────────────── */
+  * {
+    scrollbar-width: none !important;
+  }
+  *::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* ── Global touch scrolling ──────────────────────────────── */
+  .overflow-y-auto,
+  .overflow-x-auto,
+  [style*="overflow-y: auto"],
+  [style*="overflow-y:auto"],
+  [style*="overflow: auto"],
+  [style*="overflow:auto"] {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+
+  /* ── Touch tap targets ───────────────────────────────────── */
+  button {
+    min-height: 36px;
+  }
+
+  /* ── Prevent any app from overflowing viewport width ──────── */
+  [data-testid$="-app"] {
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  [data-testid$="-app"] > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  [data-testid$="-app"] .grid {
+    min-width: 0 !important;
+  }
+  [data-testid$="-app"] .grid > * {
+    min-width: 0 !important;
+  }
+
+  /* ── Safe area for dock ──────────────────────────────────── */
+  [data-testid="dock-root"] {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
   [data-testid="dock-root"] > div {
     gap: 0.25rem !important;
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     PER-APP TABLET FIXES
+     ════════════════════════════════════════════════════════ */
+
+  /* ── CALENDAR ────────────────────────────────────────────── */
+  [data-testid="calendar-app"] {
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Month/year heading — clamp size, prevent wrap */
+  [data-testid="calendar-app"] h2 {
+    font-size: clamp(0.9rem, 2.5vw, 1.4rem) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+  }
+
+  /* Keep navigation arrows on screen */
+  [data-testid="calendar-app"] button[aria-label*="prev"],
+  [data-testid="calendar-app"] button[aria-label*="next"],
+  [data-testid="calendar-app"] button[aria-label*="Previous"],
+  [data-testid="calendar-app"] button[aria-label*="Next"] {
+    flex-shrink: 0 !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+
+  /* Header row: no wrap, keep arrows + title on one line */
+  [data-testid="calendar-app"] .flex.flex-wrap {
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+  }
+
+  /* Today + Add buttons */
+  [data-testid="calendar-app"] .order-3,
+  [data-testid="calendar-app"] .order-last {
+    display: flex !important;
+    gap: 0.5rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Day cells: enough height for touch */
+  [data-testid="calendar-app"] .grid-cols-7 button {
+    min-height: 44px !important;
+    padding: 0.35rem !important;
+  }
+
+  /* ── MEMORY ──────────────────────────────────────────────── */
+  [data-testid="memory-app"] {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* Hide desktop sidebar (normally shown via sm:flex at 640px+) */
+  [data-testid="memory-app"] > div:first-child {
+    display: none !important;
+  }
+
+  /* Show mobile category pills (normally hidden via sm:hidden) */
+  [data-testid="memory-app"] .overflow-x-auto {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+  [data-testid="memory-app"] .overflow-x-auto button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    min-height: 34px !important;
+  }
+
+  /* Content area fills remaining height */
+  [data-testid="memory-app"] > div:last-child {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* ── SETTINGS ────────────────────────────────────────────── */
+  [data-testid="settings-app"] {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Collapse any 2-col grids to single column */
+  [data-testid="settings-app"] .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tablet-friendly padding (override sm:p-6 etc.) */
+  [data-testid="settings-app"] .sm\:p-6 {
+    padding: 1rem !important;
+  }
+  [data-testid="settings-app"] .sm\:gap-4 {
+    gap: 0.75rem !important;
+  }
+  [data-testid="settings-app"] .sm\:gap-6 {
+    gap: 1rem !important;
+  }
+
+  /* ── DASHBOARD ───────────────────────────────────────────── */
+  /* 4-col stat cards → 2 per row */
+  [data-testid="dashboard-app"] .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  /* 3-col sections → 2 per row */
+  [data-testid="dashboard-app"] .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  /* col-span-2 would break a 2-col grid */
+  [data-testid="dashboard-app"] .col-span-2 {
+    grid-column: span 1 !important;
+  }
+  /* col-span-3 in a 4-col grid */
+  [data-testid="dashboard-app"] .col-span-3 {
+    grid-column: span 2 !important;
+  }
+
+  /* ── ANALYTICS ───────────────────────────────────────────── */
+  [data-testid="analytics-app"] .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="analytics-app"] .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="analytics-app"] .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── TASKS ───────────────────────────────────────────────── */
+  [data-testid="tasks-app"] .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="tasks-app"] .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── NOTES ───────────────────────────────────────────────── */
+  /* Notes typically has a sidebar + editor layout — keep it */
+  [data-testid="notes-app"] {
+    overflow: hidden !important;
+    display: flex !important;
+  }
+  /* Constrain sidebar to max 200px on tablet */
+  [data-testid="notes-app"] > div:first-child {
+    max-width: 200px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ── FILES ───────────────────────────────────────────────── */
+  [data-testid="files-app"] .grid-cols-6 {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="files-app"] .grid-cols-5 {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="files-app"] .grid-cols-4 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── MUSIC ───────────────────────────────────────────────── */
+  [data-testid="music-app"] .grid-cols-4 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="music-app"] .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── VIDEOS / WATCHLIST ──────────────────────────────────── */
+  [data-testid="videos-app"] .grid-cols-4,
+  [data-testid="watchlist-app"] .grid-cols-4 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  [data-testid="videos-app"] .grid-cols-3,
+  [data-testid="watchlist-app"] .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── AI CHAT ─────────────────────────────────────────────── */
+  [data-testid="ai-chat-app"],
+  [data-testid="chat-app"] {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+  }
+
+  /* Message list fills height */
+  [data-testid="ai-chat-messages"],
+  [data-testid="chat-messages"] {
+    flex: 1 1 0% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    min-height: 0 !important;
+  }
+
+  /* Input bar sticks to bottom */
+  [data-testid="ai-chat-input"],
+  [data-testid="chat-input"] {
+    flex-shrink: 0 !important;
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom, 0.625rem)) !important;
+  }
+
+  /* Prevent iOS auto-zoom on input focus */
+  [data-testid="ai-chat-input"] input,
+  [data-testid="chat-input"] input,
+  [data-testid="ai-chat-input"] textarea,
+  [data-testid="chat-input"] textarea {
+    font-size: 16px !important;
+  }
+
+  /* ── BROWSER ─────────────────────────────────────────────── */
+  [data-testid="browser-app"] {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* Address bar — full width on tablet */
+  [data-testid="browser-app"] input[type="url"],
+  [data-testid="browser-app"] input[type="text"] {
+    font-size: 16px !important; /* prevent zoom */
+    min-width: 0 !important;
+    flex: 1 1 0% !important;
+  }
+
+  /* ── GENERAL sm: CLASS OVERRIDES ─────────────────────────── */
+  /* These are the Tailwind sm: utility classes that fire at 640px
+     and produce wrong layouts on tablet. We restore single-column
+     / non-wrapping layouts where needed. */
+
+  /* sm:flex-row applied inside app containers: no forced row layout */
+  [data-testid$="-app"] .sm\:flex-row {
+    flex-direction: column !important;
+  }
+
+  /* But allow flex-row for known horizontal nav rows (they work fine) */
+  [data-testid="calendar-app"] .sm\:flex-row,
+  [data-testid="music-app"] .sm\:flex-row,
+  [data-testid="notes-app"] .sm\:flex-row,
+  [data-testid="browser-app"] .sm\:flex-row {
+    flex-direction: row !important;
+  }
+
+  /* sm:w-XX classes used for sidebar widths: let content fill full width */
+  [data-testid="settings-app"] .sm\:w-64 {
+    width: 100% !important;
+  }
+  [data-testid="settings-app"] .sm\:w-48 {
+    width: 100% !important;
+  }
+}
+
+/* ── Tablet landscape: slightly tighter topbar ─────────────── */
+@media (max-width: 1023px) and (min-width: 768px) and (orientation: landscape) {
+  [data-testid="topbar"] {
+    height: 40px !important;
   }
 }
 

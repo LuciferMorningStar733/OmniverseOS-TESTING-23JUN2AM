@@ -6,15 +6,23 @@ export function useBreakpoint() {
   );
 
   useEffect(() => {
-    const handler = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    let raf;
+    const handler = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setWidth(window.innerWidth));
+    };
+    window.addEventListener("resize", handler, { passive: true });
+    return () => {
+      window.removeEventListener("resize", handler);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
-  return {
-    isMobile:  width < 768,
-    isTablet:  width >= 768 && width < 1024,
-    isDesktop: width >= 1024,
-    width,
-  };
+  const isMobile  = width < 768;
+  const isTablet  = width >= 768 && width < 1024;
+  const isDesktop = width >= 1024;
+  // isTouch covers both phones and tablets — use for OS-shell layout decisions
+  const isTouch   = width < 1024;
+
+  return { isMobile, isTablet, isDesktop, isTouch, width };
 }

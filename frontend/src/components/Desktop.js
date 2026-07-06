@@ -136,7 +136,7 @@ export default function Desktop() {
     notifOpen, setNotifOpen, pushNotification, clearNotifications, trackUrl,
     notifications, user,
   } = useOS();
-  const { isMobile } = useBreakpoint();
+  const { isMobile, isTablet, isDesktop, isTouch } = useBreakpoint();
   const wp = getWallpaper(wallpaper);
   const [locked, setLocked] = useState(false);
   const [missionOpen, setMissionOpen] = useState(false);
@@ -192,21 +192,23 @@ export default function Desktop() {
     window.addEventListener("omniverse:replay-onboarding", handler);
     return () => window.removeEventListener("omniverse:replay-onboarding", handler);
   }, []);
+
+  // ── Idle lock — phones & tablets both get auto-lock ─────────────────────
   const getIdleMs = useCallback(() => {
     const prefs = loadMobilePrefs();
     if (!prefs.lockEnabled || prefs.lockTimeout === 0) return 0;
     return prefs.lockTimeout * 1000;
   }, []);
   const resetIdle = useCallback(() => {
-    if (!isMobile) return;
+    if (!isTouch) return;
     const ms = getIdleMs();
     clearTimeout(idleTimer.current);
     if (ms > 0) {
       idleTimer.current = setTimeout(() => setLocked(true), ms);
     }
-  }, [isMobile, getIdleMs]);
+  }, [isTouch, getIdleMs]);
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isTouch) return;
     const events = ["touchstart", "touchmove", "mousedown", "keydown", "scroll"];
     events.forEach((ev) => window.addEventListener(ev, resetIdle, { passive: true }));
     resetIdle();
@@ -214,7 +216,7 @@ export default function Desktop() {
       clearTimeout(idleTimer.current);
       events.forEach((ev) => window.removeEventListener(ev, resetIdle));
     };
-  }, [isMobile, resetIdle]);
+  }, [isTouch, resetIdle]);
   useEffect(() => {
     // Single global keyboard handler — extend here, never add a parallel listener.
     const isTypingTarget = (el) => {
@@ -276,7 +278,7 @@ export default function Desktop() {
       }
 
       // Ctrl+Tab → Mission Control (desktop only)
-      if (!isMobile && e.ctrlKey && e.key === "Tab") {
+      if (isDesktop && e.ctrlKey && e.key === "Tab") {
         e.preventDefault();
         setMissionOpen((open) => !open);
       }
@@ -289,28 +291,30 @@ export default function Desktop() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("om:open-mission", onOpenMission);
     };
-  }, [isMobile, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen, toggleBrightness]);
+  }, [isDesktop, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen, toggleBrightness]);
+
+  // ── Swipe gestures — available on both phones and tablets ───────────────
   const swipeStartX = useRef(null);
   const swipeStartY = useRef(null);
   const swipeLocked = useRef(false);
   const handleTouchStart = useCallback((e) => {
-    if (!isMobile || locked) return;
+    if (!isTouch || locked) return;
     const prefs = loadMobilePrefs();
     if (!prefs.swipeNav) return;
     swipeStartX.current = e.touches[0].clientX;
     swipeStartY.current = e.touches[0].clientY;
     swipeLocked.current = false;
-  }, [isMobile, locked]);
+  }, [isTouch, locked]);
   const handleTouchMove = useCallback((e) => {
-    if (!isMobile || swipeStartX.current === null) return;
+    if (!isTouch || swipeStartX.current === null) return;
     const dx = Math.abs(e.touches[0].clientX - swipeStartX.current);
     const dy = Math.abs(e.touches[0].clientY - swipeStartY.current);
     if (!swipeLocked.current && (dx > 10 || dy > 10)) {
       swipeLocked.current = dy > dx;
     }
-  }, [isMobile]);
+  }, [isTouch]);
   const handleTouchEnd = useCallback((e) => {
-    if (!isMobile || swipeStartX.current === null || locked) return;
+    if (!isTouch || swipeStartX.current === null || locked) return;
     const dx = e.changedTouches[0].clientX - swipeStartX.current;
     const dy = Math.abs(e.changedTouches[0].clientY - swipeStartY.current);
     swipeStartX.current = null;
@@ -325,7 +329,7 @@ export default function Desktop() {
     } else {
       focusWindow(openWindows[(currentIdx - 1 + openWindows.length) % openWindows.length].id);
     }
-  }, [isMobile, locked, windows, activeId, focusWindow]);
+  }, [isTouch, locked, windows, activeId, focusWindow]);
   const handleOpenApp = useCallback((appId) => {
     // OSContext.openApp records timeline + memory — no duplicate tracking here.
     setShowWelcome(false);
@@ -339,13 +343,18 @@ export default function Desktop() {
     // Browser app listens to this event to navigate.
     window.dispatchEvent(new CustomEvent("cortex:navigate", { detail: { url } }));
   }, [trackUrl, openApp]);
-  const windowLayerStyle = useMemo(() => isMobile
-    ? { top: 60, left: 0, right: 0, bottom: 80 }
-    : { top: 0, left: 0, right: 0, bottom: 0 },
-  [isMobile]);
+
+  // ── Window layer: offset below topbar. Tablet uses 48px topbar, mobile 60px.
+  const windowLayerStyle = useMemo(() => {
+    if (!isTouch) return { top: 0, left: 0, right: 0, bottom: 0 };
+    return { top: isMobile ? 60 : 48, left: 0, right: 0, bottom: 0 };
+  }, [isTouch, isMobile]);
+
   const openWindows = useMemo(() => windows.filter((w) => !w.minimized), [windows]);
-  const showDots = isMobile && openWindows.length > 1;
-  const showCortexWelcome = !isMobile && showWelcome && openWindows.length === 0;
+  // Swipe dots: shown on phones and tablets when multiple apps are open
+  const showDots = isTouch && openWindows.length > 1;
+  // Cortex welcome card: desktop only
+  const showCortexWelcome = isDesktop && showWelcome && openWindows.length === 0;
   return (
     <div
       className="relative w-full h-full overflow-hidden bg-[#05050A]"
@@ -371,7 +380,7 @@ export default function Desktop() {
             } : {}),
           }}
         >
-          {wp.fx && !wp.dataURL && !isMobile && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
+          {wp.fx && !wp.dataURL && isDesktop && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
           {wp.typo?.main && (
             <div className="wp-typo">
               {wp.typo.main}
@@ -383,7 +392,8 @@ export default function Desktop() {
           {(wp.id === "neural-core" || wp.id === "ai-nexus") && <div className="wp-beams" />}
         </motion.div>
       </AnimatePresence>
-      {!isMobile && <AmbientParticles />}
+      {/* Ambient particles: desktop only (performance on tablets) */}
+      {isDesktop && <AmbientParticles />}
       <div className="absolute inset-0 scanline opacity-20 pointer-events-none" style={{ zIndex: 2 }} />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
@@ -393,11 +403,12 @@ export default function Desktop() {
       >
         <TopBar onOpenMissionControl={() => setMissionOpen(true)} onOpenBrightness={brightness.openOverlay} />
       </motion.div>
-      {!isMobile && <WidgetCanvas topOffset={60} />}
+      {/* Widget canvas: desktop only */}
+      {isDesktop && <WidgetCanvas topOffset={60} />}
 
-      {/* ── Mobile Home Screen (shown when no app is open) ── */}
+      {/* ── Touch Home Screen (shown when no app is open on phone or tablet) ── */}
       <AnimatePresence>
-        {isMobile && openWindows.length === 0 && (
+        {isTouch && openWindows.length === 0 && (
           <MobileHomeScreen key="mobile-home" onOpenApp={handleOpenApp} onOpenSearch={() => setPaletteOpen(true)} />
         )}
       </AnimatePresence>
@@ -456,17 +467,20 @@ export default function Desktop() {
         </div>
       )}
       <Dock />
-      {!isMobile && <AIDock />}
+      {/* AI Dock: desktop only */}
+      {isDesktop && <AIDock />}
       <CommandPalette />
       <NotificationCenter />
-      {!isMobile && (
+      {/* Mission Control: desktop only */}
+      {isDesktop && (
         <MissionControl
           open={missionOpen}
           onClose={() => setMissionOpen(false)}
         />
       )}
+      {/* Lock screen: phones and tablets */}
       <AnimatePresence>
-        {isMobile && locked && (
+        {isTouch && locked && (
           <LockScreen
             key="lockscreen"
             onUnlock={() => { setLocked(false); resetIdle(); }}
@@ -510,8 +524,8 @@ export default function Desktop() {
         )}
       </AnimatePresence>
 
-      {/* ── Priority 7: Welcome Panel (post-boot) ── */}
-      {!showBoot && showWelcomeP && !isMobile && (
+      {/* ── Priority 7: Welcome Panel (post-boot, desktop only) ── */}
+      {!showBoot && showWelcomeP && isDesktop && (
         <WelcomePanel
           user={user}
           notifications={notifications.length}

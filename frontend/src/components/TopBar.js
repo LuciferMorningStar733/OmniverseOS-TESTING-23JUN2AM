@@ -378,6 +378,133 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
       );
   }
 
+  /* ── Tablet (48px compact bar) ────────────────────────────────────────── */
+  if (isTablet) {
+    return (
+      <div
+        className="absolute left-0 right-0 top-0 z-40 flex items-center"
+        style={{
+          background: "rgba(6, 8, 14, 0.84)",
+          backdropFilter: "blur(36px) saturate(200%)",
+          WebkitBackdropFilter: "blur(36px) saturate(200%)",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+          height: 48,
+          paddingLeft: 14,
+          paddingRight: 14,
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          gap: 10,
+        }}
+        data-testid="topbar"
+      >
+        {/* Logo */}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          <div
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: "linear-gradient(135deg,#00F0FF,#FF003C)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <i className="fa-solid fa-infinity" style={{ color: "#000", fontSize: 10 }} />
+          </div>
+          <span style={{
+            fontSize: 13,
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.85)",
+            letterSpacing: "-0.01em",
+            whiteSpace: "nowrap",
+          }}>
+            OmniverseOS
+          </span>
+        </div>
+
+        {/* Search pill — flexible center */}
+        <button
+          data-testid="open-command-palette"
+          onClick={() => setPaletteOpen(true)}
+          style={{
+            flex: 1,
+            display: "flex", alignItems: "center", gap: 8,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: 20,
+            height: 30,
+            paddingLeft: 12,
+            paddingRight: 12,
+            cursor: "pointer",
+            maxWidth: 340,
+            margin: "0 auto",
+            transition: "all 0.15s ease",
+          }}
+        >
+          <i className="fa-solid fa-magnifying-glass" style={{ color: "#00F0FF", fontSize: 11 }} />
+          <span style={{ color: "#64748b", fontSize: 12, fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap" }}>
+            Search or ask Cortex…
+          </span>
+        </button>
+
+        {/* Right cluster */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* Notifications */}
+          <button
+            onClick={() => setNotifOpen(true)}
+            aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
+            style={{
+              background: unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)",
+              border: `1px solid ${unread > 0 ? "rgba(255,0,60,0.25)" : "rgba(255,255,255,0.08)"}`,
+              borderRadius: 6, width: 32, height: 32,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", position: "relative",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <i className="fa-solid fa-bell" style={{ color: unread > 0 ? "#FF6B7A" : "#64748b", fontSize: 12 }} />
+            {unread > 0 && (
+              <span style={{
+                position: "absolute", top: 4, right: 4,
+                width: 7, height: 7, borderRadius: "50%",
+                background: "#FF003C",
+              }} />
+            )}
+          </button>
+
+          {/* Time */}
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "flex-end",
+            paddingLeft: 8,
+            borderLeft: "1px solid rgba(255,255,255,0.07)",
+          }}>
+            <span style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "'Outfit', monospace", lineHeight: 1.2 }}>
+              {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+            <span style={{ color: "#475569", fontSize: 10, fontFamily: "monospace" }}>
+              {time.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+          </div>
+
+          {/* Avatar */}
+          <button
+            onClick={logout}
+            title="Sign out"
+            style={{
+              width: 30, height: 30, borderRadius: "50%",
+              background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
+              border: "1.5px solid rgba(0,240,255,0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", flexShrink: 0,
+            }}
+          >
+            <span style={{ color: "#000", fontSize: 12, fontWeight: 700 }}>
+              {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   /* ── Desktop ───────────────────────────────────────────────────────────── */
   return (
     <div

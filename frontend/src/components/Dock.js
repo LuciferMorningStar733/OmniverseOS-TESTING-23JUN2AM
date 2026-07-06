@@ -706,5 +706,7 @@ function DesktopDock({ isTablet }) {
 /* ── Export ─────────────────────────────────────────────────────────────────── */
 export default function Dock() {
   const { isMobile, isTablet } = useBreakpoint();
-  return isMobile ? <MobileDock /> : <DesktopDock isTablet={isTablet} />;
+  // Phones and tablets both use the mobile dock (fullscreen app shell)
+  const isTouch = isMobile || isTablet;
+  return isTouch ? <MobileDock /> : <DesktopDock isTablet={false} />;
 }
