@@ -207,7 +207,7 @@ button, a {
     min-height: 0 !important;
   }
 
-  [data-testid="ai-chat-app"] .max-w-\[80\%\] {
+  [data-testid="ai-chat-app"] [class*="max-w-[80"] {
     max-width: 88% !important;
     font-size: 0.9375rem !important;
     padding: 0.75rem 1rem !important;
@@ -718,7 +718,7 @@ button, a {
 /* ── AI Chat: touch-device polish ────────────────────────── */
 @media (hover: none) and (pointer: coarse) {
   /* Active provider badge — show only icon on touch to avoid overflow */
-  [data-testid="ai-chat-header"] .text-\[10px\].font-mono.px-2.py-0\.5 span:last-of-type {
+  [data-testid="ai-chat-header"] .font-mono.px-2 span:last-of-type {
     display: none !important;
   }
 
@@ -762,7 +762,7 @@ button, a {
 
 /* ── 320px–359px refinements ──────────────────────────────── */
 @media (max-width: 359px) {
-  [data-testid="ai-chat-app"] .max-w-\[80\%\] {
+  [data-testid="ai-chat-app"] [class*="max-w-[80"] {
     max-width: 94% !important;
   }
   [data-testid="ai-chat-input"] {
