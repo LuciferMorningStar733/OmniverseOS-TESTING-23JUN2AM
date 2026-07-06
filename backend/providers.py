@@ -324,10 +324,17 @@ class ProviderManager:
                     got_content = True
                     yield ("chunk", chunk)
 
-                # Success — reset health and return
-                self.health[provider].mark_healthy()
-                logger.info("[Cortex] %s responded successfully", provider)
-                return
+                if got_content:
+                    # Success — reset health and return
+                    self.health[provider].mark_healthy()
+                    logger.info("[Cortex] %s responded successfully", provider)
+                    return
+                else:
+                    # Provider returned empty stream — treat as failure and try next
+                    logger.warning("[Cortex] %s returned empty stream, trying next provider", provider)
+                    print(f"Primary engine failed. Routing prompt to fallback provider...")
+                    self.health[provider].mark_error()
+                    last_error = Exception(f"{provider} returned empty stream")
 
             except httpx.HTTPStatusError as e:
                 status = e.response.status_code
@@ -436,6 +443,13 @@ class ProviderManager:
                         contents=prompt,
                     )
                     text = resp.text or ""
+
+                if not text or not text.strip():
+                    # Empty response — treat as failure and try next provider
+                    logger.warning("[Cortex] Background provider %s returned empty output, trying next", provider)
+                    print(f"Primary engine failed. Routing prompt to fallback provider...")
+                    self.health[provider].mark_error()
+                    continue
 
                 self.health[provider].mark_healthy()
                 logger.info("[Cortex] Background task served by %s", provider)
