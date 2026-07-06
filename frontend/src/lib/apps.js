@@ -21,6 +21,8 @@ export const APPS = [
   { id: "image",      name: "Image Gen",    icon: "fa-image",          color: "#A855F7", Component: lazy(() => import("../apps/ImageGen")),      group: "ai" },
   { id: "voice",      name: "Cortex",       icon: "fa-microphone",     color: "#4A9EFF", Component: lazy(() => import("../apps/Voice")),         group: "ai" },
   { id: "memory",     name: "Memory",       icon: "fa-brain",          color: "#2DD4BF", Component: lazy(() => import("../apps/Memory")),        group: "ai" },
+  { id: "projects",   name: "Projects",     icon: "fa-diagram-project",color: "#00F0FF", Component: lazy(() => import("../apps/ProjectDNA")),    group: "ai" },
+  { id: "timeline",   name: "Timeline",     icon: "fa-timeline",       color: "#7B2FFF", Component: lazy(() => import("../apps/TimelineApp")),   group: "ai" },
 
   // ─── Productivity ──────────────────────────────────────────────────────
   { id: "notes",      name: "Notes",        icon: "fa-note-sticky",    color: "#F59E0B", Component: lazy(() => import("../apps/Notes")),         group: "productivity" },

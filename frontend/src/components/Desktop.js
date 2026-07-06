@@ -25,6 +25,8 @@ import WidgetCanvas from "../widgets/WidgetCanvas";
 import MobileHomeScreen from "./MobileHomeScreen";
 import MorningBriefing from "./MorningBriefing";
 import { shouldRunNightAgent, stampLastSeen } from "../lib/nightAgent";
+import CortexInterrupts from "./CortexInterrupts";
+import FocusTunnel from "./FocusTunnel";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
@@ -152,6 +154,8 @@ export default function Desktop() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   // Morning briefing — shown when returning after ≥ 3 hours away
   const [showMorningBrief, setShowMorningBrief] = useState(false);
+  // Phase 1: Focus Tunnel
+  const [focusActive, setFocusActive] = useState(false);
   const brightness = useBrightnessContext();
   const { toggleOverlay: toggleBrightness } = brightness;
 
@@ -275,6 +279,13 @@ export default function Desktop() {
         return;
       }
 
+      // Ctrl + Shift + F → Focus Tunnel
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setFocusActive((v) => !v);
+        return;
+      }
+
       // Ctrl/Cmd + Shift + A/B/T → App shortcuts
       if (mod && e.shiftKey && !e.altKey) {
         const k = e.key.toLowerCase();
@@ -299,10 +310,13 @@ export default function Desktop() {
     window.addEventListener("keydown", handler);
     // Universal Search → Mission Control action dispatches this event
     const onOpenMission = () => setMissionOpen(true);
+    const onOpenFocus   = () => setFocusActive(true);
     window.addEventListener("om:open-mission", onOpenMission);
+    window.addEventListener("om:open-focus", onOpenFocus);
     return () => {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("om:open-mission", onOpenMission);
+      window.removeEventListener("om:open-focus", onOpenFocus);
     };
   }, [isDesktop, paletteOpen, missionOpen, showWelcome, windows, openApp, setPaletteOpen, toggleBrightness]);
 
@@ -563,6 +577,23 @@ export default function Desktop() {
       <AnimatePresence>
         {showLocation && !showBoot && (
           <LocationSetup key="location" onComplete={handleLocationComplete} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Phase 1 Priority 7: Cortex Interrupts (proactive suggestions) ── */}
+      {!showBoot && !showOnboarding && (
+        <CortexInterrupts focusMode={focusActive} userId={user?.id} />
+      )}
+
+      {/* ── Phase 1 Priority 8: Focus Tunnel ── */}
+      <AnimatePresence>
+        {focusActive && (
+          <FocusTunnel
+            key="focus-tunnel"
+            active={focusActive}
+            onActivate={() => setFocusActive(true)}
+            onDeactivate={() => setFocusActive(false)}
+          />
         )}
       </AnimatePresence>
     </div>
