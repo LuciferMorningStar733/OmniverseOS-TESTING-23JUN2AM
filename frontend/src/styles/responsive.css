@@ -363,10 +363,14 @@ button, a {
   }
 }
 
-/* ── Tablet landscape: slightly tighter topbar ─────────────── */
+/* ── Tablet landscape: dock row is more compact, topbar stays 48px ──────────
+   Do NOT change topbar height here — Desktop.js window layer and Window.js
+   topPad both hard-code 48px for isTablet. Any override must change all three.
+   ─────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 1023px) and (min-width: 768px) and (orientation: landscape) {
-  [data-testid="topbar"] {
-    height: 40px !important;
+  [data-testid="dock-root"] > div {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
   }
 }
 
