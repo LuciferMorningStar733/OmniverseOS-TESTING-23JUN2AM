@@ -12,8 +12,10 @@ import { normalizeTranscript } from "../lib/speechCorrection.js";
 import { detectAmbiguity } from "../lib/ambiguityDetector";
 import CortexClarificationModal from "../components/CortexClarificationModal";
 import { playAIProcess, playAIReady } from "../lib/soundEngine";
+import { useChatSessions } from "../hooks/useChatSessions";
+import ChatSessionSidebar from "../components/ChatSessionSidebar";
 
-const SESSION_ID = "main";
+const FALLBACK_SESSION_ID = "main";
 
 /* ── Cyberpunk Radix Select (replaces native <select>) ─────────────────────── */
 const MODEL_OPTIONS = [
@@ -402,6 +404,7 @@ export default function AIChat() {
   const touchTimerRef = useRef(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
+  const [sidebarOpen, setSidebarOpen]           = useState(true);
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -412,6 +415,31 @@ export default function AIChat() {
   const sendRef   = useRef(null);
   const micBaseRef = useRef("");
   const micInputSnapshotRef = useRef("");
+
+  // ── Session management ─────────────────────────────────────────────────────
+  const {
+    sessions,
+    activeSessionId,
+    loading: sessionsLoading,
+    createSession,
+    switchSession,
+    renameSession,
+    deleteSession,
+    togglePin,
+    duplicateSession,
+    autoTitle,
+    touchSession,
+    search: searchSessions,
+  } = useChatSessions();
+
+  // Current session ID (fall back to legacy "main" if backend unavailable)
+  const sessionId = activeSessionId || FALLBACK_SESSION_ID;
+  const sessionIdRef = useRef(sessionId);
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+
+  // Message count tracker for auto-title (fire after first exchange)
+  const msgCountRef = useRef(0);
+  const autoTitledRef = useRef(new Set());
 
   // Cleanup touch-reveal timer on unmount
   useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
@@ -521,8 +549,22 @@ export default function AIChat() {
     else startMic();
   }, [isRecording, startMic, stopMic]);
 
+  // Load history when session changes
   useEffect(() => {
-    aiApi.history(SESSION_ID).then((m) => mountedRef.current && setMessages(m)).catch(() => {});
+    if (!sessionId) return;
+    setMessages([]);
+    setRelevantMemories([]);
+    setStreamStatus(null);
+    contextFloorRef.current = 0;
+    setContextFloor(0);
+    msgCountRef.current = 0;
+    abortRef.current?.abort();
+    aiApi.history(sessionId).then((m) => mountedRef.current && setMessages(m || [])).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       abortRef.current?.abort();
@@ -629,6 +671,17 @@ export default function AIChat() {
 
     const text = rawText.trim();
 
+    // ── Ensure a session exists before sending ────────────────────────────
+    let currentSessionId = sessionIdRef.current;
+    if (!currentSessionId || currentSessionId === FALLBACK_SESSION_ID) {
+      try {
+        const s = await createSession({ title: "New Chat" });
+        currentSessionId = s.session_id;
+      } catch {
+        currentSessionId = FALLBACK_SESSION_ID;
+      }
+    }
+
     // ── Ambiguity detection — runs before any LLM call ──────────────────────
     // Uses current conversation history to auto-resolve when context is clear.
     const ambiguityResult = detectAmbiguity(text, messagesRef.current);
@@ -716,7 +769,7 @@ export default function AIChat() {
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
 
       const result = await aiApi.chatStreamResilient(
-        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history },
+        { session_id: currentSessionId, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
@@ -750,7 +803,6 @@ export default function AIChat() {
       }
 
       // ── Fire-and-forget memory extraction ───────────────────────────────
-      // Get the full assistant response from messages state for extraction
       const lastAssistantContent = (() => {
         const msgs = messagesRef.current;
         for (let i = msgs.length - 1; i >= 0; i--) {
@@ -762,6 +814,20 @@ export default function AIChat() {
       })();
       if (lastAssistantContent) {
         memoryApi.extract(text, lastAssistantContent); // fire-and-forget
+      }
+
+      // ── Session bookkeeping ───────────────────────────────────────────────
+      const sid = currentSessionId;
+      if (sid && sid !== FALLBACK_SESSION_ID) {
+        msgCountRef.current += 1;
+        // Touch session to update timestamp + preview
+        touchSession(sid, text);
+        // Auto-title after first user message, but only once per session
+        if (msgCountRef.current === 1 && !autoTitledRef.current.has(sid)) {
+          autoTitledRef.current.add(sid);
+          // Small delay so the DB has time to save the first message
+          setTimeout(() => autoTitle(sid), 1200);
+        }
       }
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -838,9 +904,51 @@ export default function AIChat() {
     catch { return null; }
   })();
 
+  // ── Session handlers ──────────────────────────────────────────────────────
+  const handleNewChat = useCallback(async () => {
+    abortRef.current?.abort();
+    setMessages([]);
+    setRelevantMemories([]);
+    setStreamStatus(null);
+    contextFloorRef.current = 0;
+    setContextFloor(0);
+    msgCountRef.current = 0;
+    try {
+      await createSession({ title: "New Chat" });
+    } catch {
+      // createSession already handles errors
+    }
+  }, [createSession]);
+
+  const handleSwitchSession = useCallback((sid) => {
+    if (sid === sessionIdRef.current) return;
+    abortRef.current?.abort();
+    msgCountRef.current = 0;
+    switchSession(sid);
+  }, [switchSession]);
+
   return (
-    <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
-      {/* Cortex clarification modal — shown before ambiguous requests reach the LLM */}
+    <div className="flex h-full text-white" data-testid="ai-chat-app" style={{ overflow: "hidden" }}>
+      {/* Session sidebar */}
+      {sidebarOpen && (
+        <ChatSessionSidebar
+          sessions={sessions}
+          activeSessionId={sessionId}
+          loading={sessionsLoading}
+          onNewChat={handleNewChat}
+          onSelect={handleSwitchSession}
+          onRename={renameSession}
+          onPin={togglePin}
+          onDuplicate={duplicateSession}
+          onDelete={deleteSession}
+          onSearch={searchSessions}
+        />
+      )}
+
+      {/* Main chat area */}
+      <div className="flex flex-col flex-1 min-w-0" style={{ overflow: "hidden" }}>
+
+      {/* Toggle sidebar button (in header) */}
       <CortexClarificationModal
         open={!!clarification}
         question={clarification?.question}
@@ -917,9 +1025,24 @@ export default function AIChat() {
       `}</style>
 
       {/* Header */}
-      <div data-testid="ai-chat-header" className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
+      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
         style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(10px)" }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Sidebar toggle */}
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            title={sidebarOpen ? "Hide history" : "Show history"}
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: sidebarOpen ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+              border: sidebarOpen ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              color: sidebarOpen ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
+              flexShrink: 0, transition: "all 0.15s",
+            }}
+          >
+            <i className="fa-solid fa-sidebar text-xs" />
+          </button>
           {/* Cortex orb indicator */}
           <div style={{
             position: "relative",
@@ -1433,6 +1556,8 @@ export default function AIChat() {
           <i className="fa-solid fa-paper-plane" />
         </button>
       </div>
-    </div>
+
+      </div>{/* end main chat flex column */}
+    </div>{/* end outer flex row */}
   );
 }

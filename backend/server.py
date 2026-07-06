@@ -51,6 +51,10 @@ async def lifespan(_app: FastAPI):
     await db.cortex_memories.create_index([("user_id", 1), ("use_count", -1)])
     await db.memory_activity.create_index([("user_id", 1), ("date", -1)], unique=False)
     await db.memory_activity.create_index([("user_id", 1), ("date", 1)], unique=False)
+    # Chat sessions
+    await db.chat_sessions.create_index([("user_id", 1), ("updated_at", -1)])
+    await db.chat_sessions.create_index([("user_id", 1), ("pinned", -1), ("updated_at", -1)])
+    await db.chat_sessions.create_index("id", unique=True)
     yield
     # shutdown
     client.close()
@@ -198,6 +202,16 @@ class FileReq(BaseModel):
 class ClipboardReq(BaseModel):
     content: str = Field(..., min_length=1, max_length=20000)
     label: str = ""
+
+# ── Chat Session Models ────────────────────────────────────────────────────
+class ChatSessionCreateReq(BaseModel):
+    title: str = Field(default="New Chat", max_length=200)
+    provider: str = "gemini"
+    model: str = "gemini-2.5-flash"
+
+class ChatSessionUpdateReq(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    pinned: Optional[bool] = None
 
 # ── Gemini TTS constants ───────────────────────────────────────────────────
 _GEMINI_TTS_FEMALE_VOICES = ["Kore", "Aoede", "Zephyr", "Leda", "Schedar"]
@@ -609,13 +623,32 @@ async def ai_providers(_user=Depends(get_current_user)):
 async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
     _validate_chat_req(req)
     await rate_limit(f"chat:{user['id']}", max_per_min=30)
+    ts = now_iso()
+    # Upsert session record — keeps session list in sync without extra client calls
+    await db.chat_sessions.update_one(
+        {"user_id": user["id"], "session_id": req.session_id},
+        {
+            "$set": {"updated_at": ts},
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "user_id": user["id"],
+                "session_id": req.session_id,
+                "title": "New Chat",
+                "pinned": False,
+                "provider": req.provider,
+                "model": req.model,
+                "created_at": ts,
+            },
+        },
+        upsert=True,
+    )
     await db.chat_messages.insert_one({
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
         "session_id": req.session_id,
         "role": "user",
         "content": req.message,
-        "created_at": now_iso(),
+        "created_at": ts,
     })
     system_msg = req.system or (
         "You are OmniverseOS Assistant — a friendly, witty cyberpunk AI living "
@@ -693,6 +726,182 @@ async def chat_history(session_id: str, user=Depends(get_current_user)):
         {"user_id": user["id"], "session_id": session_id}, {"_id": 0}
     ).sort("created_at", 1).to_list(500)
     return msgs
+
+# ---------- Routes: Chat Sessions ----------
+
+async def _upsert_session(user_id: str, session_id: str, **extra) -> dict:
+    """Create or touch a session record — idempotent."""
+    ts = now_iso()
+    doc = {
+        "user_id": user_id,
+        "session_id": session_id,
+        "updated_at": ts,
+        **extra,
+    }
+    result = await db.chat_sessions.find_one_and_update(
+        {"user_id": user_id, "session_id": session_id},
+        {
+            "$set": {"updated_at": ts, **extra},
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "session_id": session_id,
+                "title": extra.get("title", "New Chat"),
+                "pinned": False,
+                "provider": extra.get("provider", "gemini"),
+                "model": extra.get("model", "gemini-2.5-flash"),
+                "created_at": ts,
+            },
+        },
+        upsert=True,
+        return_document=True,
+        projection={"_id": 0},
+    )
+    return result or doc
+
+@api.get("/ai/sessions")
+async def list_sessions(search: str = "", user=Depends(get_current_user)):
+    """List all sessions for the user, pinned first then by updated_at desc."""
+    uid = user["id"]
+    query: dict = {"user_id": uid}
+    if search.strip():
+        query["title"] = {"$regex": re.escape(search.strip()), "$options": "i"}
+    sessions = await db.chat_sessions.find(query, {"_id": 0}).sort(
+        [("pinned", -1), ("updated_at", -1)]
+    ).to_list(200)
+    # Attach message count & last message preview per session (batched)
+    session_ids = [s["session_id"] for s in sessions]
+    pipeline = [
+        {"$match": {"user_id": uid, "session_id": {"$in": session_ids}}},
+        {"$sort": {"created_at": 1}},
+        {"$group": {
+            "_id": "$session_id",
+            "count": {"$sum": 1},
+            "last_role": {"$last": "$role"},
+            "last_content": {"$last": "$content"},
+        }},
+    ]
+    stats_raw = await db.chat_messages.aggregate(pipeline).to_list(None)
+    stats = {s["_id"]: s for s in stats_raw}
+    for sess in sessions:
+        sid = sess["session_id"]
+        s = stats.get(sid, {})
+        sess["message_count"] = s.get("count", 0)
+        snippet = s.get("last_content", "")
+        sess["preview"] = snippet[:120] if snippet else ""
+    return sessions
+
+@api.post("/ai/sessions")
+async def create_session(req: ChatSessionCreateReq, user=Depends(get_current_user)):
+    """Create a new chat session."""
+    session_id = str(uuid.uuid4())
+    ts = now_iso()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "session_id": session_id,
+        "title": req.title,
+        "pinned": False,
+        "provider": req.provider,
+        "model": req.model,
+        "created_at": ts,
+        "updated_at": ts,
+        "message_count": 0,
+        "preview": "",
+    }
+    await db.chat_sessions.insert_one({**doc, "_id": doc["id"]})
+    doc.pop("_id", None)
+    return doc
+
+@api.patch("/ai/sessions/{session_id}")
+async def update_session(session_id: str, req: ChatSessionUpdateReq, user=Depends(get_current_user)):
+    """Rename or pin/unpin a session."""
+    patch: dict = {"updated_at": now_iso()}
+    if req.title is not None:
+        patch["title"] = req.title.strip() or "New Chat"
+    if req.pinned is not None:
+        patch["pinned"] = req.pinned
+    result = await db.chat_sessions.find_one_and_update(
+        {"user_id": user["id"], "session_id": session_id},
+        {"$set": patch},
+        return_document=True,
+        projection={"_id": 0},
+    )
+    if not result:
+        raise HTTPException(404, "Session not found")
+    return result
+
+@api.delete("/ai/sessions/{session_id}")
+async def delete_session(session_id: str, user=Depends(get_current_user)):
+    """Delete a session and all its messages."""
+    uid = user["id"]
+    res = await db.chat_sessions.delete_one({"user_id": uid, "session_id": session_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Session not found")
+    await db.chat_messages.delete_many({"user_id": uid, "session_id": session_id})
+    return {"ok": True}
+
+@api.post("/ai/sessions/{session_id}/duplicate")
+async def duplicate_session(session_id: str, user=Depends(get_current_user)):
+    """Duplicate a session (metadata + messages)."""
+    uid = user["id"]
+    original = await db.chat_sessions.find_one({"user_id": uid, "session_id": session_id}, {"_id": 0})
+    if not original:
+        raise HTTPException(404, "Session not found")
+    new_session_id = str(uuid.uuid4())
+    ts = now_iso()
+    new_doc = {
+        **original,
+        "id": str(uuid.uuid4()),
+        "session_id": new_session_id,
+        "title": original.get("title", "New Chat") + " (copy)",
+        "pinned": False,
+        "created_at": ts,
+        "updated_at": ts,
+    }
+    await db.chat_sessions.insert_one({**new_doc, "_id": new_doc["id"]})
+    # Copy messages
+    msgs = await db.chat_messages.find({"user_id": uid, "session_id": session_id}, {"_id": 0}).to_list(500)
+    if msgs:
+        new_msgs = [{**m, "id": str(uuid.uuid4()), "session_id": new_session_id} for m in msgs]
+        await db.chat_messages.insert_many(new_msgs)
+    new_doc.pop("_id", None)
+    new_doc["message_count"] = len(msgs)
+    return new_doc
+
+@api.post("/ai/sessions/{session_id}/auto-title")
+async def auto_title_session(session_id: str, user=Depends(get_current_user)):
+    """Generate and set a title from the first user message in the session."""
+    uid = user["id"]
+    first_msg = await db.chat_messages.find_one(
+        {"user_id": uid, "session_id": session_id, "role": "user"},
+        {"_id": 0},
+        sort=[("created_at", 1)],
+    )
+    if not first_msg:
+        raise HTTPException(404, "No messages found")
+    content = first_msg.get("content", "")[:300]
+    if not gemini_client:
+        title = content[:60].strip() or "New Chat"
+    else:
+        try:
+            resp = await gemini_client.aio.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=f"Generate a short 3-6 word title for this conversation. Only output the title, nothing else. Message: {content}",
+                config=genai_types.GenerateContentConfig(
+                    system_instruction="You generate short chat titles. Max 6 words. No quotes. No punctuation at end. Just the title.",
+                    max_output_tokens=20,
+                ),
+            )
+            title = (resp.text or content[:60]).strip().strip('"').strip("'")
+        except Exception:
+            title = content[:60].strip() or "New Chat"
+    await db.chat_sessions.update_one(
+        {"user_id": uid, "session_id": session_id},
+        {"$set": {"title": title, "updated_at": now_iso()}},
+        upsert=True,
+    )
+    return {"session_id": session_id, "title": title}
 
 # ---------- Routes: AI Image Generation ----------
 @api.post("/ai/image")

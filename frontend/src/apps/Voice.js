@@ -22,6 +22,7 @@ import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
+import VoiceWaveform from "../components/VoiceWaveform";
 
 // ── Inline OS context builder ─────────────────────────────────────────────
 function buildVoiceContextPrompt(windows, activeId) {
@@ -1567,6 +1568,61 @@ export default function Voice() {
           <div style={{ marginTop: 20, marginBottom: 8 }}>
             <StatusBadge phase={phase} thinkingMsg={thinkingMsg} />
           </div>
+
+          {/* ── Waveform visualizer ── */}
+          <div style={{
+            marginBottom: 12,
+            opacity: phase === "idle" ? 0.35 : 1,
+            transition: "opacity 0.5s ease",
+          }}>
+            <VoiceWaveform
+              mode={phase}
+              color={isListening ? "#FF4A6E" : isSpeaking ? "#4A9EFF" : isThinking ? "#CF9EFF" : "#00F0FF"}
+              width={220}
+              height={48}
+            />
+          </div>
+
+          {/* ── Stop / Interrupt button (visible only during speaking or thinking) ── */}
+          {(isSpeaking || isThinking) && (
+            <button
+              onClick={() => {
+                if (isSpeaking) {
+                  stopSpeaking();
+                  if (settings.continuousConversation && settings.autoResumeListen) {
+                    setTimeout(() => { if (mountedRef.current) startListening(); }, 150);
+                  }
+                } else if (isThinking) {
+                  abortRef.current?.abort();
+                  if (mountedRef.current) setPhase("idle");
+                }
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "9px 20px", borderRadius: 24,
+                background: "rgba(255,0,60,0.1)",
+                border: "1px solid rgba(255,0,60,0.45)",
+                color: "#FF4466",
+                fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: "0.08em", cursor: "pointer",
+                marginBottom: 12,
+                animation: "cortexFadeUp 0.2s ease",
+                transition: "all 0.15s ease",
+                boxShadow: "0 0 16px rgba(255,0,60,0.12)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,0,60,0.2)";
+                e.currentTarget.style.boxShadow = "0 0 24px rgba(255,0,60,0.25)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,0,60,0.1)";
+                e.currentTarget.style.boxShadow = "0 0 16px rgba(255,0,60,0.12)";
+              }}
+            >
+              <i className="fa-solid fa-stop" style={{ fontSize: 10 }} />
+              {isSpeaking ? "STOP" : "CANCEL"}
+            </button>
+          )}
 
           {/* Sub-hints */}
           <div style={{
