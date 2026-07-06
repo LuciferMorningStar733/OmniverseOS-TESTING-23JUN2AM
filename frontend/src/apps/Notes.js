@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import GhostTextArea from "../components/GhostTextArea";
 import { motion, AnimatePresence } from "framer-motion";
 import { crud } from "../lib/api";
 
@@ -188,6 +189,13 @@ export default function Notes() {
     ? sel.content.trim().split(/\s+/).filter(Boolean).length
     : 0;
 
+  /* Writing samples for ghost writer — all notes except the one being edited.
+     Stable reference: only rebuilds when the notes list or selected id changes. */
+  const writingSamples = useMemo(
+    () => notes.filter(n => n.id !== sel?.id && n.content).map(n => n.content),
+    [notes, sel?.id]
+  );
+
   return (
     <div className="flex flex-col sm:flex-row h-full text-white" data-testid="notes-app" style={{ background: "rgba(5,5,16,0.6)" }}>
 
@@ -295,15 +303,16 @@ export default function Notes() {
                 </motion.button>
               </div>
 
-              {/* Text area */}
-              <textarea
+              {/* Text area — Cortex ghost writing enabled */}
+              <GhostTextArea
                 data-testid="note-content"
                 value={sel.content}
                 onChange={(e) => save({ content: e.target.value })}
-                className="flex-1 bg-transparent outline-none p-4 sm:p-5 resize-none text-sm leading-relaxed
-                           font-body min-h-0 scrollbar-none"
+                className="flex-1 bg-transparent outline-none p-4 sm:p-5 resize-none text-sm leading-relaxed font-body min-h-0 scrollbar-none"
+                wrapperClassName="flex-1 min-h-0"
                 placeholder="Start writing…"
-                style={{ caretColor: sel.color }}
+                caretColor={sel.color}
+                writingSamples={writingSamples}
               />
 
               {/* Footer — word count */}
