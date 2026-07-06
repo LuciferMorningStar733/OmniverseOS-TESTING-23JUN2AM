@@ -10,6 +10,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { conversationSearchApi } from "../lib/intelligenceApi";
 
 /* ── Utilities ────────────────────────────────────────────────────────── */
 function relativeTime(isoStr) {
@@ -288,6 +289,65 @@ const SessionRow = React.memo(function SessionRow({
   );
 });
 
+/* ── Semantic search results ──────────────────────────────────────────── */
+function SemanticResultRow({ result, onSelect }) {
+  const ts = result.updated_at
+    ? relativeTime(result.updated_at)
+    : null;
+  return (
+    <div
+      onClick={() => onSelect(result.session_id)}
+      style={{
+        padding: "9px 12px",
+        borderRadius: 10,
+        cursor: "pointer",
+        background: "transparent",
+        border: "1px solid transparent",
+        transition: "all 0.13s",
+        marginBottom: 2,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "rgba(0,240,255,0.06)";
+        e.currentTarget.style.borderColor = "rgba(0,240,255,0.12)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.borderColor = "transparent";
+      }}
+    >
+      <div style={{
+        fontSize: 12, fontFamily: "'Outfit', sans-serif",
+        color: "rgba(255,255,255,0.8)", fontWeight: 500,
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        marginBottom: 3,
+      }}>
+        {result.session_title || "Untitled"}
+      </div>
+      {result.excerpt && (
+        <div style={{
+          fontSize: 10.5, fontFamily: "'Outfit', sans-serif",
+          color: "rgba(255,255,255,0.38)",
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          lineHeight: 1.4,
+        }}>
+          {result.excerpt}
+        </div>
+      )}
+      <div style={{
+        fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",
+        color: result.match_type === "message" ? "rgba(0,240,255,0.35)" : "rgba(207,158,255,0.35)",
+        marginTop: 3,
+      }}>
+        {result.match_type === "message" ? "↳ message match" : "↳ title match"}
+        {ts && ` · ${ts}`}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main sidebar component ───────────────────────────────────────────── */
 export default function ChatSessionSidebar({
   sessions,
@@ -303,12 +363,36 @@ export default function ChatSessionSidebar({
   compact = false,
 }) {
   const [searchVal, setSearchVal] = useState("");
+  const [semanticResults, setSemanticResults] = useState(null); // null = not searched
+  const [semanticLoading, setSemanticLoading] = useState(false);
   const searchTimeout = useRef(null);
+  const semanticTimeout = useRef(null);
 
   const handleSearch = useCallback((q) => {
     setSearchVal(q);
     clearTimeout(searchTimeout.current);
+    clearTimeout(semanticTimeout.current);
+
+    // Pass to parent (title filter) immediately
     searchTimeout.current = setTimeout(() => onSearch?.(q), 300);
+
+    // Trigger semantic search when query is ≥ 3 chars
+    if (q.trim().length >= 3) {
+      setSemanticLoading(true);
+      semanticTimeout.current = setTimeout(async () => {
+        try {
+          const data = await conversationSearchApi.search(q.trim(), 10);
+          setSemanticResults(data.results || []);
+        } catch {
+          setSemanticResults(null);
+        } finally {
+          setSemanticLoading(false);
+        }
+      }, 600);
+    } else {
+      setSemanticResults(null);
+      setSemanticLoading(false);
+    }
   }, [onSearch]);
 
   const handleDelete = useCallback(async (sessionId) => {
@@ -440,6 +524,46 @@ export default function ChatSessionSidebar({
 
       {/* Session list */}
       <div style={{ flex: 1, overflowY: "auto", padding: "6px 6px" }}>
+
+        {/* Semantic search results panel */}
+        {searchVal.trim().length >= 3 && (
+          <div style={{ marginBottom: 6 }}>
+            <div style={{
+              padding: "4px 12px 3px",
+              fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.1em", textTransform: "uppercase",
+              color: "rgba(0,240,255,0.4)",
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <i className="fa-solid fa-magnifying-glass-waveform" style={{ fontSize: 8 }} />
+              Deep Search
+              {semanticLoading && (
+                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 8, marginLeft: 2 }} />
+              )}
+            </div>
+            {semanticResults === null && !semanticLoading ? null : (
+              semanticResults?.length === 0 ? (
+                <div style={{
+                  padding: "8px 12px", fontSize: 11,
+                  color: "rgba(255,255,255,0.2)",
+                  fontFamily: "'Outfit', sans-serif",
+                }}>
+                  No matches in message history
+                </div>
+              ) : (
+                semanticResults?.map((r) => (
+                  <SemanticResultRow
+                    key={`sem-${r.session_id}`}
+                    result={r}
+                    onSelect={(sid) => { onSelect(sid); handleSearch(""); }}
+                  />
+                ))
+              )
+            )}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "6px 4px" }} />
+          </div>
+        )}
+
         {loading ? (
           <div style={{ padding: "20px 12px" }}>
             {[1, 2, 3].map((i) => (
@@ -457,21 +581,35 @@ export default function ChatSessionSidebar({
             color: "rgba(255,255,255,0.2)", fontSize: 12,
             fontFamily: "'JetBrains Mono', monospace",
           }}>
-            {searchVal ? "No results" : "No chats yet"}
+            {searchVal ? "No title matches" : "No chats yet"}
           </div>
         ) : (
           <>
+            {/* Label for title-filtered results */}
+            {searchVal.trim().length >= 3 && sessions.length > 0 && (
+              <div style={{
+                padding: "4px 12px 3px",
+                fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: "0.1em", textTransform: "uppercase",
+                color: "rgba(255,255,255,0.2)",
+              }}>
+                Title matches
+              </div>
+            )}
+
             {/* Pinned group */}
             {sessions.some((s) => s.pinned) && (
               <>
-                <div style={{
-                  padding: "6px 12px 3px",
-                  fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",
-                  letterSpacing: "0.1em", textTransform: "uppercase",
-                  color: "rgba(207,158,255,0.45)",
-                }}>
-                  Pinned
-                </div>
+                {!searchVal && (
+                  <div style={{
+                    padding: "6px 12px 3px",
+                    fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",
+                    letterSpacing: "0.1em", textTransform: "uppercase",
+                    color: "rgba(207,158,255,0.45)",
+                  }}>
+                    Pinned
+                  </div>
+                )}
                 {sessions.filter((s) => s.pinned).map((s) => (
                   <SessionRow
                     key={s.session_id}
@@ -491,7 +629,7 @@ export default function ChatSessionSidebar({
             {/* Recents group */}
             {sessions.some((s) => !s.pinned) && (
               <>
-                {sessions.some((s) => s.pinned) && (
+                {sessions.some((s) => s.pinned) && !searchVal && (
                   <div style={{
                     padding: "3px 12px 3px",
                     fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace",

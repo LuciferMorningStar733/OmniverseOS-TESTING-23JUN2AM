@@ -55,6 +55,15 @@ async def lifespan(_app: FastAPI):
     await db.chat_sessions.create_index([("user_id", 1), ("updated_at", -1)])
     await db.chat_sessions.create_index([("user_id", 1), ("pinned", -1), ("updated_at", -1)])
     await db.chat_sessions.create_index("id", unique=True)
+    # Phase 1: Intelligence Layer
+    await db.project_dna.create_index([("user_id", 1), ("updated_at", -1)])
+    await db.project_dna.create_index("id", unique=True)
+    await db.decisions.create_index([("user_id", 1), ("created_at", -1)])
+    await db.decisions.create_index([("user_id", 1), ("project_id", 1)])
+    await db.decisions.create_index("id", unique=True)
+    await db.timeline_events.create_index([("user_id", 1), ("created_at", -1)])
+    await db.timeline_events.create_index([("user_id", 1), ("project_id", 1)])
+    await db.timeline_events.create_index("id", unique=True)
     yield
     # shutdown
     client.close()
@@ -1325,6 +1334,420 @@ async def update_clipboard(cid: str, req: ClipboardReq, user=Depends(get_current
 @api.delete("/clipboard/{cid}")
 async def delete_clipboard(cid: str, user=Depends(get_current_user)):
     return await delete_for_user("clipboard", user["id"], cid)
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  PHASE 1 — INTELLIGENCE LAYER
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ─── Priority 1: Conversation Archaeology ──────────────────────────────────
+
+class ConversationSearchReq(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+    limit: int = Field(default=8, ge=1, le=20)
+
+@api.post("/ai/search/conversations")
+async def search_conversations(req: ConversationSearchReq, user=Depends(get_current_user)):
+    """Semantic search across all chat sessions and messages."""
+    uid = user["id"]
+    q = req.query.strip()
+    limit = req.limit
+
+    # Step 1: keyword regex search across messages
+    pattern = re.compile(re.escape(q), re.IGNORECASE)
+    raw_messages = await db.chat_messages.find(
+        {"user_id": uid, "content": {"$regex": pattern}},
+        {"_id": 0, "session_id": 1, "content": 1, "role": 1, "created_at": 1},
+    ).sort("created_at", -1).limit(60).to_list(60)
+
+    # Step 2: also search session titles
+    title_sessions = await db.chat_sessions.find(
+        {"user_id": uid, "title": {"$regex": pattern}},
+        {"_id": 0, "id": 1, "title": 1, "updated_at": 1},
+    ).limit(20).to_list(20)
+
+    # Step 3: gather all relevant session_ids
+    session_ids_from_msgs = list({m["session_id"] for m in raw_messages})
+    session_ids_from_titles = [s["id"] for s in title_sessions]
+    all_session_ids = list({*session_ids_from_msgs, *session_ids_from_titles})
+
+    if not all_session_ids:
+        return {"results": [], "query": q}
+
+    # Step 4: enrich with session metadata
+    sessions_list = await db.chat_sessions.find(
+        {"user_id": uid, "id": {"$in": all_session_ids}},
+        {"_id": 0, "id": 1, "title": 1, "updated_at": 1, "created_at": 1},
+    ).to_list(len(all_session_ids))
+    session_map = {s["id"]: s for s in sessions_list}
+
+    # Step 5: build result set with excerpts
+    results = []
+    seen_sessions = set()
+
+    # Messages first (most semantically rich)
+    for msg in raw_messages:
+        sid = msg["session_id"]
+        if sid in seen_sessions:
+            continue
+        seen_sessions.add(sid)
+        sess = session_map.get(sid, {})
+        content = msg.get("content", "")
+        # Find the matching excerpt window
+        idx = content.lower().find(q.lower())
+        start = max(0, idx - 60)
+        end = min(len(content), idx + len(q) + 120)
+        excerpt = ("…" if start > 0 else "") + content[start:end] + ("…" if end < len(content) else "")
+        results.append({
+            "session_id": sid,
+            "session_title": sess.get("title") or "Untitled",
+            "updated_at": sess.get("updated_at") or msg.get("created_at"),
+            "excerpt": excerpt,
+            "match_type": "message",
+            "role": msg.get("role", "user"),
+        })
+
+    # Title-matched sessions without message matches
+    for sess in title_sessions:
+        sid = sess["id"]
+        if sid in seen_sessions:
+            continue
+        seen_sessions.add(sid)
+        results.append({
+            "session_id": sid,
+            "session_title": sess.get("title") or "Untitled",
+            "updated_at": sess.get("updated_at"),
+            "excerpt": f"Session title matches "{q}"",
+            "match_type": "title",
+            "role": None,
+        })
+
+    # Step 6: Gemini semantic reranking (if we have enough results and Gemini is available)
+    if gemini_client and len(results) > limit:
+        try:
+            candidates = "\n".join(
+                f"[{i}] {r['session_title']}: {r['excerpt'][:100]}"
+                for i, r in enumerate(results[:30])
+            )
+            rerank_prompt = (
+                f"Given the user's search query: \"{q}\"\n\n"
+                f"Rank these conversation excerpts by relevance (0-based indices, most relevant first).\n"
+                f"Return ONLY a JSON array of indices like [3,0,1,5,...] — nothing else.\n\n"
+                f"Candidates:\n{candidates}"
+            )
+            rerank_resp = gemini_client.models.generate_content(
+                model="gemini-2.0-flash-lite",
+                contents=rerank_prompt,
+            )
+            raw_text = (rerank_resp.text or "").strip().replace("```json", "").replace("```", "").strip()
+            import json as _json
+            indices = _json.loads(raw_text)
+            if isinstance(indices, list) and all(isinstance(x, int) for x in indices):
+                reranked = [results[i] for i in indices if i < len(results)]
+                # Add any not in reranked list
+                seen = set(indices)
+                for i, r in enumerate(results):
+                    if i not in seen:
+                        reranked.append(r)
+                results = reranked
+        except Exception:
+            pass  # fall back to original ordering
+
+    return {"results": results[:limit], "query": q}
+
+
+# ─── Priority 2: Project DNA ───────────────────────────────────────────────
+
+class ProjectDNAReq(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str = ""
+    goals: list = []
+    roadmap: str = ""
+    architecture_decisions: list = []
+    terminology: dict = {}
+    rejected_ideas: list = []
+    unresolved_questions: list = []
+    color: str = "#00F0FF"
+    icon: str = "fa-diagram-project"
+    status: str = "active"  # active | archived | completed
+
+class ProjectDNAPatch(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    goals: Optional[list] = None
+    roadmap: Optional[str] = None
+    architecture_decisions: Optional[list] = None
+    terminology: Optional[dict] = None
+    rejected_ideas: Optional[list] = None
+    unresolved_questions: Optional[list] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    status: Optional[str] = None
+
+@api.get("/projects")
+async def list_projects(user=Depends(get_current_user)):
+    uid = user["id"]
+    items = await db.project_dna.find(
+        {"user_id": uid},
+        {"_id": 0}
+    ).sort("updated_at", -1).to_list(100)
+    return items
+
+@api.post("/projects", status_code=201)
+async def create_project(req: ProjectDNAReq, user=Depends(get_current_user)):
+    uid = user["id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": uid,
+        **req.model_dump(),
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.project_dna.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.get("/projects/{pid}")
+async def get_project(pid: str, user=Depends(get_current_user)):
+    uid = user["id"]
+    doc = await db.project_dna.find_one({"id": pid, "user_id": uid}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Project not found")
+    return doc
+
+@api.patch("/projects/{pid}")
+async def update_project(pid: str, req: ProjectDNAPatch, user=Depends(get_current_user)):
+    uid = user["id"]
+    patch = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not patch:
+        raise HTTPException(400, "No fields to update")
+    patch["updated_at"] = now_iso()
+    result = await db.project_dna.update_one({"id": pid, "user_id": uid}, {"$set": patch})
+    if result.matched_count == 0:
+        raise HTTPException(404, "Project not found")
+    return await db.project_dna.find_one({"id": pid, "user_id": uid}, {"_id": 0})
+
+@api.delete("/projects/{pid}")
+async def delete_project(pid: str, user=Depends(get_current_user)):
+    uid = user["id"]
+    result = await db.project_dna.delete_one({"id": pid, "user_id": uid})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Project not found")
+    # Also delete associated decisions
+    await db.decisions.delete_many({"project_id": pid, "user_id": uid})
+    return {"ok": True}
+
+
+# ─── Priority 3: Decision Memory ───────────────────────────────────────────
+
+class DecisionReq(BaseModel):
+    project_id: str = ""
+    title: str = Field(..., min_length=1, max_length=300)
+    summary: str = ""
+    reasoning: str = ""
+    alternatives: list = []
+    outcome: str = ""  # what happened as a result
+    related_conversation_ids: list = []
+    related_note_ids: list = []
+    related_task_ids: list = []
+    tags: list = []
+    status: str = "active"  # active | superseded | reversed
+
+class DecisionPatch(BaseModel):
+    project_id: Optional[str] = None
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    reasoning: Optional[str] = None
+    alternatives: Optional[list] = None
+    outcome: Optional[str] = None
+    related_conversation_ids: Optional[list] = None
+    related_note_ids: Optional[list] = None
+    related_task_ids: Optional[list] = None
+    tags: Optional[list] = None
+    status: Optional[str] = None
+
+@api.get("/decisions")
+async def list_decisions(
+    project_id: Optional[str] = None,
+    user=Depends(get_current_user)
+):
+    uid = user["id"]
+    query: dict = {"user_id": uid}
+    if project_id:
+        query["project_id"] = project_id
+    items = await db.decisions.find(query, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return items
+
+@api.post("/decisions", status_code=201)
+async def create_decision(req: DecisionReq, user=Depends(get_current_user)):
+    uid = user["id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": uid,
+        **req.model_dump(),
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.decisions.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.patch("/decisions/{did}")
+async def update_decision(did: str, req: DecisionPatch, user=Depends(get_current_user)):
+    uid = user["id"]
+    patch = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not patch:
+        raise HTTPException(400, "No fields to update")
+    patch["updated_at"] = now_iso()
+    result = await db.decisions.update_one({"id": did, "user_id": uid}, {"$set": patch})
+    if result.matched_count == 0:
+        raise HTTPException(404, "Decision not found")
+    return await db.decisions.find_one({"id": did, "user_id": uid}, {"_id": 0})
+
+@api.delete("/decisions/{did}")
+async def delete_decision(did: str, user=Depends(get_current_user)):
+    uid = user["id"]
+    result = await db.decisions.delete_one({"id": did, "user_id": uid})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Decision not found")
+    return {"ok": True}
+
+
+# ─── Priority 4: Cortex Timeline ──────────────────────────────────────────
+
+class TimelineEventReq(BaseModel):
+    type: str = Field(..., min_length=1, max_length=80)
+    title: str = Field(..., min_length=1, max_length=300)
+    details: str = ""
+    project_id: str = ""
+    entity_id: str = ""
+    entity_type: str = ""  # note | task | decision | session | file
+    source: str = "client"  # client | cortex | system
+    icon: str = ""
+
+@api.get("/timeline")
+async def list_timeline(
+    limit: int = 50,
+    project_id: Optional[str] = None,
+    event_type: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    uid = user["id"]
+    query: dict = {"user_id": uid}
+    if project_id:
+        query["project_id"] = project_id
+    if event_type:
+        query["type"] = event_type
+    items = await db.timeline_events.find(query, {"_id": 0}).sort("created_at", -1).limit(min(limit, 200)).to_list(200)
+    return items
+
+@api.post("/timeline", status_code=201)
+async def create_timeline_event(req: TimelineEventReq, user=Depends(get_current_user)):
+    uid = user["id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": uid,
+        **req.model_dump(),
+        "created_at": now_iso(),
+    }
+    await db.timeline_events.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.delete("/timeline/{eid}")
+async def delete_timeline_event(eid: str, user=Depends(get_current_user)):
+    uid = user["id"]
+    result = await db.timeline_events.delete_one({"id": eid, "user_id": uid})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Event not found")
+    return {"ok": True}
+
+
+# ─── Priority 7: Cortex Interrupts ────────────────────────────────────────
+
+@api.get("/ai/interrupts/check")
+async def check_interrupts(user=Depends(get_current_user)):
+    """
+    Proactive Cortex insight check.
+    Analyzes recent notes + tasks + memories and returns
+    a single contextual suggestion when one is warranted.
+    Returns null if nothing noteworthy.
+    """
+    uid = user["id"]
+    await rate_limit(f"interrupts:{uid}", max_per_min=4)
+
+    if not gemini_client:
+        return {"interrupt": None}
+
+    # Gather recent data (lightweight — only what changed recently)
+    recent_notes = await db.notes.find(
+        {"user_id": uid},
+        {"_id": 0, "title": 1, "content": 1, "updated_at": 1}
+    ).sort("updated_at", -1).limit(4).to_list(4)
+
+    open_tasks = await db.tasks.find(
+        {"user_id": uid, "status": {"$nin": ["done", "cancelled"]}},
+        {"_id": 0, "title": 1, "due_date": 1, "status": 1}
+    ).sort("updated_at", -1).limit(6).to_list(6)
+
+    recent_memories = await db.cortex_memories.find(
+        {"user_id": uid},
+        {"_id": 0, "content": 1, "category": 1}
+    ).sort("importance_score", -1).limit(4).to_list(4)
+
+    # Build compact context
+    context_parts = []
+    if recent_notes:
+        context_parts.append("RECENT NOTES:\n" + "\n".join(
+            f"- {n.get('title','Untitled')}: {(n.get('content','')[:120])}"
+            for n in recent_notes
+        ))
+    if open_tasks:
+        now_dt = datetime.now(timezone.utc)
+        overdue = [t for t in open_tasks if t.get("due_date") and datetime.fromisoformat(t["due_date"].replace("Z", "+00:00")) < now_dt]
+        if overdue:
+            context_parts.append("OVERDUE TASKS:\n" + "\n".join(f"- {t['title']}" for t in overdue))
+        else:
+            context_parts.append("OPEN TASKS:\n" + "\n".join(f"- {t['title']}" for t in open_tasks[:3]))
+    if recent_memories:
+        context_parts.append("KEY MEMORIES:\n" + "\n".join(
+            f"- {m.get('content','')[:100]}" for m in recent_memories
+        ))
+
+    if not context_parts:
+        return {"interrupt": None}
+
+    prompt = (
+        "You are Cortex, a respectful AI assistant. Based on the context below, "
+        "decide if there is ONE genuinely useful observation worth surfacing to the user RIGHT NOW. "
+        "Be brief, concrete, and non-intrusive. Do NOT generate trivial suggestions.\n\n"
+        "Return ONLY valid JSON:\n"
+        '{"should_interrupt": true/false, "type": "reminder|insight|warning|tip", '
+        '"title": "short title", "body": "1-2 sentences max", "icon": "fa-solid fa-ICON", "urgency": "high|normal|low"}\n\n'
+        "Return {\"should_interrupt\": false} if nothing is truly worth surfacing.\n\n"
+        + "\n\n".join(context_parts)
+    )
+
+    try:
+        resp = gemini_client.models.generate_content(
+            model="gemini-2.0-flash-lite",
+            contents=prompt,
+        )
+        raw = (resp.text or "").strip().replace("```json","").replace("```","").strip()
+        import json as _json
+        parsed = _json.loads(raw)
+        if not parsed.get("should_interrupt"):
+            return {"interrupt": None}
+        return {"interrupt": {
+            "type":    parsed.get("type", "insight"),
+            "title":   parsed.get("title", "Cortex"),
+            "body":    parsed.get("body", ""),
+            "icon":    parsed.get("icon", "fa-solid fa-lightbulb"),
+            "urgency": parsed.get("urgency", "normal"),
+            "id":      str(uuid.uuid4()),
+        }}
+    except Exception:
+        return {"interrupt": None}
+
 
 # Analytics summary
 @api.get("/analytics/summary")
