@@ -82,10 +82,6 @@ button, a {
 
   /* Compact neon-btn variants (icon-only / small action buttons in toolbars):
      override the min-height so they don't inflate header rows */
-  .neon-btn.\\!py-1,
-  [class*="neon-btn"][class*="\\!py-1"] {
-    min-height: 36px !important;
-  }
 
   /* ── Hardware acceleration hints ────────────────────── */
   [data-testid^="window-"] {
@@ -612,14 +608,14 @@ button, a {
   }
 
   /* Today / Add buttons row: always one row, center-aligned */
-  [data-testid="calendar-app"] .w-full.sm\\:w-auto {
+  [data-testid="calendar-app"] .order-3 {
     width: 100% !important;
     display: flex !important;
     justify-content: center !important;
     gap: 0.5rem !important;
   }
 
-  [data-testid="calendar-app"] .w-full.sm\\:w-auto .neon-btn {
+  [data-testid="calendar-app"] .order-3 .neon-btn {
     width: auto !important;
     flex: 1 !important;
     max-width: 140px !important;
@@ -642,7 +638,6 @@ button, a {
 
   /* ══ FILE MANAGER — toolbar buttons ═══════════════════════ */
   /* Folder/File buttons in the header toolbar must not go full-width */
-  [data-testid="files-app"] .flex.gap-1\\.5 .neon-btn,
   [data-testid="files-app"] .flex-shrink-0 .neon-btn,
   [data-testid="files-app"] header .neon-btn {
     width: auto !important;
@@ -650,10 +645,6 @@ button, a {
     min-height: 36px !important;
   }
 
-  /* Sidebar folder buttons: use compact height */
-  [data-testid="files-app"] .sm\\:w-56 button {
-    min-height: 36px !important;
-  }
 
   /* ══ BROWSER — address-bar & nav buttons ══════════════════ */
   [data-testid="browser-app"] input[type="text"] {
