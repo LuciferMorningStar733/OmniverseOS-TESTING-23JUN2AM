@@ -23,6 +23,8 @@ import { getWallpaper } from "../lib/wallpapers";
 import WallpaperFX from "./WallpaperFX";
 import WidgetCanvas from "../widgets/WidgetCanvas";
 import MobileHomeScreen from "./MobileHomeScreen";
+import MorningBriefing from "./MorningBriefing";
+import { shouldRunNightAgent, stampLastSeen } from "../lib/nightAgent";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
@@ -148,18 +150,29 @@ export default function Desktop() {
   const [showWelcomeP,   setShowWelcomeP]   = useState(false);
   const [showLocation,   setShowLocation]   = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // Morning briefing — shown when returning after ≥ 3 hours away
+  const [showMorningBrief, setShowMorningBrief] = useState(false);
   const brightness = useBrightnessContext();
   const { toggleOverlay: toggleBrightness } = brightness;
 
   const handleBootComplete = useCallback(() => {
     setShowBoot(false);
     if (!isLocationSetupDone()) {
-      // First run: location setup first, welcome panel after
       setShowLocation(true);
+    } else if (shouldRunNightAgent()) {
+      // Returning user after long absence — Cortex morning briefing first
+      setShowMorningBrief(true);
     } else {
-      // Returning user: straight to welcome panel
       setShowWelcomeP(true);
     }
+  }, []);
+
+  // Stamp last-seen on every page visibility change so the gap is accurate
+  useEffect(() => {
+    stampLastSeen();
+    const onVis = () => { if (document.visibilityState === "hidden") stampLastSeen(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
   const handleLocationComplete = useCallback(() => {
@@ -521,6 +534,19 @@ export default function Desktop() {
               onWallpaperSelect={handleOnboardingWallpaperSelect}
             />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Morning Briefing (Cortex overnight analysis) ── */}
+      <AnimatePresence>
+        {showMorningBrief && !showBoot && !showOnboarding && !showLocation && (
+          <MorningBriefing
+            key="morning-brief"
+            onDismiss={() => {
+              setShowMorningBrief(false);
+              setShowWelcomeP(true);
+            }}
+          />
         )}
       </AnimatePresence>
 
