@@ -104,8 +104,8 @@ function WeekView({ events, anchor }) {
   const today = new Date(); today.setHours(0,0,0,0);
 
   return (
-    <div className="flex-1 overflow-y-auto px-1 pb-1">
-      <div className="grid grid-cols-7 gap-1">
+    <div className="flex-1 overflow-y-auto overflow-x-auto px-1 pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="grid grid-cols-7 gap-1" style={{ minWidth: "calc(7 * 44px)" }}>
         {days.map((d,i)=>{
           const dStr=d.toISOString().slice(0,10);
           const evs=events.filter(e=>e.date===dStr);
