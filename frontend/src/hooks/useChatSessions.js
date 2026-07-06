@@ -131,18 +131,29 @@ export function useChatSessions() {
 
   // ── Delete ─────────────────────────────────────────────────────────────
   const deleteSession = useCallback(async (sessionId) => {
-    const remaining = sessions.filter((s) => s.session_id !== sessionId);
-    setSessions(remaining);
-    if (activeSessionId === sessionId) {
-      if (remaining.length > 0) setActiveSessionId(remaining[0].session_id);
-      else setActiveSessionId(null);
-    }
+    // Functional update avoids stale closure over sessions/activeSessionId
+    setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+    _setActiveSessionId((currentActive) => {
+      if (currentActive !== sessionId) return currentActive;
+      // Will pick first remaining after filter — resolved in the setSessions above
+      // We can't inspect the new array here, so we defer via a microtask
+      Promise.resolve().then(() => {
+        setSessions((latest) => {
+          const first = latest[0]?.session_id || null;
+          persistSessionId(first);
+          _setActiveSessionId(first);
+          return latest; // no-op change, just to read latest
+        });
+      });
+      return currentActive; // temp, will be updated immediately above
+    });
     try {
       await sessionApi.delete(sessionId);
     } catch {
       await refresh();
     }
-  }, [sessions, activeSessionId, setActiveSessionId, refresh]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh]);
 
   // ── Pin / Unpin ────────────────────────────────────────────────────────
   const togglePin = useCallback(async (sessionId) => {

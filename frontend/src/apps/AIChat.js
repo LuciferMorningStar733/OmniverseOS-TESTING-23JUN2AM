@@ -440,6 +440,9 @@ export default function AIChat() {
   // Message count tracker for auto-title (fire after first exchange)
   const msgCountRef = useRef(0);
   const autoTitledRef = useRef(new Set());
+  // Session bootstrap mutex — prevents double-creates when send() is called
+  // rapidly before the first createSession() resolves.
+  const sessionBootstrapRef = useRef(null);
 
   // Cleanup touch-reveal timer on unmount
   useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
@@ -671,12 +674,18 @@ export default function AIChat() {
 
     const text = rawText.trim();
 
-    // ── Ensure a session exists before sending ────────────────────────────
+    // ── Ensure a session exists before sending (mutex prevents double-create) ─
     let currentSessionId = sessionIdRef.current;
     if (!currentSessionId || currentSessionId === FALLBACK_SESSION_ID) {
+      // If another send is already bootstrapping, wait for it instead of creating again
+      if (!sessionBootstrapRef.current) {
+        sessionBootstrapRef.current = createSession({ title: "New Chat" })
+          .catch(() => null)
+          .finally(() => { sessionBootstrapRef.current = null; });
+      }
       try {
-        const s = await createSession({ title: "New Chat" });
-        currentSessionId = s.session_id;
+        const s = await sessionBootstrapRef.current;
+        currentSessionId = s?.session_id || FALLBACK_SESSION_ID;
       } catch {
         currentSessionId = FALLBACK_SESSION_ID;
       }

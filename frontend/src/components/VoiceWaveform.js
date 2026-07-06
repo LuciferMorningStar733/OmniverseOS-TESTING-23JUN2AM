@@ -35,8 +35,22 @@ export default function VoiceWaveform({
     cancelAnimationFrame(rafRef.current);
     try { sourceRef.current?.disconnect(); } catch {}
     try { analyserRef.current?.disconnect(); } catch {}
-    sourceRef.current  = null;
+    sourceRef.current   = null;
     analyserRef.current = null;
+  }, []);
+
+  // ── Close AudioContext on unmount ────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      teardown();
+      cancelAnimationFrame(rafRef.current);
+      try {
+        if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+          audioCtxRef.current.close();
+        }
+      } catch {}
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Wire AudioContext when a live MediaStream is supplied ───────────────
