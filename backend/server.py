@@ -704,27 +704,22 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
             ).sort([("updated_at", -1)]).limit(3).to_list(3)
 
             # ── Recent decisions ───────────────────────────────────────────
-            # Primary: filter by user_id, sort by _id desc (ObjectId insertion
-            # order — guaranteed on every document, immune to missing created_at).
-            # Fallback: query the whole collection (single-tenant OS) if the
-            # user-scoped query returns nothing — handles auth-state mismatches.
+            # Sort by _id descending (ObjectId insertion order — guaranteed on
+            # every document; immune to missing/malformed created_at values).
+            # Always scoped to user_id — never query without tenant filter.
+            # If the user has no decisions yet, context_lines stays empty and
+            # the Ghost Writer base prompt is used without a decisions block.
             recent_decisions = await db.decisions.find(
                 {"user_id": user["id"]},
-                {"_id": 1, "title": 1, "reasoning": 1, "outcome": 1},
+                {"_id": 0, "title": 1, "reasoning": 1, "outcome": 1},
             ).sort([("_id", -1)]).limit(3).to_list(3)
 
             if not recent_decisions:
-                # Fallback: pull from entire collection (single-tenant environment)
-                recent_decisions = await db.decisions.find(
-                    {},
-                    {"_id": 1, "title": 1, "reasoning": 1, "outcome": 1},
-                ).sort([("_id", -1)]).limit(3).to_list(3)
-                if recent_decisions:
-                    logging.info(
-                        "[GhostWriter] user_id filter returned 0 decisions — "
-                        "using global fallback, got %d | user=%s",
-                        len(recent_decisions), user["id"],
-                    )
+                logging.info(
+                    "[GhostWriter] No decisions found for user=%s — "
+                    "continuing without decisions context",
+                    user["id"],
+                )
 
             context_lines: list[str] = []
 
