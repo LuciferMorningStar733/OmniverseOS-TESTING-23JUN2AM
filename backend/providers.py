@@ -334,19 +334,23 @@ class ProviderManager:
                 logger.warning("[Cortex] %s HTTP %s", provider, status)
                 if status == 429:
                     self.health[provider].mark_rate_limited()
+                    print(f"Primary engine failed. Routing prompt to fallback provider...")
                     logger.info("[Cortex] %s → 429, switching to next provider", provider)
                 else:
                     self.health[provider].mark_error()
+                    print(f"Primary engine failed. Routing prompt to fallback provider...")
                 last_error = e
 
             except asyncio.TimeoutError:
                 logger.warning("[Cortex] %s timed out", provider)
+                print(f"Primary engine failed. Routing prompt to fallback provider...")
                 self.health[provider].mark_error()
                 last_error = asyncio.TimeoutError(f"{provider} timed out")
 
             except Exception as e:
                 err_str = str(e)
                 logger.warning("[Cortex] %s error: %s", provider, err_str)
+                print(f"Primary engine failed. Routing prompt to fallback provider...")
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
                     self.health[provider].mark_rate_limited()
                     logger.info("[Cortex] %s → rate limited, switching", provider)
@@ -361,6 +365,94 @@ class ProviderManager:
         # All providers exhausted
         logger.error("[Cortex] All providers exhausted. Last error: %s", last_error)
         yield ("error", "500")
+
+    async def _call_openai_compat_text(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        message: str,
+        system: str,
+    ) -> str:
+        """Non-streaming single-shot text generation via OpenAI-compatible API."""
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": message},
+            ],
+            "stream": False,
+            "max_tokens": 512,
+        }
+        client = get_http()
+        resp = await client.post(
+            f"{base_url}/chat/completions", headers=headers, json=body
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"] or ""
+
+    async def generate_text_background(self, prompt: str, system: str = "") -> str:
+        """
+        Non-streaming text generation for background tasks (e.g. Cortex Interrupts).
+        Tries Cerebras → Groq → Gemini in that order to preserve Gemini quota
+        for foreground chat and Ghost Writing workflows.
+        """
+        self.init()
+        # Background-safe order: fast/generous free-tier providers first
+        bg_order = ["cerebras", "groq", "gemini"]
+        last_error = None
+
+        for provider in bg_order:
+            if not self._has_key(provider):
+                continue
+            if not self.health[provider].is_available():
+                remaining = max(0, int(self.health[provider]._cooldown_until - time.monotonic()))
+                logger.info("[Cortex] Skipping %s for background task (cooldown %ds)", provider, remaining)
+                continue
+
+            try:
+                if provider == "cerebras":
+                    text = await self._call_openai_compat_text(
+                        "https://api.cerebras.ai/v1",
+                        self._cerebras_key,
+                        PROVIDER_DEFAULTS["cerebras"],
+                        prompt, system,
+                    )
+                elif provider == "groq":
+                    text = await self._call_openai_compat_text(
+                        "https://api.groq.com/openai/v1",
+                        self._groq_key,
+                        PROVIDER_DEFAULTS["groq"],
+                        prompt, system,
+                    )
+                else:  # gemini fallback
+                    resp = await self._gemini_client.aio.models.generate_content(
+                        model="gemini-2.0-flash-lite",
+                        contents=prompt,
+                    )
+                    text = resp.text or ""
+
+                self.health[provider].mark_healthy()
+                logger.info("[Cortex] Background task served by %s", provider)
+                return text
+
+            except Exception as e:
+                err_str = str(e)
+                logger.warning("[Cortex] Background provider %s failed: %s", provider, err_str)
+                print(f"Primary engine failed. Routing prompt to fallback provider...")
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                    self.health[provider].mark_rate_limited()
+                else:
+                    self.health[provider].mark_error()
+                last_error = e
+
+        logger.error("[Cortex] All background providers exhausted: %s", last_error)
+        return ""
 
     def provider_statuses(self) -> dict:
         self.init()

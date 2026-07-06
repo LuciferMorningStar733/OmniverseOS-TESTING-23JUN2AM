@@ -614,7 +614,10 @@ async def change_password(req: ChangePasswordReq, user=Depends(get_current_user)
     return {"message": "Password changed successfully"}
 
 # ---------- Routes: AI Chat (Streaming SSE) ----------
-ALLOWED_GEMINI_MODELS = {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"}
+ALLOWED_GEMINI_MODELS = {
+    "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite",
+    "gemini-2.0-flash", "gemini-2.0-flash-lite",
+}
 ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "groq", "cerebras", "openrouter"}
 
 def _validate_chat_req(req: "ChatReq") -> None:
@@ -1675,9 +1678,6 @@ async def check_interrupts(user=Depends(get_current_user)):
     uid = user["id"]
     await rate_limit(f"interrupts:{uid}", max_per_min=4)
 
-    if not gemini_client:
-        return {"interrupt": None}
-
     # Gather recent data (lightweight — only what changed recently)
     recent_notes = await db.notes.find(
         {"user_id": uid},
@@ -1727,12 +1727,13 @@ async def check_interrupts(user=Depends(get_current_user)):
         + "\n\n".join(context_parts)
     )
 
+    # Route interrupts through background providers (Cerebras→Groq→Gemini) to
+    # preserve Gemini quota strictly for foreground chat and Ghost Writing.
     try:
-        resp = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-lite",
-            contents=prompt,
-        )
-        raw = (resp.text or "").strip().replace("```json","").replace("```","").strip()
+        raw = await provider_manager.generate_text_background(prompt)
+        raw = (raw or "").strip().replace("```json", "").replace("```", "").strip()
+        if not raw:
+            return {"interrupt": None}
         import json as _json
         parsed = _json.loads(raw)
         if not parsed.get("should_interrupt"):
