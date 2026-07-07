@@ -47,6 +47,9 @@ export const APPS = [
 
   // ─── Social ────────────────────────────────────────────────────────────
   { id: "nebula",     name: "Nebula Chat",  icon: "fa-satellite-dish", color: "#A855F7", Component: lazy(() => import("../apps/DiscordApp")),    group: "social" },
+
+  // ─── AI Agents ─────────────────────────────────────────────────────────────
+  { id: "swarm",      name: "Swarm Goal",   icon: "fa-share-nodes",    color: "#00F0FF", Component: lazy(() => import("../apps/SwarmGoal")),     group: "ai" },
 ];
 
 export const getApp = (id) => APPS.find((a) => a.id === id);

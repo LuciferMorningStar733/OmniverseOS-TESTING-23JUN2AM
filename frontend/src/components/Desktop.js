@@ -27,6 +27,8 @@ import MorningBriefing from "./MorningBriefing";
 import { shouldRunNightAgent, stampLastSeen } from "../lib/nightAgent";
 import CortexInterrupts from "./CortexInterrupts";
 import FocusTunnel from "./FocusTunnel";
+import CortexLoadAdaptor from "./CortexLoadAdaptor";
+import { CognitiveLoadProvider } from "../context/CognitiveLoadContext";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
@@ -156,6 +158,23 @@ export default function Desktop() {
   const [showMorningBrief, setShowMorningBrief] = useState(false);
   // Phase 1: Focus Tunnel
   const [focusActive, setFocusActive] = useState(false);
+
+  // ── P13: Cognitive load signals ─────────────────────────────────────────
+  const prevWindowLen = useRef(0);
+  useEffect(() => {
+    const count = windows.length;
+    // Dispatch window-count for scorer
+    window.dispatchEvent(new CustomEvent("cortex:window-count", { detail: { count } }));
+    // Dispatch app-open when a new window is added
+    if (count > prevWindowLen.current) {
+      window.dispatchEvent(new CustomEvent("cortex:app-open"));
+    }
+    prevWindowLen.current = count;
+  }, [windows]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("cortex:focus-tunnel", { detail: { active: focusActive } }));
+  }, [focusActive]);
   const brightness = useBrightnessContext();
   const { toggleOverlay: toggleBrightness } = brightness;
 
@@ -596,6 +615,17 @@ export default function Desktop() {
           />
         )}
       </AnimatePresence>
+
+      {/* ── P13: Cognitive Load Adaptor ── */}
+      <CortexLoadAdaptor onSuggestFocus={() => setFocusActive(true)} />
     </div>
   );
 }
+
+// Wrap with CognitiveLoadProvider so all children can call useCognitiveLoad()
+const DesktopWithCognitiveLoad = () => (
+  <CognitiveLoadProvider>
+    <Desktop />
+  </CognitiveLoadProvider>
+);
+export { DesktopWithCognitiveLoad as default };

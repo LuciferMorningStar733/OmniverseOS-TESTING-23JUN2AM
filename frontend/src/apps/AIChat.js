@@ -457,6 +457,7 @@ export default function AIChat() {
   useEffect(() => { inputRef.current = input; }, [input]);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
+  const typingBurstTimerRef = useRef(null); // P13: throttle typing-burst signals
 
   // ── Context floor: messages before this index are excluded from history ──────
   // Using a ref so send() always reads the latest value without re-creating itself.
@@ -692,6 +693,32 @@ export default function AIChat() {
       }
     }
 
+    // ── P14: Swarm intent detection — intercepts before LLM call ────────────
+    // If the user's message describes a big multi-step goal, open the Swarm Goal
+    // app with the goal pre-filled instead of routing through a single LLM call.
+    const SWARM_PATTERNS = [
+      /\bswarm\b/i,
+      /\bprepare me for\b/i,
+      /\bresearch and plan\b/i,
+      /\bbreak this down\b/i,
+      /\blaunch swarm\b/i,
+      /\bhelp me tackle\b/i,
+      /\bplan.*\b(launch|presentation|deadline|campaign|sprint|release)\b/i,
+      /\b(research|analyze|investigate).*\band.*(plan|write|draft|schedule)\b/i,
+    ];
+    if (SWARM_PATTERNS.some((p) => p.test(text))) {
+      localStorage.setItem("cortex_swarm_goal", text);
+      sessionStorage.setItem("cortex_swarm_autostart", "1");
+      setInput("");
+      setMessages((prev) => [
+        ...prev,
+        { role: "user",      content: text, ts: Date.now() },
+        { role: "assistant", content: "Launching Swarm — 4 specialized agents are spinning up to tackle this in parallel. Track their live progress in the Swarm Goal panel.", ts: Date.now() },
+      ]);
+      openApp("swarm");
+      return;
+    }
+
     // ── Ambiguity detection — runs before any LLM call ──────────────────────
     // Uses current conversation history to auto-resolve when context is clear.
     const ambiguityResult = detectAmbiguity(text, messagesRef.current);
@@ -844,6 +871,13 @@ export default function AIChat() {
             windows: windowsRef.current,
           });
         }
+      }
+
+      // ── P13: Dispatch message-length signal for cognitive load scorer ────
+      if (rawAssistantContent) {
+        window.dispatchEvent(new CustomEvent("cortex:message-length", {
+          detail: { length: rawAssistantContent.length },
+        }));
       }
 
       // ── Fire-and-forget memory extraction ───────────────────────────────
@@ -1566,7 +1600,16 @@ export default function AIChat() {
         <input
           data-testid="chat-input"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            // P13: throttled typing-burst signal (one per 10s) for cognitive load scoring
+            if (!typingBurstTimerRef.current) {
+              window.dispatchEvent(new CustomEvent("cortex:typing-burst"));
+              typingBurstTimerRef.current = setTimeout(() => {
+                typingBurstTimerRef.current = null;
+              }, 10_000);
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

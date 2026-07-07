@@ -1915,6 +1915,125 @@ async def analytics_summary(user=Depends(get_current_user)):
         "net": income - expense,
     }
 
+# ── P14: Multi-Agent Swarm Goal ───────────────────────────────────────────
+
+class SwarmGoalReq(BaseModel):
+    goal: str
+
+SWARM_AGENTS = [
+    {
+        "name": "Research",
+        "system": (
+            "You are the Research Agent in a 4-agent AI swarm. "
+            "Gather all relevant context, facts, background knowledge, prior art, and key "
+            "considerations for the user's goal. Be thorough and specific. Markdown output."
+        ),
+    },
+    {
+        "name": "Writer",
+        "system": (
+            "You are the Writer Agent in a 4-agent AI swarm. "
+            "Draft all content artifacts the user will need: messaging, copy, emails, "
+            "documentation, scripts, or narrative. Be polished and ready-to-use. Markdown output."
+        ),
+    },
+    {
+        "name": "Scheduler",
+        "system": (
+            "You are the Scheduler Agent in a 4-agent AI swarm. "
+            "Map a realistic timeline for the user's goal: key dates, milestones, calendar "
+            "blocks, deadlines, and buffer time. Include a clear timeline table. Markdown output."
+        ),
+    },
+    {
+        "name": "Planner",
+        "system": (
+            "You are the Planner Agent in a 4-agent AI swarm. "
+            "Break the goal into a concrete action plan: tasks, subtasks, dependencies, "
+            "and the most important immediate next step. Actionable checklist. Markdown output."
+        ),
+    },
+]
+
+@api.post("/ai/swarm")
+async def run_swarm(req: SwarmGoalReq, user=Depends(get_current_user)):
+    """
+    Run 4 specialist agents in parallel and stream results as SSE.
+    Each agent result is emitted as it completes; synthesis follows at the end.
+    """
+    await rate_limit(f"swarm:{user['id']}", max_per_min=3)
+    goal = req.goal[:2000]
+
+    async def generate():
+        import json as _json
+
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def run_agent(agent_def: dict):
+            start = time.time()
+            try:
+                output = await provider_manager.generate_text_background(
+                    prompt=goal,
+                    system=agent_def["system"],
+                )
+                result = {
+                    "name":       agent_def["name"],
+                    "output":     output,
+                    "elapsed_ms": int((time.time() - start) * 1000),
+                    "success":    True,
+                }
+            except Exception as exc:
+                result = {
+                    "name":       agent_def["name"],
+                    "output":     f"Agent encountered an error: {exc}",
+                    "elapsed_ms": int((time.time() - start) * 1000),
+                    "success":    False,
+                }
+            await queue.put(result)
+
+        # Launch all agents concurrently
+        tasks = [asyncio.create_task(run_agent(a)) for a in SWARM_AGENTS]
+
+        # Stream each result as it arrives from the queue
+        all_results = []
+        for _ in range(len(SWARM_AGENTS)):
+            result = await queue.get()
+            all_results.append(result)
+            yield f"data: {_json.dumps({'type': 'agent', 'agent': result})}\n\n"
+
+        await asyncio.gather(*tasks)  # ensure all tasks are truly done
+
+        # Build executive synthesis from successful agent outputs
+        summaries = "\n\n".join(
+            f"### {r['name']} Agent\n{r['output']}"
+            for r in all_results
+            if r.get("success")
+        )
+        synthesis_prompt = (
+            f"Goal: {goal}\n\n"
+            f"Four specialist agents have analyzed this goal:\n\n{summaries}\n\n"
+            "Synthesize their findings into ONE unified action brief. Include: "
+            "1) The single most important insight. "
+            "2) A prioritized 3-step immediate action plan. "
+            "3) The top risk to watch for. "
+            "Be sharp and decisive — this is an executive summary for a busy person. "
+            "Markdown output, under 300 words."
+        )
+        try:
+            synthesis = await provider_manager.generate_text_background(synthesis_prompt)
+        except Exception:
+            synthesis = "Synthesis unavailable — review individual agent outputs above."
+
+        yield f"data: {_json.dumps({'type': 'synthesis', 'content': synthesis})}\n\n"
+        yield f"data: {_json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 app.include_router(api)
 
 _cors_env = os.environ.get("CORS_ORIGINS", "*")
