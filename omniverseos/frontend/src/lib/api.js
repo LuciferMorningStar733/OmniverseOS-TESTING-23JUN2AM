@@ -517,6 +517,29 @@ export const decisionApi = {
   remove: (did)        => api.delete(`/decisions/${did}`).then(r => r.data),
 };
 
+// ── Activity / Cortex Timeline API ────────────────────────────────────────
+export const activityApi = {
+  /**
+   * Fire-and-forget: record an event server-side.
+   * Silently swallows errors so it never disrupts the calling flow.
+   */
+  record: (type, title = "", category = null, meta = {}) =>
+    api.post('/activity/event', { type, title, category, meta })
+      .then(r => r.data)
+      .catch(() => null),
+
+  /**
+   * Fetch the server-side timeline.
+   * @param {string|null} category  ai | notes | tasks | projects | apps | null (all)
+   * @param {number}      limit     Max events (default 200)
+   */
+  timeline: (category = null, limit = 200) => {
+    const params = { limit };
+    if (category) params.category = category;
+    return api.get('/activity/timeline', { params }).then(r => r.data).catch(() => []);
+  },
+};
+
 // ── Conversation Search API ────────────────────────────────────────────────
 export const conversationApi = {
   /** List all chat sessions for the user (most recent first) */

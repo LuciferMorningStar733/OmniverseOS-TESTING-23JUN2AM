@@ -54,6 +54,8 @@ async def lifespan(_app: FastAPI):
     await db.memory_activity.create_index([("user_id", 1), ("date", 1)], unique=False)
     await db.project_dna.create_index([("user_id", 1), ("created_at", -1)])
     await db.decisions.create_index([("user_id", 1), ("project_id", 1), ("created_at", -1)])
+    await db.activity_events.create_index([("user_id", 1), ("created_at", -1)])
+    await db.activity_events.create_index([("user_id", 1), ("category", 1), ("created_at", -1)])
     yield
     # shutdown
     client.close()
@@ -1364,6 +1366,78 @@ async def delete_decision(did: str, user=Depends(get_current_user)):
     return {"deleted": True}
 
 # Analytics summary
+# ─────────────────────────────────────────────────────────────────────────────
+# Cortex Timeline  (activity_events collection)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Maps frontend event types to broad filter categories
+_EVENT_CATEGORY_MAP = {
+    "app_open":          "apps",
+    "app_close":         "apps",
+    "url_visit":         "apps",
+    "voice_command":     "ai",
+    "workspace_restore": "apps",
+    "note_created":      "notes",
+    "note_updated":      "notes",
+    "task_created":      "tasks",
+    "task_updated":      "tasks",
+    "task_completed":    "tasks",
+    "project_created":   "projects",
+    "project_updated":   "projects",
+    "decision_logged":   "projects",
+    "ai_chat":           "ai",
+    "image_generated":   "ai",
+    "memory_added":      "ai",
+}
+
+VALID_CATEGORIES = {"ai", "notes", "tasks", "projects", "apps"}
+
+class ActivityEventReq(BaseModel):
+    type: str = Field(..., min_length=1, max_length=80)
+    title: str = Field(default="", max_length=300)
+    category: Optional[str] = Field(default=None, max_length=30)
+    meta: dict = Field(default={})
+
+@api.post("/activity/event")
+async def record_activity_event(req: ActivityEventReq, user=Depends(get_current_user)):
+    """
+    Record a single activity event from the frontend.
+    Category is auto-derived from type if not provided.
+    Fire-and-forget — always returns 200.
+    """
+    category = req.category if req.category in VALID_CATEGORIES else _EVENT_CATEGORY_MAP.get(req.type, "apps")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "type": req.type,
+        "category": category,
+        "title": req.title or req.type.replace("_", " ").title(),
+        "meta": req.meta,
+        "created_at": now_iso(),
+    }
+    await db.activity_events.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.get("/activity/timeline")
+async def get_activity_timeline(
+    category: Optional[str] = None,
+    limit: int = 200,
+    user=Depends(get_current_user),
+):
+    """
+    Return activity events for the user, newest first.
+    Optional ?category= filter (ai | notes | tasks | projects | apps).
+    Returns events with a computed day_label for client-side grouping.
+    """
+    query: dict = {"user_id": user["id"]}
+    if category and category in VALID_CATEGORIES:
+        query["category"] = category
+
+    cap = min(max(limit, 1), 500)
+    docs = await db.activity_events.find(query, {"_id": 0}).sort("created_at", -1).to_list(cap)
+    return docs
+
 @api.get("/analytics/summary")
 async def analytics_summary(user=Depends(get_current_user)):
     uid = user["id"]

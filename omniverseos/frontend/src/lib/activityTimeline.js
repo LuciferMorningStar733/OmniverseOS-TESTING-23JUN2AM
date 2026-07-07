@@ -1,8 +1,25 @@
 // ─── Cortex Activity Timeline ───────────────────────────────────────────────
 // Records discrete user activity events to a bounded, persisted ring-buffer.
-// 100% local – no AI, no network.
+// Local-first (localStorage) + server-side sync via activityApi (fire-and-forget).
 // Events: app_open, app_close, url_visit, voice_command, workspace_restore
-// ───────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Lazy import to avoid circular deps — activityTimeline ← api ← (no dep on activityTimeline)
+let _activityApiRef = null;
+function _getActivityApi() {
+  if (!_activityApiRef) {
+    try {
+      // Dynamic require-style import — works in CRA/CRACO with CommonJS interop
+      _activityApiRef = require("./api").activityApi;
+    } catch { _activityApiRef = null; }
+  }
+  return _activityApiRef;
+}
+
+/** Returns true if the user appears authenticated (token in localStorage). */
+function _isAuthenticated() {
+  try { return !!localStorage.getItem("omniverse_token"); } catch { return false; }
+}
 
 const LS_KEY   = "omniverse_cortex_timeline";
 const MAX_EVENTS = 150; // ring-buffer cap
@@ -49,6 +66,19 @@ export function trackEvent(type, payload = {}) {
   if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
   _events = events;
   _persist();
+
+  // ── Server-side sync (fire-and-forget, never throws) ───────────────────
+  if (_isAuthenticated()) {
+    const api = _getActivityApi();
+    if (api) {
+      const { appId, url, text, ...rest } = payload;
+      let title = type.replace(/_/g, " ");
+      if (appId)  title = `Opened ${appId}`;
+      else if (url) { try { title = `Visited ${new URL(url).hostname}`; } catch { title = `Visited ${url.slice(0, 40)}`; } }
+      else if (text) title = text.slice(0, 80);
+      api.record(type, title, null, { appId, url, text, ...rest }).catch(() => {});
+    }
+  }
 }
 
 /**
