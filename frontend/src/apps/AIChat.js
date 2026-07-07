@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
+import { parseCmdTags, executeCmdCommands } from "../lib/cmdTagParser";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import { trackEvent } from "../lib/activityTimeline";
 import { rememberTranscript } from "../lib/memoryEngine";
@@ -811,8 +812,10 @@ export default function AIChat() {
         });
       }
 
-      // ── Fire-and-forget memory extraction ───────────────────────────────
-      const lastAssistantContent = (() => {
+      // ── P9: CMD tag parsing — AI-initiated app/URL launching ─────────────
+      // Scan the completed assistant message for [CMD:TYPE:ARG] tags, strip
+      // them from the displayed text, and execute the OS actions they encode.
+      const rawAssistantContent = (() => {
         const msgs = messagesRef.current;
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].role === "assistant" && msgs[i].content && !msgs[i].pending) {
@@ -821,6 +824,32 @@ export default function AIChat() {
         }
         return "";
       })();
+      if (rawAssistantContent) {
+        const { commands, clean } = parseCmdTags(rawAssistantContent);
+        if (commands.length > 0) {
+          // Strip tags from the displayed message
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") {
+              copy[copy.length - 1] = { ...last, content: clean };
+            }
+            return copy;
+          });
+          // Execute the OS commands
+          executeCmdCommands(commands, {
+            openApp,
+            closeWindow,
+            focusWindow,
+            windows: windowsRef.current,
+          });
+        }
+      }
+
+      // ── Fire-and-forget memory extraction ───────────────────────────────
+      const lastAssistantContent = rawAssistantContent
+        ? parseCmdTags(rawAssistantContent).clean
+        : "";
       if (lastAssistantContent) {
         memoryApi.extract(text, lastAssistantContent); // fire-and-forget
       }

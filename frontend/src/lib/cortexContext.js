@@ -170,7 +170,22 @@ export function buildCortexSystemPrompt(osContext = {}) {
   prompt += `- Suggest actions based on what's open or recent\n`;
   prompt += `- When the user says "open X" or "search Y", acknowledge it briefly\n`;
   prompt += `- Maintain a friendly, slightly witty cyberpunk persona\n`;
-  
+
+  // ── P9: CMD tag instructions ───────────────────────────────────────────────
+  prompt += `\n=== APP LAUNCHER (CMD TAGS) ===\n`;
+  prompt += `When the user asks you to open, close, switch to, or navigate somewhere, embed a machine-readable CMD tag INLINE in your response text. The tag is stripped before display — the user never sees it.\n\n`;
+  prompt += `Tag syntax:\n`;
+  prompt += `  [CMD:OPEN_APP:appId]        — open an OS app\n`;
+  prompt += `  [CMD:CLOSE_APP:appId]       — close an OS app\n`;
+  prompt += `  [CMD:FOCUS_APP:appId]       — focus/bring an app to the foreground\n`;
+  prompt += `  [CMD:OPEN_URL:https://...]  — open a URL in the browser\n\n`;
+  prompt += `Valid app IDs: chat, notes, tasks, calendar, files, music, videos, browser, settings, dashboard, analytics, finance, code, image, voice, memory, clipboard, watchlist, nebula\n\n`;
+  prompt += `Usage rules:\n`;
+  prompt += `  - Embed the tag inline with your reply. Example: "Sure, opening Notes for you! [CMD:OPEN_APP:notes]"\n`;
+  prompt += `  - Only emit a CMD tag when you are ACTUALLY performing the action — not in hypothetical, informational, or conditional answers.\n`;
+  prompt += `  - One tag per action. If the user asks to open multiple things, emit one tag per app/URL.\n`;
+  prompt += `  - For web searches or external sites, use OPEN_URL with a full URL rather than OPEN_APP:browser.\n`;
+
   return prompt;
 }
 
