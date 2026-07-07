@@ -499,3 +499,19 @@ export const memoryApi = {
       .then(r => r.data)
       .catch(() => ({ extracted: [] })),
 };
+
+// ── Conversation Search API ────────────────────────────────────────────────
+export const conversationApi = {
+  /** List all chat sessions for the user (most recent first) */
+  sessions: () => api.get('/ai/chat/sessions').then(r => r.data).catch(() => []),
+
+  /**
+   * Hybrid search across all stored conversations.
+   * @param {string} query   Search string (min 3 chars recommended)
+   * @param {number} limit   Max results (default 20)
+   */
+  search: (query, limit = 20) =>
+    api.post('/ai/search/conversations', { query, limit })
+      .then(r => r.data)
+      .catch(() => []),
+};

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
+import ConversationSearchPanel from "../components/ConversationSearchPanel";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import { trackEvent } from "../lib/activityTimeline";
@@ -558,6 +559,7 @@ export default function AIChat() {
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
+  const [showSearchPanel, setShowSearchPanel]   = useState(false);
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -1138,6 +1140,30 @@ export default function AIChat() {
           <div className="flex items-center gap-2">
             {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
             <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
+            {/* Conversation Archaeology search toggle */}
+            <button
+              onClick={() => setShowSearchPanel(v => !v)}
+              title="Search conversations (Conversation Archaeology)"
+              style={{
+                background: showSearchPanel ? "rgba(0,240,255,0.12)" : "none",
+                border: `1px solid ${showSearchPanel ? "rgba(0,240,255,0.4)" : "rgba(0,240,255,0.18)"}`,
+                borderRadius: 8,
+                color: showSearchPanel ? "#00f0ff" : "rgba(0,240,255,0.5)",
+                cursor: "pointer",
+                padding: "5px 9px",
+                fontSize: 13,
+                lineHeight: 1,
+                transition: "all 0.15s",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5"/>
+                <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
       )}
@@ -1153,6 +1179,17 @@ export default function AIChat() {
 
       {/* Messages */}
       <div className="relative flex-1 overflow-hidden">
+        {/* Conversation Archaeology search panel */}
+        {showSearchPanel && (
+          <ConversationSearchPanel
+            isMobile={isMobile}
+            onClose={() => setShowSearchPanel(false)}
+            onSelectSession={(sessionId) => {
+              // Future: navigate to session; for now close and toast
+              setShowSearchPanel(false);
+            }}
+          />
+        )}
       <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !streaming && (
           /* Mobile: top-aligned (hero above already provides avatar + model context)

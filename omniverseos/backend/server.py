@@ -17,6 +17,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 import uuid
 import re
+import json
 import traceback
 import bcrypt
 import jwt as pyjwt
@@ -693,6 +694,113 @@ async def chat_history(session_id: str, user=Depends(get_current_user)):
         {"user_id": user["id"], "session_id": session_id}, {"_id": 0}
     ).sort("created_at", 1).to_list(500)
     return msgs
+
+@api.get("/ai/chat/sessions")
+async def list_chat_sessions(user=Depends(get_current_user)):
+    """Return all distinct chat sessions for the user, ordered by most recent activity."""
+    pipeline = [
+        {"$match": {"user_id": user["id"]}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": "$session_id",
+            "latest": {"$first": "$created_at"},
+            "preview": {"$first": "$content"},
+            "message_count": {"$sum": 1},
+        }},
+        {"$sort": {"latest": -1}},
+        {"$limit": 100},
+        {"$project": {
+            "_id": 0,
+            "session_id": "$_id",
+            "latest": 1,
+            "preview": 1,
+            "message_count": 1,
+        }},
+    ]
+    sessions = await db.chat_messages.aggregate(pipeline).to_list(100)
+    return sessions
+
+class ConvSearchReq(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+    limit: int = Field(default=20, ge=1, le=50)
+
+@api.post("/ai/search/conversations")
+async def search_conversations(req: ConvSearchReq, user=Depends(get_current_user)):
+    """
+    Hybrid conversation search:
+      Phase 1 – MongoDB regex scan over chat_messages for the authenticated user.
+      Phase 2 – Optional Gemini reranking of the top results for relevance scoring.
+    Returns a list of {session_id, role, excerpt, created_at, relevance}.
+    """
+    await rate_limit(f"conv_search:{user['id']}", max_per_min=30)
+    uid = user["id"]
+    query = req.query.strip()
+
+    if not query:
+        raise HTTPException(400, "Query must not be empty after stripping whitespace")
+
+    # ── Phase 1: regex/text scan ──────────────────────────────────────────
+    # Always escape the literal query so Mongo filter and excerpt highlighting
+    # both operate on the same pattern (no metacharacter mismatch).
+    escaped_query = re.escape(query)
+    compiled = re.compile(escaped_query, re.IGNORECASE)
+
+    cursor = db.chat_messages.find(
+        {"user_id": uid, "content": {"$regex": escaped_query, "$options": "i"}},
+        {"_id": 0, "session_id": 1, "role": 1, "content": 1, "created_at": 1}
+    ).sort("created_at", -1).limit(50)
+    raw = await cursor.to_list(50)
+
+    if not raw:
+        return []
+
+    # Build context-windowed excerpts around the match
+    results = []
+    for msg in raw:
+        content = msg["content"]
+        m = compiled.search(content)
+        if m:
+            start = max(0, m.start() - 80)
+            end = min(len(content), m.end() + 120)
+            excerpt = ("…" if start > 0 else "") + content[start:end] + ("…" if end < len(content) else "")
+        else:
+            excerpt = content[:220]
+        results.append({
+            "session_id": msg["session_id"],
+            "role": msg["role"],
+            "excerpt": excerpt,
+            "created_at": msg["created_at"],
+            "relevance": 1.0,
+        })
+
+    # ── Phase 2: LLM reranking (best-effort, non-blocking on failure) ─────
+    if gemini_client and len(results) > 1:
+        try:
+            excerpts_text = "\n".join(
+                f"[{i}] ({r['role']}) {r['excerpt'][:150]}"
+                for i, r in enumerate(results[:10])
+            )
+            rerank_prompt = (
+                f'Query: "{query}"\n\n'
+                "Rate each excerpt 0.0–1.0 for relevance to the query. "
+                "Return ONLY a JSON array of numbers, one per excerpt, in order.\n\n"
+                f"Excerpts:\n{excerpts_text}"
+            )
+            resp = await gemini_client.aio.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=rerank_prompt,
+            )
+            text = (resp.text or "").strip()
+            arr_match = re.search(r'\[[\d.,\s]+\]', text)
+            if arr_match:
+                scores = json.loads(arr_match.group())
+                for i, score in enumerate(scores[:len(results)]):
+                    results[i]["relevance"] = float(score)
+                results.sort(key=lambda x: x["relevance"], reverse=True)
+        except Exception:
+            pass  # Fall back to regex-ordered results
+
+    return results[:req.limit]
 
 # ---------- Routes: AI Image Generation ----------
 @api.post("/ai/image")
