@@ -79,7 +79,7 @@ export function executeCmdCommands(commands, { openApp, closeWindow, focusWindow
           // Browser.js can listen to for the actual URL load.
           openApp?.("browser");
           window.dispatchEvent(
-            new CustomEvent("cortex:open-url", { detail: { url: arg } })
+            new CustomEvent("cortex:navigate", { detail: { url: arg } })
           );
           break;
 
