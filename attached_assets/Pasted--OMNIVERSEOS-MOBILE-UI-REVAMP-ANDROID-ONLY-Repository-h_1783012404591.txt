@@ -1,0 +1,590 @@
+# OMNIVERSEOS - MOBILE UI REVAMP (ANDROID ONLY)
+
+Repository:
+https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM
+
+Branch:
+main
+
+IMPORTANT
+
+This task is NOT a desktop redesign.
+
+Desktop UI is production-ready.
+
+DO NOT redesign desktop.
+
+DO NOT change desktop layouts.
+
+DO NOT change desktop interactions.
+
+DO NOT change desktop styling.
+
+Desktop only receives bug fixes if absolutely required.
+
+ALL visual work is MOBILE (Android/PWA) ONLY.
+
+=========================================================
+MISSION
+=========================================================
+
+The current mobile interface is visually attractive.
+
+However it still feels like:
+
+"A website made to look futuristic."
+
+It should instead feel like:
+
+"A real AI Operating System."
+
+Do NOT simply add glowing circles.
+
+Do NOT wrap existing widgets with HUD graphics.
+
+Do NOT only recolor components.
+
+Do NOT simply add neon borders.
+
+Every major mobile component should be reconsidered from first principles.
+
+Redesign.
+
+Not decoration.
+
+=========================================================
+PRIMARY GOAL
+=========================================================
+
+Create the most premium AI operating system experience possible for Android browsers and future Electron builds.
+
+The user should forget they opened Chrome.
+
+The UI should feel native.
+
+Fluid.
+
+Alive.
+
+Intelligent.
+
+Responsive.
+
+Context aware.
+
+=========================================================
+ABSOLUTE RULES
+=========================================================
+
+✓ Android only
+
+✓ Desktop untouched
+
+✓ Preserve existing architecture whenever possible
+
+✓ Build on existing components
+
+✓ No unnecessary rewrites
+
+✓ No placeholder data
+
+✓ No fake notifications
+
+✓ No fake meetings
+
+✓ No fake tasks
+
+✓ No fake weather
+
+✓ No fake battery
+
+✓ If data does not exist
+
+Show elegant empty states.
+
+Never fabricate information.
+
+=========================================================
+HIGHEST PRIORITY
+=========================================================
+
+BEFORE implementing ANY UI
+
+Run a complete code health audit.
+
+Fix:
+
+React warnings
+
+ESLint warnings
+
+TypeScript issues (if present)
+
+Unused imports
+
+Missing hook dependencies
+
+Memory leaks
+
+Animation leaks
+
+Console errors
+
+Performance warnings
+
+Accessibility issues
+
+Broken references
+
+Build warnings
+
+The repository MUST build cleanly.
+
+=========================================================
+CRITICAL
+
+We previously experienced Vercel deployment failures.
+
+These MUST NEVER happen again.
+
+=========================================================
+
+Before EVERY commit
+
+Run
+
+yarn install
+
+Run
+
+yarn build
+
+Run lint
+
+Fix ALL warnings
+
+Treat warnings as build blockers.
+
+Do NOT push code that produces warnings.
+
+Specifically avoid:
+
+Missing React Hook dependencies
+
+Complex dependency arrays
+
+Unused variables
+
+Missing imports
+
+Undefined hooks
+
+Build-time errors
+
+Anything that causes Vercel CI to fail.
+
+If lint reports warnings,
+
+fix them first,
+
+then continue development.
+
+=========================================================
+HOME SCREEN REDESIGN
+=========================================================
+
+Throw away the current hero widget.
+
+Do NOT decorate it.
+
+Completely redesign it.
+
+The current design is:
+
+Large clock
+
+Circle
+
+Greeting
+
+Card
+
+This is NOT acceptable.
+
+Instead build one adaptive AI Command Center.
+
+Everything belongs inside one intelligent surface.
+
+The time is only ONE piece of information.
+
+=========================================================
+COMMAND CENTER SHOULD CONTAIN
+=========================================================
+
+Large premium clock
+
+Animated seconds
+
+Current date
+
+Greeting
+
+Weather
+
+Feels like
+
+Location
+
+Battery %
+
+Charging
+
+Network quality
+
+WiFi status
+
+Upcoming calendar
+
+Current focus
+
+Clipboard status
+
+Memory status
+
+Current music
+
+Voice assistant status
+
+Notification summary
+
+AI processing state
+
+Quick actions
+
+Device health
+
+Everything dynamically rearranges itself depending on available information.
+
+No fixed layout.
+
+=========================================================
+CLOCK
+=========================================================
+
+Do NOT reuse the current font.
+
+Completely redesign typography.
+
+The clock should become an iconic OmniverseOS element.
+
+Requirements
+
+Custom futuristic typography
+
+Smooth animated digit transitions
+
+Optional radial visualization
+
+Adaptive sizing
+
+Soft glow
+
+Depth
+
+Parallax
+
+Time-zone aware
+
+Built-in toggle
+
+12 Hour
+
+24 Hour
+
+The toggle must exist INSIDE the widget.
+
+No settings page required.
+
+Switch instantly.
+
+Remember preference.
+
+=========================================================
+OMNIVERSE IDENTITY
+=========================================================
+
+Keep Omniverse cyan.
+
+The cyan glow is part of the brand.
+
+Do NOT replace it with purple.
+
+Purple may exist as an accent.
+
+Primary identity remains:
+
+Cyan
+
+Teal
+
+Blue
+
+Glass
+
+Dark background
+
+Subtle gradients
+
+=========================================================
+LIVE DATA
+=========================================================
+
+Replace fake information.
+
+If integrations exist
+
+Use them.
+
+If unavailable
+
+Display meaningful empty states.
+
+Examples
+
+"No events today"
+
+"No clipboard history"
+
+"No music playing"
+
+"No notifications"
+
+Never invent meetings.
+
+Never invent reminders.
+
+Never invent weather.
+
+=========================================================
+SEARCH
+=========================================================
+
+Search becomes Cortex.
+
+Not a search bar.
+
+A living assistant.
+
+Voice animation
+
+Thinking animation
+
+Memory suggestions
+
+Clipboard suggestions
+
+Recent conversations
+
+Files
+
+Installed apps
+
+Expandable
+
+Context aware
+
+=========================================================
+MOTION
+=========================================================
+
+No CSS feeling.
+
+Everything uses spring physics.
+
+Momentum.
+
+Velocity.
+
+Overscroll.
+
+Elasticity.
+
+GPU acceleration.
+
+requestAnimationFrame.
+
+Hardware acceleration.
+
+Target
+
+60fps minimum
+
+90fps on supported devices
+
+120fps where supported
+
+Zero frame drops.
+
+=========================================================
+APP LIBRARY
+=========================================================
+
+Current implementation is not smooth enough.
+
+Rewrite interactions.
+
+Native swipe physics.
+
+Velocity prediction.
+
+Snap points.
+
+Rubber-band effect.
+
+No lag.
+
+=========================================================
+DOCK
+=========================================================
+
+Premium floating dock.
+
+Glass blur.
+
+Adaptive transparency.
+
+Subtle magnification.
+
+Animated active indicator.
+
+Native feel.
+
+=========================================================
+WIDGETS
+=========================================================
+
+No repeated rectangles.
+
+Widgets adapt.
+
+Resize.
+
+Collapse.
+
+Expand.
+
+Context aware.
+
+Organic spacing.
+
+=========================================================
+BACKGROUND
+=========================================================
+
+Living neural environment.
+
+Particles.
+
+Constellations.
+
+Energy pulses.
+
+Touch reaction.
+
+Depth.
+
+Very lightweight.
+
+Never distract from content.
+
+=========================================================
+ANDROID EXPERIENCE
+=========================================================
+
+Edge-to-edge
+
+Safe areas
+
+Keyboard animation
+
+Back gesture
+
+Pull gestures
+
+Installable PWA
+
+Splash screen
+
+Adaptive icon
+
+Offline support
+
+Native scrolling
+
+=========================================================
+PERFORMANCE
+=========================================================
+
+Never sacrifice performance for visuals.
+
+Lazy load.
+
+Memoize expensive calculations.
+
+Avoid unnecessary re-renders.
+
+Optimize animations.
+
+Maintain excellent Lighthouse scores.
+
+=========================================================
+QUALITY GATE
+=========================================================
+
+Before every commit verify:
+
+✓ yarn install
+
+✓ yarn build
+
+✓ zero ESLint warnings
+
+✓ zero React warnings
+
+✓ zero console errors
+
+✓ production build succeeds
+
+✓ Vercel build succeeds
+
+✓ mobile tested
+
+Only then:
+
+Commit
+
+Push
+
+Repeat.
+
+=========================================================
+FINAL OBJECTIVE
+=========================================================
+
+Do not build another dashboard.
+
+Do not imitate Android.
+
+Do not imitate iOS.
+
+Do not imitate Windows.
+
+Create the first believable AI Operating System.
+
+The moment someone opens OmniverseOS on Android they should immediately feel:
+
+"This doesn't feel like a website.
+
+This feels like an operating system with an AI at its core."
+
+Every design decision should reinforce that feeling.

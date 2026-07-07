@@ -1,0 +1,2 @@
+- [OmniverseOS Phase 1 architecture](phase1-architecture.md) — Phase 1 Intelligence Layer: what was built, what was already there, key patterns
+- [Python f-string syntax pitfall](python-fstring-pitfall.md) — f-strings with double-quoted values inside double-quoted strings crash backend startup
