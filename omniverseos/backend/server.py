@@ -52,6 +52,8 @@ async def lifespan(_app: FastAPI):
     await db.cortex_memories.create_index([("user_id", 1), ("use_count", -1)])
     await db.memory_activity.create_index([("user_id", 1), ("date", -1)], unique=False)
     await db.memory_activity.create_index([("user_id", 1), ("date", 1)], unique=False)
+    await db.project_dna.create_index([("user_id", 1), ("created_at", -1)])
+    await db.decisions.create_index([("user_id", 1), ("project_id", 1), ("created_at", -1)])
     yield
     # shutdown
     client.close()
@@ -1224,6 +1226,142 @@ async def update_clipboard(cid: str, req: ClipboardReq, user=Depends(get_current
 @api.delete("/clipboard/{cid}")
 async def delete_clipboard(cid: str, user=Depends(get_current_user)):
     return await delete_for_user("clipboard", user["id"], cid)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Project DNA  (project_dna collection)
+# ─────────────────────────────────────────────────────────────────────────────
+class ProjectDNAReq(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(default="", max_length=4000)
+    goals: list[str] = Field(default=[])
+    tags: list[str] = Field(default=[])
+
+class ProjectDNAUpdateReq(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=4000)
+    goals: Optional[list[str]] = Field(default=None)
+    tags: Optional[list[str]] = Field(default=None)
+
+@api.get("/projects")
+async def list_projects(user=Depends(get_current_user)):
+    """Return all projects for the authenticated user, newest first."""
+    docs = await db.project_dna.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(200)
+    return docs
+
+@api.post("/projects")
+async def create_project(req: ProjectDNAReq, user=Depends(get_current_user)):
+    """Create a new Project DNA entry."""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "name": req.name,
+        "description": req.description,
+        "goals": req.goals,
+        "tags": req.tags,
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.project_dna.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.get("/projects/{pid}")
+async def get_project(pid: str, user=Depends(get_current_user)):
+    """Return a single project by ID."""
+    doc = await db.project_dna.find_one(
+        {"id": pid, "user_id": user["id"]}, {"_id": 0}
+    )
+    if not doc:
+        raise HTTPException(404, "Project not found")
+    return doc
+
+@api.put("/projects/{pid}")
+async def update_project(pid: str, req: ProjectDNAUpdateReq, user=Depends(get_current_user)):
+    """Partial-update a project."""
+    patch = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not patch:
+        raise HTTPException(400, "No fields to update")
+    patch["updated_at"] = now_iso()
+    res = await db.project_dna.update_one(
+        {"id": pid, "user_id": user["id"]}, {"$set": patch}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Project not found")
+    return await db.project_dna.find_one({"id": pid}, {"_id": 0})
+
+@api.delete("/projects/{pid}")
+async def delete_project(pid: str, user=Depends(get_current_user)):
+    """Delete a project and all its decisions."""
+    res = await db.project_dna.delete_one({"id": pid, "user_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Project not found")
+    await db.decisions.delete_many({"project_id": pid, "user_id": user["id"]})
+    return {"deleted": True}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Decisions  (decisions collection, nested under projects)
+# ─────────────────────────────────────────────────────────────────────────────
+class DecisionReq(BaseModel):
+    title: str = Field(..., min_length=1, max_length=300)
+    rationale: str = Field(default="", max_length=4000)
+    outcome: str = Field(default="", max_length=1000)
+
+class DecisionUpdateReq(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=300)
+    rationale: Optional[str] = Field(default=None, max_length=4000)
+    outcome: Optional[str] = Field(default=None, max_length=1000)
+
+@api.get("/projects/{pid}/decisions")
+async def list_decisions(pid: str, user=Depends(get_current_user)):
+    """Return all decisions for a project, oldest first (chronological log)."""
+    docs = await db.decisions.find(
+        {"project_id": pid, "user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", 1).to_list(500)
+    return docs
+
+@api.post("/projects/{pid}/decisions")
+async def create_decision(pid: str, req: DecisionReq, user=Depends(get_current_user)):
+    """Log a new decision against a project."""
+    project = await db.project_dna.find_one({"id": pid, "user_id": user["id"]})
+    if not project:
+        raise HTTPException(404, "Project not found")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "project_id": pid,
+        "title": req.title,
+        "rationale": req.rationale,
+        "outcome": req.outcome,
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.decisions.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.put("/decisions/{did}")
+async def update_decision(did: str, req: DecisionUpdateReq, user=Depends(get_current_user)):
+    """Update a decision entry."""
+    patch = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not patch:
+        raise HTTPException(400, "No fields to update")
+    patch["updated_at"] = now_iso()
+    res = await db.decisions.update_one(
+        {"id": did, "user_id": user["id"]}, {"$set": patch}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Decision not found")
+    return await db.decisions.find_one({"id": did}, {"_id": 0})
+
+@api.delete("/decisions/{did}")
+async def delete_decision(did: str, user=Depends(get_current_user)):
+    """Delete a decision entry."""
+    res = await db.decisions.delete_one({"id": did, "user_id": user["id"]})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Decision not found")
+    return {"deleted": True}
 
 # Analytics summary
 @api.get("/analytics/summary")

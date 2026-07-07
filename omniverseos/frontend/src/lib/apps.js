@@ -43,6 +43,10 @@ export const APPS = [
   { id: "finance",    name: "Finance",      icon: "fa-chart-line",     color: "#39FF14", Component: lazy(() => import("../apps/Finance")),       group: "data" },
   { id: "analytics",  name: "Analytics",    icon: "fa-chart-pie",      color: "#39FF14", Component: lazy(() => import("../apps/Analytics")),     group: "data" },
 
+  // ─── Intelligence ──────────────────────────────────────────────────────
+  { id: "project-dna", name: "Project DNA", icon: "fa-dna",            color: "#A855F7", Component: lazy(() => import("../apps/ProjectDNA")),    group: "productivity" },
+  { id: "timeline",    name: "Timeline",    icon: "fa-timeline",        color: "#00F0FF", Component: lazy(() => import("../apps/TimelineApp")),   group: "ai" },
+
   // ─── Social ────────────────────────────────────────────────────────────
   { id: "nebula",     name: "Nebula Chat",  icon: "fa-satellite-dish", color: "#A855F7", Component: lazy(() => import("../apps/DiscordApp")),    group: "social" },
 ];

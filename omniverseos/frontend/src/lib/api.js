@@ -500,6 +500,23 @@ export const memoryApi = {
       .catch(() => ({ extracted: [] })),
 };
 
+// ── Project DNA API ───────────────────────────────────────────────────────
+export const projectApi = {
+  list:   ()           => api.get('/projects').then(r => r.data).catch(() => []),
+  create: (data)       => api.post('/projects', data).then(r => r.data),
+  get:    (pid)        => api.get(`/projects/${pid}`).then(r => r.data),
+  update: (pid, data)  => api.put(`/projects/${pid}`, data).then(r => r.data),
+  remove: (pid)        => api.delete(`/projects/${pid}`).then(r => r.data),
+};
+
+// ── Decisions API ─────────────────────────────────────────────────────────
+export const decisionApi = {
+  list:   (pid)        => api.get(`/projects/${pid}/decisions`).then(r => r.data).catch(() => []),
+  create: (pid, data)  => api.post(`/projects/${pid}/decisions`, data).then(r => r.data),
+  update: (did, data)  => api.put(`/decisions/${did}`, data).then(r => r.data),
+  remove: (did)        => api.delete(`/decisions/${did}`).then(r => r.data),
+};
+
 // ── Conversation Search API ────────────────────────────────────────────────
 export const conversationApi = {
   /** List all chat sessions for the user (most recent first) */
