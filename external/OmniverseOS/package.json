@@ -1,0 +1,9 @@
+{
+  "name": "omniverseos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OmniverseOS root package — the actual app lives in frontend/ (React/CRACO) and backend/ (FastAPI).",
+  "scripts": {
+    "build": "cd frontend && yarn install && CI=false GENERATE_SOURCEMAP=false yarn build"
+  }
+}
