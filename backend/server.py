@@ -23,6 +23,7 @@ import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
 from providers import provider_manager  # noqa: F401 — registers ai_service at import time
 from ai_service import ai_service
+from web_service import web_service, needs_web_search
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -805,6 +806,15 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                 "[GhostWriter] Context fetch failed, using ghost base prompt: %s",
                 _ghost_ctx_err,
             )
+
+    # ── Web Intelligence: inject TinyFish Search context for live queries ────────
+    # Ghost Writer sessions use MongoDB-grounded context, not web search.
+    # On any TinyFish failure build_context_block returns "" — AI answers normally.
+    if not req.session_id.startswith("ghost-") and needs_web_search(req.message):
+        web_ctx = await web_service.build_context_block(req.message)
+        if web_ctx:
+            system_msg = system_msg + "\n\n" + web_ctx
+            logging.info("[WebService] Search context injected | query=%r", req.message[:80])
 
     async def event_gen():
         full = []
