@@ -24,6 +24,8 @@ from datetime import datetime, timezone, timedelta
 from providers import provider_manager  # noqa: F401 — registers ai_service at import time
 from ai_service import ai_service
 from web_service import web_service, needs_web_search
+from structured_ai import extract_structured
+from schemas import ExtractedMemoryList, SearchRerankResult
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -1305,52 +1307,46 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
 
 @api.post("/memories/extract")
 async def extract_memories(req: MemoryExtractReq, user=Depends(get_current_user)):
-    """Use Gemini to auto-extract long-term memorable facts from a conversation turn."""
+    """Auto-extract long-term memorable facts from a conversation turn.
+
+    Routed through LiteLLM + Instructor (structured_ai.extract_structured) so
+    the output is Pydantic-validated before it ever reaches MongoDB — raw AI
+    JSON is never parsed or inserted directly (see structured_ai.py).
+    """
     if not gemini_client:
         return {"extracted": []}
     await rate_limit(f"mem_extract:{user['id']}", max_per_min=30)
     prompt = (
-        "Extract long-term memorable facts from this conversation. Return a JSON array only.\n\n"
+        "Extract long-term memorable facts from this conversation.\n\n"
         f"User: {req.user_message}\nAssistant: {req.assistant_response[:1500]}\n\n"
         "Rules:\n"
         "- Extract ONLY personal facts worth permanently remembering: owned items, preferences, projects, profession, location, contacts.\n"
         "- Skip: questions, weather, time queries, temporary facts, general knowledge.\n"
-        "- Each item: {title: 5 words max, content: one sentence fact, category: one of [Personal,Preferences,Devices,Vehicles,Projects,Work,Contacts,Locations,Other], importance_score: 0.0-1.0}\n"
-        "- 0.9+ for critical personal info, 0.7 for preferences, 0.5 general.\n"
-        "Return ONLY valid JSON array, no markdown fences, no explanation. Return [] if nothing memorable."
+        "- 0.9+ importance for critical personal info, 0.7 for preferences, 0.5 general.\n"
+        "- Return no items if nothing memorable was said."
     )
     try:
-        resp = await gemini_client.aio.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(temperature=0.1, max_output_tokens=800),
+        result = await extract_structured(
+            order=["gemini", "cerebras", "groq"],
+            prompt=prompt,
+            response_model=ExtractedMemoryList,
+            max_tokens=800,
         )
-        raw = (resp.text or "").strip()
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        import json as _json
-        items = _json.loads(raw)
-        if not isinstance(items, list):
+        if result is None:
             return {"extracted": []}
         saved = []
-        for item in items[:5]:
-            if not isinstance(item, dict) or not item.get("content"):
-                continue
-            cat = item.get("category", "Other")
-            if cat not in CORTEX_MEMORY_CATEGORIES:
-                cat = "Other"
-            imp = min(1.0, max(0.0, float(item.get("importance_score", 0.6))))
+        for item in result.items[:5]:
             existing = await db.cortex_memories.find_one({
                 "user_id": user["id"],
-                "content": {"$regex": f"^{re.escape(item['content'][:40])}", "$options": "i"}
+                "content": {"$regex": f"^{re.escape(item.content[:40])}", "$options": "i"}
             })
             if existing:
                 continue
             doc = {
                 "id": str(uuid.uuid4()), "user_id": user["id"],
-                "title": item.get("title", item["content"][:60]),
-                "content": item["content"], "category": cat,
-                "importance_score": imp, "pinned": False, "never_forget": False,
+                "title": item.title or item.content[:60],
+                "content": item.content, "category": item.category,
+                "importance_score": item.importance_score, "pinned": False, "never_forget": False,
                 "source_message": req.user_message[:200],
                 "use_count": 0,
                 "created_at": now_iso(), "updated_at": now_iso(), "last_used": now_iso(),
@@ -1574,14 +1570,14 @@ async def search_conversations(req: ConversationSearchReq, user=Depends(get_curr
                 f"Return ONLY a JSON array of indices like [3,0,1,5,...] — nothing else.\n\n"
                 f"Candidates:\n{candidates}"
             )
-            rerank_resp = gemini_client.models.generate_content(
-                model="gemini-2.0-flash-lite",
-                contents=rerank_prompt,
+            rerank_result = await extract_structured(
+                order=["gemini", "cerebras", "groq"],
+                prompt=rerank_prompt,
+                response_model=SearchRerankResult,
+                max_tokens=300,
             )
-            raw_text = (rerank_resp.text or "").strip().replace("```json", "").replace("```", "").strip()
-            import json as _json
-            indices = _json.loads(raw_text)
-            if isinstance(indices, list) and all(isinstance(x, int) for x in indices):
+            if rerank_result is not None:
+                indices = [i for i in rerank_result.indices if isinstance(i, int)]
                 reranked = [results[i] for i in indices if i < len(results)]
                 # Add any not in reranked list
                 seen = set(indices)

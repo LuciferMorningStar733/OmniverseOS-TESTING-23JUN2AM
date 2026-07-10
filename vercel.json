@@ -1,5 +1,0 @@
-{
-  "buildCommand": "cd frontend && yarn install && CI=false GENERATE_SOURCEMAP=false yarn build",
-  "outputDirectory": "frontend/build",
-  "installCommand": "echo 'skip root install'"
-}
