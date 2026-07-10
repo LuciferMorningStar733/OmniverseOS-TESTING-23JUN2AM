@@ -2,5 +2,8 @@
   "name": "omniverseos",
   "version": "1.0.0",
   "private": true,
-  "description": "OmniverseOS root package — install here is a no-op; the actual app lives in frontend/ (React/CRACO) and backend/ (FastAPI). See vercel.json for the real build command."
+  "description": "OmniverseOS root package — the actual app lives in frontend/ (React/CRACO) and backend/ (FastAPI).",
+  "scripts": {
+    "build": "cd frontend && yarn install && CI=false GENERATE_SOURCEMAP=false yarn build"
+  }
 }
