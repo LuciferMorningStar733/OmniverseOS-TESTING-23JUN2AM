@@ -1,6 +1,10 @@
 """
 OmniverseOS — AI Provider Manager
 Gemini → DeepSeek → Groq → Cerebras → OpenRouter
+
+Implements AIProvider so the ProviderManager can be registered with AIService.
+New providers (LiteLLM, TinyFish, Ollama, …) should follow the same pattern:
+  subclass AIProvider, implement all abstract methods, register with ai_service.
 """
 
 import asyncio
@@ -13,6 +17,8 @@ from typing import AsyncGenerator, Optional
 import httpx
 from google import genai
 from google.genai import types as genai_types
+
+from ai_service import AIProvider, ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +187,7 @@ async def _stream_openai_compat(
 
 # ── Provider Manager ───────────────────────────────────────────────────────
 
-class ProviderManager:
+class ProviderManager(AIProvider):
     PROVIDER_ORDER = ["gemini", "deepseek", "groq", "cerebras", "openrouter"]
 
     def __init__(self):
@@ -468,6 +474,42 @@ class ProviderManager:
         logger.error("[Cortex] All background providers exhausted: %s", last_error)
         return ""
 
+    async def generate_once(
+        self,
+        model: str,
+        message: str,
+        system: str = "",
+        max_tokens: int = 512,
+    ) -> str:
+        """
+        Single non-streaming generation with an explicit model choice.
+
+        Tries the Gemini client first (supports arbitrary model names).
+        Falls back to generate_text_background if Gemini is unavailable or
+        returns an empty response.
+        """
+        self.init()
+        if self._gemini_client:
+            try:
+                config_kwargs: dict = {}
+                if system:
+                    config_kwargs["system_instruction"] = system
+                if max_tokens:
+                    config_kwargs["max_output_tokens"] = max_tokens
+                resp = await self._gemini_client.aio.models.generate_content(
+                    model=model,
+                    contents=message,
+                    config=genai_types.GenerateContentConfig(**config_kwargs),
+                )
+                text = resp.text or ""
+                if text.strip():
+                    return text
+                logger.warning("[AIService] generate_once Gemini returned empty for model=%s, falling back", model)
+            except Exception as exc:
+                logger.warning("[AIService] generate_once Gemini failed for model=%s: %s", model, exc)
+        # Fallback: background provider pool (Cerebras → Groq → Gemini)
+        return await self.generate_text_background(message, system)
+
     def provider_statuses(self) -> dict:
         self.init()
         return {
@@ -481,5 +523,8 @@ class ProviderManager:
         }
 
 
-# Singleton
+# Singleton — kept for any code that still imports it directly
 provider_manager = ProviderManager()
+
+# Register with AIService so all routes can use ai_service instead of provider_manager directly
+ai_service.register(provider_manager)

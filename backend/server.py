@@ -21,7 +21,8 @@ import traceback
 import bcrypt
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
-from providers import provider_manager
+from providers import provider_manager  # noqa: F401 — registers ai_service at import time
+from ai_service import ai_service
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -629,7 +630,7 @@ def _validate_chat_req(req: "ChatReq") -> None:
 @api.get("/ai/providers")
 async def ai_providers(_user=Depends(get_current_user)):
     """Return health/availability of all AI providers."""
-    return provider_manager.provider_statuses()
+    return ai_service.provider_statuses()
 
 @api.post("/ai/chat/stream")
 async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
@@ -808,7 +809,7 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
     async def event_gen():
         full = []
         try:
-            async for kind, value in provider_manager.generate_stream(
+            async for kind, value in ai_service.generate_stream(
                 preferred=req.preferred_provider,
                 gemini_model=req.model,
                 message=req.message,
@@ -850,18 +851,11 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
 
 @api.post("/ai/chat")
 async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
-    if not gemini_client:
-        raise HTTPException(500, "LLM key not configured")
     _validate_chat_req(req)
     system_msg = req.system or "You are OmniverseOS Assistant. Be concise and helpful."
-    response = await gemini_client.aio.models.generate_content(
-        model=req.model,
-        contents=req.message,
-        config=genai_types.GenerateContentConfig(
-            system_instruction=system_msg,
-        ),
-    )
-    text = response.text or ""
+    text = await ai_service.generate_once(req.model, req.message, system_msg)
+    if not text:
+        raise HTTPException(500, "LLM key not configured")
     await db.chat_messages.insert_many([
         {"id": str(uuid.uuid4()), "user_id": user["id"], "session_id": req.session_id,
          "role": "user", "content": req.message, "created_at": now_iso()},
@@ -1031,21 +1025,16 @@ async def auto_title_session(session_id: str, user=Depends(get_current_user)):
     if not first_msg:
         raise HTTPException(404, "No messages found")
     content = first_msg.get("content", "")[:300]
-    if not gemini_client:
+    try:
+        raw_title = await ai_service.generate_once(
+            "gemini-2.5-flash-lite",
+            f"Generate a short 3-6 word title for this conversation. Only output the title, nothing else. Message: {content}",
+            "You generate short chat titles. Max 6 words. No quotes. No punctuation at end. Just the title.",
+            max_tokens=20,
+        )
+        title = (raw_title or content[:60]).strip().strip('"').strip("'") or "New Chat"
+    except Exception:
         title = content[:60].strip() or "New Chat"
-    else:
-        try:
-            resp = await gemini_client.aio.models.generate_content(
-                model="gemini-2.5-flash-lite",
-                contents=f"Generate a short 3-6 word title for this conversation. Only output the title, nothing else. Message: {content}",
-                config=genai_types.GenerateContentConfig(
-                    system_instruction="You generate short chat titles. Max 6 words. No quotes. No punctuation at end. Just the title.",
-                    max_output_tokens=20,
-                ),
-            )
-            title = (resp.text or content[:60]).strip().strip('"').strip("'")
-        except Exception:
-            title = content[:60].strip() or "New Chat"
     await db.chat_sessions.update_one(
         {"user_id": uid, "session_id": session_id},
         {"$set": {"title": title, "updated_at": now_iso()}},
@@ -1868,7 +1857,7 @@ async def check_interrupts(user=Depends(get_current_user)):
     # Route interrupts through background providers (Cerebras→Groq→Gemini) to
     # preserve Gemini quota strictly for foreground chat and Ghost Writing.
     try:
-        raw = await provider_manager.generate_text_background(prompt)
+        raw = await ai_service.generate_text_background(prompt)
         raw = (raw or "").strip().replace("```json", "").replace("```", "").strip()
         if not raw:
             return {"interrupt": None}
@@ -1972,7 +1961,7 @@ async def run_swarm(req: SwarmGoalReq, user=Depends(get_current_user)):
         async def run_agent(agent_def: dict):
             start = time.time()
             try:
-                output = await provider_manager.generate_text_background(
+                output = await ai_service.generate_text_background(
                     prompt=goal,
                     system=agent_def["system"],
                 )
@@ -2020,7 +2009,7 @@ async def run_swarm(req: SwarmGoalReq, user=Depends(get_current_user)):
             "Markdown output, under 300 words."
         )
         try:
-            synthesis = await provider_manager.generate_text_background(synthesis_prompt)
+            synthesis = await ai_service.generate_text_background(synthesis_prompt)
         except Exception:
             synthesis = "Synthesis unavailable — review individual agent outputs above."
 
