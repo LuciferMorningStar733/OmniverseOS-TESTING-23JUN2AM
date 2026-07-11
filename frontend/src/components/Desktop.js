@@ -135,7 +135,7 @@ function AmbientParticles() {
     />
   );
 }
-export default function Desktop() {
+function Desktop() {
   const {
     windows, setPaletteOpen, paletteOpen, wallpaper, setWallpaper, focusWindow, activeId,
     openApp, closeWindow, minimize, updateWindow, toggleMaximize,
