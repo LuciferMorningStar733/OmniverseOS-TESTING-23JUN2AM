@@ -356,11 +356,164 @@ function CopyButton({ text }) {
   );
 }
 
+/* ── Model Debate ─────────────────────────────────────────────────────────────── */
+
+const DEBATE_MODELS = [
+  { preferred_provider: "gemini",   model: "gemini-2.5-flash",        label: "Gemini Flash",  shortLabel: "Gemini",   color: "#4285F4", icon: "fa-google"    },
+  { preferred_provider: "deepseek", model: "deepseek-chat",           label: "DeepSeek V3",   shortLabel: "DeepSeek", color: "#39FF14", icon: "fa-brain"     },
+  { preferred_provider: "groq",     model: "llama-3.3-70b-versatile", label: "Groq · Llama",  shortLabel: "Llama",    color: "#F59E0B", icon: "fa-bolt"      },
+  { preferred_provider: "cerebras", model: "llama-3.3-70b",           label: "Cerebras",      shortLabel: "Cerebras", color: "#A855F7", icon: "fa-microchip" },
+];
+
+function jaccardSim(a, b) {
+  const tok = (t) => new Set((t.toLowerCase().match(/\b\w{3,}\b/g) || []));
+  const s1 = tok(a);
+  const s2 = tok(b);
+  let inter = 0;
+  for (const w of s1) if (s2.has(w)) inter++;
+  const union = s1.size + s2.size - inter;
+  return union === 0 ? 1 : inter / union;
+}
+
+function computeAgreementScores(texts) {
+  const n = texts.length;
+  const scores = texts.map((_, i) => {
+    let sum = 0;
+    for (let j = 0; j < n; j++) if (i !== j) sum += jaccardSim(texts[i], texts[j]);
+    return Math.round((sum / (n - 1)) * 100);
+  });
+  const overall = Math.round(scores.reduce((a, b) => a + b, 0) / n);
+  return { scores, overall };
+}
+
+const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt }) {
+  if (!panels) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(255,99,20,0.1)", border: "1px solid rgba(255,99,20,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <i className="fa-solid fa-users" style={{ fontSize: 20, color: "#FF6314" }} />
+        </div>
+        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em" }}>
+          Send a prompt — 4 models respond in parallel
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
+          {DEBATE_MODELS.map((m) => (
+            <span key={m.preferred_provider} style={{
+              fontSize: 9.5, padding: "2px 8px", borderRadius: 4,
+              background: `${m.color}0e`, border: `1px solid ${m.color}33`,
+              color: m.color, fontFamily: "'JetBrains Mono', monospace",
+              display: "flex", alignItems: "center", gap: 5,
+            }}>
+              <i className={`fa-solid ${m.icon}`} style={{ fontSize: 8 }} />{m.shortLabel}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      {/* Prompt + overall agreement banner */}
+      <div style={{ padding: "7px 14px", borderBottom: "1px solid rgba(255,100,20,0.12)", background: "rgba(255,100,20,0.04)", flexShrink: 0, display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", color: "#FF6314", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 2, display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="fa-solid fa-users" style={{ fontSize: 8 }} />Debate · 4 models
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            "{prompt}"
+          </div>
+        </div>
+        {agreement && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, animation: "fadeSlideUp 0.3s ease" }}>
+            <i className="fa-solid fa-handshake" style={{ fontSize: 10, color: agreement.overall >= 70 ? "#39FF14" : agreement.overall >= 50 ? "#F59E0B" : "#FF4444" }} />
+            <span style={{ fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.45)", letterSpacing: "0.04em" }}>overall agreement</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: agreement.overall >= 70 ? "#39FF14" : agreement.overall >= 50 ? "#F59E0B" : "#FF4444", fontFamily: "'JetBrains Mono', monospace" }}>
+              {agreement.overall}%
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 2×2 grid */}
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", overflow: "hidden" }}>
+        {panels.map((panel, idx) => {
+          const agScore = agreement?.scores[idx];
+          const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
+          const isLeft = idx % 2 === 0;
+          const isTop  = idx < 2;
+          return (
+            <div key={idx} style={{
+              display: "flex", flexDirection: "column", overflow: "hidden",
+              borderRight:  isLeft ? "1px solid rgba(255,255,255,0.055)" : "none",
+              borderBottom: isTop  ? "1px solid rgba(255,255,255,0.055)" : "none",
+            }}>
+              {/* Panel header */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "5px 9px",
+                background: `${panel.color}08`, borderBottom: `1px solid ${panel.color}1c`, flexShrink: 0,
+              }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                  background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`,
+                  boxShadow: panel.streaming ? `0 0 6px ${panel.color}` : "none",
+                  animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none",
+                }} />
+                <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 9, color: panel.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.82)", fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {panel.label}
+                </span>
+
+                {/* Agreement badge — rendered after all panels are done */}
+                {agScore != null && panel.done && !panel.error && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: `${scoreColor}12`, border: `1px solid ${scoreColor}2e`, animation: "fadeSlideUp 0.35s ease", flexShrink: 0 }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: scoreColor, fontFamily: "'JetBrains Mono', monospace" }}>{agScore}%</span>
+                    {agScore < 55 && (
+                      <span style={{ fontSize: 7.5, color: scoreColor, letterSpacing: "0.07em", textTransform: "uppercase", marginLeft: 2 }}>diverges</span>
+                    )}
+                  </div>
+                )}
+                {panel.streaming && (
+                  <span style={{ fontSize: 9, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>
+                )}
+                {panel.error && (
+                  <span style={{ fontSize: 8, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, letterSpacing: "0.06em" }}>FAILED</span>
+                )}
+              </div>
+
+              {/* Scrollable content */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "8px 10px", fontSize: 12, lineHeight: 1.62, color: "rgba(255,255,255,0.78)" }}>
+                {!panel.content && panel.streaming && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, paddingTop: 2 }}>
+                    {[0, 1, 2].map((di) => (
+                      <span key={di} style={{
+                        display: "inline-block", width: 3, borderRadius: 3,
+                        height: [8, 12, 8][di],
+                        background: `${panel.color}${["66","aa","66"][di]}`,
+                        animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite`,
+                      }} />
+                    ))}
+                    <span style={{ fontSize: 8.5, color: `${panel.color}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>generating</span>
+                  </div>
+                )}
+                {panel.content && (
+                  <MarkdownRenderer content={panel.content} streaming={panel.streaming} />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 /* ── Mode switcher ────────────────────────────────────────────────────────────── */
 const CHAT_MODES = [
   { id: "chat",     icon: "fa-comments", label: "Chat",     color: "#00F0FF" },
   { id: "web",      icon: "fa-globe",    label: "Live Web", color: "#39FF14" },
   { id: "research", icon: "fa-flask",    label: "Research", color: "#A855F7" },
+  { id: "debate",   icon: "fa-users",    label: "Debate",   color: "#FF6314" },
 ];
 
 function ModeSwitcher({ mode, onChange, disabled }) {
@@ -600,7 +753,10 @@ export default function AIChat() {
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
-  const [chatMode, setChatMode]             = useState("chat"); // "chat" | "web" | "research"
+  const [chatMode, setChatMode]             = useState("chat"); // "chat" | "web" | "research" | "debate"
+  const [debatePanels, setDebatePanels]     = useState(null);
+  const [debatePrompt, setDebatePrompt]     = useState("");
+  const [debateAgreement, setDebateAgreement] = useState(null);
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [touchedMsgIdx, setTouchedMsgIdx]   = useState(null);
   const touchTimerRef = useRef(null);
@@ -917,6 +1073,40 @@ export default function AIChat() {
         { role: "assistant", content: "Launching Swarm — 4 specialized agents are spinning up to tackle this in parallel. Track their live progress in the Swarm Goal panel.", ts: Date.now() },
       ]);
       openApp("swarm");
+      return;
+    }
+
+    // ── Debate mode — 4 models respond in parallel in a 2×2 grid ────────────
+    if (chatMode === "debate") {
+      setInput("");
+      const ts = Date.now();
+      const debateSids = DEBATE_MODELS.map((_, i) => `debate-${ts}-${i}`);
+      setDebatePanels(DEBATE_MODELS.map((m) => ({ ...m, content: "", streaming: true, done: false, error: false })));
+      setDebatePrompt(text);
+      setDebateAgreement(null);
+      DEBATE_MODELS.forEach((m, idx) => {
+        aiApi.chatStreamResilient(
+          { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat" },
+          (delta) => {
+            if (!mountedRef.current || ctrl.signal.aborted) return;
+            setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, content: p.content + delta } : p) : prev);
+          },
+          null, ctrl.signal, null, null, null
+        ).then(() => {
+          if (!mountedRef.current) return;
+          setDebatePanels((prev) => {
+            if (!prev) return prev;
+            const next = prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true } : p);
+            if (next.every((p) => p.done)) {
+              setDebateAgreement(computeAgreementScores(next.map((p) => p.content)));
+            }
+            return next;
+          });
+        }).catch(() => {
+          if (!mountedRef.current) return;
+          setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true, error: true } : p) : prev);
+        });
+      });
       return;
     }
 
@@ -1393,7 +1583,10 @@ export default function AIChat() {
 
       {/* Messages */}
       <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto">
+      {chatMode === "debate" && (
+        <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} />
+      )}
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto" style={{ display: chatMode === "debate" ? "none" : undefined }}>
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
         <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
@@ -1644,7 +1837,7 @@ export default function AIChat() {
       </div>
 
       {/* Jump to bottom — floats inside messages area when user scrolls up */}
-      {showScrollBottom && (
+      {showScrollBottom && chatMode !== "debate" && (
         <button
           onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: "smooth" })}
           title="Jump to latest message"
