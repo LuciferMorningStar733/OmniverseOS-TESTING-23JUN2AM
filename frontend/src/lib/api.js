@@ -482,6 +482,12 @@ export const ttsApi = {
   },
 };
 
+// ── Model Face-Off API ─────────────────────────────────────────────────────
+export const faceOffApi = {
+  run: (prompt, system = "") =>
+    api.post("/ai/faceoff", { prompt, system }, { timeout: 60_000 }).then((r) => r.data),
+};
+
 // ── Cortex Persistent Memory API ──────────────────────────────────────────
 export const memoryApi = {
   list: () => api.get('/memories').then(r => r.data),

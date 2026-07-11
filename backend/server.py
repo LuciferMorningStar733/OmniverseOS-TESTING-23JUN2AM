@@ -876,6 +876,46 @@ async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
     ])
     return {"response": text}
 
+# ---------- Routes: Model Face-Off ----------
+
+class FaceOffReq(BaseModel):
+    prompt: str
+    system: str = ""
+
+FACEOFF_PROVIDERS = {
+    "gemini":   "gemini-2.5-flash",
+    "deepseek": "deepseek-chat",
+    "groq":     "llama-3.3-70b-versatile",
+    "cerebras": "llama-3.3-70b",
+}
+
+@api.post("/ai/faceoff")
+async def ai_faceoff(req: FaceOffReq, user=Depends(get_current_user)):
+    """Run the same prompt against all providers concurrently and return all responses."""
+    await rate_limit(f"faceoff:{user['id']}", max_per_min=15)
+    if not req.prompt or len(req.prompt) > MAX_PROMPT_LEN:
+        raise HTTPException(400, "Prompt missing or too long")
+    system = req.system or (
+        "You are a helpful AI assistant. Be direct, concise, and accurate. "
+        "Keep your response under 300 words."
+    )
+
+    async def call_one(provider: str, model: str) -> dict:
+        try:
+            text = await asyncio.wait_for(
+                ai_service.generate_once(model, req.prompt, system, max_tokens=600),
+                timeout=30.0,
+            )
+            return {"provider": provider, "model": model, "text": text or "", "error": None}
+        except asyncio.TimeoutError:
+            return {"provider": provider, "model": model, "text": "", "error": "timeout"}
+        except Exception as exc:
+            return {"provider": provider, "model": model, "text": "", "error": str(exc)[:150]}
+
+    tasks = [call_one(p, m) for p, m in FACEOFF_PROVIDERS.items()]
+    results = await asyncio.gather(*tasks)
+    return {"results": list(results)}
+
 @api.get("/ai/chat/history/{session_id}")
 async def chat_history(session_id: str, user=Depends(get_current_user)):
     msgs = await db.chat_messages.find(

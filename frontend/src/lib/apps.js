@@ -50,6 +50,7 @@ export const APPS = [
 
   // ─── AI Agents ─────────────────────────────────────────────────────────────
   { id: "swarm",      name: "Swarm Goal",   icon: "fa-share-nodes",    color: "#00F0FF", Component: lazy(() => import("../apps/SwarmGoal")),     group: "ai" },
+  { id: "faceoff",   name: "Face-Off",     icon: "fa-bolt-lightning",  color: "#00F0FF", Component: lazy(() => import("../apps/ModelFaceOff")), group: "ai" },
 ];
 
 export const getApp = (id) => APPS.find((a) => a.id === id);
