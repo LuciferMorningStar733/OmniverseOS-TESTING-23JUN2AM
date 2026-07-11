@@ -1,0 +1,248 @@
+# OMNIVERSEOS MASTER TASK
+
+Repository:
+https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM
+
+Branch:
+main
+
+==================================================
+MANDATORY RULES
+==================================================
+
+- Work ONLY on the GitHub repository above.
+- Work ONLY on the main branch.
+- Never create feature branches.
+- Never change architecture unless absolutely necessary.
+- Preserve the existing OmniverseOS design language.
+- Do not rewrite working systems.
+- Fix and polish only.
+- Do not remove existing features.
+- Keep everything production ready.
+- If something is ambiguous, inspect the code before modifying it.
+- Verify every change before considering it complete.
+
+==================================================
+WORKFLOW (VERY IMPORTANT)
+==================================================
+
+Treat every priority as an independent milestone.
+
+After EACH completed priority:
+
+1. Build the project.
+2. Verify there are no errors.
+3. Test the affected functionality.
+4. Commit.
+5. Push immediately to GitHub main.
+6. Confirm push succeeded.
+7. Only then begin the next priority.
+
+Never wait until all priorities are complete before pushing.
+
+If a priority is larger than expected, split it into multiple commits and push after each logical completion.
+
+Never leave finished work only inside Replit.
+
+==================================================
+CURRENT PROJECT STATUS
+==================================================
+
+Already completed:
+
+✓ Cortex conversation memory
+✓ Conversation history sent to Gemini
+✓ Google Search grounding enabled
+✓ User location awareness
+✓ Ambiguity detection framework
+✓ Context memory indicator
+✓ Clear context button
+✓ Scroll improvements
+✓ Hover timestamps
+✓ Wallpaper upload fixed
+✓ Music playback fixed
+✓ Voice recognition fixed
+✓ Weather widget redesigned
+✓ Single combined Weather + Clock widget
+✓ Widget clutter removed
+✓ Dynamic weather
+✓ Improved search palette
+
+These features are COMPLETE.
+
+Do NOT rebuild them.
+
+==================================================
+YOUR TASK
+==================================================
+
+Focus ONLY on polishing and improving the current experience.
+
+Priority 1
+-----------
+Polish desktop window experience.
+
+• Perfect drag behavior
+• Perfect resize behavior
+• Better snapping
+• Better open/close animations
+• Eliminate jitter
+• Consistent shadows
+• Consistent blur
+• Consistent spacing
+• Smooth 60fps animations
+
+After complete:
+Commit
+Push to GitHub main
+
+--------------------------------------------------
+
+Priority 2
+
+Polish Dock.
+
+• Better hover animation
+• Better active app indicator
+• Better launch animation
+• Better minimize animation
+• Better tooltip animation
+• Better spacing
+• Better responsiveness
+
+After complete:
+Commit
+Push
+
+--------------------------------------------------
+
+Priority 3
+
+Polish Cortex chat.
+
+NOT new AI features.
+
+UI polish only.
+
+• Better streaming animation
+• Better markdown rendering
+• Better code blocks
+• Better tables
+• Better copy button
+• Better typing indicator
+• Better loading states
+• Better error messages
+• Better retry UI
+• Better scroll behavior
+
+After complete:
+Commit
+Push
+
+--------------------------------------------------
+
+Priority 4
+
+Polish Search Palette.
+
+• Faster animations
+• Better keyboard navigation
+• Better category badges
+• Better search result cards
+• Better transitions
+• Better focus states
+
+After complete:
+Commit
+Push
+
+--------------------------------------------------
+
+Priority 5
+
+Visual consistency pass.
+
+Ensure:
+
+• identical border radius
+• identical spacing
+• identical glow intensity
+• identical typography
+• identical icon sizing
+• identical animation timing
+• identical shadows
+• identical blur values
+
+Entire OS should feel designed by one designer.
+
+After complete:
+Commit
+Push
+
+--------------------------------------------------
+
+Priority 6
+
+Widget polish.
+
+NO new widgets.
+
+Just polish existing ones.
+
+• Better resizing
+• Better responsive layouts
+• Better padding
+• Better loading states
+• Better transitions
+• Better animations
+
+After complete:
+Commit
+Push
+
+--------------------------------------------------
+
+Priority 7
+
+Performance.
+
+Reduce unnecessary renders.
+
+Reduce unnecessary API calls.
+
+Lazy load where appropriate.
+
+Optimize animations.
+
+Remove memory leaks.
+
+Keep functionality identical.
+
+After complete:
+
+Commit
+Push
+
+==================================================
+FINAL STEP
+==================================================
+
+After ALL priorities:
+
+Run a production build.
+
+Fix every warning.
+
+Fix every error.
+
+Push final commit to GitHub main.
+
+Provide:
+
+• Summary of every improvement
+• Files modified
+• Performance improvements
+• Remaining suggestions (do not implement)
+• Final GitHub commit hash
+
+The repository must always remain in a working state after every pushed milestone.

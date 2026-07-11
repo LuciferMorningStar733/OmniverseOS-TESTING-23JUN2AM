@@ -1,0 +1,334 @@
+You now have enough context of OmniverseOS. The desktop experience is production-quality and must remain visually identical. This task is ONLY focused on making the Android/mobile experience feel like it was designed as a native mobile operating system rather than a desktop website.
+
+## Goal
+
+Transform the mobile UX into something comparable to Android/iOS quality while preserving the OmniverseOS cyberpunk identity.
+
+Do NOT redesign branding, colors, typography, or desktop layouts.
+
+Desktop behavior must remain pixel-identical.
+
+---
+
+# MOBILE UX POLISH
+
+Perform a complete UX audit of every mobile interaction.
+
+Remove every source of jank, lag, awkward spacing or desktop-like behavior.
+
+Target 60 FPS animations.
+
+Avoid unnecessary React rerenders.
+
+Optimize touch responsiveness.
+
+Debounce expensive resize listeners.
+
+Memoize where appropriate.
+
+Use hardware accelerated transforms (translate3d, transform, opacity).
+
+Avoid animating width/height where possible.
+
+---
+
+# APP HEADER
+
+Every fullscreen mobile app must include a native header.
+
+Required layout:
+
+[← Back]    App Name                 [✕ Close]
+
+Back returns to the previous screen.
+
+Close immediately closes the app and returns to the desktop.
+
+Do NOT rely only on gestures.
+
+Gestures should remain as shortcuts, not the only navigation method.
+
+Header buttons must be at least 44x44px touch targets.
+
+---
+
+# WINDOW BEHAVIOR
+
+On phones:
+
+Apps open fullscreen.
+
+Dragging disabled.
+
+Resizing disabled.
+
+Opening animation:
+
+Dock icon
+↓
+
+Window expands naturally from dock
+
+↓
+
+Spring animation
+
+↓
+
+Fullscreen
+
+Closing:
+
+Tap X
+
+or swipe down
+
+↓
+
+Shrink back toward dock
+
+↓
+
+Disappear.
+
+Maintain gesture support while adding visible controls.
+
+---
+
+# DOCK
+
+Current dock is much better.
+
+Polish it further.
+
+Requirements:
+
+Smooth icon press animations.
+
+Proper active state.
+
+Notification badge support.
+
+Long press opens quick actions.
+
+Horizontal scrolling remains buttery smooth.
+
+Icons never clip.
+
+Safe-area support.
+
+Respect Android gesture navigation area.
+
+---
+
+# GESTURES
+
+Keep existing gestures:
+
+Swipe left/right
+
+Switch between open apps.
+
+Swipe down
+
+Close app.
+
+Swipe up
+
+Unlock lock screen.
+
+Improve gesture recognition.
+
+Ignore accidental diagonal swipes.
+
+Velocity-based gesture completion.
+
+Cancel gracefully.
+
+No jitter.
+
+---
+
+# SCROLLING
+
+Every app should feel native.
+
+Momentum scrolling.
+
+No layout jumps.
+
+No scroll chaining.
+
+No accidental overscroll.
+
+Hide scrollbars.
+
+Use overscroll-behavior correctly.
+
+---
+
+# TOUCH FEEDBACK
+
+Every interactive element should feel alive.
+
+Buttons:
+
+Scale slightly on press.
+
+Spring back.
+
+Icons:
+
+Glow briefly.
+
+Cards:
+
+Soft elevation animation.
+
+Dock:
+
+Small haptic-like bounce animation.
+
+Use Framer Motion.
+
+Keep animations subtle.
+
+---
+
+# TRANSITIONS
+
+Apps should never instantly appear.
+
+Use shared transition principles.
+
+Examples:
+
+Dock icon expands into app.
+
+Close collapses back.
+
+Switching apps crossfades.
+
+Navigation feels continuous.
+
+No flashes.
+
+No white frames.
+
+---
+
+# SAFE AREAS
+
+Support:
+
+Android cutouts
+
+Notches
+
+Rounded corners
+
+Gesture navigation
+
+Use CSS env(safe-area-inset-*).
+
+Nothing should overlap system UI.
+
+---
+
+# PERFORMANCE
+
+Audit all animations.
+
+Remove unnecessary renders.
+
+Avoid layout thrashing.
+
+Lazy load only when appropriate.
+
+Maintain desktop performance.
+
+---
+
+# SETTINGS
+
+Add a Mobile section.
+
+Allow users to configure:
+
+Lock screen timeout
+
+Gesture sensitivity
+
+Reduce animations
+
+Enable/disable swipe navigation
+
+Enable/disable lock screen
+
+Remember preferences.
+
+---
+
+# ACCESSIBILITY
+
+Minimum touch targets:
+
+44x44px
+
+Readable fonts.
+
+Proper contrast.
+
+Keyboard safe.
+
+Landscape support.
+
+---
+
+# FINAL QA
+
+Test on:
+
+320px
+
+360px
+
+390px
+
+412px
+
+Portrait
+
+Landscape
+
+Chrome Android
+
+Samsung Internet
+
+Edge Mobile
+
+PWA Standalone Mode
+
+Verify:
+
+✓ No visual jitter
+
+✓ Smooth 60 FPS animations
+
+✓ Every app has visible Back + Close controls
+
+✓ Gestures remain functional
+
+✓ Desktop unchanged
+
+✓ Mobile feels intentionally designed
+
+✓ No overflow
+
+✓ No clipping
+
+✓ No inaccessible controls
+
+Do not stop after implementing the first version.
+
+Iterate until the Android experience feels polished enough that a user would assume OmniverseOS was originally built as a mobile operating system rather than a responsive website.

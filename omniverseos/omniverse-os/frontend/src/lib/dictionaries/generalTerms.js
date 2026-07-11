@@ -1,0 +1,140 @@
+/**
+ * generalTerms.js — General / Universal Corrections Dictionary
+ * OmniverseOS Speech Correction Engine
+ *
+ * Applied in ALL contexts. Only includes unambiguous terms that are
+ * safe to correct regardless of domain (devices, OS names, connectivity).
+ * These will NEVER collide with proper names.
+ *
+ * Each entry: [rawPattern, correctedForm]
+ * Patterns matched case-insensitively at word boundaries.
+ */
+
+export const DICT_GENERAL = [
+  // Connectivity
+  ["wifi",                 "Wi-Fi"],
+  ["wi fi",                "Wi-Fi"],
+  ["wi-fi",                "Wi-Fi"],
+  ["bluetooth",            "Bluetooth"],
+  ["blue tooth",           "Bluetooth"],
+  ["nfc",                  "NFC"],
+  ["n f c",                "NFC"],
+  ["usb",                  "USB"],
+  ["u s b",                "USB"],
+  ["hdmi",                 "HDMI"],
+  ["h d m i",              "HDMI"],
+  ["thunderbolt",          "Thunderbolt"],
+
+  // Apple devices & OS
+  ["iphone",               "iPhone"],
+  ["i phone",              "iPhone"],
+  ["ipad",                 "iPad"],
+  ["i pad",                "iPad"],
+  ["ipod",                 "iPod"],
+  ["i pod",                "iPod"],
+  ["macbook",              "MacBook"],
+  ["mac book",             "MacBook"],
+  ["macbook pro",          "MacBook Pro"],
+  ["macbook air",          "MacBook Air"],
+  ["mac pro",              "Mac Pro"],
+  ["mac mini",             "Mac Mini"],
+  ["imac",                 "iMac"],
+  ["i mac",                "iMac"],
+  ["macos",                "macOS"],
+  ["mac os",               "macOS"],
+  ["mac os x",             "macOS"],
+  ["ios",                  "iOS"],
+  ["i os",                 "iOS"],
+  ["ipados",               "iPadOS"],
+  ["ipad os",              "iPadOS"],
+  ["watchos",              "watchOS"],
+  ["watch os",             "watchOS"],
+  ["tvos",                 "tvOS"],
+  ["tv os",                "tvOS"],
+  ["apple watch",          "Apple Watch"],
+  ["air pods",             "AirPods"],
+  ["airpods",              "AirPods"],
+  ["air pods pro",         "AirPods Pro"],
+  ["apple tv",             "Apple TV"],
+  ["home pod",             "HomePod"],
+  ["homepod",              "HomePod"],
+
+  // Google / Android
+  ["android",              "Android"],
+  ["chrome os",            "ChromeOS"],
+  ["chromeos",             "ChromeOS"],
+  ["google chrome",        "Google Chrome"],
+  ["google drive",         "Google Drive"],
+  ["google docs",          "Google Docs"],
+  ["google sheets",        "Google Sheets"],
+  ["google slides",        "Google Slides"],
+  ["google meet",          "Google Meet"],
+  ["google maps",          "Google Maps"],
+  ["google photos",        "Google Photos"],
+  ["you tube",             "YouTube"],
+  ["youtube",              "YouTube"],
+
+  // Microsoft / Windows
+  ["windows",              "Windows"],
+  ["windows 11",           "Windows 11"],
+  ["windows 10",           "Windows 10"],
+  ["microsoft",            "Microsoft"],
+  ["microsoft word",       "Microsoft Word"],
+  ["microsoft excel",      "Microsoft Excel"],
+  ["microsoft teams",      "Microsoft Teams"],
+  ["one drive",            "OneDrive"],
+  ["onedrive",             "OneDrive"],
+  ["outlook",              "Outlook"],
+  ["power point",          "PowerPoint"],
+  ["powerpoint",           "PowerPoint"],
+  ["share point",          "SharePoint"],
+  ["sharepoint",           "SharePoint"],
+
+  // Linux
+  ["linux",                "Linux"],
+  ["ubuntu",               "Ubuntu"],
+  ["debian",               "Debian"],
+  ["fedora",               "Fedora"],
+  ["arch linux",           "Arch Linux"],
+  ["pop os",               "Pop!_OS"],
+  ["kali linux",           "Kali Linux"],
+
+  // Social & Communication
+  ["whats app",            "WhatsApp"],
+  ["whatsapp",             "WhatsApp"],
+  ["instagram",            "Instagram"],
+  ["face book",            "Facebook"],
+  ["facebook",             "Facebook"],
+  ["linked in",            "LinkedIn"],
+  ["linkedin",             "LinkedIn"],
+  ["twitter",              "Twitter"],
+  ["tiktok",               "TikTok"],
+  ["tik tok",              "TikTok"],
+  ["snap chat",            "Snapchat"],
+  ["snapchat",             "Snapchat"],
+  ["discord",              "Discord"],
+  ["slack",                "Slack"],
+  ["telegram",             "Telegram"],
+  ["signal",               "Signal"],
+  ["zoom",                 "Zoom"],
+  ["skype",                "Skype"],
+  ["twitch",               "Twitch"],
+
+  // Productivity & Cloud
+  ["notion",               "Notion"],
+  ["obsidian",             "Obsidian"],
+  ["figma",                "Figma"],
+  ["canva",                "Canva"],
+  ["airtable",             "Airtable"],
+  ["air table",            "Airtable"],
+  ["jira",                 "Jira"],
+  ["trello",               "Trello"],
+  ["asana",                "Asana"],
+  ["click up",             "ClickUp"],
+  ["clickup",              "ClickUp"],
+  ["drop box",             "Dropbox"],
+  ["dropbox",              "Dropbox"],
+  ["amazon",               "Amazon"],
+  ["netflix",              "Netflix"],
+  ["spotify",              "Spotify"],
+];

@@ -1,0 +1,3 @@
+- [OmniverseOS Responsive Overhaul](responsive-overhaul.md) — strategy used for adaptive desktop OS + mobile responsiveness without breaking desktop UI
+- [Git push workflow](git-push-workflow.md) — write token to /tmp/ghtoken.txt from bash; read with dynamic import('fs') in code_execution; set remote URL; spawnSync push; rm token after.
+- [Voice.js wake word arch](voice-js-arch.md) — speakGemini memoised with [], uses startListeningRef + direct startWakeWord call (stable due to stable deps); wakeActive is React state + wakeActiveRef for sync reads inside callbacks.

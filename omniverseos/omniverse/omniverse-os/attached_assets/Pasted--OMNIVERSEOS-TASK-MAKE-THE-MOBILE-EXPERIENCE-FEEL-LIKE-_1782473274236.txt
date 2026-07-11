@@ -1,0 +1,383 @@
+# OMNIVERSEOS TASK — MAKE THE MOBILE EXPERIENCE FEEL LIKE A REAL ANDROID OS
+
+## PROJECT CONTEXT
+
+Project: OmniverseOS
+
+Current status:
+The website is now responsive and usable on mobile, but it still feels like a desktop website scaled down instead of a premium Android operating system.
+
+Do NOT redesign the branding or desktop UI.
+
+The desktop experience is already close to perfect.
+
+The goal is to make the mobile experience feel intentionally designed for Android while preserving the exact desktop experience.
+
+---
+
+## DESIGN PHILOSOPHY
+
+Think:
+
+Android 16
+HyperOS
+Nothing OS
+Samsung One UI
+
+combined with
+
+Cyberpunk
+Glassmorphism
+Neon Cyan
+Sci-fi HUD
+
+This should NOT become a normal mobile dashboard.
+
+It should feel like a futuristic operating system.
+
+---
+
+## KEEP DESKTOP UNCHANGED
+
+Do not modify desktop layout.
+
+Desktop users should notice almost zero visual difference.
+
+Only improve phones and tablets.
+
+---
+
+# MOBILE EXPERIENCE
+
+Instead of shrinking desktop windows...
+
+Transform them into native app experiences.
+
+When opening an application:
+
+• Animate from dock icon
+• Expand into fullscreen
+• Respect Android safe areas
+• Rounded corners
+• Smooth spring animation
+
+No tiny floating desktop windows.
+
+No dragging.
+
+No resizing.
+
+Apps should feel installed.
+
+---
+
+# DOCK
+
+Current dock feels like desktop.
+
+Improve it.
+
+Requirements:
+
+• Large 56-64px touch targets
+• Better spacing
+• Floating glass dock
+• Blur background
+• Safe area padding
+• Thumb friendly
+• Slight bounce animation on tap
+• Active app glow
+• Horizontal scrolling if too many apps
+
+---
+
+# SEARCH
+
+Current search still feels desktop.
+
+Make it feel Android.
+
+Requirements:
+
+• Floating search pill
+• Nearly full width
+• Larger touch area
+• Better placeholder spacing
+• Voice icon
+• Smooth focus animation
+• Blur background
+
+---
+
+# STATUS BAR
+
+Reduce visual clutter.
+
+Hide non-essential decorative items.
+
+Maintain cyberpunk style.
+
+Add proper spacing.
+
+Respect notches.
+
+---
+
+# WALLPAPER
+
+Current wallpaper occupies too much vertical space.
+
+Keep the artwork.
+
+Reduce empty space.
+
+Improve visual balance.
+
+Do NOT remove the futuristic grid.
+
+---
+
+# WINDOWS
+
+Desktop:
+Floating windows.
+
+Tablet:
+Adaptive windows.
+
+Phone:
+Fullscreen apps.
+
+Opening animation:
+
+Dock →
+Expand →
+Fullscreen
+
+Closing:
+
+Swipe down
+or
+Close button
+
+---
+
+# GESTURES
+
+Implement:
+
+• Swipe down to close app
+• Swipe left/right to switch between open apps
+• Pull from bottom dock
+• Touch friendly scrolling
+• Momentum scrolling
+
+---
+
+# TOUCH TARGETS
+
+Every button
+
+Minimum:
+
+48x48dp
+
+Prefer:
+
+56dp
+
+No tiny desktop buttons.
+
+---
+
+# TYPOGRAPHY
+
+Increase readability.
+
+Use:
+
+clamp()
+
+Avoid tiny desktop font sizes.
+
+---
+
+# APP LAYOUTS
+
+Every application should feel native.
+
+Dashboard
+
+Finance
+
+Clipboard
+
+Notes
+
+Tasks
+
+Analytics
+
+Calendar
+
+Browser
+
+AI Chat
+
+Voice
+
+Memory
+
+Music
+
+Videos
+
+Watchlist
+
+Settings
+
+Image Generator
+
+File Manager
+
+Each app should:
+
+• Use full width
+• Proper padding
+• Vertical stacking
+• Comfortable spacing
+• No wasted margins
+
+---
+
+# FINANCE APP
+
+Improve mobile layout.
+
+Cards stack vertically.
+
+Charts resize correctly.
+
+Forms become single column.
+
+Buttons full width.
+
+Transaction list becomes touch friendly.
+
+---
+
+# CLIPBOARD
+
+Input occupies almost full width.
+
+Cards stack.
+
+Better spacing.
+
+Large buttons.
+
+---
+
+# AI CHAT
+
+Chat should resemble a premium AI mobile app.
+
+Sticky input.
+
+Larger messages.
+
+Comfortable spacing.
+
+---
+
+# ANIMATIONS
+
+Maintain Framer Motion.
+
+Add:
+
+• Spring opening
+• Spring closing
+• Soft fade
+• Blur transitions
+• Micro interactions
+
+Animations should feel 120Hz smooth.
+
+---
+
+# PERFORMANCE
+
+Do NOT duplicate layouts.
+
+Reuse components.
+
+No unnecessary rerenders.
+
+Keep bundle optimized.
+
+---
+
+# PWA IMPROVEMENTS
+
+Improve the Progressive Web App experience.
+
+Ensure:
+
+• Standalone mode works correctly
+• Safe area support
+• Proper splash screen
+• Theme color
+• Mobile viewport optimization
+• Install prompt works
+
+Prepare the project so it can later be wrapped using Capacitor to create an Android APK with minimal additional work.
+
+---
+
+# FINAL REQUIREMENTS
+
+The finished mobile experience should make users forget they are using a website.
+
+It should feel like:
+
+"A futuristic Android operating system."
+
+NOT
+
+"A responsive desktop webpage."
+
+---
+
+Before finishing:
+
+Test on
+
+320px
+
+360px
+
+390px
+
+412px
+
+768px
+
+1024px
+
+Landscape
+
+Portrait
+
+Verify:
+
+✓ No desktop feel
+✓ Thumb-friendly navigation
+✓ Native Android feel
+✓ Smooth animations
+✓ No horizontal scrolling
+✓ No overlapping UI
+✓ No clipped content
+✓ Desktop experience remains unchanged
+
+Only commit after all mobile interactions feel polished and production-ready.
