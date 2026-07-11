@@ -141,6 +141,7 @@ class ChatReq(BaseModel):
     preferred_provider: str = "auto"
     system: Optional[str] = Field(default=None, max_length=4000)
     history: list[ChatHistoryMessage] = Field(default=[], max_length=30)
+    mode: str = "chat"  # "chat" | "web" | "research"
 
 class ImageGenReq(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=MAX_PROMPT_LEN)
@@ -623,12 +624,15 @@ ALLOWED_GEMINI_MODELS = {
     "gemini-2.0-flash", "gemini-2.0-flash-lite",
 }
 ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "groq", "cerebras", "openrouter"}
+ALLOWED_CHAT_MODES = {"chat", "web", "research"}
 
 def _validate_chat_req(req: "ChatReq") -> None:
     if req.model not in ALLOWED_GEMINI_MODELS:
         raise HTTPException(400, "Unsupported Gemini model")
     if req.preferred_provider not in ALLOWED_PREFERRED_PROVIDERS:
         raise HTTPException(400, "Unsupported preferred_provider")
+    if req.mode not in ALLOWED_CHAT_MODES:
+        raise HTTPException(400, "Unsupported chat mode")
 
 @api.get("/ai/providers")
 async def ai_providers(_user=Depends(get_current_user)):
@@ -809,18 +813,36 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                 _ghost_ctx_err,
             )
 
-    # ── Web Intelligence: inject TinyFish Search context for live queries ────────
-    # Ghost Writer sessions use MongoDB-grounded context, not web search.
-    # On any TinyFish failure build_context_block returns "" — AI answers normally.
-    if not req.session_id.startswith("ghost-") and needs_web_search(req.message):
-        web_ctx = await web_service.build_context_block(req.message)
-        if web_ctx:
-            system_msg = system_msg + "\n\n" + web_ctx
-            logging.info("[WebService] Search context injected | query=%r", req.message[:80])
+    # ── Web Intelligence ──────────────────────────────────────────────────────────
+    # mode="chat"     → never search (pure AI response)
+    # mode="web"      → always inject a TinyFish search context block
+    # mode="research" → parallel deep-search + emit [sources:] SSE before stream
+    # Ghost Writer sessions always skip web search regardless of mode.
+    _sources_json: str = ""
+    if not req.session_id.startswith("ghost-"):
+        if req.mode == "research":
+            research_results, _sources_json = await web_service.deep_research_search(req.message)
+            if research_results:
+                web_ctx = web_service.build_deep_research_context(req.message, research_results)
+                system_msg = system_msg + "\n\n" + web_ctx
+                logging.info(
+                    "[WebService] Deep research injected | %d sources | query=%r",
+                    len(research_results), req.message[:80],
+                )
+        elif req.mode == "web":
+            web_ctx = await web_service.build_context_block(req.message)
+            if web_ctx:
+                system_msg = system_msg + "\n\n" + web_ctx
+                logging.info("[WebService] Web context injected | query=%r", req.message[:80])
+        # mode="chat": no web search
 
     async def event_gen():
         full = []
         try:
+            # Emit source cards metadata before the AI text stream (research mode only).
+            # Frontend parses [sources:{json}] to attach clickable source cards to the message.
+            if _sources_json:
+                yield f"data: [sources:{_sources_json}]\n\n"
             async for kind, value in ai_service.generate_stream(
                 preferred=req.preferred_provider,
                 gemini_model=req.model,

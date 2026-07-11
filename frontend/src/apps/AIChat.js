@@ -356,6 +356,137 @@ function CopyButton({ text }) {
   );
 }
 
+/* ── Mode switcher ────────────────────────────────────────────────────────────── */
+const CHAT_MODES = [
+  { id: "chat",     icon: "fa-comments", label: "Chat",     color: "#00F0FF" },
+  { id: "web",      icon: "fa-globe",    label: "Live Web", color: "#39FF14" },
+  { id: "research", icon: "fa-flask",    label: "Research", color: "#A855F7" },
+];
+
+function ModeSwitcher({ mode, onChange, disabled }) {
+  return (
+    <div
+      title="Switch AI mode"
+      style={{
+        display: "flex",
+        gap: 2,
+        background: "rgba(255,255,255,0.03)",
+        borderRadius: 9,
+        padding: "2px 2px",
+        border: "1px solid rgba(255,255,255,0.06)",
+        flexShrink: 0,
+      }}
+    >
+      {CHAT_MODES.map((m) => {
+        const active = mode === m.id;
+        return (
+          <button
+            key={m.id}
+            onClick={() => !disabled && onChange(m.id)}
+            disabled={disabled}
+            title={`${m.label} mode`}
+            style={{
+              padding: "3px 7px",
+              borderRadius: 6,
+              border: active ? `1px solid ${m.color}44` : "1px solid transparent",
+              background: active ? `${m.color}14` : "transparent",
+              color: active ? m.color : "rgba(255,255,255,0.28)",
+              cursor: disabled ? "not-allowed" : "pointer",
+              fontSize: 9.5,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.05em",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+              boxShadow: active ? `0 0 6px ${m.color}22` : "none",
+            }}
+            onMouseEnter={(e) => { if (!disabled && !active) { e.currentTarget.style.color = "rgba(255,255,255,0.55)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } }}
+            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.color = "rgba(255,255,255,0.28)"; e.currentTarget.style.background = "transparent"; } }}
+          >
+            <i className={`fa-solid ${m.icon}`} style={{ fontSize: 8 }} />
+            {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Source cards ─────────────────────────────────────────────────────────────── */
+const SOURCE_TYPE_CFG = {
+  github:        { icon: "fa-brands fa-github",         label: "GitHub",         color: "#39FF14" },
+  stackoverflow: { icon: "fa-brands fa-stack-overflow",  label: "Stack Overflow", color: "#F59E0B" },
+  reddit:        { icon: "fa-brands fa-reddit",          label: "Reddit",         color: "#FF6314" },
+  docs:          { icon: "fa-solid fa-book-open",        label: "Docs",           color: "#00F0FF" },
+  web:           { icon: "fa-solid fa-globe",            label: "Web",            color: "rgba(255,255,255,0.45)" },
+};
+
+const SourceCards = React.memo(function SourceCards({ sources }) {
+  if (!sources?.items?.length) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{
+        fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+        color: "rgba(255,255,255,0.28)", letterSpacing: "0.12em",
+        textTransform: "uppercase", marginBottom: 6,
+        display: "flex", alignItems: "center", gap: 5,
+      }}>
+        <i className="fa-solid fa-flask" style={{ fontSize: 8, color: "#A855F7" }} />
+        Sources · {sources.items.length}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {sources.items.map((s, i) => {
+          const cfg = SOURCE_TYPE_CFG[s.type] || SOURCE_TYPE_CFG.web;
+          const hostname = (() => { try { return new URL(s.url).hostname.replace(/^www\./, ""); } catch { return s.site_name || ""; } })();
+          return (
+            <a
+              key={i}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={s.snippet || s.title}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 9px",
+                borderRadius: 7,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                textDecoration: "none",
+                maxWidth: 200,
+                overflow: "hidden",
+                transition: "all 0.15s",
+                animation: `fadeSlideUp 0.2s ease ${i * 0.04}s both`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${cfg.color}14`;
+                e.currentTarget.style.borderColor = `${cfg.color}44`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+              }}
+            >
+              <i className={cfg.icon} style={{ fontSize: 10, color: cfg.color, flexShrink: 0 }} />
+              <span style={{
+                fontSize: 10, color: "rgba(255,255,255,0.65)",
+                fontFamily: "'JetBrains Mono', monospace",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {hostname || cfg.label}
+              </span>
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 /* ── Action chips strip ───────────────────────────────────────────────────────── */
 const ActionChips = React.memo(function ActionChips({ actions }) {
   if (!actions?.length) return null;
@@ -400,6 +531,7 @@ export default function AIChat() {
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
+  const [chatMode, setChatMode]             = useState("chat"); // "chat" | "web" | "research"
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [touchedMsgIdx, setTouchedMsgIdx]   = useState(null);
   const touchTimerRef = useRef(null);
@@ -763,7 +895,7 @@ export default function AIChat() {
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text, actions: actionChips, ts: msgTs },
-      { role: "assistant", content: "", pending: true, ts: msgTs },
+      { role: "assistant", content: "", pending: true, ts: msgTs, mode: chatMode },
     ]);
     setStreaming(true);
     setActiveProvider(null);
@@ -806,7 +938,7 @@ export default function AIChat() {
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
 
       const result = await aiApi.chatStreamResilient(
-        { session_id: currentSessionId, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history },
+        { session_id: currentSessionId, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history, mode: chatMode },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
@@ -826,6 +958,16 @@ export default function AIChat() {
           setActiveProvider((prev) => {
             setPrevProvider(prev);
             return providerName;
+          });
+        },
+        (sources) => {
+          // Sources arrive before the AI text stream (research mode)
+          if (!mountedRef.current || ctrl.signal.aborted) return;
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") copy[copy.length - 1] = { ...last, sources };
+            return copy;
           });
         },
       );
@@ -1161,6 +1303,7 @@ export default function AIChat() {
         </div>
         <div className="flex items-center gap-2">
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
+          <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
           <ModelSelect
             value={modelValue}
             onChange={setModelValue}
@@ -1340,10 +1483,11 @@ export default function AIChat() {
                       </div>
                       <span style={{
                         fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
-                        color: "rgba(0,240,255,0.45)", letterSpacing: "0.1em",
+                        color: m.mode === "research" ? "rgba(168,85,247,0.6)" : m.mode === "web" ? "rgba(57,255,20,0.55)" : "rgba(0,240,255,0.45)",
+                        letterSpacing: "0.1em",
                         textTransform: "uppercase",
                       }}>
-                        thinking
+                        {m.mode === "research" ? "researching…" : m.mode === "web" ? "searching…" : "thinking"}
                       </span>
                     </div>
                   )}
@@ -1377,6 +1521,8 @@ export default function AIChat() {
                     </div>
                   )}
                 </div>
+                {/* Source cards — research mode only, shown after message content */}
+                {m.sources && <SourceCards sources={m.sources} />}
                 {/* Timestamp — fades in on hover or tap */}
                 {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, paddingLeft: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>

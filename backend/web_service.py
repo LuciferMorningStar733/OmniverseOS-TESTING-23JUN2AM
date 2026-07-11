@@ -28,6 +28,8 @@ API (confirmed via live probe):
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
 import re
@@ -289,6 +291,93 @@ class WebService:
             return ""
         return _format_context_block(resp)
 
+    async def deep_research_search(
+        self, query: str, max_per_query: int = 5
+    ) -> tuple[list[dict], str]:
+        """
+        Deep Research mode: run 3 parallel TinyFish queries and merge results.
+
+        Queries run:
+          1. The user's message verbatim
+          2. "<query> official documentation"
+          3. "<query> site:github.com"
+
+        Returns (results_as_dicts, sources_json_str).
+        Each dict: {title, url, snippet, site_name, type}.
+        Never raises — failures on individual queries are silently skipped.
+        """
+        queries = [
+            query,
+            f"{query} official documentation",
+            f"{query} site:github.com",
+        ]
+        responses = await asyncio.gather(
+            *[self.search(q, max_per_query) for q in queries],
+            return_exceptions=True,
+        )
+
+        seen_urls: set[str] = set()
+        all_results: list[dict] = []
+        for resp in responses:
+            if isinstance(resp, Exception):
+                continue
+            for r in resp.results:
+                if not r.url or r.url in seen_urls:
+                    continue
+                seen_urls.add(r.url)
+                all_results.append({
+                    "title": r.title,
+                    "url": r.url,
+                    "snippet": r.snippet,
+                    "site_name": r.site_name,
+                    "type": classify_source_type(r.url),
+                })
+
+        sources_json = json.dumps(
+            {"items": all_results}, ensure_ascii=False, separators=(",", ":")
+        )
+        logger.info(
+            "[WebService] Deep research: %d unique sources for query=%r",
+            len(all_results), query[:80],
+        )
+        return all_results, sources_json
+
+    def build_deep_research_context(self, query: str, results: list[dict]) -> str:
+        """
+        Build a rich citation-focused system-prompt context block for Deep Research mode.
+        Uses all merged results from deep_research_search().
+        """
+        type_labels = {
+            "github":       "GitHub",
+            "stackoverflow": "Stack Overflow",
+            "reddit":       "Reddit",
+            "docs":         "Official Docs",
+            "web":          "Web",
+        }
+        lines = [
+            "=== DEEP RESEARCH RESULTS (TinyFish) ===",
+            f"Query: {query}",
+            f"Sources found: {len(results)}",
+            "",
+        ]
+        for i, r in enumerate(results, 1):
+            label = type_labels.get(r.get("type", "web"), "Web")
+            lines.append(f"{i}. [{label}] {r['title']}")
+            lines.append(f"   URL: {r['url']}")
+            if r.get("snippet"):
+                lines.append(f"   {r['snippet']}")
+            lines.append("")
+        lines += [
+            "DEEP RESEARCH INSTRUCTIONS:",
+            "- You are in Deep Research mode. Give a comprehensive, well-structured answer.",
+            "- Cite sources inline using [1], [2], etc. matching the numbered list above.",
+            "- Distinguish clearly between official docs, GitHub implementations, and community answers.",
+            "- Prefer official docs over community answers when they conflict.",
+            "- Do not fabricate information. Only use what the sources above contain.",
+            "=== END DEEP RESEARCH RESULTS ===",
+        ]
+        return "\n".join(lines)
+
 
 # ── Query detection ────────────────────────────────────────────────────────────
 
@@ -355,6 +444,30 @@ def needs_web_search(message: str) -> bool:
 
     # Yes if time-sensitive OR factual lookup signals are present
     return bool(_TIME_SIGNALS.search(msg)) or bool(_LOOKUP_SIGNALS.search(msg))
+
+
+# ── Source type classification ─────────────────────────────────────────────────
+
+def classify_source_type(url: str) -> str:
+    """Classify a result URL into a display category for source cards."""
+    u = url.lower()
+    if "github.com" in u:
+        return "github"
+    if "stackoverflow.com" in u or "stackexchange.com" in u:
+        return "stackoverflow"
+    if "reddit.com" in u:
+        return "reddit"
+    if any(seg in u for seg in (
+        "docs.", "documentation.", "developer.", "developers.",
+        "api.", "reference.", "learn.", "wiki.", "readthedocs",
+        "man.archlinux", "devdocs", "mdn", "w3schools",
+    )):
+        return "docs"
+    if any(u.endswith(tld) or f"{tld}/" in u for tld in (".gov", ".edu")):
+        return "docs"
+    if "wikipedia.org" in u:
+        return "docs"
+    return "web"
 
 
 # ── Singletons ─────────────────────────────────────────────────────────────────
