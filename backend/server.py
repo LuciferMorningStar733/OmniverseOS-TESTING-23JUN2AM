@@ -819,9 +819,13 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
     # mode="research" → parallel deep-search + emit [sources:] SSE before stream
     # Ghost Writer sessions always skip web search regardless of mode.
     _sources_json: str = ""
+    _web_sources_count: int = 0
+    _research_sources: list = []
     if not req.session_id.startswith("ghost-"):
         if req.mode == "research":
             research_results, _sources_json = await web_service.deep_research_search(req.message)
+            _web_sources_count = len(research_results)
+            _research_sources = research_results
             if research_results:
                 web_ctx = web_service.build_deep_research_context(req.message, research_results)
                 system_msg = system_msg + "\n\n" + web_ctx
@@ -833,16 +837,29 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
             web_ctx = await web_service.build_context_block(req.message)
             if web_ctx:
                 system_msg = system_msg + "\n\n" + web_ctx
+                _web_sources_count = 5  # TinyFish default max_results
                 logging.info("[WebService] Web context injected | query=%r", req.message[:80])
         # mode="chat": no web search
+
+    # ── Answer Confidence ─────────────────────────────────────────────────────
+    # Detect memory injection from system prompt — no schema change needed.
+    # compute_confidence() returns a compact JSON string emitted as a SSE event.
+    _memory_injected = bool(req.system and "CORTEX LONG-TERM MEMORY" in req.system)
+    _confidence_json = web_service.compute_confidence(
+        mode=req.mode,
+        sources_count=_web_sources_count,
+        memory_injected=_memory_injected,
+        sources=_research_sources,
+    )
 
     async def event_gen():
         full = []
         try:
-            # Emit source cards metadata before the AI text stream (research mode only).
-            # Frontend parses [sources:{json}] to attach clickable source cards to the message.
+            # Emit source cards (research mode) then confidence metadata.
+            # Both arrive before the AI text stream so the UI can render them immediately.
             if _sources_json:
                 yield f"data: [sources:{_sources_json}]\n\n"
+            yield f"data: [confidence:{_confidence_json}]\n\n"
             async for kind, value in ai_service.generate_stream(
                 preferred=req.preferred_provider,
                 gemini_model=req.model,

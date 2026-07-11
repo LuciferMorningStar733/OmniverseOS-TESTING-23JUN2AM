@@ -487,6 +487,75 @@ const SourceCards = React.memo(function SourceCards({ sources }) {
   );
 });
 
+/* ── Answer Confidence Panel ──────────────────────────────────────────────────── */
+const ConfidencePanel = React.memo(function ConfidencePanel({ confidence }) {
+  if (!confidence) return null;
+  const { score, sources_count, live_web, memory, reasoning, conflicts } = confidence;
+
+  // Score arc colour: green → amber → red
+  const scoreColor = score >= 80 ? "#39FF14" : score >= 65 ? "#F59E0B" : "#FF6314";
+  const trackColor = "rgba(255,255,255,0.06)";
+  const pct = Math.max(0, Math.min(100, score));
+
+  const Chip = ({ icon, label, active, warn }) => (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 4,
+      padding: "2px 7px", borderRadius: 5,
+      background: warn ? "rgba(255,100,20,0.1)" : active ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)",
+      border: `1px solid ${warn ? "rgba(255,100,20,0.25)" : active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)"}`,
+      opacity: active || warn ? 1 : 0.4,
+    }}>
+      <i className={`fa-solid ${icon}`} style={{ fontSize: 8, color: warn ? "#FF6314" : active ? scoreColor : "rgba(255,255,255,0.3)" }} />
+      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: warn ? "#FF6314" : active ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)", letterSpacing: "0.04em" }}>
+        {label}
+      </span>
+    </div>
+  );
+
+  return (
+    <div style={{
+      marginTop: 8,
+      padding: "8px 11px",
+      borderRadius: 10,
+      background: "rgba(255,255,255,0.02)",
+      border: "1px solid rgba(255,255,255,0.06)",
+      animation: "fadeSlideUp 0.25s ease 0.05s both",
+    }}>
+      {/* Top row: confidence bar + score */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+        <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.28)", letterSpacing: "0.12em", textTransform: "uppercase", flexShrink: 0 }}>
+          Confidence
+        </span>
+        {/* Progress bar */}
+        <div style={{ flex: 1, height: 3, borderRadius: 2, background: trackColor, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", width: `${pct}%`, borderRadius: 2,
+            background: `linear-gradient(90deg, ${scoreColor}aa, ${scoreColor})`,
+            boxShadow: `0 0 6px ${scoreColor}66`,
+            transition: "width 0.6s ease",
+          }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: scoreColor, flexShrink: 0, letterSpacing: "-0.02em" }}>
+          {score}%
+        </span>
+      </div>
+
+      {/* Bottom row: signal chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+        {sources_count > 0 && (
+          <Chip icon="fa-database" label={`${sources_count} source${sources_count !== 1 ? "s" : ""}`} active />
+        )}
+        <Chip icon="fa-globe"              label="Live Web"  active={live_web} />
+        <Chip icon="fa-brain"              label="Memory"    active={memory} />
+        <Chip icon="fa-circle-nodes"       label="Reasoning" active={reasoning} />
+        {conflicts > 0 && (
+          <Chip icon="fa-triangle-exclamation" label={`${conflicts} conflict${conflicts !== 1 ? "s" : ""}`} active warn />
+        )}
+      </div>
+    </div>
+  );
+});
+
 /* ── Action chips strip ───────────────────────────────────────────────────────── */
 const ActionChips = React.memo(function ActionChips({ actions }) {
   if (!actions?.length) return null;
@@ -967,6 +1036,16 @@ export default function AIChat() {
             const copy = [...prev];
             const last = copy[copy.length - 1];
             if (last?.role === "assistant") copy[copy.length - 1] = { ...last, sources };
+            return copy;
+          });
+        },
+        (confidence) => {
+          // Confidence metadata arrives before the AI text stream (all modes)
+          if (!mountedRef.current || ctrl.signal.aborted) return;
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") copy[copy.length - 1] = { ...last, confidence };
             return copy;
           });
         },
@@ -1523,6 +1602,8 @@ export default function AIChat() {
                 </div>
                 {/* Source cards — research mode only, shown after message content */}
                 {m.sources && <SourceCards sources={m.sources} />}
+                {/* Answer Confidence Panel — shown for all completed AI messages */}
+                {m.confidence && !m.pending && <ConfidencePanel confidence={m.confidence} />}
                 {/* Timestamp — fades in on hover or tap */}
                 {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, paddingLeft: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>

@@ -111,7 +111,7 @@ function classifyStreamError(msg) {
  * Calls onFirstToken() the moment the first real content token arrives.
  * Calls onProvider(name) when the backend signals which provider is active.
  */
-async function _singleStreamAttempt(data, onDelta, onFirstToken, outerSignal, onProvider, onSources) {
+async function _singleStreamAttempt(data, onDelta, onFirstToken, outerSignal, onProvider, onSources, onConfidence) {
   const token = localStorage.getItem("omniverse_token");
   const { signal, cleanup } = makeTimedSignal(outerSignal, REQUEST_TIMEOUT_MS);
 
@@ -186,6 +186,15 @@ async function _singleStreamAttempt(data, onDelta, onFirstToken, outerSignal, on
           continue;
         }
 
+        // Answer Confidence metadata — parse and pass to caller, not content
+        if (payload.startsWith("[confidence:")) {
+          try {
+            const confidence = JSON.parse(payload.slice(12, -1));
+            onConfidence?.(confidence);
+          } catch { /* malformed confidence — ignore */ }
+          continue;
+        }
+
         // Active provider signal — pass to caller, do not emit as content
         if (payload.startsWith("[provider:")) {
           const providerName = payload.slice(10, -1).trim();
@@ -230,7 +239,7 @@ export const aiApi = {
    * @param {function}    onProvider    - Called with the active provider name once it's known
    * @returns {{ modelUsed: string }}   - Which model actually produced the response
    */
-  chatStreamResilient: async (data, onDelta, onStatus, outerSignal, onProvider, onSources) => {
+  chatStreamResilient: async (data, onDelta, onStatus, outerSignal, onProvider, onSources, onConfidence) => {
     if (!navigator.onLine) {
       const err = new Error("No internet connection. Please check your network and try again.");
       err.code = "OFFLINE";
@@ -278,6 +287,7 @@ export const aiApi = {
           outerSignal ?? new AbortController().signal,
           onProvider,
           onSources,
+          onConfidence,
         );
 
         onStatus?.(null);

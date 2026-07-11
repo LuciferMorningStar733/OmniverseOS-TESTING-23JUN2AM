@@ -448,6 +448,70 @@ def needs_web_search(message: str) -> bool:
 
 # ── Source type classification ─────────────────────────────────────────────────
 
+def _count_conflicts(sources: list[dict]) -> int:
+    """
+    Heuristic: count sources whose snippets contain language suggesting
+    outdated, disputed, or contradictory content.
+    Also flags the combination of community sources + official docs as a
+    potential conflict zone (community answers often contradict the docs).
+    Returns a value in [0, 5].
+    """
+    _CONFLICT_RE = re.compile(
+        r"\b(deprecated|outdated|no longer|not recommended|replaced by|"
+        r"incorrect|wrong|misleading|conflicting|disputed|controversy|"
+        r"obsolete|broken|fails|doesn't work|old way|old approach)\b",
+        re.IGNORECASE,
+    )
+    count = 0
+    has_docs = any(s.get("type") == "docs" for s in sources)
+    community = [s for s in sources if s.get("type") in ("reddit", "stackoverflow")]
+    if has_docs and community:
+        count += min(len(community), 2)
+    for s in sources:
+        if _CONFLICT_RE.search(s.get("snippet", "")):
+            count += 1
+    return min(count, 5)
+
+
+def compute_confidence(
+    mode: str,
+    sources_count: int,
+    memory_injected: bool,
+    sources: list[dict] | None = None,
+) -> str:
+    """
+    Compute Answer Confidence metadata and return a compact JSON string.
+
+    Score algorithm (all values clamped to [52, 97]):
+      base 65
+      +15 if live web data was used (web or research mode, ≥1 source)
+      +8  if long-term memories were injected
+      +(min(sources_count, 5) * 2) — more sources = more grounded
+      -(min(conflicts, 3) * 6)    — detected contradictions lower confidence
+    """
+    live_web = mode in ("web", "research") and sources_count > 0
+    conflicts = _count_conflicts(sources or [])
+
+    score = 65
+    if live_web:
+        score += 15
+    if memory_injected:
+        score += 8
+    score += min(sources_count, 5) * 2
+    score -= min(conflicts, 3) * 6
+    score = max(52, min(97, score))
+
+    data = {
+        "score": score,
+        "sources_count": sources_count,
+        "live_web": live_web,
+        "memory": memory_injected,
+        "reasoning": True,
+        "conflicts": conflicts,
+    }
+    return json.dumps(data, separators=(",", ":"))
+
+
 def classify_source_type(url: str) -> str:
     """Classify a result URL into a display category for source cards."""
     u = url.lower()
