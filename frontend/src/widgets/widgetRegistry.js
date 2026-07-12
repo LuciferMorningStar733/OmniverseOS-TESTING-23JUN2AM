@@ -28,8 +28,8 @@ export const WIDGET_REGISTRY = [
     name: "AI Command Center",
     icon: "fa-microchip-ai",
     color: "#00F0FF",
-    defaultW: 1, defaultH: 5,
-    minW: 1, minH: 4, maxW: 2, maxH: 6,
+    defaultW: 1, defaultH: 3, autoHeight: true,
+    minW: 1, minH: 3, maxW: 2, maxH: 6,
     Component: lazy(() => import("./widgets/AICommandCenter")),
   },
   {
