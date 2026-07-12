@@ -627,7 +627,7 @@ ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "deepseek", "groq", "cerebras",
 ALLOWED_CHAT_MODES = {"chat", "web", "research"}
 
 def _validate_chat_req(req: "ChatReq") -> None:
-    if req.model not in ALLOWED_GEMINI_MODELS:
+    if req.preferred_provider in ("auto", "gemini") and req.model not in ALLOWED_GEMINI_MODELS:
         raise HTTPException(400, "Unsupported Gemini model")
     if req.preferred_provider not in ALLOWED_PREFERRED_PROVIDERS:
         raise HTTPException(400, "Unsupported preferred_provider")
