@@ -23,7 +23,7 @@ import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
 from providers import provider_manager  # noqa: F401 — registers ai_service at import time
 from ai_service import ai_service
-from web_service import web_service, needs_web_search
+from web_service import web_service, needs_web_search, compute_confidence
 from structured_ai import extract_structured
 from schemas import ExtractedMemoryList, SearchRerankResult
 
@@ -845,7 +845,7 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
     # Detect memory injection from system prompt — no schema change needed.
     # compute_confidence() returns a compact JSON string emitted as a SSE event.
     _memory_injected = bool(req.system and "CORTEX LONG-TERM MEMORY" in req.system)
-    _confidence_json = web_service.compute_confidence(
+    _confidence_json = compute_confidence(
         mode=req.mode,
         sources_count=_web_sources_count,
         memory_injected=_memory_injected,
