@@ -514,7 +514,7 @@ async def ai_tts_gemini_test(user=Depends(get_current_user)):
 async def root():
     return {"status": "ok", "service": "OmniverseOS"}
 
-@api.get("/health") async def health():     try:         await db.command("ping")         return {"status": "healthy", "db": "ok", "time": now_iso()}     except Exception as e:         raise HTTPException(503, f"DB unhealthy: {e}")  @api.get("/debug/providers") async def debug_providers():     """Public diagnostic endpoint — reports env var presence and provider health."""     keys = {         "GEMINI_API_KEY": bool(os.environ.get("GEMINI_API_KEY", "").strip()),         "DEEPSEEK_API_KEY": bool(os.environ.get("DEEPSEEK_API_KEY", "").strip()),         "GROQ_API_KEY": bool(os.environ.get("GROQ_API_KEY", "").strip()),         "CEREBRAS_API_KEY": bool(os.environ.get("CEREBRAS_API_KEY", "").strip()),         "OPENROUTER_API_KEY": bool(os.environ.get("OPENROUTER_API_KEY", "").strip()),         "MONGO_URL": bool(os.environ.get("MONGO_URL", "").strip()),         "JWT_SECRET": bool(os.environ.get("JWT_SECRET", "").strip()),     }     provider_statuses = ai_service.provider_statuses()     return {         "env_vars_present": keys,         "provider_statuses": provider_statuses,         "any_ai_key_present": any(v for k, v in keys.items() if "KEY" in k),         "gemini_key_prefix": os.environ.get("GEMINI_API_KEY", "")[:8] + "..." if os.environ.get("GEMINI_API_KEY") else None,     }
+@api.get("/health")
 async def health():
     try:
         await db.command("ping")
