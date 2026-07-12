@@ -8,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from google import genai
 from google.genai import types as genai_types
 import os
+import asyncio
+import json
 import logging
 import base64
 import hashlib
@@ -2106,6 +2108,85 @@ async def run_swarm(req: SwarmGoalReq, user=Depends(get_current_user)):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Consensus Intelligence Engine ────────────────────────────────────────────
+class ConsensusRequest(BaseModel):
+    responses: list  # [{provider, content}]
+    question: str
+
+
+@api.post("/ai/consensus")
+async def analyze_consensus(req: ConsensusRequest, user=Depends(get_current_user)):
+    """Semantic consensus analysis using Gemini as AI judge."""
+    if not gemini_client:
+        raise HTTPException(503, "Gemini not configured")
+    if len(req.responses) < 2:
+        raise HTTPException(400, "Need at least 2 responses")
+
+    # Build structured input for the AI judge
+    responses_block = ""
+    for r in req.responses:
+        responses_block += f"\n\n[{r['provider']}]:\n{r['content']}"
+
+    judge_prompt = f"""You are an impartial semantic evaluator analyzing AI responses.
+
+QUESTION: {req.question}
+
+RESPONSES:{responses_block}
+
+Your task: Evaluate SEMANTIC agreement - whether the responses agree in MEANING, not wording.
+Different writing styles, personalities, humor, and tone must NOT reduce the consensus score.
+Only genuine factual disagreements should reduce the consensus score.
+
+Analyze each response and return ONLY valid JSON with this exact structure:
+{{
+  "consensus": <integer 0-100, overall semantic agreement across all models>,
+  "meaning_match": <integer 0-100, how similar the core conclusions are>,
+  "reasoning_match": <integer 0-100, how aligned the reasoning paths are>,
+  "evidence_match": <integer 0-100, how consistent supporting evidence is>,
+  "style_similarity": <integer 0-100, how similar writing style/tone is>,
+  "summary": "<one or two sentences explaining the consensus or divergence>",
+  "per_model": [
+    {{"provider": "<name>", "final_answer": "<core conclusion in 1-10 words>", "stance": "<agree|partial|disagree>", "unique_insight": "<unique point only this model made, or empty string>"}}
+  ],
+  "agreement_matrix": {{"<provider1>": {{"<provider2>": <score 0-100>}}}},
+  "divergent_claims": ["<claim that differs between models, or empty list>"],
+  "unique_insights": [{{"provider": "<name>", "insight": "<unique point>"}}]
+}}
+
+Rules:
+- If all responses reach the same conclusion but phrase it differently: consensus 90-100
+- If responses mostly agree with minor differences: consensus 60-89
+- If responses partially agree: consensus 30-59
+- If responses genuinely disagree on conclusions: consensus 0-29
+- style_similarity should be LOW when writing styles differ, even if meaning matches
+- Return ONLY the JSON object, no markdown, no explanation"""
+
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: model.generate_content(
+                judge_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.1,
+                    max_output_tokens=2048,
+                )
+            )
+        )
+        raw = result.text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json.loads(raw.strip())
+        return data
+    except Exception as e:
+        logger.error(f"Consensus analysis failed: {e}")
+        raise HTTPException(500, f"Consensus analysis failed: {str(e)}")
+
 
 
 app.include_router(api)
