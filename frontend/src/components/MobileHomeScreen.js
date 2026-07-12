@@ -346,7 +346,7 @@ function CortexClock({ now, is24h, onToggle, theme, battery, weather }) {
       initial={{ opacity: 0, scale: 0.86 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", damping: 24, stiffness: 240, delay: 0.06 }}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, position: "relative", zIndex: 1 }}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, position: "relative", zIndex: 1, maxWidth: "100%", width: "100%" }}
     >
       {/* Weather + battery info strip */}
       {(wx || battery) && (
@@ -356,7 +356,7 @@ function CortexClock({ now, is24h, onToggle, theme, battery, weather }) {
           transition={{ delay: 0.32 }}
           style={{
             display: "flex", alignItems: "center", gap: 8,
-            padding: "5px 14px", borderRadius: 20,
+            padding: "5px 14px", borderRadius: 20, maxWidth: "calc(100% - 40px)", flexWrap: "wrap",
             background: "rgba(0,0,0,0.30)", border: "1px solid rgba(255,255,255,0.07)",
             backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
           }}
