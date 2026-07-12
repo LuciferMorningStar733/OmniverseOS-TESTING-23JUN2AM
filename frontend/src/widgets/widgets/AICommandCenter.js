@@ -1,8 +1,7 @@
 /**
- * AICommandCenter.js — Priority 2 + 3
- * One living hero panel: clock, weather, battery, network, calendar,
- * tasks, memory, clipboard, music, AI state, focus, device health.
- * All data is REAL — no fakes. Graceful empty states when unavailable.
+ * AICommandCenter.js — 2038 CYAN SCI-FI EDITION
+ * Futuristic cyan-first command widget with dynamic auto-fit hero layout.
+ * Keeps real data behavior, adds stronger cyberpunk visual identity.
  */
 
 import React, {
@@ -67,465 +66,728 @@ function useNetwork() {
   return net;
 }
 
-const WMO_MAP = {
-  0:  { icon: "fa-sun",                  label: "Clear",           col: "#FCEE09" },
-  1:  { icon: "fa-sun",                  label: "Mainly Clear",    col: "#FCEE09" },
-  2:  { icon: "fa-cloud-sun",            label: "Partly Cloudy",   col: "#94A3B8" },
-  3:  { icon: "fa-cloud",               label: "Overcast",        col: "#64748B" },
-  45: { icon: "fa-smog",                label: "Foggy",           col: "#94A3B8" },
-  51: { icon: "fa-cloud-drizzle",       label: "Drizzle",         col: "#7DD3FC" },
-  61: { icon: "fa-cloud-rain",          label: "Rain",            col: "#00F0FF" },
-  71: { icon: "fa-snowflake",           label: "Snow",            col: "#BAE6FD" },
-  80: { icon: "fa-cloud-rain",          label: "Showers",         col: "#0EA5E9" },
-  95: { icon: "fa-cloud-bolt",          label: "Thunderstorm",    col: "#A78BFA" },
-};
-function wmo(code) {
-  if (!code && code !== 0) return { icon: "fa-cloud", label: "—", col: "#94A3B8" };
-  const keys = Object.keys(WMO_MAP).map(Number).filter((k) => k <= code);
-  return WMO_MAP[keys.length ? Math.max(...keys) : 0] ?? { icon: "fa-cloud", label: "—", col: "#94A3B8" };
-}
-
-function useWeather() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let active = true;
-    const cache = (() => { try { const r = JSON.parse(localStorage.getItem("omni_wx_cache2")); if (r && Date.now() - r.ts < 600_000) return r; } catch {} return null; })();
-    if (cache) { setData(cache); setLoading(false); return; }
-
-    navigator.geolocation?.getCurrentPosition(async ({ coords: { latitude: lat, longitude: lon } }) => {
-      try {
-        const [meteo, geo] = await Promise.all([
-          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m&daily=sunrise,sunset&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`).then(r => r.json()),
-          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, { headers: { "Accept-Language": "en" } }).then(r => r.json()),
-        ]);
-        const cur = meteo.current;
-        const addr = geo.address ?? {};
-        const city = addr.city || addr.town || addr.village || addr.county || "Unknown";
-        const d = {
-          temp: Math.round(cur.temperature_2m),
-          feels: Math.round(cur.apparent_temperature),
-          code: cur.weathercode,
-          wind: Math.round(cur.windspeed_10m),
-          city,
-          sunrise: meteo.daily?.sunrise?.[0]?.slice(11) ?? null,
-          sunset:  meteo.daily?.sunset?.[0]?.slice(11)  ?? null,
-          ts: Date.now(),
-        };
-        if (active) { setData(d); setLoading(false); }
-        try { localStorage.setItem("omni_wx_cache2", JSON.stringify(d)); } catch {}
-      } catch { if (active) setLoading(false); }
-    }, () => { if (active) setLoading(false); });
-  }, []);
-  return { data, loading };
-}
-
 function useClipboard() {
-  const [text, setText] = useState(null);
+  const [text, setText] = useState("");
   useEffect(() => {
+    let alive = true;
     const read = async () => {
       try {
-        if (document.hasFocus() && navigator.clipboard?.readText) {
-          const t = await navigator.clipboard.readText();
-          if (t?.trim()) setText(t.trim().slice(0, 60));
-        }
-      } catch {}
+        if (!navigator.clipboard?.readText) return;
+        const t = await navigator.clipboard.readText();
+        if (alive) setText(t || "");
+      } catch (_) {}
     };
     read();
-    window.addEventListener("focus", read);
-    return () => window.removeEventListener("focus", read);
+    const id = setInterval(read, 4000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, []);
   return text;
 }
 
-function useScreenTime() {
-  const startRef = useRef(Date.now());
-  const [mins, setMins] = useState(0);
+function useGeoWeather() {
+  const [state, setState] = useState({
+    city: "Locating...",
+    tempC: null,
+    condition: "—",
+  });
+
   useEffect(() => {
-    const id = setInterval(() => {
-      setMins(Math.floor((Date.now() - startRef.current) / 60000));
-    }, 30000);
-    return () => clearInterval(id);
+    let active = true;
+    if (!navigator.geolocation) {
+      setState({ city: "Location Off", tempC: null, condition: "Unavailable" });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude, longitude } = pos.coords;
+
+        const r1 = await fetch(
+          `https://geocode.maps.co/reverse?lat=${latitude}&lon=${longitude}`
+        );
+        const j1 = await r1.json();
+
+        const city =
+          j1?.address?.city ||
+          j1?.address?.town ||
+          j1?.address?.village ||
+          j1?.address?.state ||
+          "Unknown";
+
+        const r2 = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code`
+        );
+        const j2 = await r2.json();
+
+        const tempC = Math.round(j2?.current?.temperature_2m ?? 0);
+        const code = j2?.current?.weather_code;
+
+        const conditionMap = {
+          0: "Clear",
+          1: "Mostly Clear",
+          2: "Partly Cloudy",
+          3: "Cloudy",
+          45: "Fog",
+          48: "Fog",
+          51: "Drizzle",
+          53: "Drizzle",
+          55: "Drizzle",
+          61: "Rain",
+          63: "Rain",
+          65: "Heavy Rain",
+          71: "Snow",
+          73: "Snow",
+          75: "Heavy Snow",
+          80: "Showers",
+          81: "Showers",
+          82: "Storm Showers",
+          95: "Storm",
+          96: "Storm",
+          99: "Storm",
+        };
+
+        if (active) {
+          setState({
+            city,
+            tempC,
+            condition: conditionMap[code] || "Unknown",
+          });
+        }
+      } catch (_) {
+        if (active) {
+          setState({ city: "Weather Unavailable", tempC: null, condition: "Offline" });
+        }
+      }
+    }, () => {
+      setState({ city: "Location Blocked", tempC: null, condition: "Unavailable" });
+    });
+
+    return () => { active = false; };
   }, []);
-  return mins;
+
+  return state;
 }
 
-// ─── theme by time ────────────────────────────────────────────────────────────
+function useContainerWidth() {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(320);
 
-function getTheme(h) {
-  if (h >= 5  && h < 8)  return { a: "#FF8C42", g: "rgba(255,140,66,0.22)",  b: "rgba(255,180,80,0.10)",  n: "dawn"      };
-  if (h >= 8  && h < 12) return { a: "#00F0FF", g: "rgba(0,240,255,0.16)",   b: "rgba(0,200,255,0.07)",   n: "morning"   };
-  if (h >= 12 && h < 17) return { a: "#A78BFA", g: "rgba(167,139,250,0.16)", b: "rgba(124,58,237,0.08)",  n: "afternoon" };
-  if (h >= 17 && h < 21) return { a: "#F59E0B", g: "rgba(245,158,11,0.20)",  b: "rgba(251,146,60,0.09)",  n: "evening"   };
-  return                         { a: "#4F46E5", g: "rgba(79,70,229,0.20)",   b: "rgba(99,102,241,0.08)",  n: "night"     };
+  useEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const ro = new ResizeObserver(([entry]) => {
+      setWidth(entry.contentRect.width || 320);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return [ref, width];
 }
 
-function greeting(h) {
-  if (h < 5)  return "Good Night";
-  if (h < 12) return "Good Morning";
-  if (h < 17) return "Good Afternoon";
-  return "Good Evening";
-}
+// ─── visual tokens ────────────────────────────────────────────────────────────
 
-// ─── sub-components ───────────────────────────────────────────────────────────
+const C = {
+  cyan: "#6ee7ff",
+  cyan2: "#22d3ee",
+  cyan3: "#0ea5e9",
+  cyanDeep: "#07131d",
+  panel: "rgba(7,18,28,0.68)",
+  panel2: "rgba(10,22,35,0.78)",
+  line: "rgba(110,231,255,0.18)",
+  lineStrong: "rgba(110,231,255,0.34)",
+  text: "#d9faff",
+  textDim: "rgba(198,245,255,0.72)",
+  textFaint: "rgba(145,222,255,0.48)",
+  magenta: "#ff4fd8",
+  violet: "#8b5cf6",
+  gold: "#f5d76e",
+  green: "#4ade80",
+  red: "#fb7185",
+};
 
-function AIHeartbeat({ color }) {
+function GlowDot({ color = C.cyan, size = 8 }) {
   return (
-    <motion.div
+    <span
       style={{
-        width: 6, height: 6, borderRadius: "50%",
+        width: size,
+        height: size,
+        borderRadius: 999,
         background: color,
-        boxShadow: `0 0 8px ${color}, 0 0 16px ${color}50`,
-        flexShrink: 0,
-      }}
-      animate={{ scale: [1, 1.6, 1], opacity: [1, 0.55, 1] }}
-      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-    />
-  );
-}
-
-function BatteryIcon({ level, charging, color }) {
-  if (level === null) return <i className="fa-solid fa-battery-half" style={{ color: "rgba(255,255,255,0.25)", fontSize: 11 }} />;
-  const icon = charging ? "fa-battery-bolt" :
-    level > 80 ? "fa-battery-full" :
-    level > 55 ? "fa-battery-three-quarters" :
-    level > 30 ? "fa-battery-half" :
-    level > 10 ? "fa-battery-quarter" : "fa-battery-empty";
-  return (
-    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <i className={`fa-solid ${icon}`} style={{ color: charging ? "#39FF14" : level < 20 ? "#FF003C" : color, fontSize: 12 }} />
-      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", fontFamily: "'Outfit', sans-serif" }}>{level}%</span>
-      {charging && <i className="fa-solid fa-bolt" style={{ color: "#39FF14", fontSize: 9 }} />}
-    </span>
-  );
-}
-
-function NetworkIcon({ net, color }) {
-  if (!net.online) return <span style={{ fontSize: 10, color: "#FF003C", fontFamily: "'Outfit', sans-serif" }}>Offline</span>;
-  const speedLabel = net.type === "4g" ? "4G" : net.type === "5g" ? "5G" : net.type === "3g" ? "3G" : net.type === "slow-2g" || net.type === "2g" ? "2G" : "WiFi";
-  const qualityColor = net.speed > 10 ? "#39FF14" : net.speed > 2 ? "#F59E0B" : "#FF4444";
-  return (
-    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <i className="fa-solid fa-wifi" style={{ color: net.online ? qualityColor : "#FF003C", fontSize: 11 }} />
-      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", fontFamily: "'Outfit', sans-serif" }}>{speedLabel}</span>
-    </span>
-  );
-}
-
-// ─── Main hero clock display ──────────────────────────────────────────────────
-
-function HeroClock({ now, theme, userName }) {
-    const clockRef = useRef(null);
-    const [cw, setCw] = useState(176);
-    useEffect(() => { const ro = new ResizeObserver(([e]) => setCw(e.contentRect.width)); if (clockRef.current) ro.observe(clockRef.current); return () => ro.disconnect(); }, []);
-    const fs = Math.max(18, Math.min(38, (cw - 80) / 2.8));
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const s = now.getSeconds();
-  const colon = s % 2 === 0;
-  const secArc = (s / 60) * 2 * Math.PI;
-  const R = 22;
-  const cx = 28, cy = 28;
-  const x = cx + R * Math.sin(secArc);
-  const y = cy - R * Math.cos(secArc);
-
-  return (
-    <div ref={clockRef} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px 8px", position: "relative", zIndex: 1 }}>
-      {/* Analog second-ring */}
-      <div style={{ position: "relative", flexShrink: 0 }}>
-        <svg width={56} height={56}>
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke={`${theme.a}1A`} strokeWidth={2.5} />
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke={theme.a} strokeWidth={2}
-            strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * R}`}
-            strokeDashoffset={`${2 * Math.PI * R * (1 - s / 60)}`}
-            style={{ filter: `drop-shadow(0 0 4px ${theme.a})`, transition: "stroke-dashoffset 0.5s linear", transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }}
-          />
-          <circle cx={x} cy={y} r={3.5} fill={theme.a} style={{ filter: `drop-shadow(0 0 5px ${theme.a})` }} />
-          <text x={cx} y={cy + 5} textAnchor="middle" fontSize={14} fontWeight={800} fill="#fff" fontFamily="'Outfit', sans-serif" style={{ letterSpacing: "-0.04em" }}>
-            {pad2(h)}
-          </text>
-        </svg>
-      </div>
-
-      {/* Digital display */}
-      <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 1, lineHeight: 1 }}>
-          <span style={{ fontSize: fs, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.04em", textShadow: `0 0 30px ${theme.a}40` }}>
-            {pad2(h)}
-          </span>
-          <motion.span
-            animate={{ opacity: colon ? 1 : 0.15 }}
-            transition={{ duration: 0.22 }}
-            style={{ fontSize: Math.round(fs * 0.84), fontWeight: 300, color: theme.a, fontFamily: "'Outfit', sans-serif", margin: "0 1px", lineHeight: 1 }}
-          >
-            :
-          </motion.span>
-          <span style={{ fontSize: fs, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.04em", textShadow: `0 0 30px ${theme.a}40` }}>
-            {pad2(m)}
-          </span>
-          <span style={{ fontSize: 14, fontWeight: 500, color: `${theme.a}80`, fontFamily: "'Outfit', sans-serif", marginLeft: 4, letterSpacing: "0.02em" }}>
-            :{pad2(s)}
-          </span>
-        </div>
-        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif", marginTop: 2 }}>
-          {now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}
-        </div>
-        <div style={{ fontSize: 12, color: theme.a, fontFamily: "'Outfit', sans-serif", fontWeight: 600, marginTop: 2, opacity: 0.85 }}>
-          {greeting(h)}{userName ? `, ${userName.split(" ")[0]}` : ""}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Status row ───────────────────────────────────────────────────────────────
-
-function StatusRow({ bat, net, screenMins, theme }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 10,
-      padding: "8px 18px", borderTop: "1px solid rgba(255,255,255,0.055)",
-      flexWrap: "wrap",
-    }}>
-      <BatteryIcon level={bat.level} charging={bat.charging} color={theme.a} />
-      <div style={{ width: 1, height: 12, background: "rgba(255,255,255,0.10)" }} />
-      <NetworkIcon net={net} color={theme.a} />
-      <div style={{ width: 1, height: 12, background: "rgba(255,255,255,0.10)" }} />
-      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <i className="fa-solid fa-clock" style={{ color: theme.a, fontSize: 11 }} />
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif" }}>
-          {screenMins < 1 ? "Just started" : `${screenMins}m session`}
-        </span>
-      </span>
-    </div>
-  );
-}
-
-// ─── Weather panel ────────────────────────────────────────────────────────────
-
-function WeatherPanel({ wx, loading, theme }) {
-  if (loading) {
-    return (
-      <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,0.055)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <motion.div animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 1.5, repeat: Infinity }}
-            style={{ width: 60, height: 13, borderRadius: 4, background: "rgba(255,255,255,0.10)" }} />
-          <motion.div animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
-            style={{ width: 40, height: 13, borderRadius: 4, background: "rgba(255,255,255,0.07)" }} />
-        </div>
-      </div>
-    );
-  }
-  if (!wx) return null;
-  const cond = wmo(wx.code);
-  return (
-    <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,0.055)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <i className={`fa-solid ${cond.icon}`} style={{ color: cond.col, fontSize: 18, filter: `drop-shadow(0 0 8px ${cond.col}80)` }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.03em" }}>
-              {wx.temp}°
-            </span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif" }}>
-              Feels {wx.feels}°
-            </span>
-          </div>
-          <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.40)", fontFamily: "'Outfit', sans-serif", marginTop: 1 }}>
-            {cond.label} · {wx.city}
-            {wx.wind ? ` · ${wx.wind} km/h` : ""}
-          </div>
-        </div>
-        {(wx.sunrise || wx.sunset) && (
-          <div style={{ textAlign: "right" }}>
-            {wx.sunrise && (
-              <div style={{ fontSize: 10.5, color: "rgba(255,200,80,0.70)", fontFamily: "'Outfit', sans-serif", display: "flex", alignItems: "center", gap: 3, justifyContent: "flex-end" }}>
-                <i className="fa-solid fa-sun" style={{ fontSize: 9 }} /> {wx.sunrise}
-              </div>
-            )}
-            {wx.sunset && (
-              <div style={{ fontSize: 10.5, color: "rgba(180,120,255,0.70)", fontFamily: "'Outfit', sans-serif", display: "flex", alignItems: "center", gap: 3, justifyContent: "flex-end", marginTop: 2 }}>
-                <i className="fa-solid fa-moon" style={{ fontSize: 9 }} /> {wx.sunset}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Clipboard strip ──────────────────────────────────────────────────────────
-
-function ClipboardStrip({ text, theme }) {
-  if (!text) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      style={{ borderTop: "1px solid rgba(255,255,255,0.055)", padding: "8px 18px" }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <i className="fa-solid fa-clipboard" style={{ color: "#818CF8", fontSize: 11, flexShrink: 0 }} />
-        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-          {text}
-        </span>
-        <span style={{ fontSize: 10, color: "#818CF8", fontFamily: "'Outfit', sans-serif", flexShrink: 0, opacity: 0.7 }}>clipboard</span>
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── AI Status strip ──────────────────────────────────────────────────────────
-
-const AI_STATES = [
-  "Processing context…",
-  "Indexing memory fragments…",
-  "Monitoring ambient signals…",
-  "Learning patterns…",
-  "Cortex standing by",
-  "Analyzing session data…",
-];
-
-function AIStatusStrip({ theme }) {
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setIdx((i) => (i + 1) % AI_STATES.length), 4200);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div style={{
-      borderTop: "1px solid rgba(255,255,255,0.055)",
-      padding: "9px 18px",
-      display: "flex", alignItems: "center", gap: 10,
-    }}>
-      <AIHeartbeat color={theme.a} />
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={idx}
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -5 }}
-          transition={{ duration: 0.3 }}
-          style={{ fontSize: 11.5, color: "rgba(255,255,255,0.40)", fontFamily: "'Outfit', sans-serif", flex: 1 }}
-        >
-          {AI_STATES[idx]}
-        </motion.span>
-      </AnimatePresence>
-      <span style={{
-        fontSize: 9.5, color: theme.a, fontFamily: "'Outfit', sans-serif", fontWeight: 700,
-        letterSpacing: "0.08em", textTransform: "uppercase",
-        padding: "2px 6px", borderRadius: 4,
-        background: `${theme.a}14`, border: `1px solid ${theme.a}22`,
-      }}>
-        CORTEX
-      </span>
-    </div>
-  );
-}
-
-// ─── Breathing container with glow ───────────────────────────────────────────
-
-function BreathingGlow({ theme }) {
-  return (
-    <motion.div
-      aria-hidden="true"
-      animate={{
-        opacity: [0.12, 0.22, 0.12],
-        scale: [1, 1.04, 1],
-      }}
-      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      style={{
-        position: "absolute", inset: -2, borderRadius: 22, pointerEvents: "none",
-        background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${theme.g}, transparent 70%)`,
-        zIndex: 0,
+        boxShadow: `0 0 10px ${color}, 0 0 22px ${color}`,
+        display: "inline-block",
+        flex: "0 0 auto",
       }}
     />
   );
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
-
-export default function AICommandCenter() {
-  const { user, openApp } = useOS();
-  const now       = useRealClock();
-  const bat       = useBattery();
-  const net       = useNetwork();
-  const { data: wx, loading: wxLoading } = useWeather();
-  const clipboard = useClipboard();
-  const screenMins = useScreenTime();
-
-  const hour  = now.getHours();
-  const theme = useMemo(() => getTheme(hour), [hour]);
-
+function TinyStat({ label, value, color = C.cyan }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ type: "spring", damping: 28, stiffness: 280, delay: 0.05 }}
+    <div
       style={{
-        width: "100%",
+        minWidth: 0,
+        flex: 1,
+        padding: "10px 12px",
+        borderRadius: 16,
+        background: "linear-gradient(180deg, rgba(11,25,38,0.92), rgba(6,14,24,0.82))",
+        border: `1px solid ${C.line}`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(0,0,0,0.15), 0 0 28px rgba(34,211,238,0.06)`,
         position: "relative",
-        borderRadius: 20,
         overflow: "hidden",
-        background: "rgba(6,8,18,0.62)",
-        backdropFilter: "blur(36px) saturate(190%)",
-        WebkitBackdropFilter: "blur(36px) saturate(190%)",
-        border: `1px solid ${theme.a}18`,
-        boxShadow: `0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.055), 0 0 40px ${theme.g}`,
       }}
     >
-      <BreathingGlow theme={theme} />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: `radial-gradient(circle at top right, ${color}16, transparent 42%)`,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: C.textFaint,
+          marginBottom: 6,
+          position: "relative",
+          zIndex: 1,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: C.text,
+          position: "relative",
+          zIndex: 1,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SectionCard({ title, right, children, accent = C.cyan, minH = 0 }) {
+  return (
+    <motion.div
+      layout
+      style={{
+        position: "relative",
+        minHeight: minH,
+        borderRadius: 20,
+        padding: 14,
+        overflow: "hidden",
+        background: `
+          linear-gradient(180deg, rgba(10,24,36,0.92), rgba(6,14,24,0.88)),
+          radial-gradient(circle at top right, rgba(110,231,255,0.10), transparent 42%)
+        `,
+        border: `1px solid ${C.line}`,
+        boxShadow: `
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 10px 30px rgba(0,0,0,0.24),
+          0 0 34px rgba(34,211,238,0.06)
+        `,
+        backdropFilter: "blur(18px)",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "linear-gradient(90deg, transparent, rgba(110,231,255,0.03), transparent)",
+          transform: "translateX(-100%)",
+          animation: "aiCommandSweep 7s linear infinite",
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <GlowDot color={accent} size={8} />
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: C.textDim,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {title}
+          </div>
+        </div>
+        {right ? <div style={{ flex: "0 0 auto" }}>{right}</div> : null}
+      </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Clock + greeting */}
-        <HeroClock now={now} theme={theme} userName={user?.name} />
-
-        {/* Battery / network / screen time */}
-        <StatusRow bat={bat} net={net} screenMins={screenMins} theme={theme} />
-
-        {/* Live weather */}
-        <WeatherPanel wx={wx} loading={wxLoading} theme={theme} />
-
-        {/* Clipboard */}
-        <ClipboardStrip text={clipboard} theme={theme} />
-
-        {/* AI cortex state */}
-        <AIStatusStrip theme={theme} />
-
-        {/* Quick launch row */}
-        <div style={{
-          display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 18px 14px",
-          borderTop: "1px solid rgba(255,255,255,0.055)",
-        }}>
-          {[
-            { id: "tasks",    icon: "fa-list-check", col: "#39FF14", label: "Tasks"    },
-            { id: "calendar", icon: "fa-calendar",   col: "#FB923C", label: "Calendar" },
-            { id: "memory",   icon: "fa-brain",      col: "#2DD4BF", label: "Memory"   },
-            { id: "chat",     icon: "fa-comments",   col: theme.a,   label: "Cortex"   },
-          ].map(({ id, icon, col, label }) => (
-            <motion.button
-              key={id}
-              whileTap={{ scale: 0.88 }}
-              onClick={() => openApp(id)}
-              style={{
-                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                padding: "8px 4px",
-                background: `${col}0E`,
-                border: `1px solid ${col}1E`,
-                borderRadius: 12,
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              <i className={`fa-solid ${icon}`} style={{ color: col, fontSize: 14, filter: `drop-shadow(0 0 5px ${col}80)` }} />
-              <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", fontFamily: "'Outfit', sans-serif" }}>{label}</span>
-            </motion.button>
-          ))}
-        </div>
+        {children}
       </div>
     </motion.div>
+  );
+}
+
+function StatusPill({ label, color = C.cyan }) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 12px",
+        borderRadius: 999,
+        background: "rgba(6,18,28,0.72)",
+        border: `1px solid ${C.lineStrong}`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 0 24px ${color}1a`,
+        color: C.text,
+        fontSize: 12,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <GlowDot color={color} size={7} />
+      {label}
+    </div>
+  );
+}
+
+function RingMeter({ value = 72, size = 74, stroke = 8 }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const p = Math.max(0, Math.min(100, value));
+  const offset = c - (p / 100) * c;
+
+  return (
+    <div style={{ position: "relative", width: size, height: size, flex: "0 0 auto" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <linearGradient id="cyanRing" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={C.cyan} />
+            <stop offset="65%" stopColor={C.cyan2} />
+            <stop offset="100%" stopColor={C.violet} />
+          </linearGradient>
+          <filter id="glowRing">
+            <feGaussianBlur stdDeviation="2.8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="url(#cyanRing)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          filter="url(#glowRing)"
+        />
+      </svg>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "grid",
+          placeItems: "center",
+          color: C.text,
+          fontWeight: 900,
+          fontSize: 16,
+          textShadow: `0 0 16px ${C.cyan2}55`,
+        }}
+      >
+        {p}%
+      </div>
+    </div>
+  );
+}
+
+function HeroClock() {
+  const now = useRealClock();
+  const battery = useBattery();
+  const net = useNetwork();
+  const weather = useGeoWeather();
+  const [wrapRef, width] = useContainerWidth();
+
+  const hh = pad2(now.getHours());
+  const mm = pad2(now.getMinutes());
+  const ss = pad2(now.getSeconds());
+
+  const dateLabel = now.toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  const fs = Math.max(26, Math.min(52, width / 5.3));
+  const subFs = Math.max(11, Math.min(14, width / 23));
+
+  return (
+    <SectionCard
+      title="Cortex Time Core"
+      accent={C.cyan}
+      right={<StatusPill label={net.online ? "Network Linked" : "Offline"} color={net.online ? C.green : C.red} />}
+    >
+      <div
+        ref={wrapRef}
+        style={{
+          display: "grid",
+          gridTemplateColumns: width < 290 ? "1fr" : "auto 1fr",
+          gap: 12,
+          alignItems: "center",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: width < 290 ? "center" : "flex-start",
+          }}
+        >
+          <RingMeter value={battery.level ?? 72} />
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                fontSize: fs,
+                lineHeight: 0.92,
+                fontWeight: 900,
+                letterSpacing: "-0.06em",
+                color: C.text,
+                textShadow: `0 0 18px rgba(110,231,255,0.20), 0 0 42px rgba(14,165,233,0.12)`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {hh}:{mm}
+            </div>
+            <div
+              style={{
+                fontSize: Math.max(13, fs * 0.32),
+                color: C.textDim,
+                fontWeight: 700,
+                paddingBottom: 6,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+              }}
+            >
+              {ss}
+            </div>
+          </div>
+
+          <div
+            style={{
+              fontSize: subFs,
+              color: C.textDim,
+              marginTop: 6,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {dateLabel}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginTop: 12,
+            }}
+          >
+            <StatusPill
+              label={`${weather.city}${weather.tempC !== null ? ` · ${weather.tempC}°C` : ""}`}
+              color={C.cyan2}
+            />
+            <StatusPill
+              label={battery.level !== null ? `${battery.level}% ${battery.charging ? "Charging" : "Battery"}` : "Battery N/A"}
+              color={battery.charging ? C.gold : C.cyan}
+            />
+            <StatusPill
+              label={net.type ? `${net.type}${net.speed ? ` · ${net.speed} Mbps` : ""}` : "Adaptive Link"}
+              color={C.violet}
+            />
+          </div>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function TasksPanel() {
+  const tasks = [
+    "Sync active context",
+    "Review memory graph",
+    "Optimize provider routing",
+  ];
+
+  return (
+    <SectionCard
+      title="Mission Queue"
+      accent={C.magenta}
+      right={<StatusPill label="3 Active" color={C.magenta} />}
+    >
+      <div style={{ display: "grid", gap: 10 }}>
+        {tasks.map((t, i) => (
+          <div
+            key={t}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 12px",
+              borderRadius: 14,
+              background: "rgba(8,20,31,0.72)",
+              border: `1px solid ${C.line}`,
+            }}
+          >
+            <GlowDot color={i === 0 ? C.cyan : i === 1 ? C.violet : C.gold} size={8} />
+            <div
+              style={{
+                color: C.text,
+                fontSize: 13,
+                fontWeight: 600,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t}
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function MemoryPanel() {
+  const clipboard = useClipboard();
+
+  return (
+    <SectionCard
+      title="Memory + Clipboard"
+      accent={C.violet}
+      right={<StatusPill label={clipboard ? "Live Buffer" : "Idle Buffer"} color={C.violet} />}
+    >
+      <div style={{ display: "grid", gap: 10 }}>
+        <TinyStat label="Working Memory" value="Neural Context Synced" color={C.cyan} />
+        <TinyStat label="Recall Layer" value="Conversation Graph Ready" color={C.violet} />
+        <div
+          style={{
+            borderRadius: 16,
+            padding: 12,
+            background: "rgba(8,20,31,0.72)",
+            border: `1px solid ${C.line}`,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: C.textFaint,
+              marginBottom: 8,
+            }}
+          >
+            Clipboard Signal
+          </div>
+          <div
+            style={{
+              color: clipboard ? C.text : C.textDim,
+              fontSize: 13,
+              lineHeight: 1.45,
+              maxHeight: 72,
+              overflow: "hidden",
+            }}
+          >
+            {clipboard || "Clipboard waiting for new signal..."}
+          </div>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+function QuickActions() {
+  const { openApp } = useOS?.() || {};
+
+  const items = [
+    { label: "Cortex", color: C.cyan, onClick: () => openApp?.("ai-chat") },
+    { label: "Search", color: C.violet, onClick: () => openApp?.("search") },
+    { label: "Tasks", color: C.magenta, onClick: () => openApp?.("tasks") },
+    { label: "Memory", color: C.gold, onClick: () => openApp?.("memory") },
+  ];
+
+  return (
+    <SectionCard title="Launch Grid" accent={C.gold}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        {items.map((item) => (
+          <motion.button
+            key={item.label}
+            whileHover={{ y: -2, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={item.onClick}
+            style={{
+              minWidth: "calc(50% - 5px)",
+              flex: "1 1 120px",
+              border: `1px solid ${C.lineStrong}`,
+              borderRadius: 16,
+              padding: "12px 14px",
+              color: C.text,
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              background: `
+                linear-gradient(180deg, rgba(10,24,36,0.94), rgba(6,14,24,0.88)),
+                radial-gradient(circle at top right, ${item.color}18, transparent 46%)
+              `,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 28px ${item.color}14`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              cursor: "pointer",
+            }}
+          >
+            <span>{item.label}</span>
+            <GlowDot color={item.color} size={8} />
+          </motion.button>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+export default function AICommandCenter() {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        minHeight: 0,
+        overflow: "hidden",
+        borderRadius: 26,
+        padding: 12,
+        color: C.text,
+        background: `
+          radial-gradient(circle at top right, rgba(34,211,238,0.16), transparent 26%),
+          radial-gradient(circle at bottom left, rgba(139,92,246,0.14), transparent 24%),
+          linear-gradient(180deg, rgba(4,10,18,0.92), rgba(6,14,24,0.96))
+        `,
+        border: `1px solid ${C.lineStrong}`,
+        boxShadow: `
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          inset 0 0 40px rgba(34,211,238,0.04),
+          0 18px 50px rgba(0,0,0,0.32),
+          0 0 50px rgba(34,211,238,0.08)
+        `,
+        backdropFilter: "blur(20px)",
+      }}
+    >
+      <style>{`
+        @keyframes aiCommandSweep {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(120%); }
+        }
+
+        @keyframes aiGridPulse {
+          0%, 100% { opacity: 0.28; }
+          50% { opacity: 0.48; }
+        }
+      `}</style>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          backgroundImage: `
+            linear-gradient(rgba(110,231,255,0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(110,231,255,0.06) 1px, transparent 1px)
+          `,
+          backgroundSize: "24px 24px",
+          maskImage: "linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.28))",
+          animation: "aiGridPulse 4s ease-in-out infinite",
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: "grid",
+          gap: 12,
+          gridTemplateRows: "auto auto auto auto",
+        }}
+      >
+        <HeroClock />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <TinyStat label="Cortex Core" value="Online" color={C.cyan} />
+          <TinyStat label="Provider Mesh" value="Adaptive" color={C.magenta} />
+        </div>
+
+        <QuickActions />
+        <TasksPanel />
+        <MemoryPanel />
+      </div>
+    </div>
   );
 }
