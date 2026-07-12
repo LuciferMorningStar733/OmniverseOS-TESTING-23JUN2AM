@@ -365,25 +365,45 @@ const DEBATE_MODELS = [
   { preferred_provider: "cerebras", model: "llama-3.3-70b",           label: "Cerebras",      shortLabel: "Cerebras", color: "#A855F7", icon: "fa-microchip" },
 ];
 
-function jaccardSim(a, b) {
-  const tok = (t) => new Set((t.toLowerCase().match(/\b\w{3,}\b/g) || []));
-  const s1 = tok(a);
-  const s2 = tok(b);
-  let inter = 0;
-  for (const w of s1) if (s2.has(w)) inter++;
-  const union = s1.size + s2.size - inter;
-  return union === 0 ? 1 : inter / union;
-}
-
-function computeAgreementScores(texts) {
-  const n = texts.length;
-  const scores = texts.map((_, i) => {
-    let sum = 0;
-    for (let j = 0; j < n; j++) if (i !== j) sum += jaccardSim(texts[i], texts[j]);
-    return Math.round((sum / (n - 1)) * 100);
-  });
-  const overall = Math.round(scores.reduce((a, b) => a + b, 0) / n);
-  return { scores, overall };
+// Semantic Consensus Engine — replaces Jaccard word-overlap
+async function computeSemanticConsensus(panels, question) {
+  const responses = panels
+    .filter(p => p.done && !p.error && p.content)
+    .map(p => ({ provider: p.label || p.provider || 'Model', content: p.content }));
+  if (responses.length < 2) return null;
+  try {
+    const token = localStorage.getItem('omniverse_token');
+    const base = process.env.REACT_APP_BACKEND_URL || '';
+    const res = await fetch(`${base}/api/ai/consensus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ responses, question: question || '' }),
+    });
+    if (!res.ok) throw new Error(`consensus API ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.warn('Semantic consensus failed, using fallback', e);
+    // Fallback: basic token overlap if backend is unreachable
+    const tok = t => new Set((t.toLowerCase().match(/\b\w{3,}\b/g) || []));
+    const texts = responses.map(r => r.content);
+    const n = texts.length;
+    const scores = texts.map((_, i) => {
+      let sum = 0;
+      const s1 = tok(texts[i]);
+      for (let j = 0; j < n; j++) {
+        if (i !== j) {
+          const s2 = tok(texts[j]);
+          let inter = 0;
+          for (const w of s1) if (s2.has(w)) inter++;
+          const union = s1.size + s2.size - inter;
+          sum += union === 0 ? 1 : inter / union;
+        }
+      }
+      return Math.round((sum / (n - 1)) * 100);
+    });
+    const overall = Math.round(scores.reduce((a, b) => a + b, 0) / n);
+    return { consensus: overall, meaning_match: overall, reasoning_match: overall, evidence_match: overall, style_similarity: overall, summary: 'Semantic analysis unavailable.', scores, overall };
+  }
 }
 
 const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt }) {
@@ -424,21 +444,67 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
             "{prompt}"
           </div>
         </div>
-        {agreement && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, animation: "fadeSlideUp 0.3s ease" }}>
-            <i className="fa-solid fa-handshake" style={{ fontSize: 10, color: agreement.overall >= 70 ? "#39FF14" : agreement.overall >= 50 ? "#F59E0B" : "#FF4444" }} />
-            <span style={{ fontSize: 9.5, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.45)", letterSpacing: "0.04em" }}>overall agreement</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: agreement.overall >= 70 ? "#39FF14" : agreement.overall >= 50 ? "#F59E0B" : "#FF4444", fontFamily: "'JetBrains Mono', monospace" }}>
-              {agreement.overall}%
-            </span>
-          </div>
-        )}
+{agreement && (() => {
+          const cs = agreement.consensus != null ? agreement.consensus : agreement.overall;
+          const mm = agreement.meaning_match != null ? agreement.meaning_match : cs;
+          const rm = agreement.reasoning_match != null ? agreement.reasoning_match : cs;
+          const em = agreement.evidence_match != null ? agreement.evidence_match : cs;
+          const ss = agreement.style_similarity != null ? agreement.style_similarity : cs;
+          const csColor = cs >= 70 ? '#39FF14' : cs >= 40 ? '#F59E0B' : '#FF4444';
+          const summary = agreement.summary || '';
+          const uniqueInsights = agreement.unique_insights || [];
+          const divergentClaims = agreement.divergent_claims || [];
+          return (
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(255,100,20,0.12)', background: 'rgba(255,100,20,0.04)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Row 1: Consensus score + label */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <i className='fa-solid fa-brain' style={{ fontSize: 10, color: csColor }} />
+                  <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Consensus</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: csColor, fontFamily: "'JetBrains Mono',monospace" }}>{cs}%</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {[['Meaning', mm, '#00F0FF'], ['Reasoning', rm, '#CF9EFF'], ['Evidence', em, '#39FF14'], ['Style', ss, 'rgba(255,255,255,0.3)']].map(([label, val, col]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono',monospace" }}>{label}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: col, fontFamily: "'JetBrains Mono',monospace" }}>{val}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Row 2: Consensus summary */}
+              {summary ? (
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', lineHeight: 1.4 }}>{summary}</div>
+              ) : null}
+              {/* Row 3: Divergent claims */}
+              {divergentClaims.length > 0 && (
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {divergentClaims.map((c, i) => (
+                    <span key={i} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.2)', color: '#FF4444', fontFamily: "'JetBrains Mono',monospace" }}>
+                      <i className='fa-solid fa-code-branch' style={{ marginRight: 3, fontSize: 7 }} />{c}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Row 4: Unique insights */}
+              {uniqueInsights.filter(u => u.insight).length > 0 && (
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {uniqueInsights.filter(u => u.insight).map((u, i) => (
+                    <span key={i} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.15)', color: '#00F0FF', fontFamily: "'JetBrains Mono',monospace" }}>
+                      <i className='fa-solid fa-lightbulb' style={{ marginRight: 3, fontSize: 7 }} />{u.provider}: {u.insight}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* 2×2 grid */}
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", overflow: "hidden" }}>
         {panels.map((panel, idx) => {
-          const agScore = agreement?.scores[idx];
+          const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
           const isLeft = idx % 2 === 0;
           const isTop  = idx < 2;
@@ -1106,16 +1172,20 @@ export default function AIChat() {
             setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, content: p.content + delta } : p) : prev);
           },
           null, ctrl.signal, null, null, null
-        ).then(() => {
+        ).then(async () => {
           if (!mountedRef.current) return;
+          let completedPanels = null;
           setDebatePanels((prev) => {
             if (!prev) return prev;
             const next = prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true } : p);
-            if (next.every((p) => p.done)) {
-              setDebateAgreement(computeAgreementScores(next.map((p) => p.content)));
-            }
+            if (next.every((p) => p.done)) completedPanels = next;
             return next;
           });
+          if (completedPanels) {
+            const consensus = await computeSemanticConsensus(completedPanels, text);
+            if (mountedRef.current) setDebateAgreement(consensus);
+          }
+        })
         }).catch(() => {
           if (!mountedRef.current) return;
           setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true, error: true } : p) : prev);
