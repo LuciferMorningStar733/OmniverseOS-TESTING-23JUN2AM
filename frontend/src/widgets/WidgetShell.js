@@ -110,7 +110,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
   const pxX = colToX(item.x);
   const pxY = rowToY(item.y);
   const pxW = widgetW(item.w);
-  const pxH = item.collapsed ? 40 : widgetH(item.h);
+  const pxH = item.collapsed ? 40 : (def?.autoHeight ? widgetH(def.defaultH) : widgetH(item.h));
 
   const mx = useMotionValue(pxX);
   const my = useMotionValue(pxY);
@@ -160,7 +160,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
 
   const scale = useMemo(() => {
     if (!measured.width || !measured.height || !refW || !refH) return 1;
-    const raw = Math.min(measured.width / refW, measured.height / refH);
+    const raw = def?.autoHeight ? (measured.width / refW) : Math.min(measured.width / refW, measured.height / refH);
     return Math.min(SCALE_MAX, Math.max(SCALE_MIN, raw));
   }, [measured.width, measured.height, refW, refH]);
 
