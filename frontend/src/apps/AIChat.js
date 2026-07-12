@@ -921,7 +921,11 @@ export default function AIChat() {
     setContextFloor(0);
     msgCountRef.current = 0;
     abortRef.current?.abort();
-    aiApi.history(sessionId).then((m) => mountedRef.current && setMessages(m || [])).catch(() => {});
+    // Defensive: `m` must be an array before it reaches `messages` state — a
+    // non-array 200 response (proxy error page, auth-expired body, etc.)
+    // would otherwise crash every `.slice`/`.filter`/`.map` call on
+    // `messages` downstream (e.g. the context-memory bar, Debate Mode).
+    aiApi.history(sessionId).then((m) => mountedRef.current && setMessages(Array.isArray(m) ? m : [])).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
@@ -1032,6 +1036,16 @@ export default function AIChat() {
     if (!rawText.trim()) return;
 
     const text = rawText.trim();
+
+    // Single AbortController for this send() call. Declared here — before the
+    // Debate Mode branch below — because that branch reads `ctrl` inside a
+    // forEach loop it enters via an early `return`. `ctrl` used to be declared
+    // with `const` further down in this same function (for the normal
+    // single-model path only), which put the Debate Mode branch's reference
+    // to `ctrl` in the temporal dead zone and threw
+    // "ReferenceError: Cannot access 'ctrl' before initialization" (minified
+    // to a single letter in production) every time a debate prompt was sent.
+    const ctrl = new AbortController();
 
     // ── Ensure a session exists before sending (mutex prevents double-create) ─
     let currentSessionId = sessionIdRef.current;
@@ -1160,7 +1174,6 @@ export default function AIChat() {
     setActiveProvider(null);
     playAIProcess();
 
-    const ctrl = new AbortController();
     abortRef.current = ctrl;
 
     try {

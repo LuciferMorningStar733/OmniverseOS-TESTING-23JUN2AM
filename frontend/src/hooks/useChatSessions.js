@@ -40,8 +40,15 @@ export function useChatSessions() {
   // ── Load sessions ──────────────────────────────────────────────────────
   const refresh = useCallback(async (search = searchQuery) => {
     try {
-      const data = await sessionApi.list(search);
+      const raw = await sessionApi.list(search);
       if (!mountedRef.current) return;
+      // Defensive: the backend contract is "always an array", but any hop in
+      // front of it (proxy timeout page, auth-expired JSON body returned with
+      // a 200, transient gateway error, etc.) can hand back a non-array 200
+      // response. Without this guard, every `.map`/`.filter`/`.some` call
+      // downstream (ChatSessionSidebar) throws and crashes the AI Chat /
+      // Debate Mode window. Normalize once, here, at the data boundary.
+      const data = Array.isArray(raw) ? raw : [];
       setSessions(data);
       // If no active session (first load / session was deleted), pick first or create one
       if (data.length === 0) {
@@ -58,8 +65,10 @@ export function useChatSessions() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await sessionApi.list("");
+        const raw = await sessionApi.list("");
         if (cancelled || !mountedRef.current) return;
+        // See refresh() above for why this normalization is required.
+        const data = Array.isArray(raw) ? raw : [];
         setSessions(data);
         // Validate persisted active session still exists
         const persistedId = loadPersistedSessionId();

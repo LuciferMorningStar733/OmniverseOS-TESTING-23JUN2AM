@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useRef, useState } from "react";
+import React, { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { motion, useMotionValue } from "framer-motion";
 import {
@@ -7,6 +7,24 @@ import {
   xToCol, yToRow,
 } from "./widgetRegistry";
 import { useWidgetManager } from "./WidgetManagerContext";
+import { useContainerSize } from "./useContainerSize";
+
+const HEADER_H = 40;
+
+// Widgets were authored/tuned against their own `defaultW`/`defaultH` grid
+// footprint (fixed px font sizes, icon sizes, paddings baked into each
+// widget component). Historically the S/M/L buttons only ever changed the
+// *shell's* width/height — the widget content itself never knew the box
+// around it had changed, so Small clipped/overflowed and Large left dead
+// space. Rather than hand-edit font sizes in every one of the 21 widget
+// components (which would just bake in a different set of hardcoded
+// numbers), the Smart Widget Layout Engine measures the real rendered
+// content area with ResizeObserver and uniformly scales the widget's
+// natural (reference) layout to fit whatever box it's been given — the
+// same "scale-to-fit" technique dashboard tools (Grafana panels, OS
+// desktop widgets) use for user-resizable content.
+const SCALE_MIN = 0.6;
+const SCALE_MAX = 1.6;
 
 const GLASS = {
   background: "rgba(6, 8, 14, 0.65)",
@@ -125,6 +143,27 @@ export default function WidgetShell({ item, def, canvasRef }) {
     setTimeout(() => setSizeFlash(null), 900);
   }, [item.id, updateWidget]);
 
+  // ── Smart Widget Layout Engine ────────────────────────────────────────────
+  // Measure the real content box (post header, post padding) and scale the
+  // widget's natural layout to fit it. `contentRef` is attached to the
+  // content wrapper below; `measured` updates live via ResizeObserver as the
+  // shell resizes (S/M/L buttons, or a future drag-resize handle — this
+  // requires no changes here since it reacts to actual rendered size, not to
+  // *how* the size changed).
+  const [contentRef, measured] = useContainerSize();
+
+  // Reference size = the box this widget's internal px values were designed
+  // for (its own default grid footprint). Falls back to the current size so
+  // an unregistered/def-less widget just renders 1:1 with no distortion.
+  const refW = def ? widgetW(def.defaultW) : measured.width;
+  const refH = def ? widgetH(def.defaultH) - HEADER_H : measured.height;
+
+  const scale = useMemo(() => {
+    if (!measured.width || !measured.height || !refW || !refH) return 1;
+    const raw = Math.min(measured.width / refW, measured.height / refH);
+    return Math.min(SCALE_MAX, Math.max(SCALE_MIN, raw));
+  }, [measured.width, measured.height, refW, refH]);
+
   return (
     <motion.div
       drag={!item.pinned}
@@ -137,17 +176,20 @@ export default function WidgetShell({ item, def, canvasRef }) {
       style={{
         x: mx, y: my,
         position: "absolute",
-        width: pxW,
-        height: pxH,
         zIndex: dragging ? 50 : (hovered ? 20 : 10),
         cursor: item.pinned ? "default" : (dragging ? "grabbing" : "grab"),
         userSelect: "none",
         touchAction: "none",
       }}
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, scale: 0.92, width: pxW, height: pxH }}
+      animate={{ opacity: 1, scale: 1, width: pxW, height: pxH }}
       exit={{ opacity: 0, scale: 0.88 }}
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+      transition={{
+        opacity: { type: "spring", stiffness: 380, damping: 32 },
+        scale: { type: "spring", stiffness: 380, damping: 32 },
+        width: { type: "spring", stiffness: 300, damping: 30 },
+        height: { type: "spring", stiffness: 300, damping: 30 },
+      }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
     >
@@ -249,17 +291,40 @@ export default function WidgetShell({ item, def, canvasRef }) {
           }}
         />
 
-        {/* Content */}
+        {/* Content — measured by the Smart Widget Layout Engine (see contentRef/scale above) */}
         {!item.collapsed && (
           <div
-            className="absolute left-0 right-0 bottom-0"
-            style={{ top: 41, overflowY: "auto", overflowX: "hidden" }}
+            ref={contentRef}
+            className="absolute left-0 right-0 bottom-0 flex items-center justify-center"
+            style={{ top: HEADER_H, overflow: "hidden" }}
           >
-            <ErrorBoundary>
-              <Suspense fallback={<Loader />}>
-                <def.Component item={item} />
-              </Suspense>
-            </ErrorBoundary>
+            {/* Inner box rendered at the widget's natural (reference) size,
+                then uniformly scaled to fit whatever space `contentRef`
+                actually measures. This is what makes Small genuinely
+                smaller (content shrinks to fit, no clipping/scrollbars) and
+                Large genuinely larger (content grows to fill, no dead
+                space) without every widget needing its own responsive
+                redesign. */}
+            <div
+              style={{
+                width: refW || "100%",
+                height: refH || "100%",
+                minWidth: refW || undefined,
+                minHeight: refH || undefined,
+                overflowY: "auto",
+                overflowX: "hidden",
+                transform: `scale(${scale})`,
+                transformOrigin: "center center",
+                transition: "transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
+                willChange: "transform",
+              }}
+            >
+              <ErrorBoundary>
+                <Suspense fallback={<Loader />}>
+                  <def.Component item={item} />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
           </div>
         )}
       </div>
