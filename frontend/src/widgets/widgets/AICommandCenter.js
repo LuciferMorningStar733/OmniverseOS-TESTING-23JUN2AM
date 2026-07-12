@@ -215,6 +215,10 @@ function NetworkIcon({ net, color }) {
 // ─── Main hero clock display ──────────────────────────────────────────────────
 
 function HeroClock({ now, theme, userName }) {
+    const clockRef = useRef(null);
+    const [cw, setCw] = useState(176);
+    useEffect(() => { const ro = new ResizeObserver(([e]) => setCw(e.contentRect.width)); if (clockRef.current) ro.observe(clockRef.current); return () => ro.disconnect(); }, []);
+    const fs = Math.max(18, Math.min(38, (cw - 80) / 2.8));
   const h = now.getHours();
   const m = now.getMinutes();
   const s = now.getSeconds();
@@ -226,7 +230,7 @@ function HeroClock({ now, theme, userName }) {
   const y = cy - R * Math.cos(secArc);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 18px 12px", position: "relative", zIndex: 1 }}>
+    <div ref={clockRef} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px 8px", position: "relative", zIndex: 1 }}>
       {/* Analog second-ring */}
       <div style={{ position: "relative", flexShrink: 0 }}>
         <svg width={56} height={56}>
@@ -247,17 +251,17 @@ function HeroClock({ now, theme, userName }) {
       {/* Digital display */}
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 1, lineHeight: 1 }}>
-          <span style={{ fontSize: 38, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.04em", textShadow: `0 0 30px ${theme.a}40` }}>
+          <span style={{ fontSize: fs, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.04em", textShadow: `0 0 30px ${theme.a}40` }}>
             {pad2(h)}
           </span>
           <motion.span
             animate={{ opacity: colon ? 1 : 0.15 }}
             transition={{ duration: 0.22 }}
-            style={{ fontSize: 32, fontWeight: 300, color: theme.a, fontFamily: "'Outfit', sans-serif", margin: "0 1px", lineHeight: 1 }}
+            style={{ fontSize: Math.round(fs * 0.84), fontWeight: 300, color: theme.a, fontFamily: "'Outfit', sans-serif", margin: "0 1px", lineHeight: 1 }}
           >
             :
           </motion.span>
-          <span style={{ fontSize: 38, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.04em", textShadow: `0 0 30px ${theme.a}40` }}>
+          <span style={{ fontSize: fs, fontWeight: 800, color: "#fff", fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.04em", textShadow: `0 0 30px ${theme.a}40` }}>
             {pad2(m)}
           </span>
           <span style={{ fontSize: 14, fontWeight: 500, color: `${theme.a}80`, fontFamily: "'Outfit', sans-serif", marginLeft: 4, letterSpacing: "0.02em" }}>
@@ -493,7 +497,7 @@ export default function AICommandCenter() {
 
         {/* Quick launch row */}
         <div style={{
-          display: "flex", gap: 6, padding: "10px 18px 14px",
+          display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 18px 14px",
           borderTop: "1px solid rgba(255,255,255,0.055)",
         }}>
           {[
