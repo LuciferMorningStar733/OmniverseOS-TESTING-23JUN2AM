@@ -623,7 +623,7 @@ ALLOWED_GEMINI_MODELS = {
     "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite",
     "gemini-2.0-flash", "gemini-2.0-flash-lite",
 }
-ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "groq", "cerebras", "openrouter"}
+ALLOWED_PREFERRED_PROVIDERS = {"auto", "gemini", "deepseek", "groq", "cerebras", "openrouter"}
 ALLOWED_CHAT_MODES = {"chat", "web", "research"}
 
 def _validate_chat_req(req: "ChatReq") -> None:
