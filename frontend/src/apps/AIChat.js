@@ -1186,7 +1186,7 @@ export default function AIChat() {
             if (mountedRef.current) setDebateAgreement(consensus);
           }
         })
-        }).catch(() => {
+        .catch(() => {
           if (!mountedRef.current) return;
           setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true, error: true } : p) : prev);
         });
