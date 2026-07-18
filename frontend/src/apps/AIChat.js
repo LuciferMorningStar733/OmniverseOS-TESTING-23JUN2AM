@@ -1674,7 +1674,7 @@ export default function AIChat() {
       `}</style>
 
       {/* Header */}
-      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0 bg-black/25 backdrop-blur-none md:backdrop-blur-[10px] md:bg-transparent">
+      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex flex-wrap md:flex-nowrap items-center justify-between gap-3 flex-shrink-0 bg-black/25 backdrop-blur-none md:backdrop-blur-[10px] md:bg-transparent">
         <div className="flex items-center gap-2">
           {/* Sidebar toggle — mobile: toggles full-screen history overlay */}
           <button
@@ -1752,14 +1752,16 @@ export default function AIChat() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-x-2 gap-y-2 min-w-0 flex-1">
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
-          <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
           <ModelSelect
             value={modelValue}
             onChange={setModelValue}
             disabled={streaming}
           />
+          <div className="w-full order-last mt-2 md:mt-0 md:flex-1 md:order-none">
+            <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
+          </div>
         </div>
       </div>
 
