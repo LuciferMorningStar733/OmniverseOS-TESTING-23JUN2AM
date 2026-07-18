@@ -407,7 +407,6 @@ async function computeSemanticConsensus(panels, question) {
 }
 
 const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt }) {
-  const [mobileTab, setMobileTab] = React.useState(0);
 
   if (!panels) {
     return (
@@ -503,50 +502,33 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
         })()}
       </div>
 
-      {/* ── Mobile tab bar — one model at a time, hidden on md+ ── */}
-      <div className="debate-tab-bar">
+      {/* ── Mobile vertical stream — all 4 models simultaneously, hidden on md+ ── */}
+      <div className="debate-mobile-stream">
         {panels.map((panel, idx) => {
-          const active = mobileTab === idx;
-          return (
-            <button
-              key={idx}
-              onClick={() => setMobileTab(idx)}
-              style={{
-                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                padding: "8px 4px",
-                background: active ? `${panel.color}18` : "transparent",
-                border: "none",
-                borderTop: `2px solid ${active ? panel.color : "transparent"}`,
-                cursor: "pointer", transition: "all 0.15s",
-              }}
-            >
-              <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 13, color: active ? panel.color : "rgba(255,255,255,0.3)" }} />
-              <span style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", color: active ? panel.color : "rgba(255,255,255,0.28)", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
-                {panel.shortLabel}
-              </span>
-              {panel.streaming && (
-                <span style={{ width: 4, height: 4, borderRadius: "50%", background: panel.color, animation: "orbPulse 0.8s ease-in-out infinite" }} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Mobile single-panel view — full width, full remaining height ── */}
-      <div className="debate-mobile-panel">
-        {panels[mobileTab] && (() => {
-          const panel = panels[mobileTab];
-          const idx   = mobileTab;
-          const _pm   = agreement?.per_model;
+          const _pm = agreement?.per_model;
           const agScore = _pm
             ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30)
             : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
           return (
-            <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-              {/* Panel header */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: `${panel.color}0a`, borderBottom: `1px solid ${panel.color}22`, flexShrink: 0 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`, boxShadow: panel.streaming ? `0 0 8px ${panel.color}` : "none", animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none" }} />
+            <div
+              key={idx}
+              style={{
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 16,
+                background: "#12151C",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              {/* Card header: status dot + icon + model name + score badge + cursor */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: `${panel.color}0a`, borderBottom: `1px solid ${panel.color}20`, flexShrink: 0 }}>
+                <div style={{
+                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                  background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`,
+                  boxShadow: panel.streaming ? `0 0 8px ${panel.color}` : "none",
+                  animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none",
+                }} />
                 <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 12, color: panel.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: "'JetBrains Mono', monospace", flex: 1 }}>{panel.label}</span>
                 {agScore != null && panel.done && !panel.error && (
@@ -557,21 +539,25 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
                 {panel.streaming && <span style={{ fontSize: 11, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>}
                 {panel.error && <span style={{ fontSize: 10, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>FAILED</span>}
               </div>
-              {/* Scrollable content */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", fontSize: 13.5, lineHeight: 1.72, color: "rgba(255,255,255,0.84)" }}>
+              {/* Card body — flagship typography spec */}
+              <div style={{ padding: "12px 16px" }}>
                 {!panel.content && panel.streaming && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 2 }}>
                     {[0, 1, 2].map((di) => (
                       <span key={di} style={{ display: "inline-block", width: 4, borderRadius: 3, height: [8, 13, 8][di], background: `${panel.color}${["66","aa","66"][di]}`, animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite` }} />
                     ))}
                     <span style={{ fontSize: 9.5, color: `${panel.color}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>generating</span>
                   </div>
                 )}
-                {panel.content && <MarkdownRenderer content={panel.content} streaming={panel.streaming} />}
+                {panel.content && (
+                  <div style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(255,255,255,0.90)" }}>
+                    <MarkdownRenderer content={panel.content} streaming={panel.streaming} />
+                  </div>
+                )}
               </div>
             </div>
           );
-        })()}
+        })}
       </div>
 
       {/* ── Desktop 2×2 grid — hidden on mobile via CSS ── */}
@@ -1211,9 +1197,16 @@ export default function AIChat() {
       setDebatePanels(DEBATE_MODELS.map((m) => ({ ...m, content: "", streaming: true, done: false, error: false })));
       setDebatePrompt(text);
       setDebateAgreement(null);
+      // Phase 8 fix: build conversation history so all models receive full context on follow-up turns.
+      // Mirror the same slice/filter/map as the standard chat path (contextFloorRef, last 20, 2000-char cap).
+      const debateHistory = messagesRef.current
+        .slice(contextFloorRef.current)
+        .filter((m) => m.content && !m.pending && !m.error)
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
       DEBATE_MODELS.forEach((m, idx) => {
         aiApi.chatStreamResilient(
-          { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat" },
+          { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat", history: debateHistory },
           (delta) => {
             if (!mountedRef.current || ctrl.signal.aborted) return;
             setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, content: p.content + delta } : p) : prev);
@@ -1662,13 +1655,11 @@ export default function AIChat() {
           .copy-reveal-row { opacity: 0.55 !important; }
         }
         .mode-switcher-row::-webkit-scrollbar { display: none; }
-        /* Debate mode — responsive layout: tab-per-model on mobile, 2x2 grid on desktop */
-        .debate-tab-bar { display: none; }
-        .debate-mobile-panel { display: none; }
+        /* Debate mode — vertical stream on mobile, 2×2 grid on desktop */
+        .debate-mobile-stream { display: none; }
         .debate-desktop-grid { display: grid; }
         @media (max-width: 767px) {
-          .debate-tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.28); }
-          .debate-mobile-panel { display: flex; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+          .debate-mobile-stream { display: flex; flex: 1; flex-direction: column; gap: 16px; overflow-y: auto; padding: 12px 12px 32px; min-height: 0; }
           .debate-desktop-grid { display: none !important; }
         }
       `}</style>
