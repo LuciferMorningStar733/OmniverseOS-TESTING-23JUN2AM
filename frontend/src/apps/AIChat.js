@@ -631,16 +631,14 @@ function ModeSwitcher({ mode, onChange, disabled }) {
   return (
     <div
       title="Switch AI mode"
-      className="mode-switcher-row"
+      className="mode-switcher-row flex flex-row items-center overflow-x-auto whitespace-nowrap flex-1"
       style={{
-        display: "flex",
         gap: 2,
         background: "rgba(255,255,255,0.03)",
         borderRadius: 9,
         padding: "2px 2px",
         border: "1px solid rgba(255,255,255,0.06)",
         minWidth: 0,
-        overflowX: "auto",
         scrollbarWidth: "none",
       }}
     >
@@ -657,7 +655,7 @@ function ModeSwitcher({ mode, onChange, disabled }) {
               borderRadius: 6,
               border: active ? `1px solid ${m.color}44` : "1px solid transparent",
               background: active ? `${m.color}14` : "transparent",
-              color: active ? m.color : "rgba(255,255,255,0.28)",
+              color: active ? m.color : "rgba(255,255,255,0.6)",
               cursor: disabled ? "not-allowed" : "pointer",
               fontSize: 9.5,
               fontFamily: "'JetBrains Mono', monospace",
@@ -669,8 +667,8 @@ function ModeSwitcher({ mode, onChange, disabled }) {
               whiteSpace: "nowrap",
               boxShadow: active ? `0 0 6px ${m.color}22` : "none",
             }}
-            onMouseEnter={(e) => { if (!disabled && !active) { e.currentTarget.style.color = "rgba(255,255,255,0.55)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } }}
-            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.color = "rgba(255,255,255,0.28)"; e.currentTarget.style.background = "transparent"; } }}
+            onMouseEnter={(e) => { if (!disabled && !active) { e.currentTarget.style.color = "rgba(255,255,255,0.85)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } }}
+            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; e.currentTarget.style.background = "transparent"; } }}
           >
             <i className={`fa-solid ${m.icon}`} style={{ fontSize: 8 }} />
             {m.label}
@@ -1551,7 +1549,7 @@ export default function AIChat() {
           style={{ background: "rgba(0,0,0,0.55)" }}
           onClick={() => setShowMobileHistory(false)}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ height: "100%", display: "flex" }}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-[#080B10]" style={{ height: "100%", display: "flex" }}>
             <ChatSessionSidebar
               sessions={sessions}
               activeSessionId={sessionId}
@@ -1754,7 +1752,7 @@ export default function AIChat() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
           <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
           <ModelSelect
