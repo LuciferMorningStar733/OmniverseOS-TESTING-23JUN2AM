@@ -540,6 +540,16 @@ export const activityApi = {
   },
 };
 
+// ── Live Web Search API (Phase 16) ────────────────────────────────────────
+/**
+ * Silently calls the backend web-search endpoint and returns scraped snippets.
+ * Results are injected as context into the LLM prompt — never opens a new tab.
+ */
+export const webSearch = (query) =>
+  api.post('/ai/web-search', { query })
+    .then(r => r.data)
+    .catch(() => ({ results: [], query }));
+
 // ── Conversation Search API ────────────────────────────────────────────────
 export const conversationApi = {
   /** List all chat sessions for the user (most recent first) */

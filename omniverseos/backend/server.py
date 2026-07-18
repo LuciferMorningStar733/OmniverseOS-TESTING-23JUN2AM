@@ -724,6 +724,45 @@ async def list_chat_sessions(user=Depends(get_current_user)):
     sessions = await db.chat_messages.aggregate(pipeline).to_list(100)
     return sessions
 
+class WebSearchReq(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+
+@api.post("/ai/web-search")
+async def web_search_route(req: WebSearchReq, user=Depends(get_current_user)):
+    """
+    Phase 16: Silent TinyFish web integration.
+    Fetches DuckDuckGo Lite search results for the query and returns
+    scraped snippets as JSON — no browser tab opened, fully internal.
+    """
+    await rate_limit(f"web_search:{user['id']}", max_per_min=15)
+    query = req.query.strip()
+    results = []
+    try:
+        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
+            resp = await client.get(
+                "https://lite.duckduckgo.com/lite/",
+                params={"q": query},
+                headers={"User-Agent": "Mozilla/5.0 (compatible; OmniverseOS/1.0)"},
+            )
+            html = resp.text
+            # Extract result snippets from DDG lite HTML table structure
+            snippet_blocks = re.findall(
+                r'class=["\']result-snippet["\'][^>]*>(.*?)</td>',
+                html, re.DOTALL | re.IGNORECASE
+            )
+            title_blocks = re.findall(
+                r'class=["\']result-link["\'][^>]*>(.*?)</a>',
+                html, re.DOTALL | re.IGNORECASE
+            )
+            for i, snip in enumerate(snippet_blocks[:5]):
+                clean_snip = re.sub(r'<[^>]+>', '', snip).strip()
+                clean_title = re.sub(r'<[^>]+>', '', title_blocks[i]).strip() if i < len(title_blocks) else ""
+                if clean_snip:
+                    results.append({"title": clean_title, "snippet": clean_snip})
+    except Exception:
+        pass  # non-fatal: front-end falls back to base LLM with no web context
+    return {"results": results, "query": query}
+
 class ConvSearchReq(BaseModel):
     query: str = Field(..., min_length=1, max_length=500)
     limit: int = Field(default=20, ge=1, le=50)

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { aiApi } from "../lib/api";
 
 /* ── CyberSelect — fixed Radix UI (no invalid render props) ─────────────── */
 function CyberSelect({ value, onValueChange, options, placeholder, small }) {
@@ -195,6 +196,10 @@ export default function CodeEditor() {
   const [output,  setOutput]  = useState([]);
   const [running, setRunning] = useState(false);
   const [consoleH, setConsoleH] = useState(190);
+  // Phase 18: Agentic AI command bar state
+  const [aiCmd,        setAiCmd]        = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const aiAbortRef = useRef(null);
   const textareaRef = useRef(null);
 
   const activeLang = LANGS.find(l=>l.value===lang);
@@ -232,6 +237,47 @@ export default function CodeEditor() {
     }, 80);
   }, [code, lang, activeLang]);
 
+  // Phase 18: Agentic AI command — streams raw code directly into the editor
+  const handleAiCmd = useCallback(async () => {
+    const prompt = aiCmd.trim();
+    if (!prompt || aiGenerating) return;
+    if (aiAbortRef.current) aiAbortRef.current.abort();
+    const ctrl = new AbortController();
+    aiAbortRef.current = ctrl;
+    setAiGenerating(true);
+    setCode("");
+    setOutput([]);
+    const AI_CODE_SYSTEM =
+      "You are an expert developer. The user will ask for a script or game. " +
+      "Output ONLY the raw JavaScript code. No markdown formatting, no explanations. Just the code.";
+    let accumulated = "";
+    try {
+      await aiApi.chatStreamResilient(
+        {
+          session_id: `codegen-${Date.now()}`,
+          message: prompt,
+          system: AI_CODE_SYSTEM,
+          provider: "gemini",
+          model: "gemini-2.5-flash",
+          preferred_provider: "gemini",
+          mode: "chat",
+        },
+        (delta) => {
+          if (ctrl.signal.aborted) return;
+          accumulated += delta;
+          // Strip any accidental markdown fences in real time
+          const clean = accumulated.replace(/^```[\w]*\n?/gm, "").replace(/```$/gm, "");
+          setCode(clean);
+        },
+        null, ctrl.signal, null, null, null
+      );
+    } catch { /* non-fatal */ }
+    setAiGenerating(false);
+    setAiCmd("");
+    // Strip fences one final time after stream completes
+    setCode(prev => prev.replace(/^```[\w]*\n?/gm, "").replace(/```$/gm, "").trim());
+  }, [aiCmd, aiGenerating]);
+
   const handleKeyDown = useCallback((e) => {
     if (e.key==="Tab") {
       e.preventDefault();
@@ -248,6 +294,60 @@ export default function CodeEditor() {
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="code-app">
+
+      {/* Phase 18: Agentic AI Command Bar */}
+      <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0"
+        style={{ borderBottom:"1px solid rgba(0,240,255,0.08)", background:"rgba(0,10,20,0.6)" }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+          background: "rgba(0,240,255,0.08)", border: "1px solid rgba(0,240,255,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 9, color: "#00F0FF" }} />
+        </div>
+        <input
+          value={aiCmd}
+          onChange={e => setAiCmd(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiCmd(); } }}
+          placeholder="Ask Cortex to write code… (e.g. 'build Flappy Bird')"
+          disabled={aiGenerating}
+          style={{
+            flex: 1, background: "transparent", border: "none", outline: "none",
+            color: "rgba(255,255,255,0.85)", fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.01em",
+            caretColor: "#00F0FF",
+          }}
+        />
+        {aiGenerating ? (
+          <button
+            onClick={() => { aiAbortRef.current?.abort(); setAiGenerating(false); }}
+            style={{
+              flexShrink: 0, padding: "3px 10px", borderRadius: 6, cursor: "pointer",
+              background: "rgba(255,0,60,0.12)", border: "1px solid rgba(255,0,60,0.3)",
+              color: "#FF7090", fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.06em", textTransform: "uppercase",
+            }}
+          >
+            <i className="fa-solid fa-stop text-[9px] mr-1" />stop
+          </button>
+        ) : (
+          <button
+            onClick={handleAiCmd}
+            disabled={!aiCmd.trim()}
+            style={{
+              flexShrink: 0, padding: "3px 10px", borderRadius: 6, cursor: aiCmd.trim() ? "pointer" : "default",
+              background: aiCmd.trim() ? "rgba(0,240,255,0.1)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${aiCmd.trim() ? "rgba(0,240,255,0.35)" : "rgba(255,255,255,0.08)"}`,
+              color: aiCmd.trim() ? "#00F0FF" : "rgba(255,255,255,0.25)",
+              fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              transition: "all 0.15s",
+            }}
+          >
+            Generate
+          </button>
+        )}
+      </div>
 
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0 gap-2 flex-wrap"

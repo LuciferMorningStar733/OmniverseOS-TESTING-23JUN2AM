@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
+import { aiApi, memoryApi, webSearch, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
 import { parseCmdTags, executeCmdCommands } from "../lib/cmdTagParser";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
@@ -468,7 +468,7 @@ const FinalVerdictCard = React.memo(function FinalVerdictCard({ synthesis, strea
           </div>
         )}
         {synthesis && (
-          <div className="text-[15px] leading-[1.8] font-light text-white/85">
+          <div className="leading-relaxed" style={{ fontSize: 15, color: "rgba(255,255,255,0.92)" }}>
             <MarkdownRenderer content={synthesis} streaming={streaming} />
           </div>
         )}
@@ -585,7 +585,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
             <div
               key={idx}
               style={{
-                border: "1px solid rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.04)",
                 borderRadius: 16,
                 background: "#080B10",
                 overflow: "hidden",
@@ -610,8 +610,8 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
                 {panel.streaming && <span style={{ fontSize: 11, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>}
                 {panel.error && <span style={{ fontSize: 10, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>FAILED</span>}
               </div>
-              {/* Card body — Phase 15: Apple-tier padding + typography */}
-              <div style={{ padding: "24px" }}>
+              {/* Card body — flagship typography spec */}
+              <div style={{ padding: "12px 16px" }}>
                 {!panel.content && panel.streaming && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 2 }}>
                     {[0, 1, 2].map((di) => (
@@ -621,7 +621,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
                   </div>
                 )}
                 {panel.content && (
-                  <div className="text-[15px] leading-[1.8] font-light text-white/85">
+                  <div style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(255,255,255,0.90)" }}>
                     <MarkdownRenderer content={panel.content} streaming={panel.streaming} />
                   </div>
                 )}
@@ -1289,10 +1289,11 @@ export default function AIChat() {
         .filter((m) => m.content && !m.pending && !m.error)
         .slice(-20)
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
-      // Phase 14: Sub-processor prompt — enforces extreme brevity (3 bullets, no tables, no intros)
+      // Phase 13: Sub-processor persona — cold, analytical, no quirky greetings
       const DEBATE_SUBMODEL_SYSTEM =
-        "You are a Cortex sub-processor. You must provide your analysis in EXACTLY 3 short bullet points. " +
-        "Do not write introductory paragraphs. Do not use tables. Prioritize extreme brevity.";
+        "You are a sub-processor of Cortex, a hyper-intelligent OS from the year 3038. " +
+        "Maintain a cold, analytical, and highly precise tone. Do not use quirky personas or greetings. " +
+        "Deliver raw data, logic, and tactical analysis.";
       DEBATE_MODELS.forEach((m, idx) => {
         aiApi.chatStreamResilient(
           { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat", system: DEBATE_SUBMODEL_SYSTEM, history: debateHistory },
@@ -1319,17 +1320,15 @@ export default function AIChat() {
             if (successfulPanels.length >= 2 && mountedRef.current) {
               setDebateSynthesis("");
               setDebateSynthesisStreaming(true);
-              // Phase 14: Overmind prompt — enforces exact structured format, no essays or tables
+              // Phase 13: Overmind synthesis persona — absolute authority, cold precision
               const OVERMIND_SYSTEM =
-                "You are the primary Cortex Overmind. Synthesize the sub-processor reports. " +
-                "Your output MUST follow this exact format: " +
-                "First, a single bolded word or short phrase identifying the absolute best final recommendation. " +
-                "Second, a new line with a simple, easily readable explanation (maximum 3 sentences). " +
-                "Do not use tables. Do not write essays.";
+                "You are the primary Cortex Overmind. Synthesize these sub-processor reports. " +
+                "Speak with absolute authority, extreme intelligence, and cold precision. " +
+                "Provide the definitive final verdict.";
               const synthesisPrompt =
                 `Sub-processors were queried on: "${text}"\n\n` +
                 successfulPanels.map(p => `Sub-Processor [${p.label}]:\n${p.content}`).join('\n\n') +
-                `\n\nSynthesize these reports. Deliver the final verdict in the required format: one bolded recommendation, then a maximum 3-sentence explanation. No tables. No essays.`;
+                `\n\nSynthesize these reports. Resolve conflicts. Deliver the definitive final verdict with absolute authority.`;
               let synthesisContent = "";
               try {
                 await aiApi.chatStreamResilient(
@@ -1463,8 +1462,25 @@ export default function AIChat() {
         .slice(-20)
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
 
+      // ── Phase 16: Silent web context injection — never opens a new tab ─────
+      // When Live Web mode is active, silently hit the backend search route,
+      // inject scraped snippets as context prefix, then stream AI response.
+      let finalMessage = messageForAI;
+      if (chatMode === "web") {
+        try {
+          const webData = await webSearch(text);
+          if (webData?.results?.length > 0) {
+            const snippets = webData.results
+              .map((r, i) => `[${i + 1}] ${r.title ? r.title + " — " : ""}${r.snippet}`)
+              .join("\n");
+            finalMessage =
+              `Here is the live web data retrieved for this query:\n${snippets}\n\nNow answer the user's question using this live data: ${messageForAI}`;
+          }
+        } catch { /* web fetch is non-fatal — falls back to base LLM */ }
+      }
+
       const result = await aiApi.chatStreamResilient(
-        { session_id: currentSessionId, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history, mode: chatMode },
+        { session_id: currentSessionId, message: finalMessage, ...model, preferred_provider: preferredProvider, system: systemPrompt, history, mode: chatMode },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
@@ -1686,7 +1702,7 @@ export default function AIChat() {
           style={{ background: "rgba(0,0,0,0.55)" }}
           onClick={() => setShowMobileHistory(false)}
         >
-          <div onClick={(e) => e.stopPropagation()} className="bg-[#080B10]" style={{ height: "100%", display: "flex" }}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-[#050B14]" style={{ height: "100%", display: "flex", borderRight: "1px solid rgba(0,240,255,0.08)" }}>
             <ChatSessionSidebar
               sessions={sessions}
               activeSessionId={sessionId}
@@ -1827,7 +1843,12 @@ export default function AIChat() {
                 flexShrink: 0, transition: "all 0.15s",
               }}
             >
-              <i className="fa-solid fa-sidebar text-xs" />
+              {/* Phase 17: Premium crisp hamburger icon */}
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <line x1="2" y1="5" x2="16" y2="5"/>
+                <line x1="2" y1="9" x2="16" y2="9"/>
+                <line x1="2" y1="13" x2="16" y2="13"/>
+              </svg>
             </button>
             {/* Sidebar toggle — desktop: shows/hides sidebar in side-by-side layout */}
             <button
@@ -1908,7 +1929,7 @@ export default function AIChat() {
       {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
-        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 24 }}>
+        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
 
         {messages.length === 0 && !streaming && chatMode !== "debate" && (
@@ -2097,14 +2118,12 @@ export default function AIChat() {
                     }} />
                   )}
 
-                  {/* Rendered markdown — Phase 15: Apple-tier typography */}
+                  {/* Rendered markdown */}
                   {(m.content || (!m.pending)) && (
-                    <div className="text-[15px] leading-[1.8] font-light text-white/85">
-                      <MarkdownRenderer
-                        content={m.content}
-                        streaming={m.pending && i === messages.length - 1}
-                      />
-                    </div>
+                    <MarkdownRenderer
+                      content={m.content}
+                      streaming={m.pending && i === messages.length - 1}
+                    />
                   )}
 
                   {/* Copy button row — reveals on message hover via CSS .copy-reveal-row */}
