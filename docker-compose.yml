@@ -22,6 +22,7 @@ services:
       CORS_ORIGINS: "${CORS_ORIGINS:-*}"
       JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set}"
       EMERGENT_LLM_KEY: "${EMERGENT_LLM_KEY:-}"
+      TINYFISH_API_KEY: "${TINYFISH_API_KEY:-}"
     ports: ["8001:8001"]
 
   frontend:

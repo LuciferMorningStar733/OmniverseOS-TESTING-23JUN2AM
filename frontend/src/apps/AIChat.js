@@ -631,7 +631,7 @@ function ModeSwitcher({ mode, onChange, disabled }) {
   return (
     <div
       title="Switch AI mode"
-      className="mode-switcher-row flex flex-row items-center overflow-x-auto whitespace-nowrap flex-1"
+      className="mode-switcher-row flex flex-row items-center overflow-x-auto whitespace-nowrap w-full md:w-auto"
       style={{
         gap: 2,
         background: "rgba(255,255,255,0.03)",
@@ -1674,93 +1674,96 @@ export default function AIChat() {
       `}</style>
 
       {/* Header */}
-      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex flex-wrap md:flex-nowrap items-center justify-between gap-3 flex-shrink-0 bg-black/25 backdrop-blur-none md:backdrop-blur-[10px] md:bg-transparent">
-        <div className="flex items-center gap-2">
-          {/* Sidebar toggle — mobile: toggles full-screen history overlay */}
-          <button
-            onClick={() => setShowMobileHistory((v) => !v)}
-            title="Show history"
-            className="md:hidden flex items-center justify-center"
-            style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: showMobileHistory ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
-              border: showMobileHistory ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
-              cursor: "pointer",
-              color: showMobileHistory ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
-              flexShrink: 0, transition: "all 0.15s",
-            }}
-          >
-            <i className="fa-solid fa-sidebar text-xs" />
-          </button>
-          {/* Sidebar toggle — desktop: shows/hides sidebar in side-by-side layout */}
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            title={sidebarOpen ? "Hide history" : "Show history"}
-            className="hidden md:flex items-center justify-center"
-            style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: sidebarOpen ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
-              border: sidebarOpen ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
-              cursor: "pointer",
-              color: sidebarOpen ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
-              flexShrink: 0, transition: "all 0.15s",
-            }}
-          >
-            <i className="fa-solid fa-sidebar text-xs" />
-          </button>
-          {/* Cortex orb indicator */}
-          <div style={{
-            position: "relative",
-            width: 36, height: 36, flexShrink: 0,
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: "50%",
-              background: streaming
-                ? "radial-gradient(circle at 40% 35%, rgba(207,158,255,0.8) 0%, rgba(0,240,255,0.6) 60%, rgba(0,0,0,0.3) 100%)"
-                : "radial-gradient(circle at 40% 35%, rgba(0,240,255,0.9) 0%, rgba(0,180,220,0.5) 60%, rgba(0,0,0,0.4) 100%)",
-              boxShadow: streaming
-                ? "0 0 0 1px rgba(207,158,255,0.3), 0 0 20px rgba(207,158,255,0.25)"
-                : "0 0 0 1px rgba(0,240,255,0.25), 0 0 16px rgba(0,240,255,0.18)",
-              animation: streaming ? "thinkingOrb 1.4s ease-in-out infinite" : "orbPulse 3s ease-in-out infinite",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "default",
-            }}>
-              <i className="fa-solid fa-wand-magic-sparkles" style={{
-                fontSize: 13,
-                color: streaming ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.9)",
-                textShadow: "0 0 8px rgba(0,240,255,0.8)",
-              }} />
+      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex flex-col md:flex-row md:items-center justify-between gap-2 flex-shrink-0 bg-black/25 backdrop-blur-none md:backdrop-blur-[10px] md:bg-transparent">
+        {/* ROW 1: Cortex profile (left) | Model selector (right, mobile-only) */}
+        <div className="flex items-center justify-between w-full md:w-auto md:flex-1">
+          <div className="flex items-center gap-2">
+            {/* Sidebar toggle — mobile: toggles full-screen history overlay */}
+            <button
+              onClick={() => setShowMobileHistory((v) => !v)}
+              title="Show history"
+              className="md:hidden flex items-center justify-center"
+              style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: showMobileHistory ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+                border: showMobileHistory ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
+                cursor: "pointer",
+                color: showMobileHistory ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
+                flexShrink: 0, transition: "all 0.15s",
+              }}
+            >
+              <i className="fa-solid fa-sidebar text-xs" />
+            </button>
+            {/* Sidebar toggle — desktop: shows/hides sidebar in side-by-side layout */}
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              title={sidebarOpen ? "Hide history" : "Show history"}
+              className="hidden md:flex items-center justify-center"
+              style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: sidebarOpen ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+                border: sidebarOpen ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
+                cursor: "pointer",
+                color: sidebarOpen ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
+                flexShrink: 0, transition: "all 0.15s",
+              }}
+            >
+              <i className="fa-solid fa-sidebar text-xs" />
+            </button>
+            {/* Cortex orb indicator */}
+            <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: streaming
+                  ? "radial-gradient(circle at 40% 35%, rgba(207,158,255,0.8) 0%, rgba(0,240,255,0.6) 60%, rgba(0,0,0,0.3) 100%)"
+                  : "radial-gradient(circle at 40% 35%, rgba(0,240,255,0.9) 0%, rgba(0,180,220,0.5) 60%, rgba(0,0,0,0.4) 100%)",
+                boxShadow: streaming
+                  ? "0 0 0 1px rgba(207,158,255,0.3), 0 0 20px rgba(207,158,255,0.25)"
+                  : "0 0 0 1px rgba(0,240,255,0.25), 0 0 16px rgba(0,240,255,0.18)",
+                animation: streaming ? "thinkingOrb 1.4s ease-in-out infinite" : "orbPulse 3s ease-in-out infinite",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "default",
+              }}>
+                <i className="fa-solid fa-wand-magic-sparkles" style={{
+                  fontSize: 13,
+                  color: streaming ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.9)",
+                  textShadow: "0 0 8px rgba(0,240,255,0.8)",
+                }} />
+              </div>
+              {isRecording && (
+                <>
+                  <span style={{ position: "absolute", inset: -2, borderRadius: "50%", border: "2px solid rgba(255,0,60,0.6)", animation: "listenRipple 1.2s ease-out infinite" }} />
+                  <span style={{ position: "absolute", inset: -2, borderRadius: "50%", border: "2px solid rgba(255,0,60,0.4)", animation: "listenRipple 1.2s ease-out 0.4s infinite" }} />
+                </>
+              )}
             </div>
-            {isRecording && (
-              <>
-                <span style={{ position: "absolute", inset: -2, borderRadius: "50%", border: "2px solid rgba(255,0,60,0.6)", animation: "listenRipple 1.2s ease-out infinite" }} />
-                <span style={{ position: "absolute", inset: -2, borderRadius: "50%", border: "2px solid rgba(255,0,60,0.4)", animation: "listenRipple 1.2s ease-out 0.4s infinite" }} />
-              </>
-            )}
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.3px", lineHeight: 1.1 }}>
+                Cortex
+              </div>
+              <div style={{
+                fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: "0.12em", textTransform: "uppercase",
+                color: streaming ? "rgba(207,158,255,0.7)" : isRecording ? "rgba(255,80,80,0.8)" : "rgba(0,240,255,0.55)",
+                marginTop: 1,
+              }}>
+                {streaming ? "thinking…" : isRecording ? "● listening" : "● online"}
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.3px", lineHeight: 1.1 }}>
-              Cortex
-            </div>
-            <div style={{
-              fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: streaming ? "rgba(207,158,255,0.7)" : isRecording ? "rgba(255,80,80,0.8)" : "rgba(0,240,255,0.55)",
-              marginTop: 1,
-            }}>
-              {streaming ? "thinking…" : isRecording ? "● listening" : "● online"}
-            </div>
+          {/* Model selector — mobile Row 1 only, hidden on desktop */}
+          <div className="flex items-center gap-2 md:hidden">
+            {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
+            <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
           </div>
         </div>
-        <div className="flex flex-wrap md:flex-nowrap items-center gap-x-2 gap-y-2 min-w-0 flex-1">
-          {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
-          <ModelSelect
-            value={modelValue}
-            onChange={setModelValue}
-            disabled={streaming}
-          />
-          <div className="w-full order-last mt-2 md:mt-0 md:flex-1 md:order-none">
-            <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
+        {/* ROW 2 on mobile / inline on desktop: Mode Switcher + desktop Model Selector */}
+        <div className="flex items-center w-full md:w-auto gap-2">
+          <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
+          {/* Model selector — desktop only, hidden on mobile */}
+          <div className="hidden md:flex items-center gap-2">
+            {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
+            <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
           </div>
         </div>
       </div>
