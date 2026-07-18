@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
-import ConversationSearchPanel from "../components/ConversationSearchPanel";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
+import { parseCmdTags, executeCmdCommands } from "../lib/cmdTagParser";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import { trackEvent } from "../lib/activityTimeline";
 import { rememberTranscript } from "../lib/memoryEngine";
@@ -13,12 +13,10 @@ import { normalizeTranscript } from "../lib/speechCorrection.js";
 import { detectAmbiguity } from "../lib/ambiguityDetector";
 import CortexClarificationModal from "../components/CortexClarificationModal";
 import { playAIProcess, playAIReady } from "../lib/soundEngine";
-import { useBreakpoint } from "../hooks/useBreakpoint";
-import MobileCortexHeader from "../components/mobile/MobileCortexHeader";
-import MobileQuickActions from "../components/mobile/MobileQuickActions";
-import MobileChatInputBar from "../components/mobile/MobileChatInputBar";
+import { useChatSessions } from "../hooks/useChatSessions";
+import ChatSessionSidebar from "../components/ChatSessionSidebar";
 
-const SESSION_ID = "main";
+const FALLBACK_SESSION_ID = "main";
 
 /* ── Cyberpunk Radix Select (replaces native <select>) ─────────────────────── */
 const MODEL_OPTIONS = [
@@ -278,13 +276,20 @@ const ActiveProviderBadge = React.memo(function ActiveProviderBadge({ provider, 
 /* ── Copy button ─────────────────────────────────────────────────────────────── */
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef(null);
+
+  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
 
   const handleCopy = useCallback(() => {
     if (!text) return;
+    const resetAfter = () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    };
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       toast.success("Response copied!", { duration: 1500, style: { fontSize: 13 } });
-      setTimeout(() => setCopied(false), 2000);
+      resetAfter();
     }).catch(() => {
       try {
         const el = document.createElement("textarea");
@@ -296,7 +301,7 @@ function CopyButton({ text }) {
         document.execCommand("copy");
         document.body.removeChild(el);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        resetAfter();
       } catch {
         toast.error("Copy failed");
       }
@@ -351,6 +356,538 @@ function CopyButton({ text }) {
   );
 }
 
+/* ── Model Debate ─────────────────────────────────────────────────────────────── */
+
+const DEBATE_MODELS = [
+  { preferred_provider: "gemini",   model: "gemini-2.5-flash",        label: "Gemini Flash",  shortLabel: "Gemini",   color: "#4285F4", icon: "fa-google"    },
+  { preferred_provider: "deepseek", model: "deepseek-chat",           label: "DeepSeek V3",   shortLabel: "DeepSeek", color: "#39FF14", icon: "fa-brain"     },
+  { preferred_provider: "groq",     model: "llama-3.3-70b-versatile", label: "Groq · Llama",  shortLabel: "Llama",    color: "#F59E0B", icon: "fa-bolt"      },
+  { preferred_provider: "cerebras", model: "llama-3.3-70b",           label: "Cerebras",      shortLabel: "Cerebras", color: "#A855F7", icon: "fa-microchip" },
+];
+
+// Semantic Consensus Engine — replaces Jaccard word-overlap
+async function computeSemanticConsensus(panels, question) {
+  const responses = panels
+    .filter(p => p.done && !p.error && p.content)
+    .map(p => ({ provider: p.label || p.provider || 'Model', content: p.content }));
+  if (responses.length < 2) return null;
+  try {
+    const token = localStorage.getItem('omniverse_token');
+    const base = process.env.REACT_APP_BACKEND_URL || '';
+    const res = await fetch(`${base}/api/ai/consensus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ responses, question: question || '' }),
+    });
+    if (!res.ok) throw new Error(`consensus API ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.warn('Semantic consensus failed, using fallback', e);
+    // Fallback: basic token overlap if backend is unreachable
+    const tok = t => new Set((t.toLowerCase().match(/\b\w{3,}\b/g) || []));
+    const texts = responses.map(r => r.content);
+    const n = texts.length;
+    const scores = texts.map((_, i) => {
+      let sum = 0;
+      const s1 = tok(texts[i]);
+      for (let j = 0; j < n; j++) {
+        if (i !== j) {
+          const s2 = tok(texts[j]);
+          let inter = 0;
+          for (const w of s1) if (s2.has(w)) inter++;
+          const union = s1.size + s2.size - inter;
+          sum += union === 0 ? 1 : inter / union;
+        }
+      }
+      return Math.round((sum / (n - 1)) * 100);
+    });
+    const overall = Math.round(scores.reduce((a, b) => a + b, 0) / n);
+    return { consensus: overall, meaning_match: overall, reasoning_match: overall, evidence_match: overall, style_similarity: overall, summary: 'Semantic analysis unavailable.', scores, overall };
+  }
+}
+
+/* ── Final Verdict Card — Phase 12: JARVIS 3038 flagship aesthetics ──────────── */
+const FinalVerdictCard = React.memo(function FinalVerdictCard({ synthesis, streaming }) {
+  return (
+    <div
+      className="rounded-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(0,255,255,0.05)]"
+      style={{
+        background: "#050B14",
+        overflow: "hidden",
+        flexShrink: 0,
+        animation: "fadeSlideUp 0.4s ease",
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "12px 18px",
+        background: "rgba(0,255,255,0.03)",
+        borderBottom: "1px solid rgba(0,255,255,0.08)",
+      }}>
+        {/* Cyan glowing dot */}
+        <div style={{
+          width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+          background: streaming ? "#00F0FF" : "rgba(0,240,255,0.5)",
+          boxShadow: streaming ? "0 0 12px rgba(0,240,255,0.9)" : "0 0 6px rgba(0,240,255,0.3)",
+          animation: streaming ? "orbPulse 1s ease-in-out infinite" : "none",
+        }} />
+        <i className="fa-solid fa-scale-balanced" style={{ fontSize: 10, color: "#00F0FF", flexShrink: 0, opacity: 0.7 }} />
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: "#00F0FF",
+          fontFamily: "'JetBrains Mono', monospace",
+          letterSpacing: "0.18em", textTransform: "uppercase", flex: 1,
+        }}>SYSTEM VERDICT</span>
+        {streaming && (
+          <span style={{ fontSize: 11, color: "rgba(0,240,255,0.6)", animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>
+        )}
+        {!streaming && synthesis && (
+          <div style={{
+            fontSize: 8.5, padding: "2px 8px", borderRadius: 4,
+            background: "rgba(0,240,255,0.06)", border: "1px solid rgba(0,240,255,0.18)",
+            color: "rgba(0,240,255,0.6)", fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.10em", textTransform: "uppercase",
+          }}>CONCLUDED</div>
+        )}
+      </div>
+      {/* Body */}
+      <div style={{ padding: "18px 20px" }}>
+        {!synthesis && streaming && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 2 }}>
+            {[0, 1, 2].map((di) => (
+              <span key={di} style={{
+                display: "inline-block", width: 3, borderRadius: 3,
+                height: [8, 13, 8][di],
+                background: `rgba(0,240,255,${["0.4", "0.7", "0.4"][di]})`,
+                animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite`,
+              }} />
+            ))}
+            <span style={{ fontSize: 9.5, color: "rgba(0,240,255,0.4)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+              synthesizing sub-processor reports…
+            </span>
+          </div>
+        )}
+        {synthesis && (
+          <div className="text-[15px] leading-[1.8] font-light text-white/85">
+            <MarkdownRenderer content={synthesis} streaming={streaming} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, synthesis, synthesisStreaming }) {
+
+  if (!panels) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(255,99,20,0.1)", border: "1px solid rgba(255,99,20,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <i className="fa-solid fa-users" style={{ fontSize: 20, color: "#FF6314" }} />
+        </div>
+        <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.35)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em" }}>
+          Send a prompt — 4 models respond in parallel
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
+          {DEBATE_MODELS.map((m) => (
+            <span key={m.preferred_provider} style={{
+              fontSize: 9.5, padding: "2px 8px", borderRadius: 4,
+              background: `${m.color}0e`, border: `1px solid ${m.color}33`,
+              color: m.color, fontFamily: "'JetBrains Mono', monospace",
+              display: "flex", alignItems: "center", gap: 5,
+            }}>
+              <i className={`fa-solid ${m.icon}`} style={{ fontSize: 8 }} />{m.shortLabel}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {/* Prompt + overall agreement banner */}
+      <div style={{ padding: "7px 14px", borderBottom: "1px solid rgba(255,100,20,0.12)", background: "rgba(255,100,20,0.04)", flexShrink: 0, display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", color: "#FF6314", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 2, display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="fa-solid fa-users" style={{ fontSize: 8 }} />Debate · 4 models
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            "{prompt}"
+          </div>
+        </div>
+{agreement && (() => {
+          const cs = agreement.consensus != null ? agreement.consensus : agreement.overall;
+          const mm = agreement.meaning_match != null ? agreement.meaning_match : cs;
+          const rm = agreement.reasoning_match != null ? agreement.reasoning_match : cs;
+          const em = agreement.evidence_match != null ? agreement.evidence_match : cs;
+          const ss = agreement.style_similarity != null ? agreement.style_similarity : cs;
+          const csColor = cs >= 70 ? '#39FF14' : cs >= 40 ? '#F59E0B' : '#FF4444';
+          const summary = agreement.summary || '';
+          const uniqueInsights = agreement.unique_insights || [];
+          const divergentClaims = agreement.divergent_claims || [];
+          return (
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(255,100,20,0.12)', background: 'rgba(255,100,20,0.04)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Row 1: Consensus score + label */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <i className='fa-solid fa-brain' style={{ fontSize: 10, color: csColor }} />
+                  <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Consensus</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: csColor, fontFamily: "'JetBrains Mono',monospace" }}>{cs}%</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {[['Meaning', mm, '#00F0FF'], ['Reasoning', rm, '#CF9EFF'], ['Evidence', em, '#39FF14'], ['Style', ss, 'rgba(255,255,255,0.3)']].map(([label, val, col]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono',monospace" }}>{label}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: col, fontFamily: "'JetBrains Mono',monospace" }}>{val}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Row 2: Consensus summary */}
+              {summary ? (
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', lineHeight: 1.4 }}>{summary}</div>
+              ) : null}
+              {/* Row 3: Divergent claims */}
+              {divergentClaims.length > 0 && (
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {divergentClaims.map((c, i) => (
+                    <span key={i} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.2)', color: '#FF4444', fontFamily: "'JetBrains Mono',monospace" }}>
+                      <i className='fa-solid fa-code-branch' style={{ marginRight: 3, fontSize: 7 }} />{c}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Row 4: Unique insights */}
+              {uniqueInsights.filter(u => u.insight).length > 0 && (
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {uniqueInsights.filter(u => u.insight).map((u, i) => (
+                    <span key={i} style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.15)', color: '#00F0FF', fontFamily: "'JetBrains Mono',monospace" }}>
+                      <i className='fa-solid fa-lightbulb' style={{ marginRight: 3, fontSize: 7 }} />{u.provider}: {u.insight}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* ── Mobile vertical stream — all 4 models simultaneously, hidden on md+ ── */}
+      <div className="debate-mobile-stream">
+        {panels && panels.map((panel, idx) => {
+          const _pm = agreement?.per_model;
+          const agScore = _pm
+            ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30)
+            : agreement?.scores?.[idx];
+          const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
+          return (
+            <div
+              key={idx}
+              style={{
+                border: "1px solid rgba(255,255,255,0.02)",
+                borderRadius: 16,
+                background: "#080B10",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}
+            >
+              {/* Card header: status dot + icon + model name + score badge + cursor */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: `${panel.color}0a`, borderBottom: `1px solid ${panel.color}20`, flexShrink: 0 }}>
+                <div style={{
+                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                  background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`,
+                  boxShadow: panel.streaming ? `0 0 8px ${panel.color}` : "none",
+                  animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none",
+                }} />
+                <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 12, color: panel.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: "'JetBrains Mono', monospace", flex: 1 }}>{panel.label}</span>
+                {agScore != null && panel.done && !panel.error && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 5, background: `${scoreColor}12`, border: `1px solid ${scoreColor}2e`, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: scoreColor, fontFamily: "'JetBrains Mono', monospace" }}>{agScore}%</span>
+                  </div>
+                )}
+                {panel.streaming && <span style={{ fontSize: 11, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>}
+                {panel.error && <span style={{ fontSize: 10, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>FAILED</span>}
+              </div>
+              {/* Card body — Phase 15: Apple-tier padding + typography */}
+              <div style={{ padding: "24px" }}>
+                {!panel.content && panel.streaming && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 2 }}>
+                    {[0, 1, 2].map((di) => (
+                      <span key={di} style={{ display: "inline-block", width: 4, borderRadius: 3, height: [8, 13, 8][di], background: `${panel.color}${["66","aa","66"][di]}`, animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite` }} />
+                    ))}
+                    <span style={{ fontSize: 9.5, color: `${panel.color}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>generating</span>
+                  </div>
+                )}
+                {panel.content && (
+                  <div className="text-[15px] leading-[1.8] font-light text-white/85">
+                    <MarkdownRenderer content={panel.content} streaming={panel.streaming} />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {/* Final Verdict — appears below the 4 model cards on mobile */}
+        {(synthesis != null || synthesisStreaming) && (
+          <FinalVerdictCard synthesis={synthesis} streaming={synthesisStreaming} />
+        )}
+      </div>
+
+      {/* ── Desktop 2×2 grid + Final Verdict — hidden on mobile via CSS ── */}
+      <div className="debate-desktop-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr auto", minHeight: 520, overflow: "visible" }}>
+        {panels.map((panel, idx) => {
+          const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
+          const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
+          const isLeft = idx % 2 === 0;
+          const isTop  = idx < 2;
+          return (
+            <div key={idx} style={{
+              display: "flex", flexDirection: "column", overflow: "hidden",
+              borderRight:  isLeft ? "1px solid rgba(255,255,255,0.055)" : "none",
+              borderBottom: isTop  ? "1px solid rgba(255,255,255,0.055)" : "none",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 9px", background: `${panel.color}08`, borderBottom: `1px solid ${panel.color}1c`, flexShrink: 0 }}>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`, boxShadow: panel.streaming ? `0 0 6px ${panel.color}` : "none", animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none" }} />
+                <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 9, color: panel.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.82)", fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{panel.label}</span>
+                {agScore != null && panel.done && !panel.error && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: `${scoreColor}12`, border: `1px solid ${scoreColor}2e`, animation: "fadeSlideUp 0.35s ease", flexShrink: 0 }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: scoreColor, fontFamily: "'JetBrains Mono', monospace" }}>{agScore}%</span>
+                    {agScore < 55 && <span style={{ fontSize: 7.5, color: scoreColor, letterSpacing: "0.07em", textTransform: "uppercase", marginLeft: 2 }}>diverges</span>}
+                  </div>
+                )}
+                {panel.streaming && <span style={{ fontSize: 9, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>}
+                {panel.error && <span style={{ fontSize: 8, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, letterSpacing: "0.06em" }}>FAILED</span>}
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "8px 10px", fontSize: 12, lineHeight: 1.62, color: "rgba(255,255,255,0.78)" }}>
+                {!panel.content && panel.streaming && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, paddingTop: 2 }}>
+                    {[0, 1, 2].map((di) => (
+                      <span key={di} style={{ display: "inline-block", width: 3, borderRadius: 3, height: [8, 12, 8][di], background: `${panel.color}${["66","aa","66"][di]}`, animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite` }} />
+                    ))}
+                    <span style={{ fontSize: 8.5, color: `${panel.color}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>generating</span>
+                  </div>
+                )}
+                {panel.content && <MarkdownRenderer content={panel.content} streaming={panel.streaming} />}
+              </div>
+            </div>
+          );
+        })}
+        {/* Final Verdict — spans both columns at the bottom of the desktop grid */}
+        {(synthesis != null || synthesisStreaming) && (
+          <div style={{ gridColumn: "1 / -1", borderTop: "1px solid rgba(255,255,255,0.055)" }}>
+            <FinalVerdictCard synthesis={synthesis} streaming={synthesisStreaming} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+/* ── Mode switcher ────────────────────────────────────────────────────────────── */
+const CHAT_MODES = [
+  { id: "chat",     icon: "fa-comments", label: "Chat",     color: "#00F0FF" },
+  { id: "web",      icon: "fa-globe",    label: "Live Web", color: "#39FF14" },
+  { id: "research", icon: "fa-flask",    label: "Research", color: "#A855F7" },
+  { id: "debate",   icon: "fa-users",    label: "Debate",   color: "#FF6314" },
+];
+
+function ModeSwitcher({ mode, onChange, disabled }) {
+  return (
+    <div
+      title="Switch AI mode"
+      className="mode-switcher-row flex flex-row items-center overflow-x-auto whitespace-nowrap w-full md:w-auto"
+      style={{
+        gap: 2,
+        background: "rgba(255,255,255,0.03)",
+        borderRadius: 9,
+        padding: "2px 2px",
+        border: "1px solid rgba(255,255,255,0.06)",
+        minWidth: 0,
+        scrollbarWidth: "none",
+      }}
+    >
+      {CHAT_MODES.map((m) => {
+        const active = mode === m.id;
+        return (
+          <button
+            key={m.id}
+            onClick={() => !disabled && onChange(m.id)}
+            disabled={disabled}
+            title={`${m.label} mode`}
+            style={{
+              padding: "3px 7px",
+              borderRadius: 6,
+              border: active ? `1px solid ${m.color}44` : "1px solid transparent",
+              background: active ? `${m.color}14` : "transparent",
+              color: active ? m.color : "rgba(255,255,255,0.6)",
+              cursor: disabled ? "not-allowed" : "pointer",
+              fontSize: 9.5,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.05em",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+              boxShadow: active ? `0 0 6px ${m.color}22` : "none",
+            }}
+            onMouseEnter={(e) => { if (!disabled && !active) { e.currentTarget.style.color = "rgba(255,255,255,0.85)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } }}
+            onMouseLeave={(e) => { if (!active) { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; e.currentTarget.style.background = "transparent"; } }}
+          >
+            <i className={`fa-solid ${m.icon}`} style={{ fontSize: 8 }} />
+            {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Source cards ─────────────────────────────────────────────────────────────── */
+const SOURCE_TYPE_CFG = {
+  github:        { icon: "fa-brands fa-github",         label: "GitHub",         color: "#39FF14" },
+  stackoverflow: { icon: "fa-brands fa-stack-overflow",  label: "Stack Overflow", color: "#F59E0B" },
+  reddit:        { icon: "fa-brands fa-reddit",          label: "Reddit",         color: "#FF6314" },
+  docs:          { icon: "fa-solid fa-book-open",        label: "Docs",           color: "#00F0FF" },
+  web:           { icon: "fa-solid fa-globe",            label: "Web",            color: "rgba(255,255,255,0.45)" },
+};
+
+const SourceCards = React.memo(function SourceCards({ sources }) {
+  if (!sources?.items?.length) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{
+        fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+        color: "rgba(255,255,255,0.28)", letterSpacing: "0.12em",
+        textTransform: "uppercase", marginBottom: 6,
+        display: "flex", alignItems: "center", gap: 5,
+      }}>
+        <i className="fa-solid fa-flask" style={{ fontSize: 8, color: "#A855F7" }} />
+        Sources · {sources.items.length}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {sources.items.map((s, i) => {
+          const cfg = SOURCE_TYPE_CFG[s.type] || SOURCE_TYPE_CFG.web;
+          const hostname = (() => { try { return new URL(s.url).hostname.replace(/^www\./, ""); } catch { return s.site_name || ""; } })();
+          return (
+            <a
+              key={i}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={s.snippet || s.title}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 9px",
+                borderRadius: 7,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                textDecoration: "none",
+                maxWidth: 200,
+                overflow: "hidden",
+                transition: "all 0.15s",
+                animation: `fadeSlideUp 0.2s ease ${i * 0.04}s both`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${cfg.color}14`;
+                e.currentTarget.style.borderColor = `${cfg.color}44`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+              }}
+            >
+              <i className={cfg.icon} style={{ fontSize: 10, color: cfg.color, flexShrink: 0 }} />
+              <span style={{
+                fontSize: 10, color: "rgba(255,255,255,0.65)",
+                fontFamily: "'JetBrains Mono', monospace",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {hostname || cfg.label}
+              </span>
+              <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 7, color: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+/* ── Answer Confidence Panel ──────────────────────────────────────────────────── */
+const ConfidencePanel = React.memo(function ConfidencePanel({ confidence }) {
+  if (!confidence) return null;
+  const { score, sources_count, live_web, memory, reasoning, conflicts } = confidence;
+
+  // Score arc colour: green → amber → red
+  const scoreColor = score >= 80 ? "#39FF14" : score >= 65 ? "#F59E0B" : "#FF6314";
+  const trackColor = "rgba(255,255,255,0.06)";
+  const pct = Math.max(0, Math.min(100, score));
+
+  const Chip = ({ icon, label, active, warn }) => (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 4,
+      padding: "2px 7px", borderRadius: 5,
+      background: warn ? "rgba(255,100,20,0.1)" : active ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)",
+      border: `1px solid ${warn ? "rgba(255,100,20,0.25)" : active ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)"}`,
+      opacity: active || warn ? 1 : 0.4,
+    }}>
+      <i className={`fa-solid ${icon}`} style={{ fontSize: 8, color: warn ? "#FF6314" : active ? scoreColor : "rgba(255,255,255,0.3)" }} />
+      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: warn ? "#FF6314" : active ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)", letterSpacing: "0.04em" }}>
+        {label}
+      </span>
+    </div>
+  );
+
+  return (
+    <div style={{
+      marginTop: 8,
+      padding: "8px 11px",
+      borderRadius: 10,
+      background: "rgba(255,255,255,0.02)",
+      border: "1px solid rgba(255,255,255,0.06)",
+      animation: "fadeSlideUp 0.25s ease 0.05s both",
+    }}>
+      {/* Top row: confidence bar + score */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+        <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.28)", letterSpacing: "0.12em", textTransform: "uppercase", flexShrink: 0 }}>
+          Confidence
+        </span>
+        {/* Progress bar */}
+        <div style={{ flex: 1, height: 3, borderRadius: 2, background: trackColor, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", width: `${pct}%`, borderRadius: 2,
+            background: `linear-gradient(90deg, ${scoreColor}aa, ${scoreColor})`,
+            boxShadow: `0 0 6px ${scoreColor}66`,
+            transition: "width 0.6s ease",
+          }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: scoreColor, flexShrink: 0, letterSpacing: "-0.02em" }}>
+          {score}%
+        </span>
+      </div>
+
+      {/* Bottom row: signal chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+        {sources_count > 0 && (
+          <Chip icon="fa-database" label={`${sources_count} source${sources_count !== 1 ? "s" : ""}`} active />
+        )}
+        <Chip icon="fa-globe"              label="Live Web"  active={live_web} />
+        <Chip icon="fa-brain"              label="Memory"    active={memory} />
+        <Chip icon="fa-circle-nodes"       label="Reasoning" active={reasoning} />
+        {conflicts > 0 && (
+          <Chip icon="fa-triangle-exclamation" label={`${conflicts} conflict${conflicts !== 1 ? "s" : ""}`} active warn />
+        )}
+      </div>
+    </div>
+  );
+});
+
 /* ── Action chips strip ───────────────────────────────────────────────────────── */
 const ActionChips = React.memo(function ActionChips({ actions }) {
   if (!actions?.length) return null;
@@ -384,167 +921,6 @@ function formatMessageTime(ts) {
   return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
-/* ── Mobile quick-action chips ───────────────────────────────────────────────── */
-const MOBILE_QUICK_CHIPS = [
-  { label: "Summarize today",    icon: "fa-sun"                 },
-  { label: "Help me focus",      icon: "fa-brain"               },
-  { label: "Open browser",       icon: "fa-globe"               },
-  { label: "Search memories",    icon: "fa-magnifying-glass"    },
-  { label: "What can you do?",   icon: "fa-wand-magic-sparkles" },
-  { label: "Open my last app",   icon: "fa-clock-rotate-left"   },
-  { label: "Create a task",      icon: "fa-list-check"          },
-  { label: "Analyze clipboard",  icon: "fa-clipboard"           },
-];
-
-/* ── Mobile AI Hero — fills the empty gap; replaces the standard header ─────── */
-function MobileHero({ streaming, isRecording, activeProvider, modelValue, setModelValue, hasMessages, contextCount, networkOnline }) {
-  const voiceReady = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-
-  return (
-    <div style={{
-      flexShrink: 0,
-      background: "linear-gradient(180deg, rgba(0,5,16,0.98) 0%, rgba(0,12,30,0.96) 100%)",
-      borderBottom: "1px solid rgba(0,240,255,0.10)",
-      padding: "14px 16px",
-    }}>
-      {/* Row 1: Orb + identity + status badges */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-
-        {/* Animated Cortex orb */}
-        <div style={{ position: "relative", width: 46, height: 46, flexShrink: 0 }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: "50%",
-            background: streaming
-              ? "radial-gradient(circle at 40% 35%, rgba(207,158,255,0.92) 0%, rgba(0,240,255,0.65) 58%, rgba(0,0,0,0.25) 100%)"
-              : "radial-gradient(circle at 40% 35%, rgba(0,240,255,0.95) 0%, rgba(0,180,220,0.60) 50%, rgba(55,28,180,0.50) 100%)",
-            boxShadow: streaming
-              ? "0 0 0 1px rgba(207,158,255,0.40), 0 0 26px rgba(207,158,255,0.38)"
-              : "0 0 0 1px rgba(0,240,255,0.35), 0 0 22px rgba(0,240,255,0.30)",
-            animation: streaming ? "thinkingOrb 1.4s ease-in-out infinite" : "orbPulse 3s ease-in-out infinite",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <i className="fa-solid fa-wand-magic-sparkles" style={{
-              fontSize: 17, color: "rgba(255,255,255,0.95)",
-              textShadow: "0 0 12px rgba(0,240,255,1), 0 0 26px rgba(0,240,255,0.55)",
-            }} />
-          </div>
-          {isRecording && (
-            <>
-              <span style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "1.5px solid rgba(255,0,60,0.50)", animation: "listenRipple 1.2s ease-out infinite" }} />
-              <span style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "1.5px solid rgba(255,0,60,0.28)", animation: "listenRipple 1.2s ease-out 0.42s infinite" }} />
-            </>
-          )}
-        </div>
-
-        {/* Identity */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.3px", lineHeight: 1.1 }}>
-            Cortex
-          </div>
-          <div style={{
-            fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
-            letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 2,
-            color: streaming ? "rgba(207,158,255,0.78)" : isRecording ? "rgba(255,80,80,0.88)" : "rgba(0,240,255,0.68)",
-          }}>
-            {streaming ? "▸ thinking" : isRecording ? "● listening" : "● online"}
-          </div>
-          {activeProvider && (
-            <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(0,240,255,0.38)", marginTop: 2 }}>
-              via {activeProvider}
-            </div>
-          )}
-        </div>
-
-        {/* Network + context badges */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-          <div style={{
-            fontSize: 8, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
-            letterSpacing: "0.09em", padding: "2px 8px", borderRadius: 8,
-            background: networkOnline ? "rgba(0,240,255,0.08)" : "rgba(255,0,60,0.10)",
-            border: `1px solid ${networkOnline ? "rgba(0,240,255,0.20)" : "rgba(255,0,60,0.25)"}`,
-            color: networkOnline ? "rgba(0,240,255,0.72)" : "rgba(255,80,80,0.82)",
-          }}>
-            {networkOnline ? "ONLINE" : "OFFLINE"}
-          </div>
-          {contextCount > 0 && (
-            <div style={{
-              fontSize: 8, fontFamily: "'JetBrains Mono', monospace",
-              padding: "2px 8px", borderRadius: 8,
-              background: "rgba(168,85,247,0.09)", border: "1px solid rgba(168,85,247,0.22)",
-              color: "rgba(168,85,247,0.72)",
-            }}>
-              {contextCount} ctx
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Hairline divider */}
-      <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(0,240,255,0.20), transparent)", marginBottom: 10 }} />
-
-      {/* Model capsule — scrollable horizontal pill selector */}
-      <div style={{
-        display: "flex", gap: 6, overflowX: "auto",
-        scrollbarWidth: "none", WebkitOverflowScrolling: "touch",
-        marginBottom: hasMessages ? 0 : 10, paddingBottom: 2,
-      }}>
-        {MODEL_OPTIONS.map((opt) => {
-          const bc = BADGE_COLORS[opt.badge] || {};
-          const sel = modelValue === opt.value;
-          return (
-            <button
-              key={opt.value}
-              onClick={() => !streaming && setModelValue(opt.value)}
-              style={{
-                flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
-                padding: "5px 11px", borderRadius: 20,
-                background: sel ? "rgba(0,240,255,0.14)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${sel ? "rgba(0,240,255,0.42)" : "rgba(255,255,255,0.09)"}`,
-                cursor: streaming ? "not-allowed" : "pointer",
-                opacity: streaming ? 0.50 : 1,
-                boxShadow: sel ? "0 0 16px rgba(0,240,255,0.16)" : "none",
-                transition: "all 0.18s ease",
-                WebkitTapHighlightColor: "transparent",
-                touchAction: "manipulation",
-              }}
-            >
-              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: sel ? "#00F0FF" : "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>
-                {opt.label}
-              </span>
-              {opt.badge && bc.text && (
-                <span style={{ fontSize: 7, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: bc.bg, border: `1px solid ${bc.border}`, color: bc.text, letterSpacing: "0.06em" }}>
-                  {opt.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Status chips — only when no messages (empty state) */}
-      {!hasMessages && (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {[
-            { label: voiceReady ? "VOICE READY" : "VOICE N/A",  color: voiceReady ? "rgba(0,240,255,0.62)" : "rgba(148,163,184,0.40)", bg: voiceReady ? "rgba(0,240,255,0.07)" : "rgba(255,255,255,0.03)", border: voiceReady ? "rgba(0,240,255,0.17)" : "rgba(255,255,255,0.07)" },
-            { label: "CORTEX ACTIVE",  color: "rgba(0,240,255,0.62)",  bg: "rgba(0,240,255,0.07)",  border: "rgba(0,240,255,0.17)"  },
-            { label: "GEMINI LINKED",  color: "rgba(168,85,247,0.70)", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.20)" },
-          ].map((chip, i) => (
-            <div key={i} style={{
-              fontSize: 8, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
-              letterSpacing: "0.09em", padding: "3px 8px", borderRadius: 10,
-              background: chip.bg, border: `1px solid ${chip.border}`, color: chip.color,
-              display: "flex", alignItems: "center", gap: 4, userSelect: "none",
-            }}>
-              <span style={{ width: 4, height: 4, borderRadius: "50%", background: chip.color, display: "inline-block", flexShrink: 0 }} />
-              {chip.label}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── Main component ──────────────────────────────────────────────────────────── */
 export default function AIChat() {
   const [messages, setMessages]             = useState([]);
@@ -556,10 +932,19 @@ export default function AIChat() {
   const [modelValue, setModelValue]         = useState("gemini|gemini-2.5-flash");
   const [clarification, setClarification]   = useState(null);
   const [pendingMessage, setPendingMessage] = useState("");
+  const [chatMode, setChatMode]             = useState("chat"); // "chat" | "web" | "research" | "debate"
+  const [debatePanels, setDebatePanels]     = useState(null);
+  const [debatePrompt, setDebatePrompt]     = useState("");
+  const [debateAgreement, setDebateAgreement] = useState(null);
+  const [debateSynthesis, setDebateSynthesis] = useState(null);
+  const [debateSynthesisStreaming, setDebateSynthesisStreaming] = useState(false);
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
+  const [touchedMsgIdx, setTouchedMsgIdx]   = useState(null);
+  const touchTimerRef = useRef(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
-  const [showSearchPanel, setShowSearchPanel]   = useState(false);
+  const [sidebarOpen, setSidebarOpen]           = useState(true);
+  const [showMobileHistory, setShowMobileHistory] = useState(false);
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -571,17 +956,36 @@ export default function AIChat() {
   const micBaseRef = useRef("");
   const micInputSnapshotRef = useRef("");
 
-  const { isMobile } = useBreakpoint();
-  const [memoryCount, setMemoryCount] = useState(null);
-  const [memoryCountLoading, setMemoryCountLoading] = useState(true);
-  useEffect(() => {
-    let mounted = true;
-    memoryApi.list()
-      .then((list) => { if (mounted) setMemoryCount(Array.isArray(list) ? list.length : null); })
-      .catch(() => { if (mounted) setMemoryCount(null); })
-      .finally(() => { if (mounted) setMemoryCountLoading(false); });
-    return () => { mounted = false; };
-  }, []);
+  // ── Session management ─────────────────────────────────────────────────────
+  const {
+    sessions,
+    activeSessionId,
+    loading: sessionsLoading,
+    createSession,
+    switchSession,
+    renameSession,
+    deleteSession,
+    togglePin,
+    duplicateSession,
+    autoTitle,
+    touchSession,
+    search: searchSessions,
+  } = useChatSessions();
+
+  // Current session ID (fall back to legacy "main" if backend unavailable)
+  const sessionId = activeSessionId || FALLBACK_SESSION_ID;
+  const sessionIdRef = useRef(sessionId);
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+
+  // Message count tracker for auto-title (fire after first exchange)
+  const msgCountRef = useRef(0);
+  const autoTitledRef = useRef(new Set());
+  // Session bootstrap mutex — prevents double-creates when send() is called
+  // rapidly before the first createSession() resolves.
+  const sessionBootstrapRef = useRef(null);
+
+  // Cleanup touch-reveal timer on unmount
+  useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
 
   const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
   const windowsRef    = useRef([]);
@@ -592,6 +996,7 @@ export default function AIChat() {
   useEffect(() => { inputRef.current = input; }, [input]);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
+  const typingBurstTimerRef = useRef(null); // P13: throttle typing-burst signals
 
   // ── Context floor: messages before this index are excluded from history ──────
   // Using a ref so send() always reads the latest value without re-creating itself.
@@ -617,17 +1022,6 @@ export default function AIChat() {
   const micActiveRef  = useRef(false);
   const startMicRef   = useRef(null);  // stable ref for auto-resume after AI response
   const voiceModeRef  = useRef(false); // true = in voice conversation mode (auto-resume mic)
-
-  // ── Network state (isMobile already provided by useBreakpoint above) ──────────
-  const [networkOnline, setNetworkOnline] = useState(() => typeof navigator !== "undefined" && navigator.onLine !== false);
-
-  useEffect(() => {
-    const on  = () => setNetworkOnline(true);
-    const off = () => setNetworkOnline(false);
-    window.addEventListener("online",  on);
-    window.addEventListener("offline", off);
-    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
-  }, []);
 
   const startMic = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -699,8 +1093,26 @@ export default function AIChat() {
     else startMic();
   }, [isRecording, startMic, stopMic]);
 
+  // Load history when session changes
   useEffect(() => {
-    aiApi.history(SESSION_ID).then((m) => mountedRef.current && setMessages(m)).catch(() => {});
+    if (!sessionId) return;
+    setMessages([]);
+    setRelevantMemories([]);
+    setStreamStatus(null);
+    contextFloorRef.current = 0;
+    setContextFloor(0);
+    msgCountRef.current = 0;
+    abortRef.current?.abort();
+    // Defensive: `m` must be an array before it reaches `messages` state — a
+    // non-array 200 response (proxy error page, auth-expired body, etc.)
+    // would otherwise crash every `.slice`/`.filter`/`.map` call on
+    // `messages` downstream (e.g. the context-memory bar, Debate Mode).
+    aiApi.history(sessionId).then((m) => mountedRef.current && setMessages(Array.isArray(m) ? m : [])).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       abortRef.current?.abort();
@@ -765,11 +1177,206 @@ export default function AIChat() {
     }
   }, [messages, streamStatus]);
 
+  // ── Visual viewport resize: scroll to bottom when mobile keyboard opens ───────
+  // Only fires on touch devices and only when the chat input is focused.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !("ontouchstart" in window)) return;
+    let inputFocused = false;
+    let rafId = null;
+    const onFocus = () => { inputFocused = true; };
+    const onBlur  = () => { inputFocused = false; };
+    const inputEl = document.querySelector("[data-testid='chat-input']");
+    if (inputEl) {
+      inputEl.addEventListener("focus", onFocus);
+      inputEl.addEventListener("blur",  onBlur);
+    }
+    const handle = () => {
+      if (!inputFocused) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (dist < 320) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      });
+    };
+    vv.addEventListener("resize", handle, { passive: true });
+    return () => {
+      vv.removeEventListener("resize", handle);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (inputEl) {
+        inputEl.removeEventListener("focus", onFocus);
+        inputEl.removeEventListener("blur",  onBlur);
+      }
+    };
+  }, []);
+
   const send = useCallback(async (forcedText) => {
     const rawText = typeof forcedText === "string" ? forcedText : input;
     if (!rawText.trim()) return;
 
     const text = rawText.trim();
+
+    // Single AbortController for this send() call. Declared here — before the
+    // Debate Mode branch below — because that branch reads `ctrl` inside a
+    // forEach loop it enters via an early `return`. `ctrl` used to be declared
+    // with `const` further down in this same function (for the normal
+    // single-model path only), which put the Debate Mode branch's reference
+    // to `ctrl` in the temporal dead zone and threw
+    // "ReferenceError: Cannot access 'ctrl' before initialization" (minified
+    // to a single letter in production) every time a debate prompt was sent.
+    const ctrl = new AbortController();
+
+    // ── Ensure a session exists before sending (mutex prevents double-create) ─
+    let currentSessionId = sessionIdRef.current;
+    if (!currentSessionId || currentSessionId === FALLBACK_SESSION_ID) {
+      // If another send is already bootstrapping, wait for it instead of creating again
+      if (!sessionBootstrapRef.current) {
+        sessionBootstrapRef.current = createSession({ title: "New Chat" })
+          .catch(() => null)
+          .finally(() => { sessionBootstrapRef.current = null; });
+      }
+      try {
+        const s = await sessionBootstrapRef.current;
+        currentSessionId = s?.session_id || FALLBACK_SESSION_ID;
+      } catch {
+        currentSessionId = FALLBACK_SESSION_ID;
+      }
+    }
+
+    // ── P14: Swarm intent detection — intercepts before LLM call ────────────
+    // If the user's message describes a big multi-step goal, open the Swarm Goal
+    // app with the goal pre-filled instead of routing through a single LLM call.
+    const SWARM_PATTERNS = [
+      /\bswarm\b/i,
+      /\bprepare me for\b/i,
+      /\bresearch and plan\b/i,
+      /\bbreak this down\b/i,
+      /\blaunch swarm\b/i,
+      /\bhelp me tackle\b/i,
+      /\bplan.*\b(launch|presentation|deadline|campaign|sprint|release)\b/i,
+      /\b(research|analyze|investigate).*\band.*(plan|write|draft|schedule)\b/i,
+    ];
+    if (SWARM_PATTERNS.some((p) => p.test(text))) {
+      localStorage.setItem("cortex_swarm_goal", text);
+      sessionStorage.setItem("cortex_swarm_autostart", "1");
+      setInput("");
+      setMessages((prev) => [
+        ...prev,
+        { role: "user",      content: text, ts: Date.now() },
+        { role: "assistant", content: "Launching Swarm — 4 specialized agents are spinning up to tackle this in parallel. Track their live progress in the Swarm Goal panel.", ts: Date.now() },
+      ]);
+      openApp("swarm");
+      return;
+    }
+
+    // ── Debate mode — 4 models respond in parallel in a 2×2 grid ────────────
+    if (chatMode === "debate") {
+      setInput("");
+      const ts = Date.now();
+      const debateSids = DEBATE_MODELS.map((_, i) => `debate-${ts}-${i}`);
+      setDebatePanels(DEBATE_MODELS.map((m) => ({ ...m, content: "", streaming: true, done: false, error: false })));
+      setDebatePrompt(text);
+      setDebateAgreement(null);
+      setDebateSynthesis(null);
+      setDebateSynthesisStreaming(false);
+      // Phase 8 fix: build conversation history so all models receive full context on follow-up turns.
+      // Mirror the same slice/filter/map as the standard chat path (contextFloorRef, last 20, 2000-char cap).
+      const debateHistory = messagesRef.current
+        .slice(contextFloorRef.current)
+        .filter((m) => m.content && !m.pending && !m.error)
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+      // Phase 14: Sub-processor prompt — enforces extreme brevity (3 bullets, no tables, no intros)
+      const DEBATE_SUBMODEL_SYSTEM =
+        "You are a Cortex sub-processor. You must provide your analysis in EXACTLY 3 short bullet points. " +
+        "Do not write introductory paragraphs. Do not use tables. Prioritize extreme brevity.";
+      DEBATE_MODELS.forEach((m, idx) => {
+        aiApi.chatStreamResilient(
+          { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat", system: DEBATE_SUBMODEL_SYSTEM, history: debateHistory },
+          (delta) => {
+            if (!mountedRef.current || ctrl.signal.aborted) return;
+            setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, content: p.content + delta } : p) : prev);
+          },
+          null, ctrl.signal, null, null, null
+        ).then(async () => {
+          if (!mountedRef.current) return;
+          let completedPanels = null;
+          setDebatePanels((prev) => {
+            if (!prev) return prev;
+            const next = prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true } : p);
+            if (next.every((p) => p.done)) completedPanels = next;
+            return next;
+          });
+          if (completedPanels) {
+            const consensus = await computeSemanticConsensus(completedPanels, text);
+            if (mountedRef.current) setDebateAgreement(consensus);
+
+            // ── Phase 9: 5th autonomous synthesis request (Final Verdict) ──────
+            const successfulPanels = completedPanels.filter(p => !p.error && p.content);
+            if (successfulPanels.length >= 2 && mountedRef.current) {
+              setDebateSynthesis("");
+              setDebateSynthesisStreaming(true);
+              // Phase 14: Overmind prompt — enforces exact structured format, no essays or tables
+              const OVERMIND_SYSTEM =
+                "You are the primary Cortex Overmind. Synthesize the sub-processor reports. " +
+                "Your output MUST follow this exact format: " +
+                "First, a single bolded word or short phrase identifying the absolute best final recommendation. " +
+                "Second, a new line with a simple, easily readable explanation (maximum 3 sentences). " +
+                "Do not use tables. Do not write essays.";
+              const synthesisPrompt =
+                `Sub-processors were queried on: "${text}"\n\n` +
+                successfulPanels.map(p => `Sub-Processor [${p.label}]:\n${p.content}`).join('\n\n') +
+                `\n\nSynthesize these reports. Deliver the final verdict in the required format: one bolded recommendation, then a maximum 3-sentence explanation. No tables. No essays.`;
+              let synthesisContent = "";
+              try {
+                await aiApi.chatStreamResilient(
+                  {
+                    session_id: `synthesis-${ts}`,
+                    message: synthesisPrompt,
+                    system: OVERMIND_SYSTEM,
+                    provider: "gemini",
+                    model: "gemini-2.5-flash",
+                    preferred_provider: "gemini",
+                    mode: "chat",
+                  },
+                  (delta) => {
+                    if (!mountedRef.current || ctrl.signal.aborted) return;
+                    synthesisContent += delta;
+                    setDebateSynthesis(synthesisContent);
+                  },
+                  null, ctrl.signal, null, null, null
+                );
+              } catch (_e) { /* synthesis failure is non-fatal */ }
+              if (mountedRef.current) {
+                setDebateSynthesisStreaming(false);
+
+                // ── Phase 10: Save full debate context to messages so follow-ups have memory ──
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "user", content: text, ts },
+                  ...successfulPanels.map(p => ({
+                    role: "assistant",
+                    content: `[${p.label}]: ${p.content}`,
+                    ts,
+                  })),
+                  ...(synthesisContent
+                    ? [{ role: "assistant", content: `[Final Verdict]: ${synthesisContent}`, ts }]
+                    : []),
+                ]);
+              }
+            }
+          }
+        })
+        .catch(() => {
+          if (!mountedRef.current) return;
+          setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true, error: true } : p) : prev);
+        });
+      });
+      return;
+    }
 
     // ── Ambiguity detection — runs before any LLM call ──────────────────────
     // Uses current conversation history to auto-resolve when context is clear.
@@ -815,13 +1422,12 @@ export default function AIChat() {
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text, actions: actionChips, ts: msgTs },
-      { role: "assistant", content: "", pending: true, ts: msgTs },
+      { role: "assistant", content: "", pending: true, ts: msgTs, mode: chatMode },
     ]);
     setStreaming(true);
     setActiveProvider(null);
     playAIProcess();
 
-    const ctrl = new AbortController();
     abortRef.current = ctrl;
 
     try {
@@ -858,7 +1464,7 @@ export default function AIChat() {
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
 
       const result = await aiApi.chatStreamResilient(
-        { session_id: SESSION_ID, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history },
+        { session_id: currentSessionId, message: messageForAI, ...model, preferred_provider: preferredProvider, system: systemPrompt, history, mode: chatMode },
         (delta) => {
           if (!mountedRef.current || ctrl.signal.aborted) return;
           setMessages((prev) => {
@@ -880,6 +1486,26 @@ export default function AIChat() {
             return providerName;
           });
         },
+        (sources) => {
+          // Sources arrive before the AI text stream (research mode)
+          if (!mountedRef.current || ctrl.signal.aborted) return;
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") copy[copy.length - 1] = { ...last, sources };
+            return copy;
+          });
+        },
+        (confidence) => {
+          // Confidence metadata arrives before the AI text stream (all modes)
+          if (!mountedRef.current || ctrl.signal.aborted) return;
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") copy[copy.length - 1] = { ...last, confidence };
+            return copy;
+          });
+        },
       );
 
       if (result?.modelUsed && result.modelUsed !== model.model) {
@@ -891,9 +1517,10 @@ export default function AIChat() {
         });
       }
 
-      // ── Fire-and-forget memory extraction ───────────────────────────────
-      // Get the full assistant response from messages state for extraction
-      const lastAssistantContent = (() => {
+      // ── P9: CMD tag parsing — AI-initiated app/URL launching ─────────────
+      // Scan the completed assistant message for [CMD:TYPE:ARG] tags, strip
+      // them from the displayed text, and execute the OS actions they encode.
+      const rawAssistantContent = (() => {
         const msgs = messagesRef.current;
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].role === "assistant" && msgs[i].content && !msgs[i].pending) {
@@ -902,8 +1529,55 @@ export default function AIChat() {
         }
         return "";
       })();
+      if (rawAssistantContent) {
+        const { commands, clean } = parseCmdTags(rawAssistantContent);
+        if (commands.length > 0) {
+          // Strip tags from the displayed message
+          setMessages((prev) => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant") {
+              copy[copy.length - 1] = { ...last, content: clean };
+            }
+            return copy;
+          });
+          // Execute the OS commands
+          executeCmdCommands(commands, {
+            openApp,
+            closeWindow,
+            focusWindow,
+            windows: windowsRef.current,
+          });
+        }
+      }
+
+      // ── P13: Dispatch message-length signal for cognitive load scorer ────
+      if (rawAssistantContent) {
+        window.dispatchEvent(new CustomEvent("cortex:message-length", {
+          detail: { length: rawAssistantContent.length },
+        }));
+      }
+
+      // ── Fire-and-forget memory extraction ───────────────────────────────
+      const lastAssistantContent = rawAssistantContent
+        ? parseCmdTags(rawAssistantContent).clean
+        : "";
       if (lastAssistantContent) {
         memoryApi.extract(text, lastAssistantContent); // fire-and-forget
+      }
+
+      // ── Session bookkeeping ───────────────────────────────────────────────
+      const sid = currentSessionId;
+      if (sid && sid !== FALLBACK_SESSION_ID) {
+        msgCountRef.current += 1;
+        // Touch session to update timestamp + preview
+        touchSession(sid, text);
+        // Auto-title after first user message, but only once per session
+        if (msgCountRef.current === 1 && !autoTitledRef.current.has(sid)) {
+          autoTitledRef.current.add(sid);
+          // Small delay so the DB has time to save the first message
+          setTimeout(() => autoTitle(sid), 1200);
+        }
       }
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -975,34 +1649,82 @@ export default function AIChat() {
     messages.slice(contextFloor).filter((m) => m.content && !m.pending && !m.error).length,
     20
   );
-  // Rough token estimate derived from real message content (chars/4) — not fabricated.
-  const approxContextTokens = Math.round(
-    messages.slice(contextFloor).filter((m) => m.content && !m.pending && !m.error)
-      .slice(-20)
-      .reduce((sum, m) => sum + String(m.content).length, 0) / 4
-  );
-  const handleAttachFile = useCallback((file) => {
-    const sizeKb = (file.size / 1024).toFixed(1);
-    if (file.type?.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setInput((prev) => (prev ? `${prev} ` : "") + `[Attached image: ${file.name}, ${sizeKb}KB]`);
-        toast.success(`Attached ${file.name}`, { duration: 2500 });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setInput((prev) => (prev ? `${prev} ` : "") + `[Attached file: ${file.name}, ${sizeKb}KB]`);
-      toast.success(`Attached ${file.name}`, { duration: 2500 });
-    }
-  }, [setInput]);
   const userLocation = (() => {
     try { return JSON.parse(localStorage.getItem("cortex_user_location") || "null"); }
     catch { return null; }
   })();
 
+  // ── Session handlers ──────────────────────────────────────────────────────
+  const handleNewChat = useCallback(async () => {
+    abortRef.current?.abort();
+    setMessages([]);
+    setRelevantMemories([]);
+    setStreamStatus(null);
+    contextFloorRef.current = 0;
+    setContextFloor(0);
+    msgCountRef.current = 0;
+    try {
+      await createSession({ title: "New Chat" });
+    } catch {
+      // createSession already handles errors
+    }
+  }, [createSession]);
+
+  const handleSwitchSession = useCallback((sid) => {
+    if (sid === sessionIdRef.current) return;
+    abortRef.current?.abort();
+    msgCountRef.current = 0;
+    switchSession(sid);
+  }, [switchSession]);
+
   return (
-    <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
-      {/* Cortex clarification modal — shown before ambiguous requests reach the LLM */}
+    <div className="flex h-[100dvh] text-white overflow-hidden" data-testid="ai-chat-app">
+      {/* Mobile history overlay — full-screen, only on <md, dismissed by tapping backdrop */}
+      {showMobileHistory && (
+        <div
+          className="md:hidden fixed inset-0 z-40 flex"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={() => setShowMobileHistory(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="bg-[#080B10]" style={{ height: "100%", display: "flex" }}>
+            <ChatSessionSidebar
+              sessions={sessions}
+              activeSessionId={sessionId}
+              loading={sessionsLoading}
+              onNewChat={() => { handleNewChat(); setShowMobileHistory(false); }}
+              onSelect={(sid) => { handleSwitchSession(sid); setShowMobileHistory(false); }}
+              onRename={renameSession}
+              onPin={togglePin}
+              onDuplicate={duplicateSession}
+              onDelete={deleteSession}
+              onSearch={searchSessions}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Desktop sidebar — hidden on mobile, shown side-by-side on md+ */}
+      {sidebarOpen && (
+        <div className="hidden md:flex h-full">
+          <ChatSessionSidebar
+            sessions={sessions}
+            activeSessionId={sessionId}
+            loading={sessionsLoading}
+            onNewChat={handleNewChat}
+            onSelect={handleSwitchSession}
+            onRename={renameSession}
+            onPin={togglePin}
+            onDuplicate={duplicateSession}
+            onDelete={deleteSession}
+            onSearch={searchSessions}
+          />
+        </div>
+      )}
+
+      {/* Main chat area */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+      {/* Toggle sidebar button (in header) */}
       <CortexClarificationModal
         open={!!clarification}
         question={clarification?.question}
@@ -1073,29 +1795,56 @@ export default function AIChat() {
         .cortex-msg-user   { animation: msgEntrance 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
         .cortex-msg-ai     { animation: msgEntrance 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
         .cortex-prompt-chip { animation: promptChipIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .mobile-scrollbar-hide::-webkit-scrollbar { display: none; }
+        @media (hover: none) {
+          .copy-reveal-row { opacity: 0.55 !important; }
+        }
+        .mode-switcher-row::-webkit-scrollbar { display: none; }
+        /* Debate mode — vertical stream on mobile, 2×2 grid on desktop */
+        .debate-mobile-stream { display: none; }
+        .debate-desktop-grid { display: grid; }
+        @media (max-width: 767px) {
+          .debate-mobile-stream { display: flex; flex: 1; flex-direction: column; gap: 16px; overflow-y: auto; padding: 12px 12px 32px; min-height: 0; }
+          .debate-desktop-grid { display: none !important; }
+        }
       `}</style>
 
       {/* Header */}
-      {isMobile ? (
-        <MobileCortexHeader
-          streaming={streaming}
-          isRecording={isRecording}
-          activeProvider={activeProvider}
-          userLocation={userLocation}
-          contextCount={contextCount}
-          approxContextTokens={approxContextTokens}
-          memoryCount={memoryCount}
-          memoryCountLoading={memoryCountLoading}
-          modelSelectSlot={
-            <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
-          }
-        />
-      ) : (
-        <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
-          style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(10px)" }}>
-          <div className="flex items-center gap-3">
+      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex flex-col md:flex-row md:items-center justify-between gap-2 flex-shrink-0 bg-black/25 backdrop-blur-none md:backdrop-blur-[10px] md:bg-transparent">
+        {/* ROW 1: Cortex profile (left) | Model selector (right, mobile-only) */}
+        <div className="flex items-center justify-between w-full md:w-auto md:flex-1">
+          <div className="flex items-center gap-2">
+            {/* Sidebar toggle — mobile: toggles full-screen history overlay */}
+            <button
+              onClick={() => setShowMobileHistory((v) => !v)}
+              title="Show history"
+              className="md:hidden flex items-center justify-center"
+              style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: showMobileHistory ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+                border: showMobileHistory ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
+                cursor: "pointer",
+                color: showMobileHistory ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
+                flexShrink: 0, transition: "all 0.15s",
+              }}
+            >
+              <i className="fa-solid fa-sidebar text-xs" />
+            </button>
+            {/* Sidebar toggle — desktop: shows/hides sidebar in side-by-side layout */}
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              title={sidebarOpen ? "Hide history" : "Show history"}
+              className="hidden md:flex items-center justify-center"
+              style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: sidebarOpen ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+                border: sidebarOpen ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
+                cursor: "pointer",
+                color: sidebarOpen ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
+                flexShrink: 0, transition: "all 0.15s",
+              }}
+            >
+              <i className="fa-solid fa-sidebar text-xs" />
+            </button>
             {/* Cortex orb indicator */}
             <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
               <div style={{
@@ -1137,143 +1886,102 @@ export default function AIChat() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Model selector — mobile Row 1 only, hidden on desktop */}
+          <div className="flex items-center gap-2 md:hidden">
             {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
             <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
-            {/* Conversation Archaeology search toggle */}
-            <button
-              onClick={() => setShowSearchPanel(v => !v)}
-              title="Search conversations (Conversation Archaeology)"
-              style={{
-                background: showSearchPanel ? "rgba(0,240,255,0.12)" : "none",
-                border: `1px solid ${showSearchPanel ? "rgba(0,240,255,0.4)" : "rgba(0,240,255,0.18)"}`,
-                borderRadius: 8,
-                color: showSearchPanel ? "#00f0ff" : "rgba(0,240,255,0.5)",
-                cursor: "pointer",
-                padding: "5px 9px",
-                fontSize: 13,
-                lineHeight: 1,
-                transition: "all 0.15s",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5"/>
-                <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
           </div>
         </div>
-      )}
-
-      {/* Quick action capsules — mobile only, wired to real OS actions */}
-      {isMobile && (
-        <MobileQuickActions
-          openApp={openApp}
-          onPrompt={(text) => sendRef.current?.(text)}
-          disabled={streaming}
-        />
-      )}
+        {/* ROW 2 on mobile / inline on desktop: Mode Switcher + desktop Model Selector */}
+        <div className="flex items-center w-full md:w-auto gap-2">
+          <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
+          {/* Model selector — desktop only, hidden on mobile */}
+          <div className="hidden md:flex items-center gap-2">
+            {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
+            <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
+          </div>
+        </div>
+      </div>
 
       {/* Messages */}
-      <div className="relative flex-1 overflow-hidden">
-        {/* Conversation Archaeology search panel */}
-        {showSearchPanel && (
-          <ConversationSearchPanel
-            isMobile={isMobile}
-            onClose={() => setShowSearchPanel(false)}
-            onSelectSession={(sessionId) => {
-              // Future: navigate to session; for now close and toast
-              setShowSearchPanel(false);
-            }}
-          />
-        )}
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && !streaming && (
-          /* Mobile: top-aligned (hero above already provides avatar + model context)
-             Desktop: vertically centered with large orb */
-          <div
-            className={isMobile ? "" : "flex flex-col items-center justify-center h-full text-center px-6"}
-            style={isMobile ? { paddingTop: 8 } : { minHeight: 200, paddingTop: 24, paddingBottom: 32 }}
-          >
-            {/* Large Cortex orb — desktop only; mobile hero section replaces it */}
-            {!isMobile && (
-              <div style={{ position: "relative", marginBottom: 28 }}>
-                <div style={{ position: "absolute", inset: -20, borderRadius: "50%", border: "1px solid rgba(0,240,255,0.08)", animation: "listenRipple 3s ease-out infinite" }} />
-                <div style={{ position: "absolute", inset: -12, borderRadius: "50%", border: "1px solid rgba(0,240,255,0.12)", animation: "listenRipple 3s ease-out 1s infinite" }} />
-                <div style={{
-                  width: 72, height: 72, borderRadius: "50%",
-                  background: "radial-gradient(circle at 38% 32%, rgba(0,240,255,0.95) 0%, rgba(0,160,200,0.6) 45%, rgba(100,80,200,0.4) 100%)",
-                  boxShadow: "0 0 0 1px rgba(0,240,255,0.3), 0 0 40px rgba(0,240,255,0.25), 0 8px 32px rgba(0,0,0,0.4)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  animation: "cortexIdleFloat 4s ease-in-out infinite",
-                }}>
-                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 26, color: "rgba(255,255,255,0.95)", textShadow: "0 0 16px rgba(0,240,255,1), 0 0 32px rgba(0,240,255,0.5)" }} />
-                </div>
+      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
+      {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+        {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
+        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 24 }}>
+        {messages.length > 0 && <div style={{ flex: 1 }} />}
+
+        {messages.length === 0 && !streaming && chatMode !== "debate" && (
+          <div className="flex flex-col items-center justify-center h-full text-center px-6" style={{ minHeight: 200, paddingTop: 24, paddingBottom: 32 }}>
+            {/* Animated Cortex orb hero */}
+            <div style={{ position: "relative", marginBottom: 28 }}>
+              {/* Outer glow rings */}
+              <div style={{
+                position: "absolute", inset: -20, borderRadius: "50%",
+                border: "1px solid rgba(0,240,255,0.08)",
+                animation: "listenRipple 3s ease-out infinite",
+              }} />
+              <div style={{
+                position: "absolute", inset: -12, borderRadius: "50%",
+                border: "1px solid rgba(0,240,255,0.12)",
+                animation: "listenRipple 3s ease-out 1s infinite",
+              }} />
+              {/* Main orb */}
+              <div style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: "radial-gradient(circle at 38% 32%, rgba(0,240,255,0.95) 0%, rgba(0,160,200,0.6) 45%, rgba(100,80,200,0.4) 100%)",
+                boxShadow: "0 0 0 1px rgba(0,240,255,0.3), 0 0 40px rgba(0,240,255,0.25), 0 8px 32px rgba(0,0,0,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                animation: "cortexIdleFloat 4s ease-in-out infinite",
+              }}>
+                <i className="fa-solid fa-wand-magic-sparkles" style={{
+                  fontSize: 26, color: "rgba(255,255,255,0.95)",
+                  textShadow: "0 0 16px rgba(0,240,255,1), 0 0 32px rgba(0,240,255,0.5)",
+                }} />
               </div>
-            )}
+            </div>
 
             {/* Greeting */}
-            <div style={{
-              fontSize: isMobile ? 16 : 22, fontWeight: 700, color: "#fff",
-              letterSpacing: "-0.4px", marginBottom: 4,
-              animation: "fadeSlideUp 0.4s ease 0.1s both",
-              textAlign: isMobile ? "left" : "center",
-            }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", letterSpacing: "-0.4px", marginBottom: 6, animation: "fadeSlideUp 0.4s ease 0.1s both" }}>
               {(() => { const h = new Date().getHours(); return h < 5 ? "Good night." : h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening."; })()}
             </div>
             <div style={{
-              fontSize: 13, color: "rgba(148,163,184,0.70)",
-              marginBottom: isMobile ? 14 : 32,
-              maxWidth: isMobile ? "100%" : 280, lineHeight: 1.55,
+              fontSize: 13, color: "rgba(148,163,184,0.7)", marginBottom: 32, maxWidth: 280, lineHeight: 1.55,
               animation: "fadeSlideUp 0.4s ease 0.18s both",
-              textAlign: isMobile ? "left" : "center",
             }}>
               Ask me anything — I have context on your whole OS.
             </div>
 
-            {/* Action chips — 8 on mobile (variable width), 4 on desktop */}
-            <div
-              className="flex flex-wrap gap-2"
-              style={{
-                maxWidth: isMobile ? "100%" : 340,
-                justifyContent: isMobile ? "flex-start" : "center",
-                animation: "fadeSlideUp 0.4s ease 0.26s both",
-              }}
-            >
-              {(isMobile ? MOBILE_QUICK_CHIPS : [
+            {/* Suggested prompts */}
+            <div className="flex flex-wrap gap-2 justify-center" style={{ maxWidth: 340, animation: "fadeSlideUp 0.4s ease 0.26s both" }}>
+              {[
                 { label: "Summarize my day", icon: "fa-sun" },
-                { label: "Help me focus",    icon: "fa-brain" },
+                { label: "Help me focus", icon: "fa-brain" },
                 { label: "What can you do?", icon: "fa-wand-magic-sparkles" },
                 { label: "Open my last app", icon: "fa-clock-rotate-left" },
-              ]).map((p, idx) => (
+              ].map((p, idx) => (
                 <button
                   key={p.label}
-                  className={isMobile ? "" : "cortex-prompt-chip"}
+                  className="cortex-prompt-chip backdrop-blur-none md:backdrop-blur-[8px]"
                   onClick={() => sendRef.current?.(p.label)}
                   style={{
-                    animationDelay: `${0.32 + idx * 0.05}s`,
+                    animationDelay: `${0.32 + idx * 0.06}s`,
                     display: "flex", alignItems: "center", gap: 7,
-                    padding: isMobile ? "7px 12px" : "8px 14px",
+                    padding: "8px 14px",
                     borderRadius: 24,
                     background: "rgba(0,240,255,0.06)",
                     border: "1px solid rgba(0,240,255,0.16)",
                     color: "rgba(200,246,255,0.75)",
-                    fontSize: isMobile ? 12 : 12.5,
+                    fontSize: 12.5,
                     cursor: "pointer",
                     transition: "all 0.2s ease",
                     letterSpacing: "0.01em",
-                    backdropFilter: "blur(8px)",
-                    WebkitTapHighlightColor: "transparent",
-                    touchAction: "manipulation",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "rgba(0,240,255,0.13)";
                     e.currentTarget.style.borderColor = "rgba(0,240,255,0.35)";
                     e.currentTarget.style.color = "#00F0FF";
-                    if (!isMobile) e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
                     e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,240,255,0.15)";
                   }}
                   onMouseLeave={(e) => {
@@ -1299,6 +2007,11 @@ export default function AIChat() {
             style={{ animationDelay: `${Math.min(i * 0.03, 0.15)}s` }}
             onMouseEnter={() => setHoveredMsgIdx(i)}
             onMouseLeave={() => setHoveredMsgIdx(null)}
+            onTouchStart={() => {
+              if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+              setTouchedMsgIdx(i);
+              touchTimerRef.current = setTimeout(() => setTouchedMsgIdx(null), 2500);
+            }}
           >
             {m.error ? (
               <div
@@ -1334,11 +2047,11 @@ export default function AIChat() {
                 </span>
               </div>
             ) : m.role === "assistant" ? (
-              <div className="max-w-[82%] w-full" style={{ maxWidth: "min(82%, 680px)" }}>
+              <div style={{ maxWidth: "min(82%, 680px)" }}>
                 {m.modelUsed && <FallbackBadge modelId={m.modelUsed} />}
                 <div
                   className="group relative glass-light rounded-2xl"
-                  style={{ padding: "12px 16px 10px" }}
+                  style={{ padding: "10px 14px" }}
                 >
                   {/* Thinking indicator — premium wave when waiting for first token */}
                   {m.pending && !m.content && i === messages.length - 1 && (
@@ -1361,10 +2074,11 @@ export default function AIChat() {
                       </div>
                       <span style={{
                         fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
-                        color: "rgba(0,240,255,0.45)", letterSpacing: "0.1em",
+                        color: m.mode === "research" ? "rgba(168,85,247,0.6)" : m.mode === "web" ? "rgba(57,255,20,0.55)" : "rgba(0,240,255,0.45)",
+                        letterSpacing: "0.1em",
                         textTransform: "uppercase",
                       }}>
-                        thinking
+                        {m.mode === "research" ? "researching…" : m.mode === "web" ? "searching…" : "thinking"}
                       </span>
                     </div>
                   )}
@@ -1383,12 +2097,14 @@ export default function AIChat() {
                     }} />
                   )}
 
-                  {/* Rendered markdown */}
+                  {/* Rendered markdown — Phase 15: Apple-tier typography */}
                   {(m.content || (!m.pending)) && (
-                    <MarkdownRenderer
-                      content={m.content}
-                      streaming={m.pending && i === messages.length - 1}
-                    />
+                    <div className="text-[15px] leading-[1.8] font-light text-white/85">
+                      <MarkdownRenderer
+                        content={m.content}
+                        streaming={m.pending && i === messages.length - 1}
+                      />
+                    </div>
                   )}
 
                   {/* Copy button row — reveals on message hover via CSS .copy-reveal-row */}
@@ -1398,8 +2114,12 @@ export default function AIChat() {
                     </div>
                   )}
                 </div>
-                {/* Timestamp — fades in on hover */}
-                {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
+                {/* Source cards — research mode only, shown after message content */}
+                {m.sources && <SourceCards sources={m.sources} />}
+                {/* Answer Confidence Panel — shown for all completed AI messages */}
+                {m.confidence && !m.pending && <ConfidencePanel confidence={m.confidence} />}
+                {/* Timestamp — fades in on hover or tap */}
+                {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, paddingLeft: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
                     {formatMessageTime(m.ts)}
                   </div>
@@ -1407,21 +2127,21 @@ export default function AIChat() {
               </div>
             ) : (
               <div className="max-w-[80%]">
+                {/* Phase 12: JARVIS 3038 premium user bubble */}
                 <div
-                  className="rounded-2xl text-sm"
+                  className="rounded-2xl rounded-tr-sm text-sm bg-gradient-to-r from-cyan-950/40 to-blue-900/20 border border-cyan-500/20 shadow-[0_0_15px_rgba(0,255,255,0.03)]"
                   style={{
-                    padding: "10px 16px",
-                    background: "rgba(0,240,255,0.10)",
-                    border: "1px solid rgba(0,240,255,0.22)",
-                    color: "#E2E8F0",
+                    padding: "10px 20px",
+                    color: "rgba(255,255,255,0.90)",
                     lineHeight: 1.65,
                     wordBreak: "break-word",
+                    letterSpacing: "0.01em",
                   }}
                 >
                   {m.content}
                 </div>
-                {/* Timestamp — fades in on hover */}
-                {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
+                {/* Timestamp — fades in on hover or tap */}
+                {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, textAlign: "right", paddingRight: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
                     {formatMessageTime(m.ts)}
                   </div>
@@ -1432,12 +2152,18 @@ export default function AIChat() {
           </div>
         ))}
 
+        {/* Phase 11: Active debate renders at the bottom of the continuous timeline */}
+        {chatMode === "debate" && (
+          <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} synthesis={debateSynthesis} synthesisStreaming={debateSynthesisStreaming} />
+        )}
+
         <StatusPanel status={streamStatus} />
         <div ref={endRef} />
+        </div>{/* end inner flex column */}
       </div>
 
       {/* Jump to bottom — floats inside messages area when user scrolls up */}
-      {showScrollBottom && (
+      {showScrollBottom && chatMode !== "debate" && (
         <button
           onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: "smooth" })}
           title="Jump to latest message"
@@ -1545,13 +2271,15 @@ export default function AIChat() {
               ? "memory: 20 msgs (max context)"
               : `memory: ${contextCount} msg${contextCount !== 1 ? "s" : ""} in context`}
           </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {userLocation?.city && (
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, maxWidth: 110, overflow: "hidden" }}>
                 <svg width="9" height="9" viewBox="0 0 10 13" fill="none" style={{ flexShrink: 0 }}>
                   <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5 1.5 1.5 0 0 1 5 6.5z" fill="#00F0FF" fillOpacity="0.6"/>
                 </svg>
-                {[userLocation.city, userLocation.country].filter(Boolean).join(", ")}
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {userLocation.city}
+                </span>
               </span>
             )}
             <button
@@ -1586,77 +2314,77 @@ export default function AIChat() {
       )}
 
       {/* Input bar */}
-      {isMobile ? (
-        <MobileChatInputBar
-          input={input}
-          setInput={setInput}
-          streaming={streaming}
-          isRecording={isRecording}
-          onToggleMic={toggleMic}
-          onAttachFile={handleAttachFile}
-          onSend={() => {
-            if (isRecording) stopMic();
-            voiceModeRef.current = false;
-            send();
+      <div data-testid="ai-chat-input" className="pt-3 px-3 pb-input-safe border-t border-white/10 flex items-center gap-2 flex-shrink-0">
+        {/* Mic button */}
+        <button
+          onClick={toggleMic}
+          disabled={streaming}
+          title={isRecording ? "Stop recording" : "Speak to Cortex"}
+          className="flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200"
+          style={{
+            position: "relative",
+            width: 36, height: 36,
+            background: isRecording
+              ? "radial-gradient(circle, rgba(255,0,60,0.2) 0%, rgba(255,0,60,0.08) 100%)"
+              : "rgba(255,255,255,0.04)",
+            border: isRecording ? "1px solid rgba(255,0,60,0.55)" : "1px solid rgba(255,255,255,0.09)",
+            color: isRecording ? "#FF4466" : "#64748B",
+            boxShadow: isRecording ? "0 0 20px rgba(255,0,60,0.28), inset 0 0 12px rgba(255,0,60,0.1)" : "none",
+            opacity: streaming ? 0.3 : 1,
+            cursor: streaming ? "not-allowed" : "pointer",
           }}
+        >
+          {isRecording && (
+            <>
+              <span style={{ position:"absolute", inset:-4, borderRadius:"50%", border:"1.5px solid rgba(255,0,60,0.4)", animation:"listenRipple 1.2s ease-out infinite", pointerEvents:"none" }} />
+              <span style={{ position:"absolute", inset:-4, borderRadius:"50%", border:"1.5px solid rgba(255,0,60,0.25)", animation:"listenRipple 1.2s ease-out 0.5s infinite", pointerEvents:"none" }} />
+            </>
+          )}
+          <i className={`fa-solid ${isRecording ? "fa-stop" : "fa-microphone"} text-sm`} />
+        </button>
+
+        <input
+          data-testid="chat-input"
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            // P13: throttled typing-burst signal (one per 10s) for cognitive load scoring
+            if (!typingBurstTimerRef.current) {
+              window.dispatchEvent(new CustomEvent("cortex:typing-burst"));
+              typingBurstTimerRef.current = setTimeout(() => {
+                typingBurstTimerRef.current = null;
+              }, 10_000);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (isRecording) stopMic();
+              voiceModeRef.current = false; // manual keyboard send exits voice mode
+              send();
+            }
+          }}
+          placeholder={isRecording ? "Listening…" : "Message Cortex…"}
+          className="input-cyber flex-1 transition-all duration-200"
+          enterKeyHint="send"
+          inputMode="text"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck="true"
+          style={isRecording ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" } : {}}
         />
-      ) : (
-        <div className="p-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
-          {/* Mic button */}
-          <button
-            onClick={toggleMic}
-            disabled={streaming}
-            title={isRecording ? "Stop recording" : "Speak to Cortex"}
-            className="flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200"
-            style={{
-              position: "relative",
-              width: 36, height: 36,
-              background: isRecording
-                ? "radial-gradient(circle, rgba(255,0,60,0.2) 0%, rgba(255,0,60,0.08) 100%)"
-                : "rgba(255,255,255,0.04)",
-              border: isRecording ? "1px solid rgba(255,0,60,0.55)" : "1px solid rgba(255,255,255,0.09)",
-              color: isRecording ? "#FF4466" : "#64748B",
-              boxShadow: isRecording ? "0 0 20px rgba(255,0,60,0.28), inset 0 0 12px rgba(255,0,60,0.1)" : "none",
-              opacity: streaming ? 0.3 : 1,
-              cursor: streaming ? "not-allowed" : "pointer",
-            }}
-          >
-            {isRecording && (
-              <>
-                <span style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "1.5px solid rgba(255,0,60,0.4)", animation: "listenRipple 1.2s ease-out infinite", pointerEvents: "none" }} />
-                <span style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "1.5px solid rgba(255,0,60,0.25)", animation: "listenRipple 1.2s ease-out 0.5s infinite", pointerEvents: "none" }} />
-              </>
-            )}
-            <i className={`fa-solid ${isRecording ? "fa-stop" : "fa-microphone"} text-sm`} />
-          </button>
 
-          <input
-            data-testid="chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (isRecording) stopMic();
-                voiceModeRef.current = false;
-                send();
-              }
-            }}
-            placeholder={isRecording ? "Listening…" : "Message Cortex…"}
-            className="input-cyber flex-1 transition-all duration-200"
-            style={isRecording ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" } : {}}
-          />
+        <button
+          data-testid="chat-send"
+          onClick={() => { voiceModeRef.current = false; send(); }} // manual click exits voice mode
+          disabled={streaming || !input.trim()}
+          className="neon-btn primary !py-2 flex-shrink-0"
+        >
+          <i className="fa-solid fa-paper-plane" />
+        </button>
+      </div>
 
-          <button
-            data-testid="chat-send"
-            onClick={() => { voiceModeRef.current = false; send(); }}
-            disabled={streaming || !input.trim()}
-            className="neon-btn primary !py-2 flex-shrink-0"
-          >
-            <i className="fa-solid fa-paper-plane" />
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
