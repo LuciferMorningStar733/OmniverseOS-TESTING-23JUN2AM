@@ -406,69 +406,69 @@ async function computeSemanticConsensus(panels, question) {
   }
 }
 
-/* ── Final Verdict Card — rendered after all 4 debate panels complete ─────────── */
+/* ── Final Verdict Card — Phase 12: JARVIS 3038 flagship aesthetics ──────────── */
 const FinalVerdictCard = React.memo(function FinalVerdictCard({ synthesis, streaming }) {
-  const VERDICT_COLOR = "#FF6314";
   return (
-    <div style={{
-      border: `1px solid ${VERDICT_COLOR}33`,
-      borderRadius: 16,
-      background: "linear-gradient(135deg, rgba(255,99,20,0.08) 0%, rgba(18,21,28,0.95) 100%)",
-      overflow: "hidden",
-      flexShrink: 0,
-      animation: "fadeSlideUp 0.4s ease",
-    }}>
+    <div
+      className="rounded-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(0,255,255,0.05)]"
+      style={{
+        background: "#050B14",
+        overflow: "hidden",
+        flexShrink: 0,
+        animation: "fadeSlideUp 0.4s ease",
+      }}
+    >
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
-        padding: "10px 14px",
-        background: `${VERDICT_COLOR}10`,
-        borderBottom: `1px solid ${VERDICT_COLOR}28`,
+        padding: "12px 18px",
+        background: "rgba(0,255,255,0.03)",
+        borderBottom: "1px solid rgba(0,255,255,0.08)",
       }}>
+        {/* Cyan glowing dot */}
         <div style={{
-          width: 7, height: 7, borderRadius: "50%",
-          background: streaming ? VERDICT_COLOR : `${VERDICT_COLOR}99`,
-          boxShadow: streaming ? `0 0 10px ${VERDICT_COLOR}` : "none",
+          width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+          background: streaming ? "#00F0FF" : "rgba(0,240,255,0.5)",
+          boxShadow: streaming ? "0 0 12px rgba(0,240,255,0.9)" : "0 0 6px rgba(0,240,255,0.3)",
           animation: streaming ? "orbPulse 1s ease-in-out infinite" : "none",
-          flexShrink: 0,
         }} />
-        <i className="fa-solid fa-scale-balanced" style={{ fontSize: 11, color: VERDICT_COLOR, flexShrink: 0 }} />
+        <i className="fa-solid fa-scale-balanced" style={{ fontSize: 10, color: "#00F0FF", flexShrink: 0, opacity: 0.7 }} />
         <span style={{
-          fontSize: 11, fontWeight: 700, color: VERDICT_COLOR,
+          fontSize: 10, fontWeight: 700, color: "#00F0FF",
           fontFamily: "'JetBrains Mono', monospace",
-          letterSpacing: "0.10em", textTransform: "uppercase", flex: 1,
-        }}>Final Verdict · Gemini Synthesis</span>
+          letterSpacing: "0.18em", textTransform: "uppercase", flex: 1,
+        }}>SYSTEM VERDICT</span>
         {streaming && (
-          <span style={{ fontSize: 11, color: `${VERDICT_COLOR}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>
+          <span style={{ fontSize: 11, color: "rgba(0,240,255,0.6)", animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>
         )}
         {!streaming && synthesis && (
           <div style={{
-            fontSize: 9, padding: "2px 7px", borderRadius: 4,
-            background: `${VERDICT_COLOR}18`, border: `1px solid ${VERDICT_COLOR}33`,
-            color: VERDICT_COLOR, fontFamily: "'JetBrains Mono', monospace",
-            letterSpacing: "0.06em", textTransform: "uppercase",
-          }}>concluded</div>
+            fontSize: 8.5, padding: "2px 8px", borderRadius: 4,
+            background: "rgba(0,240,255,0.06)", border: "1px solid rgba(0,240,255,0.18)",
+            color: "rgba(0,240,255,0.6)", fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.10em", textTransform: "uppercase",
+          }}>CONCLUDED</div>
         )}
       </div>
       {/* Body */}
-      <div style={{ padding: "14px 16px" }}>
+      <div style={{ padding: "18px 20px" }}>
         {!synthesis && streaming && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 2 }}>
             {[0, 1, 2].map((di) => (
               <span key={di} style={{
-                display: "inline-block", width: 4, borderRadius: 3,
+                display: "inline-block", width: 3, borderRadius: 3,
                 height: [8, 13, 8][di],
-                background: `${VERDICT_COLOR}${["66", "aa", "66"][di]}`,
+                background: `rgba(0,240,255,${["0.4", "0.7", "0.4"][di]})`,
                 animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite`,
               }} />
             ))}
-            <span style={{ fontSize: 9.5, color: `${VERDICT_COLOR}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>
-              synthesizing arguments…
+            <span style={{ fontSize: 9.5, color: "rgba(0,240,255,0.4)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.10em", textTransform: "uppercase" }}>
+              synthesizing sub-processor reports…
             </span>
           </div>
         )}
         {synthesis && (
-          <div style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(255,255,255,0.92)" }}>
+          <div className="leading-relaxed" style={{ fontSize: 15, color: "rgba(255,255,255,0.92)" }}>
             <MarkdownRenderer content={synthesis} streaming={streaming} />
           </div>
         )}
@@ -505,7 +505,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
       {/* Prompt + overall agreement banner */}
       <div style={{ padding: "7px 14px", borderBottom: "1px solid rgba(255,100,20,0.12)", background: "rgba(255,100,20,0.04)", flexShrink: 0, display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -585,9 +585,9 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
             <div
               key={idx}
               style={{
-                border: "1px solid rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.04)",
                 borderRadius: 16,
-                background: "#12151C",
+                background: "#080B10",
                 overflow: "hidden",
                 flexShrink: 0,
               }}
@@ -636,7 +636,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
       </div>
 
       {/* ── Desktop 2×2 grid + Final Verdict — hidden on mobile via CSS ── */}
-      <div className="debate-desktop-grid" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr auto", overflow: "auto" }}>
+      <div className="debate-desktop-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr auto", minHeight: 520, overflow: "visible" }}>
         {panels.map((panel, idx) => {
           const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
@@ -1289,9 +1289,14 @@ export default function AIChat() {
         .filter((m) => m.content && !m.pending && !m.error)
         .slice(-20)
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+      // Phase 13: Sub-processor persona — cold, analytical, no quirky greetings
+      const DEBATE_SUBMODEL_SYSTEM =
+        "You are a sub-processor of Cortex, a hyper-intelligent OS from the year 3038. " +
+        "Maintain a cold, analytical, and highly precise tone. Do not use quirky personas or greetings. " +
+        "Deliver raw data, logic, and tactical analysis.";
       DEBATE_MODELS.forEach((m, idx) => {
         aiApi.chatStreamResilient(
-          { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat", history: debateHistory },
+          { session_id: debateSids[idx], message: text, provider: m.preferred_provider, model: m.model, preferred_provider: m.preferred_provider, mode: "chat", system: DEBATE_SUBMODEL_SYSTEM, history: debateHistory },
           (delta) => {
             if (!mountedRef.current || ctrl.signal.aborted) return;
             setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, content: p.content + delta } : p) : prev);
@@ -1315,16 +1320,22 @@ export default function AIChat() {
             if (successfulPanels.length >= 2 && mountedRef.current) {
               setDebateSynthesis("");
               setDebateSynthesisStreaming(true);
+              // Phase 13: Overmind synthesis persona — absolute authority, cold precision
+              const OVERMIND_SYSTEM =
+                "You are the primary Cortex Overmind. Synthesize these sub-processor reports. " +
+                "Speak with absolute authority, extreme intelligence, and cold precision. " +
+                "Provide the definitive final verdict.";
               const synthesisPrompt =
-                `Four AI models were asked: "${text}"\n\n` +
-                successfulPanels.map(p => `${p.label} said:\n${p.content}`).join('\n\n') +
-                `\n\nAct as the final judge. Resolve their conflicts, synthesize the strongest arguments from each model, and deliver the definitive final answer in a clear, structured response.`;
+                `Sub-processors were queried on: "${text}"\n\n` +
+                successfulPanels.map(p => `Sub-Processor [${p.label}]:\n${p.content}`).join('\n\n') +
+                `\n\nSynthesize these reports. Resolve conflicts. Deliver the definitive final verdict with absolute authority.`;
               let synthesisContent = "";
               try {
                 await aiApi.chatStreamResilient(
                   {
                     session_id: `synthesis-${ts}`,
                     message: synthesisPrompt,
+                    system: OVERMIND_SYSTEM,
                     provider: "gemini",
                     model: "gemini-2.5-flash",
                     preferred_provider: "gemini",
@@ -1892,16 +1903,14 @@ export default function AIChat() {
       </div>
 
       {/* Messages */}
-      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col">
-      {chatMode === "debate" && (
-        <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} synthesis={debateSynthesis} synthesisStreaming={debateSynthesisStreaming} />
-      )}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" style={{ display: chatMode === "debate" ? "none" : undefined }}>
+      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
+      {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
         <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
 
-        {messages.length === 0 && !streaming && (
+        {messages.length === 0 && !streaming && chatMode !== "debate" && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6" style={{ minHeight: 200, paddingTop: 24, paddingBottom: 32 }}>
             {/* Animated Cortex orb hero */}
             <div style={{ position: "relative", marginBottom: 28 }}>
@@ -2115,15 +2124,15 @@ export default function AIChat() {
               </div>
             ) : (
               <div className="max-w-[80%]">
+                {/* Phase 12: JARVIS 3038 premium user bubble */}
                 <div
-                  className="rounded-2xl text-sm"
+                  className="rounded-2xl rounded-tr-sm text-sm bg-gradient-to-r from-cyan-950/40 to-blue-900/20 border border-cyan-500/20 shadow-[0_0_15px_rgba(0,255,255,0.03)]"
                   style={{
-                    padding: "10px 16px",
-                    background: "rgba(0,240,255,0.10)",
-                    border: "1px solid rgba(0,240,255,0.22)",
-                    color: "#E2E8F0",
+                    padding: "10px 20px",
+                    color: "rgba(255,255,255,0.90)",
                     lineHeight: 1.65,
                     wordBreak: "break-word",
+                    letterSpacing: "0.01em",
                   }}
                 >
                   {m.content}
@@ -2139,6 +2148,11 @@ export default function AIChat() {
             )}
           </div>
         ))}
+
+        {/* Phase 11: Active debate renders at the bottom of the continuous timeline */}
+        {chatMode === "debate" && (
+          <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} synthesis={debateSynthesis} synthesisStreaming={debateSynthesisStreaming} />
+        )}
 
         <StatusPanel status={streamStatus} />
         <div ref={endRef} />
