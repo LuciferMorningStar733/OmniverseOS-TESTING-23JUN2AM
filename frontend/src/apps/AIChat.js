@@ -829,6 +829,7 @@ export default function AIChat() {
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
   const [sidebarOpen, setSidebarOpen]           = useState(true);
+  const [showMobileHistory, setShowMobileHistory] = useState(false);
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -1495,20 +1496,46 @@ export default function AIChat() {
 
   return (
     <div className="flex h-full text-white" data-testid="ai-chat-app" style={{ overflow: "hidden" }}>
-      {/* Session sidebar */}
+      {/* Mobile history overlay — full-screen, only on <md, dismissed by tapping backdrop */}
+      {showMobileHistory && (
+        <div
+          className="md:hidden fixed inset-0 z-40 flex"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+          onClick={() => setShowMobileHistory(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ height: "100%", display: "flex" }}>
+            <ChatSessionSidebar
+              sessions={sessions}
+              activeSessionId={sessionId}
+              loading={sessionsLoading}
+              onNewChat={() => { handleNewChat(); setShowMobileHistory(false); }}
+              onSelect={(sid) => { handleSwitchSession(sid); setShowMobileHistory(false); }}
+              onRename={renameSession}
+              onPin={togglePin}
+              onDuplicate={duplicateSession}
+              onDelete={deleteSession}
+              onSearch={searchSessions}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Desktop sidebar — hidden on mobile, shown side-by-side on md+ */}
       {sidebarOpen && (
-        <ChatSessionSidebar
-          sessions={sessions}
-          activeSessionId={sessionId}
-          loading={sessionsLoading}
-          onNewChat={handleNewChat}
-          onSelect={handleSwitchSession}
-          onRename={renameSession}
-          onPin={togglePin}
-          onDuplicate={duplicateSession}
-          onDelete={deleteSession}
-          onSearch={searchSessions}
-        />
+        <div className="hidden md:flex h-full">
+          <ChatSessionSidebar
+            sessions={sessions}
+            activeSessionId={sessionId}
+            loading={sessionsLoading}
+            onNewChat={handleNewChat}
+            onSelect={handleSwitchSession}
+            onRename={renameSession}
+            onPin={togglePin}
+            onDuplicate={duplicateSession}
+            onDelete={deleteSession}
+            onSearch={searchSessions}
+          />
+        </div>
       )}
 
       {/* Main chat area */}
@@ -1591,18 +1618,34 @@ export default function AIChat() {
       `}</style>
 
       {/* Header */}
-      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0"
-        style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(10px)" }}>
+      <div data-testid="ai-chat-header" className="px-3 py-3 border-b border-white/[0.07] flex items-center justify-between gap-3 flex-shrink-0 bg-black/25 backdrop-blur-none md:backdrop-blur-[10px] md:bg-transparent">
         <div className="flex items-center gap-2">
-          {/* Sidebar toggle */}
+          {/* Sidebar toggle — mobile: toggles full-screen history overlay */}
+          <button
+            onClick={() => setShowMobileHistory((v) => !v)}
+            title="Show history"
+            className="md:hidden flex items-center justify-center"
+            style={{
+              width: 28, height: 28, borderRadius: 8,
+              background: showMobileHistory ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+              border: showMobileHistory ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
+              cursor: "pointer",
+              color: showMobileHistory ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
+              flexShrink: 0, transition: "all 0.15s",
+            }}
+          >
+            <i className="fa-solid fa-sidebar text-xs" />
+          </button>
+          {/* Sidebar toggle — desktop: shows/hides sidebar in side-by-side layout */}
           <button
             onClick={() => setSidebarOpen((v) => !v)}
             title={sidebarOpen ? "Hide history" : "Show history"}
+            className="hidden md:flex items-center justify-center"
             style={{
               width: 28, height: 28, borderRadius: 8,
               background: sidebarOpen ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
               border: sidebarOpen ? "1px solid rgba(0,240,255,0.2)" : "1px solid rgba(255,255,255,0.07)",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
               color: sidebarOpen ? "rgba(0,240,255,0.7)" : "rgba(255,255,255,0.3)",
               flexShrink: 0, transition: "all 0.15s",
             }}
@@ -1725,7 +1768,7 @@ export default function AIChat() {
               ].map((p, idx) => (
                 <button
                   key={p.label}
-                  className="cortex-prompt-chip"
+                  className="cortex-prompt-chip backdrop-blur-none md:backdrop-blur-[8px]"
                   onClick={() => sendRef.current?.(p.label)}
                   style={{
                     animationDelay: `${0.32 + idx * 0.06}s`,
@@ -1739,7 +1782,6 @@ export default function AIChat() {
                     cursor: "pointer",
                     transition: "all 0.2s ease",
                     letterSpacing: "0.01em",
-                    backdropFilter: "blur(8px)",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = "rgba(0,240,255,0.13)";
