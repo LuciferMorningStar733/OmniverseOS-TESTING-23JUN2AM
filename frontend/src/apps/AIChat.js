@@ -586,6 +586,7 @@ function ModeSwitcher({ mode, onChange, disabled }) {
   return (
     <div
       title="Switch AI mode"
+      className="mode-switcher-row"
       style={{
         display: "flex",
         gap: 2,
@@ -593,7 +594,9 @@ function ModeSwitcher({ mode, onChange, disabled }) {
         borderRadius: 9,
         padding: "2px 2px",
         border: "1px solid rgba(255,255,255,0.06)",
-        flexShrink: 0,
+        minWidth: 0,
+        overflowX: "auto",
+        scrollbarWidth: "none",
       }}
     >
       {CHAT_MODES.map((m) => {
@@ -1615,6 +1618,7 @@ export default function AIChat() {
         @media (hover: none) {
           .copy-reveal-row { opacity: 0.55 !important; }
         }
+        .mode-switcher-row::-webkit-scrollbar { display: none; }
       `}</style>
 
       {/* Header */}
@@ -1696,7 +1700,7 @@ export default function AIChat() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
           <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
           <ModelSelect
