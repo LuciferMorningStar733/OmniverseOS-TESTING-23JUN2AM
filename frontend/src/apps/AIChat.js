@@ -407,6 +407,8 @@ async function computeSemanticConsensus(panels, question) {
 }
 
 const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt }) {
+  const [mobileTab, setMobileTab] = React.useState(0);
+
   if (!panels) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14 }}>
@@ -501,8 +503,79 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
         })()}
       </div>
 
-      {/* 2×2 grid */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", overflow: "hidden" }}>
+      {/* ── Mobile tab bar — one model at a time, hidden on md+ ── */}
+      <div className="debate-tab-bar">
+        {panels.map((panel, idx) => {
+          const active = mobileTab === idx;
+          return (
+            <button
+              key={idx}
+              onClick={() => setMobileTab(idx)}
+              style={{
+                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                padding: "8px 4px",
+                background: active ? `${panel.color}18` : "transparent",
+                border: "none",
+                borderTop: `2px solid ${active ? panel.color : "transparent"}`,
+                cursor: "pointer", transition: "all 0.15s",
+              }}
+            >
+              <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 13, color: active ? panel.color : "rgba(255,255,255,0.3)" }} />
+              <span style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono', monospace", color: active ? panel.color : "rgba(255,255,255,0.28)", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+                {panel.shortLabel}
+              </span>
+              {panel.streaming && (
+                <span style={{ width: 4, height: 4, borderRadius: "50%", background: panel.color, animation: "orbPulse 0.8s ease-in-out infinite" }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Mobile single-panel view — full width, full remaining height ── */}
+      <div className="debate-mobile-panel">
+        {panels[mobileTab] && (() => {
+          const panel = panels[mobileTab];
+          const idx   = mobileTab;
+          const _pm   = agreement?.per_model;
+          const agScore = _pm
+            ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30)
+            : agreement?.scores?.[idx];
+          const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
+          return (
+            <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+              {/* Panel header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: `${panel.color}0a`, borderBottom: `1px solid ${panel.color}22`, flexShrink: 0 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`, boxShadow: panel.streaming ? `0 0 8px ${panel.color}` : "none", animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none" }} />
+                <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 12, color: panel.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: "'JetBrains Mono', monospace", flex: 1 }}>{panel.label}</span>
+                {agScore != null && panel.done && !panel.error && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 5, background: `${scoreColor}12`, border: `1px solid ${scoreColor}2e`, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: scoreColor, fontFamily: "'JetBrains Mono', monospace" }}>{agScore}%</span>
+                  </div>
+                )}
+                {panel.streaming && <span style={{ fontSize: 11, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>}
+                {panel.error && <span style={{ fontSize: 10, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>FAILED</span>}
+              </div>
+              {/* Scrollable content */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", fontSize: 13.5, lineHeight: 1.72, color: "rgba(255,255,255,0.84)" }}>
+                {!panel.content && panel.streaming && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {[0, 1, 2].map((di) => (
+                      <span key={di} style={{ display: "inline-block", width: 4, borderRadius: 3, height: [8, 13, 8][di], background: `${panel.color}${["66","aa","66"][di]}`, animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite` }} />
+                    ))}
+                    <span style={{ fontSize: 9.5, color: `${panel.color}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>generating</span>
+                  </div>
+                )}
+                {panel.content && <MarkdownRenderer content={panel.content} streaming={panel.streaming} />}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* ── Desktop 2×2 grid — hidden on mobile via CSS ── */}
+      <div className="debate-desktop-grid" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", overflow: "hidden" }}>
         {panels.map((panel, idx) => {
           const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
@@ -514,57 +587,29 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
               borderRight:  isLeft ? "1px solid rgba(255,255,255,0.055)" : "none",
               borderBottom: isTop  ? "1px solid rgba(255,255,255,0.055)" : "none",
             }}>
-              {/* Panel header */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "5px 9px",
-                background: `${panel.color}08`, borderBottom: `1px solid ${panel.color}1c`, flexShrink: 0,
-              }}>
-                <div style={{
-                  width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                  background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`,
-                  boxShadow: panel.streaming ? `0 0 6px ${panel.color}` : "none",
-                  animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none",
-                }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 9px", background: `${panel.color}08`, borderBottom: `1px solid ${panel.color}1c`, flexShrink: 0 }}>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, background: panel.streaming ? panel.color : panel.error ? "#FF4444" : `${panel.color}66`, boxShadow: panel.streaming ? `0 0 6px ${panel.color}` : "none", animation: panel.streaming ? "orbPulse 1s ease-in-out infinite" : "none" }} />
                 <i className={`fa-solid ${panel.icon}`} style={{ fontSize: 9, color: panel.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.82)", fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {panel.label}
-                </span>
-
-                {/* Agreement badge — rendered after all panels are done */}
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.82)", fontFamily: "'JetBrains Mono', monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{panel.label}</span>
                 {agScore != null && panel.done && !panel.error && (
                   <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 4, background: `${scoreColor}12`, border: `1px solid ${scoreColor}2e`, animation: "fadeSlideUp 0.35s ease", flexShrink: 0 }}>
                     <span style={{ fontSize: 9.5, fontWeight: 700, color: scoreColor, fontFamily: "'JetBrains Mono', monospace" }}>{agScore}%</span>
-                    {agScore < 55 && (
-                      <span style={{ fontSize: 7.5, color: scoreColor, letterSpacing: "0.07em", textTransform: "uppercase", marginLeft: 2 }}>diverges</span>
-                    )}
+                    {agScore < 55 && <span style={{ fontSize: 7.5, color: scoreColor, letterSpacing: "0.07em", textTransform: "uppercase", marginLeft: 2 }}>diverges</span>}
                   </div>
                 )}
-                {panel.streaming && (
-                  <span style={{ fontSize: 9, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>
-                )}
-                {panel.error && (
-                  <span style={{ fontSize: 8, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, letterSpacing: "0.06em" }}>FAILED</span>
-                )}
+                {panel.streaming && <span style={{ fontSize: 9, color: `${panel.color}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>}
+                {panel.error && <span style={{ fontSize: 8, color: "#FF4444", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, letterSpacing: "0.06em" }}>FAILED</span>}
               </div>
-
-              {/* Scrollable content */}
               <div style={{ flex: 1, overflowY: "auto", padding: "8px 10px", fontSize: 12, lineHeight: 1.62, color: "rgba(255,255,255,0.78)" }}>
                 {!panel.content && panel.streaming && (
                   <div style={{ display: "flex", alignItems: "center", gap: 5, paddingTop: 2 }}>
                     {[0, 1, 2].map((di) => (
-                      <span key={di} style={{
-                        display: "inline-block", width: 3, borderRadius: 3,
-                        height: [8, 12, 8][di],
-                        background: `${panel.color}${["66","aa","66"][di]}`,
-                        animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite`,
-                      }} />
+                      <span key={di} style={{ display: "inline-block", width: 3, borderRadius: 3, height: [8, 12, 8][di], background: `${panel.color}${["66","aa","66"][di]}`, animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite` }} />
                     ))}
                     <span style={{ fontSize: 8.5, color: `${panel.color}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>generating</span>
                   </div>
                 )}
-                {panel.content && (
-                  <MarkdownRenderer content={panel.content} streaming={panel.streaming} />
-                )}
+                {panel.content && <MarkdownRenderer content={panel.content} streaming={panel.streaming} />}
               </div>
             </div>
           );
@@ -1498,7 +1543,7 @@ export default function AIChat() {
   }, [switchSession]);
 
   return (
-    <div className="flex h-full text-white" data-testid="ai-chat-app" style={{ overflow: "hidden" }}>
+    <div className="flex h-[100dvh] text-white overflow-hidden" data-testid="ai-chat-app">
       {/* Mobile history overlay — full-screen, only on <md, dismissed by tapping backdrop */}
       {showMobileHistory && (
         <div
@@ -1542,7 +1587,7 @@ export default function AIChat() {
       )}
 
       {/* Main chat area */}
-      <div className="flex flex-col flex-1 min-w-0" style={{ overflow: "hidden" }}>
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
       {/* Toggle sidebar button (in header) */}
       <CortexClarificationModal
@@ -1619,6 +1664,15 @@ export default function AIChat() {
           .copy-reveal-row { opacity: 0.55 !important; }
         }
         .mode-switcher-row::-webkit-scrollbar { display: none; }
+        /* Debate mode — responsive layout: tab-per-model on mobile, 2x2 grid on desktop */
+        .debate-tab-bar { display: none; }
+        .debate-mobile-panel { display: none; }
+        .debate-desktop-grid { display: grid; }
+        @media (max-width: 767px) {
+          .debate-tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.28); }
+          .debate-mobile-panel { display: flex; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+          .debate-desktop-grid { display: none !important; }
+        }
       `}</style>
 
       {/* Header */}
@@ -1712,11 +1766,11 @@ export default function AIChat() {
       </div>
 
       {/* Messages */}
-      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden">
+      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col">
       {chatMode === "debate" && (
         <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} />
       )}
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto" style={{ display: chatMode === "debate" ? "none" : undefined }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" style={{ display: chatMode === "debate" ? "none" : undefined }}>
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
         <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
@@ -2117,7 +2171,7 @@ export default function AIChat() {
       )}
 
       {/* Input bar */}
-      <div data-testid="ai-chat-input" className="p-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
+      <div data-testid="ai-chat-input" className="pt-3 px-3 pb-input-safe border-t border-white/10 flex items-center gap-2 flex-shrink-0">
         {/* Mic button */}
         <button
           onClick={toggleMic}
