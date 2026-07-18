@@ -406,7 +406,78 @@ async function computeSemanticConsensus(panels, question) {
   }
 }
 
-const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt }) {
+/* ── Final Verdict Card — rendered after all 4 debate panels complete ─────────── */
+const FinalVerdictCard = React.memo(function FinalVerdictCard({ synthesis, streaming }) {
+  const VERDICT_COLOR = "#FF6314";
+  return (
+    <div style={{
+      border: `1px solid ${VERDICT_COLOR}33`,
+      borderRadius: 16,
+      background: "linear-gradient(135deg, rgba(255,99,20,0.08) 0%, rgba(18,21,28,0.95) 100%)",
+      overflow: "hidden",
+      flexShrink: 0,
+      animation: "fadeSlideUp 0.4s ease",
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 14px",
+        background: `${VERDICT_COLOR}10`,
+        borderBottom: `1px solid ${VERDICT_COLOR}28`,
+      }}>
+        <div style={{
+          width: 7, height: 7, borderRadius: "50%",
+          background: streaming ? VERDICT_COLOR : `${VERDICT_COLOR}99`,
+          boxShadow: streaming ? `0 0 10px ${VERDICT_COLOR}` : "none",
+          animation: streaming ? "orbPulse 1s ease-in-out infinite" : "none",
+          flexShrink: 0,
+        }} />
+        <i className="fa-solid fa-scale-balanced" style={{ fontSize: 11, color: VERDICT_COLOR, flexShrink: 0 }} />
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: VERDICT_COLOR,
+          fontFamily: "'JetBrains Mono', monospace",
+          letterSpacing: "0.10em", textTransform: "uppercase", flex: 1,
+        }}>Final Verdict · Gemini Synthesis</span>
+        {streaming && (
+          <span style={{ fontSize: 11, color: `${VERDICT_COLOR}bb`, animation: "cortexCursorBlink 0.8s ease-in-out infinite", flexShrink: 0 }}>▋</span>
+        )}
+        {!streaming && synthesis && (
+          <div style={{
+            fontSize: 9, padding: "2px 7px", borderRadius: 4,
+            background: `${VERDICT_COLOR}18`, border: `1px solid ${VERDICT_COLOR}33`,
+            color: VERDICT_COLOR, fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.06em", textTransform: "uppercase",
+          }}>concluded</div>
+        )}
+      </div>
+      {/* Body */}
+      <div style={{ padding: "14px 16px" }}>
+        {!synthesis && streaming && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 2 }}>
+            {[0, 1, 2].map((di) => (
+              <span key={di} style={{
+                display: "inline-block", width: 4, borderRadius: 3,
+                height: [8, 13, 8][di],
+                background: `${VERDICT_COLOR}${["66", "aa", "66"][di]}`,
+                animation: `typingWave 1.2s ease-in-out ${di * 0.15}s infinite`,
+              }} />
+            ))}
+            <span style={{ fontSize: 9.5, color: `${VERDICT_COLOR}66`, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>
+              synthesizing arguments…
+            </span>
+          </div>
+        )}
+        {synthesis && (
+          <div style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(255,255,255,0.92)" }}>
+            <MarkdownRenderer content={synthesis} streaming={streaming} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, synthesis, synthesisStreaming }) {
 
   if (!panels) {
     return (
@@ -504,7 +575,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
 
       {/* ── Mobile vertical stream — all 4 models simultaneously, hidden on md+ ── */}
       <div className="debate-mobile-stream">
-        {panels.map((panel, idx) => {
+        {panels && panels.map((panel, idx) => {
           const _pm = agreement?.per_model;
           const agScore = _pm
             ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30)
@@ -558,10 +629,14 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
             </div>
           );
         })}
+        {/* Final Verdict — appears below the 4 model cards on mobile */}
+        {(synthesis != null || synthesisStreaming) && (
+          <FinalVerdictCard synthesis={synthesis} streaming={synthesisStreaming} />
+        )}
       </div>
 
-      {/* ── Desktop 2×2 grid — hidden on mobile via CSS ── */}
-      <div className="debate-desktop-grid" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", overflow: "hidden" }}>
+      {/* ── Desktop 2×2 grid + Final Verdict — hidden on mobile via CSS ── */}
+      <div className="debate-desktop-grid" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr auto", overflow: "auto" }}>
         {panels.map((panel, idx) => {
           const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
@@ -600,6 +675,12 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt })
             </div>
           );
         })}
+        {/* Final Verdict — spans both columns at the bottom of the desktop grid */}
+        {(synthesis != null || synthesisStreaming) && (
+          <div style={{ gridColumn: "1 / -1", borderTop: "1px solid rgba(255,255,255,0.055)" }}>
+            <FinalVerdictCard synthesis={synthesis} streaming={synthesisStreaming} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -855,6 +936,8 @@ export default function AIChat() {
   const [debatePanels, setDebatePanels]     = useState(null);
   const [debatePrompt, setDebatePrompt]     = useState("");
   const [debateAgreement, setDebateAgreement] = useState(null);
+  const [debateSynthesis, setDebateSynthesis] = useState(null);
+  const [debateSynthesisStreaming, setDebateSynthesisStreaming] = useState(false);
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [touchedMsgIdx, setTouchedMsgIdx]   = useState(null);
   const touchTimerRef = useRef(null);
@@ -1197,6 +1280,8 @@ export default function AIChat() {
       setDebatePanels(DEBATE_MODELS.map((m) => ({ ...m, content: "", streaming: true, done: false, error: false })));
       setDebatePrompt(text);
       setDebateAgreement(null);
+      setDebateSynthesis(null);
+      setDebateSynthesisStreaming(false);
       // Phase 8 fix: build conversation history so all models receive full context on follow-up turns.
       // Mirror the same slice/filter/map as the standard chat path (contextFloorRef, last 20, 2000-char cap).
       const debateHistory = messagesRef.current
@@ -1224,6 +1309,53 @@ export default function AIChat() {
           if (completedPanels) {
             const consensus = await computeSemanticConsensus(completedPanels, text);
             if (mountedRef.current) setDebateAgreement(consensus);
+
+            // ── Phase 9: 5th autonomous synthesis request (Final Verdict) ──────
+            const successfulPanels = completedPanels.filter(p => !p.error && p.content);
+            if (successfulPanels.length >= 2 && mountedRef.current) {
+              setDebateSynthesis("");
+              setDebateSynthesisStreaming(true);
+              const synthesisPrompt =
+                `Four AI models were asked: "${text}"\n\n` +
+                successfulPanels.map(p => `${p.label} said:\n${p.content}`).join('\n\n') +
+                `\n\nAct as the final judge. Resolve their conflicts, synthesize the strongest arguments from each model, and deliver the definitive final answer in a clear, structured response.`;
+              let synthesisContent = "";
+              try {
+                await aiApi.chatStreamResilient(
+                  {
+                    session_id: `synthesis-${ts}`,
+                    message: synthesisPrompt,
+                    provider: "gemini",
+                    model: "gemini-2.5-flash",
+                    preferred_provider: "gemini",
+                    mode: "chat",
+                  },
+                  (delta) => {
+                    if (!mountedRef.current || ctrl.signal.aborted) return;
+                    synthesisContent += delta;
+                    setDebateSynthesis(synthesisContent);
+                  },
+                  null, ctrl.signal, null, null, null
+                );
+              } catch (_e) { /* synthesis failure is non-fatal */ }
+              if (mountedRef.current) {
+                setDebateSynthesisStreaming(false);
+
+                // ── Phase 10: Save full debate context to messages so follow-ups have memory ──
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "user", content: text, ts },
+                  ...successfulPanels.map(p => ({
+                    role: "assistant",
+                    content: `[${p.label}]: ${p.content}`,
+                    ts,
+                  })),
+                  ...(synthesisContent
+                    ? [{ role: "assistant", content: `[Final Verdict]: ${synthesisContent}`, ts }]
+                    : []),
+                ]);
+              }
+            }
           }
         })
         .catch(() => {
@@ -1762,7 +1894,7 @@ export default function AIChat() {
       {/* Messages */}
       <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col">
       {chatMode === "debate" && (
-        <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} />
+        <DebateGrid panels={debatePanels} agreement={debateAgreement} prompt={debatePrompt} synthesis={debateSynthesis} synthesisStreaming={debateSynthesisStreaming} />
       )}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" style={{ display: chatMode === "debate" ? "none" : undefined }}>
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}

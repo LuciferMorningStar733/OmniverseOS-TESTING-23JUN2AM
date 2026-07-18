@@ -151,19 +151,28 @@ async def _stream_openai_compat(
     message: str,
     system: str,
     extra_headers: Optional[dict] = None,
+    history: list | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Yields text chunks from any OpenAI-compatible streaming API."""
+    """Yields text chunks from any OpenAI-compatible streaming API.
+
+    Passes full conversation history so models have context on follow-up turns.
+    """
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         **(extra_headers or {}),
     }
+    # Build messages: system prompt → history → current user message
+    messages_list: list[dict] = [{"role": "system", "content": system}]
+    for msg in (history or []):
+        role = msg.get("role", "user")
+        content = (msg.get("content") or "").strip()
+        if content and role in ("user", "assistant"):
+            messages_list.append({"role": role, "content": content})
+    messages_list.append({"role": "user", "content": message})
     body = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user",   "content": message},
-        ],
+        "messages": messages_list,
         "stream": True,
         "max_tokens": 4096,
     }
@@ -258,6 +267,7 @@ class ProviderManager(AIProvider):
                 self._deepseek_key,
                 PROVIDER_DEFAULTS["deepseek"],
                 message, system,
+                history=history,
             ):
                 yield chunk
         elif provider == "groq":
@@ -266,6 +276,7 @@ class ProviderManager(AIProvider):
                 self._groq_key,
                 PROVIDER_DEFAULTS["groq"],
                 message, system,
+                history=history,
             ):
                 yield chunk
         elif provider == "cerebras":
@@ -274,6 +285,7 @@ class ProviderManager(AIProvider):
                 self._cerebras_key,
                 PROVIDER_DEFAULTS["cerebras"],
                 message, system,
+                history=history,
             ):
                 yield chunk
         elif provider == "openrouter":
@@ -286,6 +298,7 @@ class ProviderManager(AIProvider):
                     "HTTP-Referer": "https://omniverseos.app",
                     "X-Title": "OmniverseOS",
                 },
+                history=history,
             ):
                 yield chunk
 
