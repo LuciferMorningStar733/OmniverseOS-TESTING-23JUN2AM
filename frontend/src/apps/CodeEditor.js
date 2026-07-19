@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { aiApi } from "../lib/api";
 
 /* ── CyberSelect — fixed Radix UI (no invalid render props) ─────────────── */
 function CyberSelect({ value, onValueChange, options, placeholder, small }) {
@@ -239,24 +240,29 @@ export default function CodeEditor() {
     if (!prompt || aiLoading) return;
     setAiLoading(true);
     setAiPrompt("");
+    setCode("// Cortex is writing your code…");
+    const abortCtrl = new AbortController();
+    let streamed = "";
     try {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: "Output ONLY raw executable code. No markdown, no code fences, no explanation." },
-            { role: "user", content: prompt },
-          ],
-          stream: false,
-        }),
-      });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
-      const generated = data?.content ?? data?.message ?? data?.choices?.[0]?.message?.content ?? "";
-      if (generated.trim()) setCode(generated.trim());
+      await aiApi.chatStreamResilient(
+        {
+          session_id: "code-agent",
+          message: prompt,
+          model: "gemini-2.5-flash",
+          system_prompt: "You are Cortex, an expert developer. Output ONLY raw executable JavaScript code based on the user's request. No markdown, no HTML, no code fences, no explanations — just the raw code.",
+        },
+        (delta) => {
+          streamed += delta;
+          setCode(streamed);
+        },
+        null,
+        abortCtrl.signal,
+      );
     } catch (err) {
-      setOutput([{ type: "error", text: `Cortex Code Agent: ${err.message}` }]);
+      if (err.name !== "AbortError") {
+        setOutput([{ type: "error", text: `Cortex Code Agent: ${err.message}` }]);
+        setCode("");
+      }
     } finally {
       setAiLoading(false);
     }

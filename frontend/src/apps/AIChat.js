@@ -1905,7 +1905,7 @@ export default function AIChat() {
       {/* Messages */}
       <div data-testid="ai-chat-messages" className="relative flex-1 min-h-0 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
       {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
-      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto pb-4">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto pb-4 w-full pr-2 overscroll-contain scroll-smooth">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
         <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 24 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
