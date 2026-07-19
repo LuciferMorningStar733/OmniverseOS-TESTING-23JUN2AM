@@ -457,14 +457,15 @@ export default function Window({ win, children }) {
         },
       }}
       transition={{
-        type: "spring", damping: 24, stiffness: 340, mass: 0.48,
+        /* opacity + scale spring only — purely visual, not layout */
         opacity: { duration: 0.16, ease: "easeOut" },
         scale:   { type: "spring", damping: 24, stiffness: 340 },
-        /* Instant commit after drag — no spring bounce on x/y */
-        x: isDragging ? { type: "tween", duration: 0 } : { type: "spring", damping: 24, stiffness: 340 },
-        y: isDragging ? { type: "tween", duration: 0 } : { type: "spring", damping: 24, stiffness: 340 },
-        width:  { type: "spring", damping: 26, stiffness: 260 },
-        height: { type: "spring", damping: 26, stiffness: 260 },
+        /* x, y, width, height must be instant — any tween causes the
+           "elastic resize" bug where the window lags behind the cursor */
+        x:      { type: "tween", duration: 0 },
+        y:      { type: "tween", duration: 0 },
+        width:  { type: "tween", duration: 0 },
+        height: { type: "tween", duration: 0 },
       }}
       drag={dragEnabled}
       dragHandle={dragEnabled ? ".window-handle" : undefined}
