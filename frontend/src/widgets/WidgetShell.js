@@ -111,6 +111,9 @@ export default function WidgetShell({ item, def, canvasRef }) {
   const pxY = rowToY(item.y);
   const pxW = widgetW(item.w);
   const pxH = item.collapsed ? 40 : (def?.autoHeight ? "auto" : widgetH(item.h));
+  // For autoHeight widgets the drag wrapper must NOT lock a fixed pixel width —
+  // the glass card drives its own fit-content width instead.
+  const autoFit = !!(def?.autoHeight);
 
   const mx = useMotionValue(pxX);
   const my = useMotionValue(pxY);
@@ -180,15 +183,17 @@ export default function WidgetShell({ item, def, canvasRef }) {
         cursor: item.pinned ? "default" : (dragging ? "grabbing" : "grab"),
         userSelect: "none",
         touchAction: "none",
+        // autoFit: let the inner glass card set its own fit-content width
+        ...(autoFit ? { width: "fit-content" } : {}),
       }}
-      initial={{ opacity: 0, scale: 0.92, width: pxW, height: pxH }}
-      animate={{ opacity: 1, scale: 1, width: pxW, height: pxH }}
+      initial={{ opacity: 0, scale: 0.92, ...(autoFit ? {} : { width: pxW }), height: pxH }}
+      animate={{ opacity: 1, scale: 1,  ...(autoFit ? {} : { width: pxW }), height: pxH }}
       exit={{ opacity: 0, scale: 0.88 }}
       transition={{
         opacity: { type: "spring", stiffness: 380, damping: 32 },
-        scale: { type: "spring", stiffness: 380, damping: 32 },
-        width: { type: "spring", stiffness: 300, damping: 30 },
-        height: { type: "spring", stiffness: 300, damping: 30 },
+        scale:   { type: "spring", stiffness: 380, damping: 32 },
+        width:   { type: "spring", stiffness: 300, damping: 30 },
+        height:  { type: "spring", stiffness: 300, damping: 30 },
       }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
@@ -206,14 +211,24 @@ export default function WidgetShell({ item, def, canvasRef }) {
       {/* Glass card */}
       {def?.autoHeight ? (
         // ── Auto-height layout: flex-column, shell shrinks to content ─────────
-        <div
+        <motion.div
+          layout
+          transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
           style={{
             ...GLASS,
             borderRadius: 20,
-            width: "100%",
+            // omni-directional sizing: shrink-wrap to content, bounded
+            width: "fit-content",
+            minWidth: 250,
+            maxWidth: 450,
             position: "relative",
             display: "flex",
             flexDirection: "column",
+            // neural breathing — subtle cyan glow deepens on hover
+            boxShadow: hovered
+              ? `0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 30px rgba(0,255,255,0.15)`
+              : GLASS.boxShadow,
+            transition: "box-shadow 1000ms ease",
           }}
         >
           {/* Header bar */}
@@ -274,7 +289,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
 
           {/* Content — no fixed height; wraps to natural content size */}
           {!item.collapsed && (
-            <div style={{ position: "relative", width: "100%" }}>
+            <div style={{ position: "relative" }}>
               <ErrorBoundary>
                 <Suspense fallback={<Loader />}>
                   <def.Component item={item} />
@@ -282,7 +297,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
               </ErrorBoundary>
             </div>
           )}
-        </div>
+        </motion.div>
       ) : (
         // ── Fixed-height layout: absolute-positioned, scale engine active ─────
         <div

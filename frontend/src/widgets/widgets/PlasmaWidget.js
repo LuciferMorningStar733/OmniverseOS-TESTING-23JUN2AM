@@ -193,11 +193,15 @@ export default function PlasmaWidget() {
 
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: "spring", damping: 28, stiffness: 280 }}
+      transition={{
+        layout:   { type: "spring", stiffness: 350, damping: 25, mass: 0.8 },
+        opacity:  { type: "spring", damping: 28, stiffness: 280 },
+        scale:    { type: "spring", damping: 28, stiffness: 280 },
+      }}
       style={{
-        width: "100%",
         borderRadius: 18, overflow: "hidden",
         background: "rgba(4,5,14,0.78)",
         backdropFilter: "blur(36px) saturate(200%)",

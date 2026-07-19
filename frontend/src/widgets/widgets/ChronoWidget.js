@@ -292,7 +292,12 @@ export default function ChronoWidget({ item }) {
   const timePad       = compact ? "7px 12px 5px" : "10px 12px 8px";
 
   return (
-    <div className="w-full select-none" style={{ display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+    <motion.div
+      layout
+      transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+      className="w-fit select-none"
+      style={{ display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}
+    >
       {/* Scan-lines */}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0, background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,229,255,0.012) 3px, rgba(0,229,255,0.012) 4px)" }} />
 
@@ -448,6 +453,6 @@ export default function ChronoWidget({ item }) {
         @keyframes chrono-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
         @keyframes chrono-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
       `}</style>
-    </div>
+    </motion.div>
   );
 }
