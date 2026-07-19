@@ -146,6 +146,7 @@ const StatusPanel = React.memo(function StatusPanel({ status }) {
 
   const isFailover  = status.stage === "unavailable" || status.stage === "switching";
   const isGenerating = status.stage === "generating";
+  const isSearching  = status.stage === "searching";
 
   const headerLabel = {
     connecting:  "CORTEX ONLINE",
@@ -157,10 +158,10 @@ const StatusPanel = React.memo(function StatusPanel({ status }) {
 
   const dotColor = isFailover
     ? "bg-yellow-400"
+    : isSearching
+    ? "bg-purple-400"
     : isGenerating
     ? "bg-emerald-400"
-    : status.stage === "searching"
-    ? "bg-purple-400"
     : "bg-[#00F0FF]";
 
   return (
@@ -172,7 +173,7 @@ const StatusPanel = React.memo(function StatusPanel({ status }) {
             {headerLabel}
           </span>
         </div>
-        <div className={`pl-3 ${isFailover ? "text-yellow-300/80" : status.stage === "searching" ? "text-purple-300/80" : "text-[#00F0FF]/80"}`}>
+        <div className={`pl-3 ${isFailover ? "text-yellow-300/80" : isSearching ? "text-purple-300/80" : "text-[#00F0FF]/80"}`}>
           {status.text}
         </div>
         {status.model && status.stage !== "generating" && (
@@ -339,33 +340,27 @@ function formatMessageTime(ts) {
   return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
-/* ── History Sidebar ─────────────────────────────────────────────────────────── */
+/* ── Phase 17: History Sidebar ───────────────────────────────────────────────── */
 const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onClose }) {
-  const userMessages = messages.filter((m) => m.role === "user" && m.content && !m.error);
+  const userMessages = (messages || []).filter((m) => m && m.role === "user" && m.content && !m.error);
 
   return (
     <>
-      {/* Backdrop */}
       {open && (
         <div
           onClick={onClose}
           style={{
-            position: "absolute",
-            inset: 0,
+            position: "absolute", inset: 0,
             background: "rgba(0,0,0,0.5)",
             zIndex: 40,
             backdropFilter: "blur(2px)",
           }}
         />
       )}
-
-      {/* Sidebar panel */}
       <div
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          bottom: 0,
+          top: 0, left: 0, bottom: 0,
           width: 260,
           background: "#050B14",
           borderRight: "1px solid rgba(0,240,255,0.18)",
@@ -374,59 +369,22 @@ const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onCl
           flexDirection: "column",
           transform: open ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.22s cubic-bezier(0.4,0,0.2,1)",
-          boxShadow: open ? "4px 0 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,240,255,0.06)" : "none",
+          boxShadow: open ? "4px 0 32px rgba(0,0,0,0.6)" : "none",
         }}
       >
-        {/* Sidebar header */}
-        <div
-          style={{
-            padding: "14px 16px 12px",
-            borderBottom: "1px solid rgba(0,240,255,0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        {/* Header */}
+        <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(0,240,255,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 9,
-                color: "rgba(0,240,255,0.5)",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                marginBottom: 2,
-              }}
-            >
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "rgba(0,240,255,0.5)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 2 }}>
               // session log
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>
-              Recent Chats
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>Recent Chats</div>
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 6,
-              color: "rgba(255,255,255,0.4)",
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "rgba(0,240,255,0.35)";
-              e.currentTarget.style.color = "#00F0FF";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-              e.currentTarget.style.color = "rgba(255,255,255,0.4)";
-            }}
+            style={{ background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(255,255,255,0.4)", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(0,240,255,0.35)"; e.currentTarget.style.color = "#00F0FF"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.4)"; }}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
               <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -434,50 +392,11 @@ const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onCl
           </button>
         </div>
 
-        {/* Current session label */}
-        <div
-          style={{
-            padding: "8px 16px",
-            background: "rgba(0,240,255,0.06)",
-            borderBottom: "1px solid rgba(0,240,255,0.08)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "#00F0FF",
-              display: "inline-block",
-              boxShadow: "0 0 6px rgba(0,240,255,0.8)",
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: "#00F0FF",
-              fontWeight: 600,
-            }}
-          >
-            Active Session
-          </span>
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 9,
-              fontFamily: "monospace",
-              color: "rgba(0,240,255,0.4)",
-              background: "rgba(0,240,255,0.08)",
-              border: "1px solid rgba(0,240,255,0.2)",
-              borderRadius: 3,
-              padding: "1px 5px",
-            }}
-          >
+        {/* Active session badge */}
+        <div style={{ padding: "8px 16px", background: "rgba(0,240,255,0.06)", borderBottom: "1px solid rgba(0,240,255,0.08)", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00F0FF", display: "inline-block", boxShadow: "0 0 6px rgba(0,240,255,0.8)", flexShrink: 0 }} />
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#00F0FF", fontWeight: 600 }}>Active Session</span>
+          <span style={{ marginLeft: "auto", fontSize: 9, fontFamily: "monospace", color: "rgba(0,240,255,0.4)", background: "rgba(0,240,255,0.08)", border: "1px solid rgba(0,240,255,0.2)", borderRadius: 3, padding: "1px 5px" }}>
             {userMessages.length} msgs
           </span>
         </div>
@@ -485,55 +404,22 @@ const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onCl
         {/* Messages list */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
           {userMessages.length === 0 ? (
-            <div
-              style={{
-                padding: "24px 16px",
-                textAlign: "center",
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 11,
-                color: "rgba(255,255,255,0.25)",
-              }}
-            >
-              No messages yet.<br />
-              Start chatting with Cortex.
+            <div style={{ padding: "24px 16px", textAlign: "center", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+              No messages yet.<br />Start chatting with Cortex.
             </div>
           ) : (
             [...userMessages].reverse().map((m, i) => (
               <div
                 key={i}
-                style={{
-                  padding: "8px 16px",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                  cursor: "default",
-                  transition: "background 0.12s",
-                }}
+                style={{ padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.12s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.04)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
-                <div
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 11,
-                    color: "rgba(226,232,240,0.85)",
-                    lineHeight: 1.5,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: "100%",
-                  }}
-                  title={m.content}
-                >
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "rgba(226,232,240,0.85)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.content}>
                   {m.content}
                 </div>
                 {m.ts && (
-                  <div
-                    style={{
-                      fontSize: 9,
-                      fontFamily: "monospace",
-                      color: "rgba(255,255,255,0.25)",
-                      marginTop: 3,
-                    }}
-                  >
+                  <div style={{ fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.25)", marginTop: 3 }}>
                     {formatMessageTime(m.ts)}
                   </div>
                 )}
@@ -543,17 +429,7 @@ const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onCl
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: "10px 16px",
-            borderTop: "1px solid rgba(0,240,255,0.08)",
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 9,
-            color: "rgba(255,255,255,0.2)",
-            letterSpacing: "0.06em",
-            textAlign: "center",
-          }}
-        >
+        <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(0,240,255,0.08)", fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "rgba(255,255,255,0.2)", letterSpacing: "0.06em", textAlign: "center" }}>
           OMNIVERSEOS · CORTEX SESSION
         </div>
       </div>
@@ -575,9 +451,9 @@ export default function AIChat() {
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
-  // ── Phase 16: Live Web toggle ─────────────────────────────────────────────
+  // Phase 16: Live Web toggle
   const [liveWebActive, setLiveWebActive]   = useState(false);
-  // ── Phase 17: History sidebar ─────────────────────────────────────────────
+  // Phase 17: History sidebar
   const [showSidebar, setShowSidebar]       = useState(false);
 
   const endRef             = useRef();
@@ -751,7 +627,7 @@ export default function AIChat() {
 
     const text = rawText.trim();
 
-    // ── Ambiguity detection ──────────────────────────────────────────────
+    // ── Ambiguity detection ──────────────────────────────────────────────────
     const ambiguityResult = detectAmbiguity(text, messagesRef.current);
     if (ambiguityResult.needs_clarification) {
       setPendingMessage(text);
@@ -802,32 +678,29 @@ export default function AIChat() {
     try {
       const preferredProvider = getPreferredProvider();
 
-      // ── Phase 16: Live Web — silently fetch web context before AI call ──
+      // ── Phase 16: Silent Live Web — fetch context before AI call ────────────
       let webContext = "";
       if (liveWebActive) {
         try {
-          setStreamStatus({ stage: "searching", text: "Scanning live web..." });
+          setStreamStatus({ stage: "searching", text: "Scanning live web…" });
           const searchResult = await webSearchApi(text);
-          if (searchResult?.context) {
+          if (searchResult && searchResult.context) {
             webContext = searchResult.context;
           }
-        } catch { /* web search is best-effort — never block the AI call */ }
+        } catch { /* best-effort — never block */ }
         if (mountedRef.current && !ctrl.signal.aborted) {
           setStreamStatus(null);
         }
       }
 
-      // Build final message for AI — inject web data silently if available
-      const messageForAI = (() => {
-        let base = text;
-        if (actionSummary) {
-          base += `\n\n[OS: ${actionSummary}. Briefly acknowledge in your own voice — natural, not robotic.]`;
-        }
-        if (webContext) {
-          base = `Here is live web data retrieved for this query:\n\n${webContext}\n\nNow answer the user using this context where relevant:\n\n${base}`;
-        }
-        return base;
-      })();
+      // Build message for AI — prepend live web data silently if available
+      let messageForAI = actionSummary
+        ? `${text}\n\n[OS: ${actionSummary}. Briefly acknowledge in your own voice — natural, not robotic.]`
+        : text;
+
+      if (webContext) {
+        messageForAI = `Live web data retrieved for this query:\n\n${webContext}\n\nAnswer the user using this context where relevant:\n\n${messageForAI}`;
+      }
 
       // ── Fetch relevant Cortex memories ───────────────────────────────────
       let fetchedMemories = [];
@@ -843,10 +716,9 @@ export default function AIChat() {
       });
 
       if (liveWebActive) {
-        systemPrompt += "\n\n[LIVE WEB MODE: You have been given real-time web data above. Cite it naturally when answering. Do not say you cannot access the internet.]";
+        systemPrompt += "\n\n[LIVE WEB MODE: You have been given real-time web data above. Use it naturally. Do not say you cannot access the internet.]";
       }
 
-      // Inject relevant memories into system prompt
       if (fetchedMemories.length > 0) {
         systemPrompt += "\n\n=== CORTEX LONG-TERM MEMORY ===\n";
         systemPrompt += "The following facts are permanently remembered about this user. Use them naturally without re-asking.\n";
@@ -857,7 +729,7 @@ export default function AIChat() {
 
       const history = messagesRef.current
         .slice(contextFloorRef.current)
-        .filter((m) => m.content && !m.pending && !m.error)
+        .filter((m) => m && m.content && !m.pending && !m.error)
         .slice(-20)
         .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
 
@@ -868,7 +740,8 @@ export default function AIChat() {
           setMessages((prev) => {
             const copy = [...prev];
             const last = copy[copy.length - 1];
-            copy[copy.length - 1] = { ...last, content: last.content + delta, pending: false };
+            if (!last) return prev;
+            copy[copy.length - 1] = { ...last, content: (last.content || "") + delta, pending: false };
             return copy;
           });
         },
@@ -899,14 +772,14 @@ export default function AIChat() {
       const lastAssistantContent = (() => {
         const msgs = messagesRef.current;
         for (let i = msgs.length - 1; i >= 0; i--) {
-          if (msgs[i].role === "assistant" && msgs[i].content && !msgs[i].pending) {
+          if (msgs[i] && msgs[i].role === "assistant" && msgs[i].content && !msgs[i].pending) {
             return msgs[i].content;
           }
         }
         return "";
       })();
       if (lastAssistantContent) {
-        memoryApi.extract(text, lastAssistantContent); // fire-and-forget
+        memoryApi.extract(text, lastAssistantContent);
       }
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -964,7 +837,7 @@ export default function AIChat() {
 
   // ── Context memory bar state ──────────────────────────────────────────────
   const contextCount = Math.min(
-    messages.slice(contextFloor).filter((m) => m.content && !m.pending && !m.error).length,
+    messages.slice(contextFloor).filter((m) => m && m.content && !m.pending && !m.error).length,
     20
   );
   const userLocation = (() => {
@@ -983,7 +856,7 @@ export default function AIChat() {
         onClose={() => { setClarification(null); setPendingMessage(""); }}
       />
 
-      {/* ── Phase 17: History Sidebar ──────────────────────────────────────── */}
+      {/* Phase 17: History Sidebar */}
       <HistorySidebar
         messages={messages}
         open={showSidebar}
@@ -1017,23 +890,23 @@ export default function AIChat() {
 
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          {/* ── Phase 17: Hamburger menu button ─────────────────────────────── */}
+        <div className="flex items-center gap-2">
+          {/* Phase 17: Hamburger button */}
           <button
             onClick={() => setShowSidebar(true)}
             title="Chat history"
             style={{
-              background: showSidebar ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
-              border: showSidebar ? "1px solid rgba(0,240,255,0.35)" : "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.10)",
               borderRadius: 8,
-              width: 34,
-              height: 34,
+              width: 32,
+              height: 32,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               transition: "all 0.18s ease",
-              color: showSidebar ? "#00F0FF" : "rgba(255,255,255,0.70)",
+              color: "rgba(255,255,255,0.65)",
               flexShrink: 0,
             }}
             onMouseEnter={(e) => {
@@ -1042,21 +915,17 @@ export default function AIChat() {
               e.currentTarget.style.color = "#00F0FF";
             }}
             onMouseLeave={(e) => {
-              if (!showSidebar) {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
-                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                e.currentTarget.style.color = "rgba(255,255,255,0.70)";
-              }
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+              e.currentTarget.style.color = "rgba(255,255,255,0.65)";
             }}
           >
-            {/* Premium hamburger SVG icon */}
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="3.5" width="12" height="1.5" rx="0.75" fill="currentColor"/>
-              <rect x="2" y="7.25" width="9" height="1.5" rx="0.75" fill="currentColor"/>
-              <rect x="2" y="11" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+            <svg width="15" height="12" viewBox="0 0 15 12" fill="none">
+              <rect x="0" y="0"   width="15" height="2" rx="1" fill="currentColor"/>
+              <rect x="0" y="5"   width="10" height="2" rx="1" fill="currentColor"/>
+              <rect x="0" y="10"  width="15" height="2" rx="1" fill="currentColor"/>
             </svg>
           </button>
-
           <div>
             <div className="mono-label">// Cortex Online</div>
             <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
@@ -1082,7 +951,9 @@ export default function AIChat() {
           </div>
         )}
 
-        {messages.map((m, i) => (
+        {messages.map((m, i) => {
+          if (!m) return null;
+          return (
           <div
             key={i}
             className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
@@ -1106,7 +977,7 @@ export default function AIChat() {
                 <span>
                   {m.content || "Cortex encountered an error."}
                   <button
-                    onClick={() => sendRef.current?.(messages[i - 1]?.content || "")}
+                    onClick={() => { const prev = messages[i - 1]; if (prev) sendRef.current?.(prev.content || ""); }}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 4,
                       marginLeft: 8, fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
@@ -1159,7 +1030,7 @@ export default function AIChat() {
 
                   {(m.content || (!m.pending)) && (
                     <MarkdownRenderer
-                      content={m.content}
+                      content={m.content || ""}
                       streaming={m.pending && i === messages.length - 1}
                     />
                   )}
@@ -1200,13 +1071,13 @@ export default function AIChat() {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
 
         <StatusPanel status={streamStatus} />
         <div ref={endRef} />
       </div>
 
-      {/* Jump to bottom */}
       {showScrollBottom && (
         <button
           onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: "smooth" })}
@@ -1274,12 +1145,12 @@ export default function AIChat() {
               animation: "fadeSlideUp 0.15s ease",
             }}>
               {relevantMemories.map((m, i) => (
-                <div key={m.id || i} style={{
+                <div key={(m && m.id) || i} style={{
                   fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                   color: "rgba(255,255,255,0.55)", display: "flex", gap: 6, alignItems: "flex-start",
                 }}>
-                  <span style={{ color: "rgba(0,240,255,0.4)", flexShrink: 0 }}>[{m.category}]</span>
-                  <span>{m.content}</span>
+                  <span style={{ color: "rgba(0,240,255,0.4)", flexShrink: 0 }}>[{m && m.category}]</span>
+                  <span>{m && m.content}</span>
                 </div>
               ))}
             </div>
@@ -1326,7 +1197,7 @@ export default function AIChat() {
             )}
             <button
               onClick={clearContext}
-              title="Clear context — Cortex starts fresh from next message (chat history stays visible)"
+              title="Clear context — Cortex starts fresh from next message"
               style={{
                 background: "none",
                 border: "1px solid rgba(0,240,255,0.18)",
@@ -1376,12 +1247,12 @@ export default function AIChat() {
           <i className={`fa-solid ${isRecording ? "fa-stop" : "fa-microphone"} text-sm`} />
         </button>
 
-        {/* ── Phase 16: Live Web toggle button ──────────────────────────────── */}
+        {/* Phase 16: Live Web toggle */}
         <button
           onClick={() => {
             setLiveWebActive((v) => {
               const next = !v;
-              toast(next ? "Live Web enabled — Cortex will scan the web before answering" : "Live Web disabled", {
+              toast(next ? "Live Web ON — Cortex will scan the web first" : "Live Web OFF", {
                 duration: 2000,
                 style: { fontSize: 12, fontFamily: "'JetBrains Mono', monospace" },
               });
@@ -1401,7 +1272,7 @@ export default function AIChat() {
           }}
           onMouseEnter={(e) => {
             if (!streaming && !liveWebActive) {
-              e.currentTarget.style.borderColor = "rgba(147,51,234,0.35)";
+              e.currentTarget.style.borderColor = "rgba(147,51,234,0.4)";
               e.currentTarget.style.color = "#a78bfa";
             }
           }}
@@ -1412,6 +1283,7 @@ export default function AIChat() {
             }
           }}
         >
+          {/* Globe SVG */}
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M7.5 1.5C7.5 1.5 5 4 5 7.5C5 11 7.5 13.5 7.5 13.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
@@ -1433,11 +1305,9 @@ export default function AIChat() {
             }
           }}
           placeholder={
-            isRecording
-              ? "Listening…"
-              : liveWebActive
-              ? "Ask anything — Cortex will search the web…"
-              : "Message the cortex…"
+            isRecording ? "Listening…"
+            : liveWebActive ? "Ask anything — Cortex will search the web…"
+            : "Message the cortex…"
           }
           className="input-cyber flex-1 transition-all duration-200"
           style={
