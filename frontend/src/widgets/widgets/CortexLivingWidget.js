@@ -230,7 +230,7 @@ export default function CortexLivingWidget() {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: "spring", damping: 28, stiffness: 260, delay: 0.08 }}
       style={{
-        width: "100%", height: "100%",
+        width: "100%",
         borderRadius: 18,
         overflow: "hidden",
         background: "rgba(5,7,16,0.68)",

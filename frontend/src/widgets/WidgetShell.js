@@ -110,7 +110,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
   const pxX = colToX(item.x);
   const pxY = rowToY(item.y);
   const pxW = widgetW(item.w);
-  const pxH = item.collapsed ? 40 : (def?.autoHeight ? widgetH(def.defaultH) : widgetH(item.h));
+  const pxH = item.collapsed ? 40 : (def?.autoHeight ? "auto" : widgetH(item.h));
 
   const mx = useMotionValue(pxX);
   const my = useMotionValue(pxY);
@@ -204,130 +204,203 @@ export default function WidgetShell({ item, def, canvasRef }) {
       />
 
       {/* Glass card */}
-      <div
-        className="absolute inset-0 overflow-hidden"
-        style={{ ...GLASS, borderRadius: 20 }}
-      >
-        {/* Header bar */}
+      {def?.autoHeight ? (
+        // ── Auto-height layout: flex-column, shell shrinks to content ─────────
         <div
-          className="absolute top-0 left-0 right-0 flex items-center justify-between px-3"
-          style={{ height: 40, zIndex: 2 }}
+          style={{
+            ...GLASS,
+            borderRadius: 20,
+            width: "100%",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+          }}
         >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <i
-              className={`fa-solid ${def?.icon || "fa-square"} text-[10px] flex-shrink-0`}
-              style={{ color: accentColor }}
-            />
-            <span
-              className="text-[10px] font-mono uppercase tracking-[0.18em] truncate"
-              style={{ color: "rgba(255,255,255,0.35)" }}
+          {/* Header bar */}
+          <div
+            className="flex items-center justify-between px-3"
+            style={{ height: 40, flexShrink: 0, zIndex: 2, position: "relative" }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <i
+                className={`fa-solid ${def?.icon || "fa-square"} text-[10px] flex-shrink-0`}
+                style={{ color: accentColor }}
+              />
+              <span
+                className="text-[10px] font-mono uppercase tracking-[0.18em] truncate"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                {def?.name || item.id}
+              </span>
+              {item.pinned && (
+                <i className="fa-solid fa-thumbtack text-[8px] text-[#00F0FF]/40 flex-shrink-0" />
+              )}
+            </div>
+
+            {/* Controls — visible on hover */}
+            <motion.div
+              className="flex items-center gap-0.5"
+              animate={{ opacity: hovered ? 1 : 0 }}
+              transition={{ duration: 0.15 }}
             >
-              {def?.name || item.id}
-            </span>
-            {item.pinned && (
-              <i className="fa-solid fa-thumbtack text-[8px] text-[#00F0FF]/40 flex-shrink-0" />
-            )}
+              {sizePresets && sizePresets.map((preset) => {
+                const isCurrent = item.w === preset.w && item.h === preset.h;
+                const isFlash   = sizeFlash === preset.label;
+                return (
+                  <SizeBtn
+                    key={preset.label}
+                    label={preset.label}
+                    active={isCurrent}
+                    flash={isFlash}
+                    color={accentColor}
+                    title={`${preset.label === "S" ? "Small" : preset.label === "M" ? "Medium" : "Large"} — ${preset.w}×${preset.h}`}
+                    onClick={() => applySize(preset)}
+                  />
+                );
+              })}
+              {sizePresets && (
+                <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", margin: "0 2px", flexShrink: 0 }} />
+              )}
+              <CtrlBtn icon="fa-thumbtack" active={item.pinned} color="#00F0FF" title={item.pinned ? "Unpin" : "Pin"} onClick={() => togglePin(item.id)} />
+              <CtrlBtn icon={item.collapsed ? "fa-chevron-down" : "fa-chevron-up"} title={item.collapsed ? "Expand" : "Collapse"} onClick={() => toggleCollapse(item.id)} />
+              <CtrlBtn icon="fa-xmark" color="#FF003C" title="Remove widget" onClick={() => removeWidget(item.id)} />
+            </motion.div>
           </div>
 
-          {/* Controls — visible on hover */}
-          <motion.div
-            className="flex items-center gap-0.5"
-            animate={{ opacity: hovered ? 1 : 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            {/* Size presets */}
-            {sizePresets && sizePresets.map((preset) => {
-              const isCurrent = item.w === preset.w && item.h === preset.h;
-              const isFlash   = sizeFlash === preset.label;
-              // Hide preset if it's identical to another (e.g. S==M when minW==maxW)
-              // But always show all three for clarity; just dim duplicates
-              return (
-                <SizeBtn
-                  key={preset.label}
-                  label={preset.label}
-                  active={isCurrent}
-                  flash={isFlash}
-                  color={accentColor}
-                  title={`${preset.label === "S" ? "Small" : preset.label === "M" ? "Medium" : "Large"} — ${preset.w}×${preset.h}`}
-                  onClick={() => applySize(preset)}
-                />
-              );
-            })}
+          {/* Separator */}
+          {!item.collapsed && (
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "0 12px", flexShrink: 0 }} />
+          )}
 
-            {/* Divider */}
-            {sizePresets && (
-              <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", margin: "0 2px", flexShrink: 0 }} />
-            )}
-
-            <CtrlBtn
-              icon={item.pinned ? "fa-thumbtack" : "fa-thumbtack"}
-              active={item.pinned}
-              color="#00F0FF"
-              title={item.pinned ? "Unpin" : "Pin"}
-              onClick={() => togglePin(item.id)}
-            />
-            <CtrlBtn
-              icon={item.collapsed ? "fa-chevron-down" : "fa-chevron-up"}
-              title={item.collapsed ? "Expand" : "Collapse"}
-              onClick={() => toggleCollapse(item.id)}
-            />
-            <CtrlBtn
-              icon="fa-xmark"
-              color="#FF003C"
-              title="Remove widget"
-              onClick={() => removeWidget(item.id)}
-            />
-          </motion.div>
-        </div>
-
-        {/* Separator */}
-        <div
-          className="absolute left-3 right-3 pointer-events-none"
-          style={{
-            top: 40,
-            height: 1,
-            background: "rgba(255,255,255,0.06)",
-            display: item.collapsed ? "none" : "block",
-          }}
-        />
-
-        {/* Content — measured by the Smart Widget Layout Engine (see contentRef/scale above) */}
-        {!item.collapsed && (
-          <div
-            ref={contentRef}
-            className="absolute left-0 right-0 bottom-0 flex items-center justify-center"
-            style={{ top: HEADER_H, overflow: "hidden" }}
-          >
-            {/* Inner box rendered at the widget's natural (reference) size,
-                then uniformly scaled to fit whatever space `contentRef`
-                actually measures. This is what makes Small genuinely
-                smaller (content shrinks to fit, no clipping/scrollbars) and
-                Large genuinely larger (content grows to fill, no dead
-                space) without every widget needing its own responsive
-                redesign. */}
-            <div
-              style={{
-                width: refW || "100%",
-                height: refH || "100%",
-                minWidth: refW || undefined,
-                minHeight: refH || undefined,
-                overflowY: "auto",
-                overflowX: "hidden",
-                transform: `scale(${scale})`,
-                transformOrigin: "center center",
-                transition: "transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
-                willChange: "transform",
-              }}
-            >
+          {/* Content — no fixed height; wraps to natural content size */}
+          {!item.collapsed && (
+            <div style={{ position: "relative", width: "100%" }}>
               <ErrorBoundary>
                 <Suspense fallback={<Loader />}>
                   <def.Component item={item} />
                 </Suspense>
               </ErrorBoundary>
             </div>
+          )}
+        </div>
+      ) : (
+        // ── Fixed-height layout: absolute-positioned, scale engine active ─────
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{ ...GLASS, borderRadius: 20 }}
+        >
+          {/* Header bar */}
+          <div
+            className="absolute top-0 left-0 right-0 flex items-center justify-between px-3"
+            style={{ height: 40, zIndex: 2 }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <i
+                className={`fa-solid ${def?.icon || "fa-square"} text-[10px] flex-shrink-0`}
+                style={{ color: accentColor }}
+              />
+              <span
+                className="text-[10px] font-mono uppercase tracking-[0.18em] truncate"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                {def?.name || item.id}
+              </span>
+              {item.pinned && (
+                <i className="fa-solid fa-thumbtack text-[8px] text-[#00F0FF]/40 flex-shrink-0" />
+              )}
+            </div>
+
+            {/* Controls — visible on hover */}
+            <motion.div
+              className="flex items-center gap-0.5"
+              animate={{ opacity: hovered ? 1 : 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {/* Size presets */}
+              {sizePresets && sizePresets.map((preset) => {
+                const isCurrent = item.w === preset.w && item.h === preset.h;
+                const isFlash   = sizeFlash === preset.label;
+                return (
+                  <SizeBtn
+                    key={preset.label}
+                    label={preset.label}
+                    active={isCurrent}
+                    flash={isFlash}
+                    color={accentColor}
+                    title={`${preset.label === "S" ? "Small" : preset.label === "M" ? "Medium" : "Large"} — ${preset.w}×${preset.h}`}
+                    onClick={() => applySize(preset)}
+                  />
+                );
+              })}
+
+              {/* Divider */}
+              {sizePresets && (
+                <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", margin: "0 2px", flexShrink: 0 }} />
+              )}
+
+              <CtrlBtn
+                icon={item.pinned ? "fa-thumbtack" : "fa-thumbtack"}
+                active={item.pinned}
+                color="#00F0FF"
+                title={item.pinned ? "Unpin" : "Pin"}
+                onClick={() => togglePin(item.id)}
+              />
+              <CtrlBtn
+                icon={item.collapsed ? "fa-chevron-down" : "fa-chevron-up"}
+                title={item.collapsed ? "Expand" : "Collapse"}
+                onClick={() => toggleCollapse(item.id)}
+              />
+              <CtrlBtn
+                icon="fa-xmark"
+                color="#FF003C"
+                title="Remove widget"
+                onClick={() => removeWidget(item.id)}
+              />
+            </motion.div>
           </div>
-        )}
-      </div>
+
+          {/* Separator */}
+          <div
+            className="absolute left-3 right-3 pointer-events-none"
+            style={{
+              top: 40,
+              height: 1,
+              background: "rgba(255,255,255,0.06)",
+              display: item.collapsed ? "none" : "block",
+            }}
+          />
+
+          {/* Content — measured by the Smart Widget Layout Engine */}
+          {!item.collapsed && (
+            <div
+              ref={contentRef}
+              className="absolute left-0 right-0 bottom-0 flex items-center justify-center"
+              style={{ top: HEADER_H, overflow: "hidden" }}
+            >
+              <div
+                style={{
+                  width: refW || "100%",
+                  height: refH || "100%",
+                  minWidth: refW || undefined,
+                  minHeight: refH || undefined,
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "center center",
+                  transition: "transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
+                  willChange: "transform",
+                }}
+              >
+                <ErrorBoundary>
+                  <Suspense fallback={<Loader />}>
+                    <def.Component item={item} />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }

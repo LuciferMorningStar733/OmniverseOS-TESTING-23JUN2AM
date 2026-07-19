@@ -197,7 +197,7 @@ export default function PlasmaWidget() {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", damping: 28, stiffness: 280 }}
       style={{
-        width: "100%", height: "100%",
+        width: "100%",
         borderRadius: 18, overflow: "hidden",
         background: "rgba(4,5,14,0.78)",
         backdropFilter: "blur(36px) saturate(200%)",
