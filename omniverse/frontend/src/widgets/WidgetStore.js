@@ -354,9 +354,11 @@ export default function WidgetStore({ onClose }) {
             const justRemoved = removed === def.id;
 
             return (
-              <motion.div
+              // Plain div — no motion.layout here; layout animations on list
+              // items caused the store to "seizure" every time a widget was
+              // added/removed as the flex column recalculated bounding boxes.
+              <div
                 key={def.id}
-                layout
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -406,7 +408,7 @@ export default function WidgetStore({ onClose }) {
                   justRemoved={justRemoved}
                   onClick={() => isActive ? handleRemove(def) : handleAdd(def)}
                 />
-              </motion.div>
+              </div>
             );
           })}
         </div>

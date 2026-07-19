@@ -135,9 +135,10 @@ export const WIDGET_REGISTRY = [
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
-// Default desktop layout — only clock & weather shown by default.
-// All other widgets are added manually via the Widget Store (+).
-export const LAYOUT_VERSION = 4;
+// Default desktop layout — Chrono-Atmo and Cortex AI pinned on every boot.
+// LAYOUT_VERSION bump forces a reset of any stale saved layouts.
+export const LAYOUT_VERSION = 5;
 export const DEFAULT_LAYOUT = [
-  { id: "chrono", x: 0, y: 0, w: 1, h: 3, collapsed: false, pinned: false },
+  { id: "chrono", x: 0, y: 0, w: 1, h: 3, collapsed: false, pinned: true  },
+  { id: "cortex", x: 2, y: 0, w: 3, h: 2, collapsed: false, pinned: true  },
 ];
