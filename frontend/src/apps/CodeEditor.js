@@ -249,7 +249,10 @@ export default function CodeEditor() {
           session_id: "code-agent",
           message: prompt,
           model: "gemini-2.5-flash",
-          system_prompt: "You are Cortex, an expert developer. Output ONLY raw executable JavaScript code based on the user's request. No markdown, no HTML, no code fences, no explanations — just the raw code.",
+          preferred_provider: "gemini",
+          mode: "chat",
+          history: [],
+          system: "You are Cortex, an expert developer. Output ONLY raw executable JavaScript code based on the user's request. No markdown, no HTML, no code fences, no explanations — just the raw code.",
         },
         (delta) => {
           streamed += delta;
