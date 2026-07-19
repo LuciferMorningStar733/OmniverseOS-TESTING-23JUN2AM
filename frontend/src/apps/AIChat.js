@@ -1826,7 +1826,7 @@ export default function AIChat() {
                 flexShrink: 0, transition: "all 0.15s",
               }}
             >
-              <i className="fa-solid fa-sidebar text-xs" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white/70 hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             {/* Sidebar toggle — desktop: shows/hides sidebar in side-by-side layout */}
             <button
@@ -1842,7 +1842,7 @@ export default function AIChat() {
                 flexShrink: 0, transition: "all 0.15s",
               }}
             >
-              <i className="fa-solid fa-sidebar text-xs" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white/70 hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             {/* Cortex orb indicator */}
             <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
@@ -1905,9 +1905,9 @@ export default function AIChat() {
       {/* Messages */}
       <div data-testid="ai-chat-messages" className="relative flex-1 min-h-0 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
       {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
-      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto pb-4">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
-        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
+        <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 24 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
 
         {messages.length === 0 && !streaming && chatMode !== "debate" && (
@@ -2049,8 +2049,8 @@ export default function AIChat() {
               <div style={{ maxWidth: "min(82%, 680px)" }}>
                 {m.modelUsed && <FallbackBadge modelId={m.modelUsed} />}
                 <div
-                  className="group relative glass-light rounded-2xl"
-                  style={{ padding: "10px 14px" }}
+                  className="group relative rounded-2xl"
+                  style={{ padding: "16px 24px", background: "#050B14", border: "1px solid rgba(255,255,255,0.04)", fontSize: 15, fontWeight: 300, lineHeight: 1.8, color: "rgba(255,255,255,0.90)" }}
                 >
                   {/* Thinking indicator — premium wave when waiting for first token */}
                   {m.pending && !m.content && i === messages.length - 1 && (

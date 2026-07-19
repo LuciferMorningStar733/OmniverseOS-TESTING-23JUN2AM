@@ -195,6 +195,8 @@ export default function CodeEditor() {
   const [output,  setOutput]  = useState([]);
   const [running, setRunning] = useState(false);
   const [consoleH, setConsoleH] = useState(190);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef(null);
 
   const activeLang = LANGS.find(l=>l.value===lang);
@@ -231,6 +233,34 @@ export default function CodeEditor() {
       setRunning(false);
     }, 80);
   }, [code, lang, activeLang]);
+
+  const askCortex = useCallback(async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt || aiLoading) return;
+    setAiLoading(true);
+    setAiPrompt("");
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: "Output ONLY raw executable code. No markdown, no code fences, no explanation." },
+            { role: "user", content: prompt },
+          ],
+          stream: false,
+        }),
+      });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const data = await res.json();
+      const generated = data?.content ?? data?.message ?? data?.choices?.[0]?.message?.content ?? "";
+      if (generated.trim()) setCode(generated.trim());
+    } catch (err) {
+      setOutput([{ type: "error", text: `Cortex Code Agent: ${err.message}` }]);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [aiPrompt, aiLoading]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key==="Tab") {
@@ -347,6 +377,37 @@ export default function CodeEditor() {
               })}
             </AnimatePresence>
           </div>
+        </div>
+      </div>
+
+      {/* AI Code Agent bar */}
+      <div className="flex-shrink-0 px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(0,240,255,0.08)" }}>
+        <div className="flex items-center gap-2">
+          <input
+            value={aiPrompt}
+            onChange={e => setAiPrompt(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askCortex(); } }}
+            placeholder="Ask Cortex to write code…"
+            disabled={aiLoading}
+            className="w-full bg-[#050B14] border border-cyan-500/20 text-white p-3 rounded-xl focus:outline-none focus:border-cyan-400 font-mono text-sm placeholder:text-white/25 transition-colors"
+          />
+          <button
+            onClick={askCortex}
+            disabled={aiLoading || !aiPrompt.trim()}
+            className="flex-shrink-0 flex items-center justify-center rounded-xl transition-all"
+            style={{
+              width: 40, height: 40,
+              background: aiLoading ? "rgba(0,240,255,0.05)" : "rgba(0,240,255,0.12)",
+              border: "1px solid rgba(0,240,255,0.25)",
+              color: "#00F0FF", cursor: aiLoading || !aiPrompt.trim() ? "not-allowed" : "pointer",
+              opacity: aiPrompt.trim() || aiLoading ? 1 : 0.4,
+            }}
+          >
+            {aiLoading
+              ? <i className="fa-solid fa-spinner fa-spin text-xs" />
+              : <i className="fa-solid fa-bolt text-xs" />
+            }
+          </button>
         </div>
       </div>
     </div>
