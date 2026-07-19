@@ -1,0 +1,36 @@
+# ============================================================================
+# OMNIVERSEOS: MASTER ENGINEERING DIRECTIVE (PHASE 35 - THE AGGRESSIVE PURGE)
+# ============================================================================
+Role: Principal Full-Stack OS Architect & Lead UI/UX Engineer
+Repository: https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM
+
+The previous commit was a failure. The "AI Command Center" is STILL on the screen, the Widget Store is STILL vibrating, Chrono Atmo is STILL having layout seizures, and the default boot state is STILL not pinning the widgets. We are going to aggressively purge and hard-lock these components. 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# IMMEDIATE EXECUTION LOOP (DO THESE EXACTLY):
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. KILL THE REAL AI COMMAND CENTER:
+   - Ripping out `AIDock` did not work. The giant widget on the left literally says "AI COMMAND CENTER" and "CORTEX TIME CORE" in its UI. 
+   - SEARCH the entire `src` directory for the exact string "AI COMMAND CENTER" or "CORTEX TIME CORE". 
+   - Once you find the component rendering this (whether it's `Sidebar.js`, `CommandCenter.js`, or hardcoded in `Desktop.js`), DELETE its implementation and remove it from the DOM entirely.
+
+2. FIX THE CHRONO ATMO SEIZURE (NUCLEAR OPTION):
+   - `tabular-nums` was not enough. The varying text sizes are still triggering Framer Motion's `layout` engine every second.
+   - Open the Chrono Atmo widget component.
+   - Completely REMOVE the `layout` prop from its `<motion.div>`. It is a clock; it does not need liquid morphing. Give it a strictly fixed width (e.g., `w-[320px]`) so it stops vibrating.
+
+3. FIX THE WIDGET STORE SEIZURE:
+   - You missed some `layout` tags in the previous phase. 
+   - Open `WidgetStore.js`. Search for the word `layout` and DELETE EVERY SINGLE INSTANCE of it.
+   - Force the main Store wrapper to have strict, immutable dimensions: `w-[400px] h-[650px]`. It must not resize when items are clicked.
+
+4. FORCE THE BOOT STATE (CACHE OVERRIDE):
+   - The user's browser is ignoring `LAYOUT_VERSION` and caching an empty desktop.
+   - Go into `Desktop.js` (or wherever desktop state initializes) and inject a `useEffect` that checks if the desktop is empty on initial load. If it is empty, forcefully inject the IDs for "Cortex Living AI" and "Chrono Atmo" into the active widgets array.
+
+5. COMMIT & PUSH:
+   - `git commit -m "fix: aggressively purge AI Command Center, strip framer layouts to fix seizures, force default boot state"`
+   - Push to `main`. Do NOT run vercel build commands.
+
+Report the exact files you found the "AI COMMAND CENTER" text in and confirm all `layout` tags are stripped from the Store and Clock. Execute immediately.
