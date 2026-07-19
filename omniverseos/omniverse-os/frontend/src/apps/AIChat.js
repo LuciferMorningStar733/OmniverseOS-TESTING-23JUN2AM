@@ -351,9 +351,8 @@ const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onCl
           onClick={onClose}
           style={{
             position: "absolute", inset: 0,
-            background: "rgba(0,0,0,0.5)",
+            background: "rgba(0,0,0,0.55)",
             zIndex: 40,
-            backdropFilter: "blur(2px)",
           }}
         />
       )}
@@ -890,7 +889,7 @@ export default function AIChat() {
 
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {/* Phase 17: Hamburger button */}
           <button
             onClick={() => setShowSidebar(true)}
@@ -926,9 +925,9 @@ export default function AIChat() {
               <rect x="0" y="10"  width="15" height="2" rx="1" fill="currentColor"/>
             </svg>
           </button>
-          <div>
-            <div className="mono-label">// Cortex Online</div>
-            <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
+          <div className="min-w-0 overflow-hidden">
+            <div className="mono-label truncate">// Cortex Online</div>
+            <h2 className="font-heading text-xl font-bold truncate">AI Assistant</h2>
           </div>
         </div>
         <div className="flex items-center gap-2">
