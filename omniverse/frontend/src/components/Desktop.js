@@ -9,7 +9,6 @@ import LockScreen from "./LockScreen";
 import CommandPalette from "./CommandPalette";
 import NotificationCenter from "./NotificationCenter";
 import MissionControl from "./MissionControl";
-import AIDock from "./AIDock";
 import CortexWelcomeCard from "./CortexWelcomeCard";
 import BootScreen, { isFirstBoot } from "./BootScreen";
 import WelcomePanel from "./WelcomePanel";
@@ -418,7 +417,6 @@ export default function Desktop() {
         </div>
       )}
       <Dock />
-      {!isMobile && <AIDock />}
       <CommandPalette />
       <NotificationCenter />
       {!isMobile && (
