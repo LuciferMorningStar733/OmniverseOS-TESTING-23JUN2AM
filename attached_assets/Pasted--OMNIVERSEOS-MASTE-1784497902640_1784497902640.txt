@@ -1,0 +1,55 @@
+# ============================================================================
+# OMNIVERSEOS: MASTER ENGINEERING DIRECTIVE & SYSTEM SYNC (V5)
+# ============================================================================
+Role: Principal Full-Stack OS Architect & Lead UI/UX Engineer
+Project: OmniverseOS (A web-based, simulated desktop environment)
+Repository: https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM
+Aesthetic: "Apple 3038" / Cyberpunk (Ultra-minimalist, deep glassmorphism, cyan/magenta accents, extreme polish).
+
+You are resuming development on an established, highly customized Next.js/React codebase. The system has delicate layout constraints, custom window physics, and specific API bypasses. You must read and strictly obey all laws below before writing a single line of code.
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PART 1: WORKFLOW LAWS, AUTH, & ERROR PREVENTION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. TARGET REPOSITORY: All code must be synced, pulled, and pushed to the exact repository linked above. 
+2. GITHUB AUTHENTICATION: DO NOT ask the user to manually integrate GitHub, log in, or set up auth. Use the existing Replit Secrets for all Git CLI authentication.
+3. NO VERCEL SABOTAGE: Under NO circumstances are you to run `npm run build` or generate heavy deployment artifacts in this environment. Vercel handles the build automatically via webhook. Push raw source only.
+4. GITHUB PROTOCOL: You must interact with the codebase via standard Git CLI workflows.
+   - Always pull the latest changes from `main` to verify the current state of the code before editing.
+   - Use surgical edits. Do NOT overwrite entire files unnecessarily.
+   - Commit locally with precise semantic messages (e.g., `git commit -m "fix: apply tabular-nums to chrono widget to stop framer motion jitter"`).
+   - Push to the remote repository via CLI (`git push origin main`).
+5. PAST ERROR LEDGER (DO NOT REPEAT):
+   - Error 405: You previously routed the Code App AI to a broken endpoint. Do not change it back.
+   - Error 500: You previously routed Image Gen through the backend without API keys. It must remain a frontend bypass.
+   - Window Bleed: You previously forgot to lock drag handles to the header. Do not remove `dragHandleClassName`.
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PART 2: GLOBAL OS ARCHITECTURE & WINDOW PHYSICS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. RIGID WINDOW RESIZING: Simulated desktop windows must NEVER have `transition-all` on their wrappers. 
+2. DRAG BLEED PREVENTION: Drag handles must be strictly restricted to the window header/title bar (`dragHandleClassName="window-header"`). 
+3. BOUNDARY LOCKDOWN: Windows must be constrained to the viewport/parent bounds.
+4. ABSOLUTE SCALING: Apps inside windows must scale using `h-full w-full flex-1`. 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PART 3: THE SACRED LOGIC (DO NOT BREAK THESE EXISTING FIXES)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. IMAGE GEN APP (`ImageGen.js`): Bypasses backend. Uses `https://image.pollinations.ai/prompt/${encodedPrompt}`.
+2. CODE AI APP (`Code.js`): Uses exact backend POST route as main AI Chat.
+3. AI CHAT APP (`AIChat.js`): Hardware-accelerated `overflow-y-auto` wrapped inside an `overflow-hidden` parent.
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PART 4: IMMEDIATE OBJECTIVE — PHASE 33 (CHRONO-ATMO STABILIZATION)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The Phase 32 Framer Motion `<motion.div layout>` update was successful, but the Chrono-Atmo (Clock/Weather) widget is having layout seizures. Because font digits have varying widths, every clock tick changes the bounding box width by fractions of a pixel, constantly triggering the heavy spring layout animation.
+
+YOUR IMMEDIATE EXECUTION LOOP:
+1. Locate the Chrono/Weather widget component.
+2. TARGET THE TIME DISPLAY: Find the text rendering the massive clock digits.
+3. INJECT TABULAR NUMBERS: Add the Tailwind class `tabular-nums` and `tracking-wider` to the time text. This forces all digits to have the exact same monospace width, preventing layout shifts when numbers change.
+4. STABILIZE THE SKELETON: Wrap the time display in a `flex justify-center` container with a safe minimum width (e.g., `min-w-[120px]`) so the outer `layout` tag ignores internal data cycling.
+5. Do the same `tabular-nums` fix for any rapidly updating live metrics (like connection speed or device memory) in the other widgets if necessary.
+6. Commit the changes and push to the GitHub repository.
+
+Acknowledge your exact understanding of the Target Repository, the Replit Secrets protocol, the layout jitter cause, and state which files you are opening for Phase 33. Execute immediately.
