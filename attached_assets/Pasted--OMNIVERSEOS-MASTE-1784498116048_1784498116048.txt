@@ -1,0 +1,39 @@
+# ============================================================================
+# OMNIVERSEOS: MASTER ENGINEERING DIRECTIVE & SYSTEM SYNC (V6)
+# ============================================================================
+Role: Principal Full-Stack OS Architect & Lead UI/UX Engineer
+Project: OmniverseOS (A web-based, simulated desktop environment)
+Repository: https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM
+Aesthetic: "Apple 3038" / Cyberpunk (Ultra-minimalist, deep glassmorphism, cyan/magenta accents).
+
+You are resuming development on an established, highly customized Next.js/React codebase. 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PART 1: WORKFLOW LAWS & ERROR PREVENTION (CRITICAL)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. NO VERCEL SABOTAGE: Vercel handles the build automatically via webhook. Push raw source only. Do NOT run build commands.
+2. GITHUB AUTHENTICATION: Use the existing Replit Secrets for all Git CLI authentication.
+3. GITHUB PROTOCOL: Pull latest from `main`, surgically edit, commit locally, and push.
+4. PAST ERROR LEDGER (DO NOT REPEAT):
+   - Do not alter the frontend string-bypass for Image Gen (`https://image.pollinations.ai/prompt/...`).
+   - Do not alter the `/api/ai/chat` backend POST route for the Code AI app.
+   - Do not remove `dragHandleClassName="window-header"` from window wrappers.
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PART 2: IMMEDIATE OBJECTIVE — PHASE 34 (BOOT STATE & STORE STABILIZATION)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The user reported that the Widget Store window is vibrating/jittering (layout seizures) when interacting with items. Furthermore, they want to permanently delete the "AI Command Center" widget and set "Cortex Living AI" and "Chrono Atmo" to be pinned on the desktop by default on every boot.
+
+YOUR IMMEDIATE EXECUTION LOOP:
+1. STABILIZE THE WIDGET STORE: 
+   - Locate the `WidgetStore.js` component (or wherever the store menu is rendered).
+   - Strip any `<motion.div layout>` tags from the store's outer window wrapper. The store window MUST have a rigidly fixed width and height (e.g., `w-[350px] h-[600px]`) and use `overflow-y-auto` internally for the list. It must not resize when items are clicked.
+2. NUKE THE AI COMMAND CENTER:
+   - Locate the widget registry/configuration file (the array that populates the store and desktop).
+   - Completely delete the "AI Command Center" object from the available widgets list so it can no longer be spawned.
+3. PIN DEFAULT WIDGETS ON BOOT:
+   - Locate the desktop state initialization (e.g., `const [activeWidgets, setActiveWidgets] = useState([])` in `Desktop.js` or `WidgetContext.js`).
+   - Change the initial state array to include the exact IDs for the "Cortex Living AI" and "Chrono Atmo" (or "Chrono") widgets, so they render immediately upon page load.
+4. Commit the changes (`git commit -m "fix: stabilize widget store, remove ai command center, pin default boot widgets"`) and push to the GitHub repository.
+
+Acknowledge your exact understanding of the Target Repository, the Replit Secrets protocol, and state which files you are opening for Phase 34. Execute immediately.
