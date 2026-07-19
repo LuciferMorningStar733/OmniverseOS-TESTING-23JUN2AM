@@ -219,22 +219,25 @@ const RESIZE_HANDLES = [
   { dir: "sw", style: { bottom: 0, left: 0, width: 16, height: 16 },       cursor: "sw-resize" },
 ];
 
-function ResizeHandles({ win, updateWindow, dragEnabled }) {
+function ResizeHandles({ win, updateWindow, dragEnabled, onResizeStart, onResizeEnd, viewport, topPad, bottomPad }) {
   const resizeRef = useRef(null);
   const [activeDir, setActiveDir] = useState(null);
 
   const startResize = useCallback((e, dir) => {
     e.preventDefault();
     e.stopPropagation();
+    /* Stop framer-motion's native pointer listeners from starting a drag */
+    e.nativeEvent?.stopImmediatePropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     setActiveDir(dir);
+    onResizeStart?.();
     resizeRef.current = {
       dir,
       startX: e.clientX, startY: e.clientY,
       startW: win.w, startH: win.h,
       startWinX: win.x, startWinY: win.y,
     };
-  }, [win]);
+  }, [win, onResizeStart]);
 
   const onPointerMove = useCallback((e, dir) => {
     if (!resizeRef.current || resizeRef.current.dir !== dir) return;
@@ -248,13 +251,20 @@ function ResizeHandles({ win, updateWindow, dragEnabled }) {
     if (dir.includes("w")) { newW = Math.max(MIN_W, startW - dx); newX = startWinX + startW - newW; }
     if (dir.includes("n")) { newH = Math.max(MIN_H, startH - dy); newY = startWinY + startH - newH; }
 
+    /* Clamp to viewport so the window can never be dragged fully off-screen */
+    newX = Math.max(0, Math.min(viewport.w - MIN_W, newX));
+    newY = Math.max(topPad, Math.min(viewport.h - bottomPad - MIN_H, newY));
+    newW = Math.min(newW, viewport.w - newX);
+    newH = Math.min(newH, viewport.h - topPad - bottomPad - (newY - topPad));
+
     updateWindow(win.id, { w: Math.round(newW), h: Math.round(newH), x: Math.round(newX), y: Math.round(newY) });
-  }, [win.id, updateWindow]);
+  }, [win.id, updateWindow, viewport, topPad, bottomPad]);
 
   const endResize = useCallback(() => {
     resizeRef.current = null;
     setActiveDir(null);
-  }, []);
+    onResizeEnd?.();
+  }, [onResizeEnd]);
 
   if (!dragEnabled) return null;
 
@@ -321,7 +331,8 @@ export default function Window({ win, children }) {
   const { isMobile, isTablet, isTouch } = useBreakpoint();
 
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging,  setIsDragging]  = useState(false);
+  const [isResizing,  setIsResizing]  = useState(false);
 
   useEffect(() => {
     let timer;
@@ -381,10 +392,10 @@ export default function Window({ win, children }) {
      min visible x = -(win.w - KEEP_VISIBLE)  →  offset_left  = -(win.w - KEEP_VISIBLE) - win.x
      max visible x = viewport.w - KEEP_VISIBLE →  offset_right = viewport.w - KEEP_VISIBLE - win.x  */
   const dragConstraints = dragEnabled ? {
-    top:    topPad - win.y,
-    left:   KEEP_VISIBLE - win.w - win.x,
-    right:  viewport.w - KEEP_VISIBLE - win.x,
-    bottom: viewport.h - bottomPad - win.y - 40,
+    top:    topPad - win.y,                          // hard top: can't go above topbar
+    left:   -(win.x),                                // hard left: can't go past x=0
+    right:  viewport.w - win.w - win.x,              // hard right: right edge stays inside viewport
+    bottom: viewport.h - bottomPad - win.h - win.y,  // hard bottom: bottom edge stays inside viewport
   } : false;
 
   /* ══ TOUCH (MOBILE + TABLET) — fullscreen window ══════════════════════════ */
@@ -467,7 +478,7 @@ export default function Window({ win, children }) {
         width:  { type: "tween", duration: 0 },
         height: { type: "tween", duration: 0 },
       }}
-      drag={dragEnabled}
+      drag={dragEnabled && !isResizing}
       dragHandle={dragEnabled ? ".window-handle" : undefined}
       dragMomentum={false}
       dragElastic={0}
@@ -614,7 +625,16 @@ export default function Window({ win, children }) {
       </div>
 
       {/* Resize handles */}
-      <ResizeHandles win={win} updateWindow={updateWindow} dragEnabled={dragEnabled} />
+      <ResizeHandles
+        win={win}
+        updateWindow={updateWindow}
+        dragEnabled={dragEnabled}
+        onResizeStart={() => setIsResizing(true)}
+        onResizeEnd={() => setIsResizing(false)}
+        viewport={viewport}
+        topPad={topPad}
+        bottomPad={bottomPad}
+      />
 
       {/* Active accent top glow line */}
       <AnimatePresence>
