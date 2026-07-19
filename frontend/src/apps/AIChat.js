@@ -1721,7 +1721,7 @@ export default function AIChat() {
       )}
 
       {/* Main chat area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
 
       {/* Toggle sidebar button (in header) */}
       <CortexClarificationModal
@@ -1905,7 +1905,7 @@ export default function AIChat() {
       {/* Messages */}
       <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
       {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
         <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", padding: showScrollBottom ? "8px 14px 52px" : "8px 14px 4px", gap: 10 }}>
         {messages.length > 0 && <div style={{ flex: 1 }} />}
