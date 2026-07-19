@@ -1903,7 +1903,7 @@ export default function AIChat() {
       </div>
 
       {/* Messages */}
-      <div data-testid="ai-chat-messages" className="relative flex-1 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
+      <div data-testid="ai-chat-messages" className="relative flex-1 min-h-0 overflow-hidden flex flex-col" style={{ background: "#030509" }}>
       {/* Phase 11: Unified scrollable timeline — messages + active debate in one continuous feed */}
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
         {/* Inner flex column: spacer grows to push messages to bottom when there are few */}
