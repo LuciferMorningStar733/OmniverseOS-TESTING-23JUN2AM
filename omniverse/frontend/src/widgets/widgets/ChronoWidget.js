@@ -309,18 +309,21 @@ export default function ChronoWidget({ item }) {
       {/* TIME section */}
       <div style={{ padding: timePad, zIndex: 1, flexShrink: 0, position: "relative" }}>
         <Brackets color="#00E5FF" size={8} opacity={0.3} />
+        {/* Stable-width wrapper prevents layout jitter when digits change width */}
         <div onClick={toggle24h} title={is24h ? "Switch to 12h" : "Switch to 24h"}
-          style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 2, cursor: "pointer", paddingTop: compact ? 2 : 4 }}>
-          <span style={{ fontFamily: "monospace", fontWeight: 800, fontSize: clockFontSize, color: "#EFFFFF", textShadow: "0 0 20px rgba(0,229,255,0.6), 0 0 40px rgba(0,229,255,0.2)", letterSpacing: "-0.02em", lineHeight: 1 }}>
-            {hh}:{min}
-          </span>
-          {!is24h && <span style={{ fontFamily: "monospace", fontSize: 10, color: "rgba(0,229,255,0.5)", marginLeft: 3, fontWeight: 700 }}>{ampm}</span>}
+          style={{ display: "flex", justifyContent: "center", cursor: "pointer", paddingTop: compact ? 2 : 4 }}>
+          <div className="flex justify-center items-baseline min-w-[120px] gap-0.5">
+            <span className="tabular-nums tracking-wider" style={{ fontFamily: "monospace", fontWeight: 800, fontSize: clockFontSize, color: "#EFFFFF", textShadow: "0 0 20px rgba(0,229,255,0.6), 0 0 40px rgba(0,229,255,0.2)", letterSpacing: "0.02em", lineHeight: 1 }}>
+              {hh}:{min}
+            </span>
+            {!is24h && <span style={{ fontFamily: "monospace", fontSize: 10, color: "rgba(0,229,255,0.5)", marginLeft: 3, fontWeight: 700 }}>{ampm}</span>}
+          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, marginTop: compact ? 3 : 4, paddingLeft: 4 }}>
           <div style={{ position: "relative", width: arcSize, height: arcSize, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <SecondsArc seconds={ss} size={arcSize} />
-            <span style={{ fontFamily: "monospace", fontSize: secFontSize, fontWeight: 700, color: "rgba(99,246,255,0.7)", zIndex: 1 }}>:{sec}</span>
+            <span className="tabular-nums" style={{ fontFamily: "monospace", fontSize: secFontSize, fontWeight: 700, color: "rgba(99,246,255,0.7)", zIndex: 1 }}>:{sec}</span>
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ height: 2, background: "rgba(0,229,255,0.08)", borderRadius: 2, marginBottom: compact ? 4 : 6, overflow: "hidden" }}>
@@ -384,7 +387,7 @@ export default function ChronoWidget({ item }) {
                     <div style={{ position:"absolute", inset:-4, borderRadius:"50%", border:`1px solid ${cond.color}30`, animation:"chrono-spin 8s linear infinite", pointerEvents:"none" }} />
                   </div>
                   <div>
-                    <div style={{ fontFamily:"monospace", fontWeight:800, fontSize: compact ? 22 : 26, color:"#fff", textShadow:`0 0 16px ${cond.color}60`, lineHeight:1 }}>
+                    <div className="tabular-nums" style={{ fontFamily:"monospace", fontWeight:800, fontSize: compact ? 22 : 26, color:"#fff", textShadow:`0 0 16px ${cond.color}60`, lineHeight:1 }}>
                       {weather.temp}°<span style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontWeight:400, marginLeft:2 }}>C</span>
                     </div>
                     <div style={{ fontFamily:"monospace", fontSize:9, color:"rgba(255,255,255,0.5)", marginTop:2 }}>
@@ -399,7 +402,7 @@ export default function ChronoWidget({ item }) {
                   {[["FEELS",`${weather.feels}°C`,"#00E5FF"],["WIND",`${weather.wind}km/h`,"#39FF14"],["HUMID",weather.humidity!=null?`${weather.humidity}%`:"N/A","#A78BFA"]].map(([label,val,col]) => (
                     <div key={label} style={{ textAlign:"center" }}>
                       <div style={{ fontFamily:"monospace", fontSize:7, color:"rgba(255,255,255,0.25)", letterSpacing:"0.12em" }}>{label}</div>
-                      <div style={{ fontFamily:"monospace", fontSize: compact ? 10 : 11, fontWeight:700, color:col, marginTop:1 }}>{val}</div>
+                      <div className="tabular-nums" style={{ fontFamily:"monospace", fontSize: compact ? 10 : 11, fontWeight:700, color:col, marginTop:1 }}>{val}</div>
                     </div>
                   ))}
                 </div>
