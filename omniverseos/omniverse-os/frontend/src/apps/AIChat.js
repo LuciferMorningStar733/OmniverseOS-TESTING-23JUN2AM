@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
+import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider, webSearchApi } from "../lib/api";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
 import { trackEvent } from "../lib/activityTimeline";
@@ -152,12 +152,15 @@ const StatusPanel = React.memo(function StatusPanel({ status }) {
     generating:  "CORTEX ONLINE",
     unavailable: "NODE FAILOVER",
     switching:   "REROUTING",
+    searching:   "LIVE WEB SCAN",
   }[status.stage] || "CORTEX ONLINE";
 
   const dotColor = isFailover
     ? "bg-yellow-400"
     : isGenerating
     ? "bg-emerald-400"
+    : status.stage === "searching"
+    ? "bg-purple-400"
     : "bg-[#00F0FF]";
 
   return (
@@ -169,7 +172,7 @@ const StatusPanel = React.memo(function StatusPanel({ status }) {
             {headerLabel}
           </span>
         </div>
-        <div className={`pl-3 ${isFailover ? "text-yellow-300/80" : "text-[#00F0FF]/80"}`}>
+        <div className={`pl-3 ${isFailover ? "text-yellow-300/80" : status.stage === "searching" ? "text-purple-300/80" : "text-[#00F0FF]/80"}`}>
           {status.text}
         </div>
         {status.model && status.stage !== "generating" && (
@@ -336,6 +339,228 @@ function formatMessageTime(ts) {
   return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
+/* ── History Sidebar ─────────────────────────────────────────────────────────── */
+const HistorySidebar = React.memo(function HistorySidebar({ messages, open, onClose }) {
+  const userMessages = messages.filter((m) => m.role === "user" && m.content && !m.error);
+
+  return (
+    <>
+      {/* Backdrop */}
+      {open && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 40,
+            backdropFilter: "blur(2px)",
+          }}
+        />
+      )}
+
+      {/* Sidebar panel */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: 260,
+          background: "#050B14",
+          borderRight: "1px solid rgba(0,240,255,0.18)",
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          transform: open ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.22s cubic-bezier(0.4,0,0.2,1)",
+          boxShadow: open ? "4px 0 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,240,255,0.06)" : "none",
+        }}
+      >
+        {/* Sidebar header */}
+        <div
+          style={{
+            padding: "14px 16px 12px",
+            borderBottom: "1px solid rgba(0,240,255,0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9,
+                color: "rgba(0,240,255,0.5)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                marginBottom: 2,
+              }}
+            >
+              // session log
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>
+              Recent Chats
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 6,
+              color: "rgba(255,255,255,0.4)",
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "rgba(0,240,255,0.35)";
+              e.currentTarget.style.color = "#00F0FF";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+              e.currentTarget.style.color = "rgba(255,255,255,0.4)";
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Current session label */}
+        <div
+          style={{
+            padding: "8px 16px",
+            background: "rgba(0,240,255,0.06)",
+            borderBottom: "1px solid rgba(0,240,255,0.08)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "#00F0FF",
+              display: "inline-block",
+              boxShadow: "0 0 6px rgba(0,240,255,0.8)",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: "#00F0FF",
+              fontWeight: 600,
+            }}
+          >
+            Active Session
+          </span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: 9,
+              fontFamily: "monospace",
+              color: "rgba(0,240,255,0.4)",
+              background: "rgba(0,240,255,0.08)",
+              border: "1px solid rgba(0,240,255,0.2)",
+              borderRadius: 3,
+              padding: "1px 5px",
+            }}
+          >
+            {userMessages.length} msgs
+          </span>
+        </div>
+
+        {/* Messages list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+          {userMessages.length === 0 ? (
+            <div
+              style={{
+                padding: "24px 16px",
+                textAlign: "center",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11,
+                color: "rgba(255,255,255,0.25)",
+              }}
+            >
+              No messages yet.<br />
+              Start chatting with Cortex.
+            </div>
+          ) : (
+            [...userMessages].reverse().map((m, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: "8px 16px",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  cursor: "default",
+                  transition: "background 0.12s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.04)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11,
+                    color: "rgba(226,232,240,0.85)",
+                    lineHeight: 1.5,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: "100%",
+                  }}
+                  title={m.content}
+                >
+                  {m.content}
+                </div>
+                {m.ts && (
+                  <div
+                    style={{
+                      fontSize: 9,
+                      fontFamily: "monospace",
+                      color: "rgba(255,255,255,0.25)",
+                      marginTop: 3,
+                    }}
+                  >
+                    {formatMessageTime(m.ts)}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "10px 16px",
+            borderTop: "1px solid rgba(0,240,255,0.08)",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9,
+            color: "rgba(255,255,255,0.2)",
+            letterSpacing: "0.06em",
+            textAlign: "center",
+          }}
+        >
+          OMNIVERSEOS · CORTEX SESSION
+        </div>
+      </div>
+    </>
+  );
+});
+
 /* ── Main component ──────────────────────────────────────────────────────────── */
 export default function AIChat() {
   const [messages, setMessages]             = useState([]);
@@ -350,6 +575,11 @@ export default function AIChat() {
   const [hoveredMsgIdx, setHoveredMsgIdx]   = useState(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
+  // ── Phase 16: Live Web toggle ─────────────────────────────────────────────
+  const [liveWebActive, setLiveWebActive]   = useState(false);
+  // ── Phase 17: History sidebar ─────────────────────────────────────────────
+  const [showSidebar, setShowSidebar]       = useState(false);
+
   const endRef             = useRef();
   const scrollContainerRef = useRef(null);
   const mountedRef = useRef(true);
@@ -372,7 +602,6 @@ export default function AIChat() {
   const sessionCtxRef = useRef({ lastUrl: null, lastApp: null });
 
   // ── Context floor: messages before this index are excluded from history ──────
-  // Using a ref so send() always reads the latest value without re-creating itself.
   const contextFloorRef = useRef(0);
   const [contextFloor, setContextFloor] = useState(0);
 
@@ -460,7 +689,6 @@ export default function AIChat() {
   }, []);
 
   // ── Geolocation: fetch once on mount, cache 24h in localStorage ─────────────
-  // Gives Cortex location context so answers are region-aware (e.g. India not Brazil)
   useEffect(() => {
     if (!navigator.geolocation) return;
     const LOCATION_KEY = "cortex_user_location";
@@ -495,7 +723,7 @@ export default function AIChat() {
     );
   }, []);
 
-  // ── Scroll position tracker — shows "jump to bottom" when scrolled up ────────
+  // ── Scroll position tracker ──────────────────────────────────────────────────
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -507,7 +735,7 @@ export default function AIChat() {
     return () => container.removeEventListener("scroll", onScroll);
   }, []);
 
-  // ── Auto-scroll to bottom when new content arrives (unless user scrolled up) ──
+  // ── Auto-scroll to bottom ────────────────────────────────────────────────────
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -523,8 +751,7 @@ export default function AIChat() {
 
     const text = rawText.trim();
 
-    // ── Ambiguity detection — runs before any LLM call ──────────────────────
-    // Uses current conversation history to auto-resolve when context is clear.
+    // ── Ambiguity detection ──────────────────────────────────────────────
     const ambiguityResult = detectAmbiguity(text, messagesRef.current);
     if (ambiguityResult.needs_clarification) {
       setPendingMessage(text);
@@ -559,9 +786,6 @@ export default function AIChat() {
     }));
 
     const actionSummary = buildActionSummary(actionResults);
-    const messageForAI  = actionSummary
-      ? `${text}\n\n[OS: ${actionSummary}. Briefly acknowledge in your own voice — natural, not robotic.]`
-      : text;
 
     const msgTs = Date.now();
     setMessages((prev) => [
@@ -577,20 +801,50 @@ export default function AIChat() {
 
     try {
       const preferredProvider = getPreferredProvider();
-      // ── Fetch relevant Cortex memories for this message ──────────────
+
+      // ── Phase 16: Live Web — silently fetch web context before AI call ──
+      let webContext = "";
+      if (liveWebActive) {
+        try {
+          setStreamStatus({ stage: "searching", text: "Scanning live web..." });
+          const searchResult = await webSearchApi(text);
+          if (searchResult?.context) {
+            webContext = searchResult.context;
+          }
+        } catch { /* web search is best-effort — never block the AI call */ }
+        if (mountedRef.current && !ctrl.signal.aborted) {
+          setStreamStatus(null);
+        }
+      }
+
+      // Build final message for AI — inject web data silently if available
+      const messageForAI = (() => {
+        let base = text;
+        if (actionSummary) {
+          base += `\n\n[OS: ${actionSummary}. Briefly acknowledge in your own voice — natural, not robotic.]`;
+        }
+        if (webContext) {
+          base = `Here is live web data retrieved for this query:\n\n${webContext}\n\nNow answer the user using this context where relevant:\n\n${base}`;
+        }
+        return base;
+      })();
+
+      // ── Fetch relevant Cortex memories ───────────────────────────────────
       let fetchedMemories = [];
       try {
         fetchedMemories = await memoryApi.relevant(text, 6);
         if (mountedRef.current) setRelevantMemories(fetchedMemories);
       } catch { /* non-blocking */ }
 
-      // ── Cortex Unification: build live OS context system prompt ─────────
-      // Aggregates active app, browser URL, recent apps/URLs, last session,
-      // memory state — gives the LLM real awareness of the user's workspace.
+      // ── Build live OS context system prompt ──────────────────────────────
       let systemPrompt = buildCortexSystemPrompt({
         windows: windowsRef.current,
         activeId: activeIdRef.current,
       });
+
+      if (liveWebActive) {
+        systemPrompt += "\n\n[LIVE WEB MODE: You have been given real-time web data above. Cite it naturally when answering. Do not say you cannot access the internet.]";
+      }
 
       // Inject relevant memories into system prompt
       if (fetchedMemories.length > 0) {
@@ -600,8 +854,7 @@ export default function AIChat() {
           systemPrompt += `${i + 1}. [${m.category}] ${m.content}\n`;
         });
       }
-      // Build conversation history starting from the context floor (respects
-      // "Clear context" — messages before the floor are excluded).
+
       const history = messagesRef.current
         .slice(contextFloorRef.current)
         .filter((m) => m.content && !m.pending && !m.error)
@@ -643,7 +896,6 @@ export default function AIChat() {
       }
 
       // ── Fire-and-forget memory extraction ───────────────────────────────
-      // Get the full assistant response from messages state for extraction
       const lastAssistantContent = (() => {
         const msgs = messagesRef.current;
         for (let i = msgs.length - 1; i >= 0; i--) {
@@ -685,18 +937,15 @@ export default function AIChat() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, model]);
+  }, [input, model, liveWebActive]);
 
   useEffect(() => { sendRef.current = send; }, [send]);
 
-  // ── Clarification modal: user selected an option ──────────────────────────
+  // ── Clarification modal ───────────────────────────────────────────────────
   const handleClarificationSelect = useCallback((option) => {
     setClarification(null);
     if (!pendingMessage) return;
-    // Build an enriched message that includes the user's clarification so the
-    // LLM answers the right thing, while showing the original text in the chat.
     const enrichedText = `${pendingMessage}\n[Clarification: ${option.label}]`;
-    // Dispatch through send() bypassing ambiguity check (clarification resolved)
     sendRef.current?.(enrichedText);
     setPendingMessage("");
   }, [pendingMessage]);
@@ -705,7 +954,6 @@ export default function AIChat() {
     const handler = (e) => {
       const text = e.detail?.text;
       if (!text?.trim()) return;
-      // Cortex unification: record dispatched prompt in timeline + memory.
       trackEvent("voice_command", { text: text.slice(0, 120) });
       rememberTranscript(text);
       sendRef.current?.(text);
@@ -725,14 +973,21 @@ export default function AIChat() {
   })();
 
   return (
-    <div className="flex flex-col h-full text-white" data-testid="ai-chat-app">
-      {/* Cortex clarification modal — shown before ambiguous requests reach the LLM */}
+    <div className="flex flex-col h-full text-white relative overflow-hidden" data-testid="ai-chat-app">
+      {/* Cortex clarification modal */}
       <CortexClarificationModal
         open={!!clarification}
         question={clarification?.question}
         options={clarification?.options || []}
         onSelect={handleClarificationSelect}
         onClose={() => { setClarification(null); setPendingMessage(""); }}
+      />
+
+      {/* ── Phase 17: History Sidebar ──────────────────────────────────────── */}
+      <HistorySidebar
+        messages={messages}
+        open={showSidebar}
+        onClose={() => setShowSidebar(false)}
       />
 
       <style>{`
@@ -762,9 +1017,50 @@ export default function AIChat() {
 
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 flex-shrink-0">
-        <div>
-          <div className="mono-label">// Cortex Online</div>
-          <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
+        <div className="flex items-center gap-3">
+          {/* ── Phase 17: Hamburger menu button ─────────────────────────────── */}
+          <button
+            onClick={() => setShowSidebar(true)}
+            title="Chat history"
+            style={{
+              background: showSidebar ? "rgba(0,240,255,0.08)" : "rgba(255,255,255,0.04)",
+              border: showSidebar ? "1px solid rgba(0,240,255,0.35)" : "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 8,
+              width: 34,
+              height: 34,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.18s ease",
+              color: showSidebar ? "#00F0FF" : "rgba(255,255,255,0.70)",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "rgba(0,240,255,0.45)";
+              e.currentTarget.style.background = "rgba(0,240,255,0.08)";
+              e.currentTarget.style.color = "#00F0FF";
+            }}
+            onMouseLeave={(e) => {
+              if (!showSidebar) {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+                e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                e.currentTarget.style.color = "rgba(255,255,255,0.70)";
+              }
+            }}
+          >
+            {/* Premium hamburger SVG icon */}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="3.5" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+              <rect x="2" y="7.25" width="9" height="1.5" rx="0.75" fill="currentColor"/>
+              <rect x="2" y="11" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+            </svg>
+          </button>
+
+          <div>
+            <div className="mono-label">// Cortex Online</div>
+            <h2 className="font-heading text-xl font-bold">AI Assistant</h2>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
@@ -833,7 +1129,6 @@ export default function AIChat() {
                   className="group relative glass-light rounded-2xl"
                   style={{ padding: "12px 16px 10px" }}
                 >
-                  {/* Typing indicator — three animated dots when waiting for first token */}
                   {m.pending && !m.content && i === messages.length - 1 && (
                     <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 0" }}>
                       {[0, 1, 2].map((di) => (
@@ -850,7 +1145,6 @@ export default function AIChat() {
                     </div>
                   )}
 
-                  {/* Streaming cursor — blinking block appended during streaming */}
                   {m.pending && m.content && i === messages.length - 1 && (
                     <span style={{
                       display: "inline-block",
@@ -863,7 +1157,6 @@ export default function AIChat() {
                     }} />
                   )}
 
-                  {/* Rendered markdown */}
                   {(m.content || (!m.pending)) && (
                     <MarkdownRenderer
                       content={m.content}
@@ -871,14 +1164,12 @@ export default function AIChat() {
                     />
                   )}
 
-                  {/* Copy button row — reveals on message hover via CSS .copy-reveal-row */}
                   {m.content && !m.pending && (
                     <div className="copy-reveal-row flex justify-end mt-2 -mb-1">
                       <CopyButton text={m.content} />
                     </div>
                   )}
                 </div>
-                {/* Timestamp — fades in on hover */}
                 {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, paddingLeft: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
                     {formatMessageTime(m.ts)}
@@ -900,7 +1191,6 @@ export default function AIChat() {
                 >
                   {m.content}
                 </div>
-                {/* Timestamp — fades in on hover */}
                 {hoveredMsgIdx === i && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, textAlign: "right", paddingRight: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
                     {formatMessageTime(m.ts)}
@@ -916,7 +1206,7 @@ export default function AIChat() {
         <div ref={endRef} />
       </div>
 
-      {/* Jump to bottom — floats inside messages area when user scrolls up */}
+      {/* Jump to bottom */}
       {showScrollBottom && (
         <button
           onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: "smooth" })}
@@ -953,7 +1243,7 @@ export default function AIChat() {
       )}
       </div>
 
-      {/* 🧠 Relevant memory indicator */}
+      {/* Relevant memory indicator */}
       {relevantMemories.length > 0 && (
         <div style={{ position: "relative" }}>
           <button
@@ -997,7 +1287,7 @@ export default function AIChat() {
         </div>
       )}
 
-      {/* Context memory bar — shows how many messages Gemini has as context + user location */}
+      {/* Context memory bar */}
       {contextCount > 0 && (
         <div
           style={{
@@ -1086,6 +1376,51 @@ export default function AIChat() {
           <i className={`fa-solid ${isRecording ? "fa-stop" : "fa-microphone"} text-sm`} />
         </button>
 
+        {/* ── Phase 16: Live Web toggle button ──────────────────────────────── */}
+        <button
+          onClick={() => {
+            setLiveWebActive((v) => {
+              const next = !v;
+              toast(next ? "Live Web enabled — Cortex will scan the web before answering" : "Live Web disabled", {
+                duration: 2000,
+                style: { fontSize: 12, fontFamily: "'JetBrains Mono', monospace" },
+              });
+              return next;
+            });
+          }}
+          disabled={streaming}
+          title={liveWebActive ? "Live Web is ON — click to disable" : "Enable Live Web search"}
+          className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200"
+          style={{
+            background: liveWebActive ? "rgba(147,51,234,0.18)" : "rgba(255,255,255,0.05)",
+            border: liveWebActive ? "1px solid rgba(147,51,234,0.55)" : "1px solid rgba(255,255,255,0.10)",
+            color: liveWebActive ? "#c084fc" : "#64748B",
+            boxShadow: liveWebActive ? "0 0 14px rgba(147,51,234,0.3)" : "none",
+            opacity: streaming ? 0.5 : 1,
+            cursor: streaming ? "not-allowed" : "pointer",
+          }}
+          onMouseEnter={(e) => {
+            if (!streaming && !liveWebActive) {
+              e.currentTarget.style.borderColor = "rgba(147,51,234,0.35)";
+              e.currentTarget.style.color = "#a78bfa";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!liveWebActive) {
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
+              e.currentTarget.style.color = "#64748B";
+            }
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M7.5 1.5C7.5 1.5 5 4 5 7.5C5 11 7.5 13.5 7.5 13.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <path d="M7.5 1.5C7.5 1.5 10 4 10 7.5C10 11 7.5 13.5 7.5 13.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <path d="M1.5 7.5h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <path d="M2 5h11M2 10h11" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeOpacity="0.6"/>
+          </svg>
+        </button>
+
         <input
           data-testid="chat-input"
           value={input}
@@ -1097,9 +1432,21 @@ export default function AIChat() {
               send();
             }
           }}
-          placeholder={isRecording ? "Listening…" : "Message the cortex…"}
+          placeholder={
+            isRecording
+              ? "Listening…"
+              : liveWebActive
+              ? "Ask anything — Cortex will search the web…"
+              : "Message the cortex…"
+          }
           className="input-cyber flex-1 transition-all duration-200"
-          style={isRecording ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" } : {}}
+          style={
+            isRecording
+              ? { borderColor: "rgba(255,0,60,0.4)", background: "rgba(255,0,60,0.04)" }
+              : liveWebActive
+              ? { borderColor: "rgba(147,51,234,0.4)", background: "rgba(147,51,234,0.04)" }
+              : {}
+          }
         />
 
         <button

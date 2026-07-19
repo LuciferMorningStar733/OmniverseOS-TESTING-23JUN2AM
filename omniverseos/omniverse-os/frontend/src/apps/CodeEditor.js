@@ -1,6 +1,7 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { aiApi } from "../lib/api";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    CyberSelect — themed Radix Select for the OS aesthetic
@@ -163,6 +164,17 @@ export default function CodeEditor() {
   const [running, setRunning] = useState(false);
   const textareaRef           = useRef(null);
 
+  // ── Phase 18: Agentic AI command bar state ────────────────────────────────
+  const [aiPrompt, setAiPrompt]     = useState("");
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiStatus, setAiStatus]     = useState(null); // "thinking" | "streaming" | null
+  const aiAbortRef                  = useRef(null);
+  const mountedRef                  = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; aiAbortRef.current?.abort(); };
+  }, []);
+
   const activeLang = LANGS.find((l) => l.value === lang);
 
   const handleLangChange = useCallback((next) => {
@@ -220,6 +232,76 @@ export default function CodeEditor() {
     }
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) run();
   }, [code, run]);
+
+  // ── Phase 18: AI command bar — send prompt to Cortex, stream code into editor ──
+  const handleAiGenerate = useCallback(async () => {
+    if (!aiPrompt.trim() || aiLoading) return;
+
+    aiAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    aiAbortRef.current = ctrl;
+
+    setAiLoading(true);
+    setAiStatus("thinking");
+    setCode(""); // clear editor while streaming
+
+    const systemPrompt =
+      "You are an expert developer. The user will ask for a script, game, or piece of code. " +
+      "Output ONLY the raw code — no markdown formatting, no triple backticks, no explanations, no comments about what you're doing. " +
+      "Just the raw, executable code the user can immediately run.";
+
+    let streamedCode = "";
+
+    try {
+      await aiApi.chatStreamResilient(
+        {
+          session_id: "code_editor",
+          message: aiPrompt.trim(),
+          provider: "gemini",
+          model: "gemini-2.5-flash",
+          preferred_provider: "auto",
+          system: systemPrompt,
+          history: [],
+        },
+        (delta) => {
+          if (!mountedRef.current || ctrl.signal.aborted) return;
+          streamedCode += delta;
+          setAiStatus("streaming");
+          // Strip any markdown fences that might slip through
+          const clean = streamedCode
+            .replace(/^```[a-z]*\n?/gm, "")
+            .replace(/```$/gm, "")
+            .trimStart();
+          setCode(clean);
+        },
+        null,
+        ctrl.signal,
+        null,
+      );
+    } catch (err) {
+      if (err?.name !== "AbortError" && mountedRef.current) {
+        setCode(`// Error: ${err?.message || "AI generation failed. Please try again."}`);
+      }
+    } finally {
+      if (mountedRef.current) {
+        setAiLoading(false);
+        setAiStatus(null);
+        setAiPrompt("");
+      }
+    }
+  }, [aiPrompt, aiLoading]);
+
+  const handleAiKeyDown = useCallback((e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAiGenerate();
+    }
+    if (e.key === "Escape" && aiLoading) {
+      aiAbortRef.current?.abort();
+      setAiLoading(false);
+      setAiStatus(null);
+    }
+  }, [handleAiGenerate, aiLoading]);
 
   return (
     <div className="flex flex-col h-full text-white" data-testid="code-app">
@@ -281,6 +363,35 @@ export default function CodeEditor() {
 
         {/* Code textarea */}
         <div className="relative overflow-hidden">
+          {/* Streaming indicator overlay */}
+          {aiStatus === "streaming" && (
+            <div style={{
+              position: "absolute",
+              top: 8,
+              right: 10,
+              zIndex: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "3px 8px",
+              background: "rgba(0,240,255,0.08)",
+              border: "1px solid rgba(0,240,255,0.3)",
+              borderRadius: 6,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 9,
+              color: "#00F0FF",
+              letterSpacing: "0.08em",
+              animation: "fadeSlideUp 0.15s ease",
+            }}>
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: "#00F0FF",
+                display: "inline-block",
+                animation: "pulse 1s ease-in-out infinite",
+              }} />
+              CORTEX WRITING
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             data-testid="code-input"
@@ -337,6 +448,142 @@ export default function CodeEditor() {
             })}
           </AnimatePresence>
         </div>
+      </div>
+
+      {/* ── Phase 18: Agentic AI Command Bar ─────────────────────────────────── */}
+      <div
+        style={{
+          borderTop: "1px solid rgba(0,240,255,0.15)",
+          background: "rgba(5,11,20,0.95)",
+          padding: "8px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexShrink: 0,
+        }}
+      >
+        {/* Cortex icon */}
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: aiLoading ? "rgba(0,240,255,0.12)" : "rgba(0,240,255,0.06)",
+            border: aiLoading ? "1px solid rgba(0,240,255,0.45)" : "1px solid rgba(0,240,255,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            transition: "all 0.2s",
+            boxShadow: aiLoading ? "0 0 12px rgba(0,240,255,0.25)" : "none",
+          }}
+        >
+          {aiLoading ? (
+            <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 11, color: "#00F0FF" }} />
+          ) : (
+            <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 10, color: "rgba(0,240,255,0.7)" }} />
+          )}
+        </div>
+
+        {/* AI prompt input */}
+        <input
+          value={aiPrompt}
+          onChange={(e) => setAiPrompt(e.target.value)}
+          onKeyDown={handleAiKeyDown}
+          disabled={aiLoading}
+          placeholder={aiLoading
+            ? aiStatus === "thinking" ? "Cortex is thinking…" : "Cortex is writing code…"
+            : "Ask Cortex to write code… (e.g. \"make a Flappy Bird game\")"}
+          style={{
+            flex: 1,
+            background: "rgba(0,240,255,0.04)",
+            border: aiLoading
+              ? "1px solid rgba(0,240,255,0.35)"
+              : "1px solid rgba(0,240,255,0.2)",
+            borderRadius: 10,
+            padding: "7px 12px",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 12,
+            color: aiLoading ? "rgba(255,255,255,0.5)" : "#E2E8F0",
+            outline: "none",
+            transition: "border-color 0.18s, box-shadow 0.18s",
+            letterSpacing: "0.01em",
+          }}
+          onFocus={(e) => {
+            if (!aiLoading) {
+              e.currentTarget.style.borderColor = "rgba(0,240,255,0.5)";
+              e.currentTarget.style.boxShadow = "0 0 12px rgba(0,240,255,0.12)";
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = aiLoading ? "rgba(0,240,255,0.35)" : "rgba(0,240,255,0.2)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        />
+
+        {/* Generate / Cancel button */}
+        {aiLoading ? (
+          <button
+            onClick={() => { aiAbortRef.current?.abort(); setAiLoading(false); setAiStatus(null); }}
+            title="Cancel generation"
+            style={{
+              background: "rgba(255,0,60,0.10)",
+              border: "1px solid rgba(255,0,60,0.35)",
+              borderRadius: 8,
+              color: "#FF4466",
+              padding: "6px 12px",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              flexShrink: 0,
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.2)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,0,60,0.10)"; }}
+          >
+            <i className="fa-solid fa-stop text-[9px]" />
+            Stop
+          </button>
+        ) : (
+          <button
+            onClick={handleAiGenerate}
+            disabled={!aiPrompt.trim()}
+            title="Generate code with Cortex AI"
+            style={{
+              background: aiPrompt.trim() ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.03)",
+              border: aiPrompt.trim() ? "1px solid rgba(0,240,255,0.4)" : "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8,
+              color: aiPrompt.trim() ? "#00F0FF" : "rgba(255,255,255,0.25)",
+              padding: "6px 12px",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              cursor: aiPrompt.trim() ? "pointer" : "not-allowed",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              flexShrink: 0,
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={(e) => {
+              if (aiPrompt.trim()) {
+                e.currentTarget.style.background = "rgba(0,240,255,0.18)";
+                e.currentTarget.style.boxShadow = "0 0 10px rgba(0,240,255,0.2)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = aiPrompt.trim() ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.03)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <i className="fa-solid fa-bolt text-[9px]" />
+            Generate
+          </button>
+        )}
       </div>
     </div>
   );

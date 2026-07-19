@@ -1088,6 +1088,72 @@ async def analytics_summary(user=Depends(get_current_user)):
         "net": income - expense,
     }
 
+
+# ── Phase 16: Silent Live Web Search ──────────────────────────────────────
+class WebSearchReq(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+
+@api.post("/ai/web-search")
+async def ai_web_search(req: WebSearchReq, user=Depends(get_current_user)):
+    """
+    Silently fetch live web search results from DuckDuckGo and return distilled
+    text snippets for injection into the Cortex AI prompt context.
+    Never redirects the user or opens external links — stays inside the OS.
+    """
+    await rate_limit(f"websearch:{user['id']}", max_per_min=10)
+    try:
+        import html as _html
+        encoded_q = req.query.replace(" ", "+")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as http:
+            resp = await http.get(
+                f"https://html.duckduckgo.com/html/?q={encoded_q}",
+                headers=headers,
+            )
+
+        body = resp.text
+
+        # Extract result titles and snippets from DDG HTML
+        titles   = re.findall(r'class="result__a"[^>]*>(.*?)</a>', body, re.DOTALL)
+        snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', body, re.DOTALL)
+
+        results = []
+        for title, snippet in zip(titles[:5], snippets[:5]):
+            clean_title   = _html.unescape(re.sub(r'<[^>]+>', '', title).strip())
+            clean_snippet = _html.unescape(re.sub(r'<[^>]+>', '', snippet).strip())
+            if clean_snippet:
+                results.append(f"{clean_title}: {clean_snippet}")
+
+        if not results:
+            # Fallback: try DuckDuckGo Instant Answer API
+            ia_resp = await (httpx.AsyncClient(timeout=5.0)).get(
+                f"https://api.duckduckgo.com/?q={encoded_q}&format=json&no_html=1&skip_disambig=1",
+                headers={"User-Agent": "OmniverseOS/1.0"},
+            )
+            if ia_resp.is_success:
+                ia = ia_resp.json()
+                if ia.get("AbstractText"):
+                    results.append(ia["AbstractText"])
+                for topic in (ia.get("RelatedTopics") or [])[:3]:
+                    if isinstance(topic, dict) and topic.get("Text"):
+                        results.append(topic["Text"])
+
+        if not results:
+            return {"results": [], "context": "No relevant web results found for this query."}
+
+        context = "\n".join(f"[{i+1}] {r}" for i, r in enumerate(results))
+        logging.info("Web search OK | query='%s' | results=%d", req.query[:50], len(results))
+        return {"results": results, "context": context}
+
+    except Exception as exc:
+        logging.warning("Web search failed: %s", exc)
+        return {"results": [], "context": "Live web search temporarily unavailable."}
+
+
 app.include_router(api)
 
 _cors_env = os.environ.get("CORS_ORIGINS", "*")

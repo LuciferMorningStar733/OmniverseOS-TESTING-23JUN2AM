@@ -479,6 +479,24 @@ export const ttsApi = {
   },
 };
 
+// ── Phase 16: Silent Live Web Search API ──────────────────────────────────
+// Calls the backend which scrapes live web results and returns distilled text.
+// The result is injected silently into the Cortex prompt context — never shown
+// as a tab or external link. The OS never breaks frame.
+export const webSearchApi = async (query) => {
+  const token = localStorage.getItem("omniverse_token");
+  const res = await fetch(`${API}/ai/web-search`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ query: String(query).slice(0, 500) }),
+  });
+  if (!res.ok) throw new Error(`Web search HTTP ${res.status}`);
+  return res.json(); // { results: string[], context: string }
+};
+
 // ── Cortex Persistent Memory API ──────────────────────────────────────────
 export const memoryApi = {
   list: () => api.get('/memories').then(r => r.data),
