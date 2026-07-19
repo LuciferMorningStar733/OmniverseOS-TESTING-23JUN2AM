@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { aiApi } from "../lib/api";
+import React, { useState } from "react";
 import { toast } from "sonner";
 
 export default function ImageGen() {
@@ -8,21 +7,16 @@ export default function ImageGen() {
   const [history,  setHistory]  = useState([]);
   const [selected, setSelected] = useState(null);
 
-  useEffect(() => { aiApi.imageHistory().then(setHistory).catch(() => {}); }, []);
-
-  const generate = async () => {
+  const generate = () => {
     if (!prompt.trim()) return;
     setLoading(true);
-    try {
-      const res = await aiApi.image(prompt);
-      setHistory((h) => [res, ...h]);
-      setSelected(res);
-      toast.success("Generated");
-    } catch {
-      toast.error("Generation failed");
-    } finally {
-      setLoading(false);
-    }
+    const encodedPrompt = encodeURIComponent(prompt.trim());
+    const randomSeed    = Math.floor(Math.random() * 1_000_000);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${randomSeed}`;
+    const entry = { url, prompt: prompt.trim() };
+    setHistory((h) => [entry, ...h]);
+    setSelected(entry);
+    /* loading stays true until <img onLoad> fires */
   };
 
   return (
@@ -41,9 +35,11 @@ export default function ImageGen() {
         >
           {selected ? (
             <img
-              src={`data:image/png;base64,${selected.image_b64}`}
+              src={selected.url}
               alt={selected.prompt}
               className="w-full h-full object-contain"
+              onLoad={() => setLoading(false)}
+              onError={() => { setLoading(false); toast.error("Generation failed — try again"); }}
             />
           ) : loading ? (
             <div className="text-center">
@@ -94,7 +90,7 @@ export default function ImageGen() {
               }`}
             >
               <img
-                src={`data:image/png;base64,${img.image_b64}`}
+                src={img.url}
                 alt={img.prompt}
                 className="w-full h-full object-cover"
               />
