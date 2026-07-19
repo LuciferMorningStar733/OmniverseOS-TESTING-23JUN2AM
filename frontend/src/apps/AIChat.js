@@ -1677,7 +1677,7 @@ export default function AIChat() {
   }, [switchSession]);
 
   return (
-    <div className="flex h-[100dvh] text-white overflow-hidden" data-testid="ai-chat-app">
+    <div className="flex h-full w-full text-white overflow-hidden" data-testid="ai-chat-app">
       {/* Mobile history overlay — full-screen, only on <md, dismissed by tapping backdrop */}
       {showMobileHistory && (
         <div
