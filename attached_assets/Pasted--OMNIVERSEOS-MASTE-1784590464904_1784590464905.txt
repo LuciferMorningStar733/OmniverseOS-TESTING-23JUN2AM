@@ -1,0 +1,40 @@
+# ============================================================================
+# OMNIVERSEOS: MASTER ENGINEERING DIRECTIVE (PHASE 36 - THE CHRONO LOCKDOWN)
+# ============================================================================
+Role: Principal Full-Stack OS Architect & Lead UI/UX Engineer
+Repository: https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM
+
+The previous purge successfully removed the AI Command Center, but the Chrono Atmo widget is critically broken. It is either rendering empty or trapped in a violent recursive layout loop (seizures). This happens because `w-fit` and `h-fit` are fighting with the drag wrapper every time the clock ticks.
+
+We are completely revoking Framer Motion and dynamic sizing from the Chrono Atmo widget.
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# IMMEDIATE EXECUTION LOOP (DO THESE EXACTLY):
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. LOCATE THE WIDGET:
+   - Open the component file for the Chrono Atmo / Clock widget (e.g., `ChronoAtmo.js`, `ClockWidget.js`, or wherever the time/weather is rendered).
+
+2. ERADICATE FRAMER MOTION:
+   - Delete the import: `import { motion } from 'framer-motion';` from this specific file.
+   - Replace EVERY instance of `<motion.div>` with a standard `<div>`.
+   - Replace EVERY instance of `</motion.div>` with `</div>`.
+   - Delete all `layout`, `initial`, `animate`, and `transition` props from this widget's code.
+
+3. HARDCODE THE DIMENSIONS (NO FIT-CONTENT):
+   - Locate the outermost container of the Chrono Atmo widget.
+   - REMOVE `h-fit`, `w-fit`, `h-auto`, and `w-auto`.
+   - INJECT strictly rigid dimensions: `w-[320px] h-[450px]` (or similar fixed pixel values that fit the clock and weather perfectly). 
+   - Add `overflow-hidden` so nothing spills out.
+
+4. CHECK THE DRAG WRAPPER:
+   - If Chrono Atmo is wrapped in a draggable component (like `react-rnd`), ensure its size is strictly defined (e.g., `default={{ width: 320, height: 450 }}`) and NOT set to `"auto"`.
+
+5. RESTORE CONTENT:
+   - Ensure you didn't accidentally delete the actual clock/weather data rendering logic in the previous phase. The widget must display the time and weather clearly inside its new rigid box.
+
+6. COMMIT & PUSH:
+   - `git commit -m "fix: completely remove framer motion and apply strict fixed dimensions to Chrono Atmo to stop layout loop seizures"`
+   - Push to `main`. Do NOT run vercel build commands.
+
+Report confirmation once Framer Motion is fully purged from the Chrono widget and fixed pixel dimensions are applied. Execute immediately.
