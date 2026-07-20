@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 const LS_CITY      = "omni_weather_city";
 const LS_FMT       = "omni_clock_24h";
@@ -156,9 +155,7 @@ function ForecastStrip({ hourly, onClose }) {
   const tempRange = maxTemp - minTemp || 1;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-      transition={{ type: "spring", stiffness: 340, damping: 30 }}
+    <div
       style={{ position: "absolute", inset: 0, background: "rgba(6,8,14,0.97)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", display: "flex", flexDirection: "column", zIndex: 10 }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px 6px", borderBottom: "1px solid rgba(0,229,255,0.08)", flexShrink: 0 }}>
@@ -208,7 +205,7 @@ function ForecastStrip({ hourly, onClose }) {
         ))}
         <span style={{ fontFamily: "monospace", fontSize: 7, color: "rgba(255,255,255,0.15)" }}>scroll →</span>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -354,9 +351,8 @@ export default function ChronoWidget({ item }) {
         <div style={{ padding: compact ? "6px 12px 8px" : "8px 12px 10px", zIndex: 1, position: "relative", display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
           <Brackets color={cond?.color || "#00E5FF"} size={7} opacity={0.2} thickness={1} />
 
-          <AnimatePresence mode="wait">
             {searching ? (
-              <motion.div key="search" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0,y:-8 }}
+              <div
                 style={{ display:"flex", flexDirection:"column", gap: compact ? 4 : 6 }}>
                 <div style={{ fontFamily:"monospace", fontSize:8, color:"rgba(0,229,255,0.5)", letterSpacing:"0.15em" }}>LOCATION.INPUT ▸</div>
                 <input ref={inputRef} autoFocus type="text" value={searchInput}
@@ -372,10 +368,10 @@ export default function ChronoWidget({ item }) {
                     <button key={lbl} onClick={fn} style={{ flex:1, height:22, borderRadius:5, background:bg, border:`1px solid ${bdr}`, color:col, fontSize:8.5, fontFamily:"monospace", letterSpacing:"0.1em", cursor:"pointer" }}>{lbl}</button>
                   ))}
                 </div>
-              </motion.div>
+              </div>
 
             ) : wxStatus === "ok" && weather ? (
-              <motion.div key="data" initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0,y:-8 }}
+              <div
                 style={{ display:"flex", flexDirection:"column", gap: compact ? 4 : 6 }}>
 
                 {/* Condition row — tap for forecast */}
@@ -425,10 +421,10 @@ export default function ChronoWidget({ item }) {
                     <div style={{ fontFamily:"monospace", fontSize:7, letterSpacing:"0.12em", color:"#39FF14", padding:"1px 5px", border:"1px solid rgba(57,255,20,0.25)", borderRadius:4, background:"rgba(57,255,20,0.07)" }}>NOMINAL</div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
             ) : (
-              <motion.div key="loading" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              <div
                 style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, flex:1 }}>
                 <div style={{ fontFamily:"monospace", fontSize:8, color:"rgba(0,229,255,0.35)", letterSpacing:"0.2em" }}>
                   {wxStatus==="loading" ? "SCANNING ATMOSPHERE…" : "SENSOR OFFLINE"}
@@ -436,15 +432,12 @@ export default function ChronoWidget({ item }) {
                 {wxStatus === "error" && (
                   <button onClick={() => setSearching(true)} style={{ fontFamily:"monospace", fontSize:8, color:"rgba(0,229,255,0.5)", background:"transparent", border:"1px solid rgba(0,229,255,0.2)", borderRadius:5, padding:"3px 8px", cursor:"pointer" }}>SET LOCATION</button>
                 )}
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </div>
 
         {/* Forecast overlay */}
-        <AnimatePresence>
-          {showForecast && <ForecastStrip hourly={weather?.hourly} onClose={() => setShowForecast(false)} />}
-        </AnimatePresence>
+        {showForecast && <ForecastStrip hourly={weather?.hourly} onClose={() => setShowForecast(false)} />}
       </div>
 
       <style>{`
