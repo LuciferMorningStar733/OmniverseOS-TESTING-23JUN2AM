@@ -9,7 +9,7 @@ import LockScreen from "./LockScreen";
 import CommandPalette from "./CommandPalette";
 import NotificationCenter from "./NotificationCenter";
 import MissionControl from "./MissionControl";
-import AIDock from "./AIDock";
+
 import CortexWelcomeCard from "./CortexWelcomeCard";
 import BootScreen, { isFirstBoot } from "./BootScreen";
 import OnboardingExperience, { hasSeenOnboarding, markOnboardingDone } from "./OnboardingExperience";
@@ -513,8 +513,6 @@ function Desktop() {
         </div>
       )}
       <Dock />
-      {/* AI Dock: desktop only */}
-      {isDesktop && <AIDock />}
       <CommandPalette />
       <NotificationCenter />
       {/* Mission Control: desktop only */}

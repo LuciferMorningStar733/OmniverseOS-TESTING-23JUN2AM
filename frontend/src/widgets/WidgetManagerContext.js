@@ -20,7 +20,12 @@ const initLayout = () => {
     localStorage.setItem(LS_LAYOUT, JSON.stringify(DEFAULT_LAYOUT));
     return DEFAULT_LAYOUT;
   }
-  return safeJSON(LS_LAYOUT, DEFAULT_LAYOUT);
+  const saved = safeJSON(LS_LAYOUT, DEFAULT_LAYOUT);
+  if (!saved || !Array.isArray(saved) || saved.length === 0) {
+    localStorage.setItem(LS_LAYOUT, JSON.stringify(DEFAULT_LAYOUT));
+    return DEFAULT_LAYOUT;
+  }
+  return saved;
 };
 
 export const WidgetManagerProvider = ({ children }) => {
