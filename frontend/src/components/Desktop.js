@@ -402,7 +402,10 @@ function Desktop() {
   // Cortex welcome card: desktop only
   const showCortexWelcome = isDesktop && showWelcome && openWindows.length === 0;
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, filter: "blur(20px)" }}
+      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+      transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
       className="relative w-full h-full overflow-hidden bg-[#05050A]"
       data-testid="desktop-root"
       onTouchStart={handleTouchStart}
@@ -616,7 +619,7 @@ function Desktop() {
 
       {/* ── P13: Cognitive Load Adaptor ── */}
       <CortexLoadAdaptor onSuggestFocus={() => setFocusActive(true)} />
-    </div>
+    </motion.div>
   );
 }
 
