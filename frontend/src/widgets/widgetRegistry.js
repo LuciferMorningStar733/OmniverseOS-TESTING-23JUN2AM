@@ -167,6 +167,33 @@ export const WIDGET_REGISTRY = [
     minW: 2, minH: 1, maxW: 3, maxH: 3,
     Component: lazy(() => import("./widgets/SystemMonitorWidget")),
   },
+    {
+    id: "weather",
+    name: "Weather",
+    icon: "fa-cloud-sun",
+    color: "#A855F7",              // Weather = Purple
+    defaultW: 1, defaultH: 2, autoHeight: true,
+    minW: 1, minH: 2, maxW: 2, maxH: 4,
+    Component: lazy(() => import("./widgets/WeatherWidget")),
+  },
+  {
+    id: "clock",
+    name: "Clock",
+    icon: "fa-clock",
+    color: "#00F0FF",              // AI = Cyan
+    defaultW: 1, defaultH: 1,
+    minW: 1, minH: 1, maxW: 2, maxH: 2,
+    Component: lazy(() => import("./widgets/ClockWidget")),
+  },
+  {
+    id: "neural-wallpaper",
+    name: "Neural Wallpaper",
+    icon: "fa-wave-square",
+    color: "#00F0FF",              // AI = Cyan
+    defaultW: 2, defaultH: 2,
+    minW: 1, minH: 1, maxW: 5, maxH: 5,
+    Component: lazy(() => import("./widgets/NeuralWallpaper")),
+  },
 ];
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
