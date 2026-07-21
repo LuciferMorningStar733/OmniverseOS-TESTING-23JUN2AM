@@ -4,12 +4,18 @@ import { useWidgetManager } from "./WidgetManagerContext";
 import { getWidgetDef } from "./widgetRegistry";
 import WidgetShell from "./WidgetShell";
 import WidgetStore from "./WidgetStore";
+import { triggerHaptic } from "../lib/haptics";
 
 export default function WidgetCanvas({ topOffset = 60 }) {
   const { visible, layout, showStore, openStore, closeStore } = useWidgetManager();
   const canvasRef = useRef(null);
 
   if (!visible) return null;
+
+  const handleOpenStore = () => {
+    triggerHaptic();
+    openStore();
+  };
 
   return (
     <div
@@ -29,9 +35,9 @@ export default function WidgetCanvas({ topOffset = 60 }) {
         })}
       </AnimatePresence>
 
-      {/* Add Widget FAB — positioned top-left of canvas area, away from Dock and Cortex widget */}
+      {/* Add Widget FAB — positioned top-right of canvas area, away from Dock and Cortex widget */}
       <motion.button
-        onClick={openStore}
+        onClick={handleOpenStore}
         title="Add widgets"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
