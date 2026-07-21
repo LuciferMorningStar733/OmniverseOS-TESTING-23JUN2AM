@@ -171,9 +171,9 @@ export const WIDGET_REGISTRY = [
 
 export const getWidgetDef = (id) => WIDGET_REGISTRY.find((w) => w.id === id);
 
-// Default mobile layout — AI Command Center shown by default.
+// Default boot layout — Chrono-Atmo pinned by default. AI Command Center removed.
 // All other widgets are added manually via the Widget Store (+).
-export const LAYOUT_VERSION = 6;
+export const LAYOUT_VERSION = 7;
 export const DEFAULT_LAYOUT = [
-  { id: "ai-command-center", x: 0, y: 0, w: 1, h: 5, collapsed: false, pinned: true },
+  { id: "chrono", x: 0, y: 0, w: 1, h: 3, collapsed: false, pinned: true },
 ];
