@@ -86,7 +86,7 @@ function TypedMessage({ text, color, onDone }) {
   }, [text]);
 
   return (
-    <span style={{ color: "rgba(255,255,255,0.82)", fontFamily: "'Outfit', sans-serif", fontSize: 13.5, lineHeight: 1.55 }}>
+    <span style={{ color: "rgba(255,255,255,0.82)", fontFamily: "'Outfit', sans-serif", fontSize: 13.5, lineHeight: 1.55 , fontVariantNumeric: "tabular-nums"}}>
       {displayed}
       {!done && (
         <motion.span
@@ -226,12 +226,10 @@ export default function CortexLivingWidget() {
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.97, y: 10 }}
+            initial={{ opacity: 0, scale: 0.97, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{
-        layout:   { type: "spring", stiffness: 350, damping: 25, mass: 0.8 },
-        opacity:  { type: "spring", damping: 28, stiffness: 260 },
+                opacity:  { type: "spring", damping: 28, stiffness: 260 },
         scale:    { type: "spring", damping: 28, stiffness: 260 },
         y:        { type: "spring", damping: 28, stiffness: 260, delay: 0.08 },
       }}
@@ -245,6 +243,9 @@ export default function CortexLivingWidget() {
         boxShadow: `0 8px 36px rgba(0,0,0,0.52), 0 0 50px ${theme.g}, inset 0 1px 0 rgba(255,255,255,0.06)`,
         display: "flex", flexDirection: "column",
         position: "relative",
+            width: "100%",
+            height: "100%",
+            boxSizing: "border-box",
       }}
     >
       {/* Subtle breathing gradient */}
@@ -289,7 +290,7 @@ export default function CortexLivingWidget() {
       </div>
 
       {/* AI message — typed in real time */}
-      <div style={{ padding: "0 16px 12px", flex: 1, position: "relative", zIndex: 1 }}>
+              <div style={{ padding: "0 16px 12px", flex: 1, position: "relative", zIndex: 1, overflowY: "auto", scrollbarWidth: "none", minHeight: 0 }}>
         <div style={{
           padding: "12px 14px", borderRadius: 14,
           background: `${theme.a}0A`, border: `1px solid ${theme.a}18`,
