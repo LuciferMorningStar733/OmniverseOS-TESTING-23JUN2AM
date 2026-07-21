@@ -5,13 +5,13 @@ import { useWidgetManager } from "./WidgetManagerContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 const GLASS = {
-  background: "rgba(6, 8, 16, 0.95)",
+  background: "rgba(0, 0, 0, 0.40)",
   backdropFilter: "blur(40px) saturate(180%)",
   WebkitBackdropFilter: "blur(40px) saturate(180%)",
   border: "1px solid rgba(255,255,255,0.10)",
   borderRadius: 20,
   boxShadow:
-    "0 32px 96px rgba(0,0,0,0.80), 0 0 0 1px rgba(0,240,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08)",
+    "0 25px 50px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.10)",
 };
 
 const WIDGET_DESCRIPTIONS = {
@@ -443,7 +443,7 @@ export default function WidgetStore({ onClose }) {
             flex: 1,
             minHeight: 0,
             WebkitOverflowScrolling: "touch",
-            scrollbarWidth: "thin",
+            scrollbarWidth: "none",
             scrollbarColor: "rgba(0,240,255,0.18) transparent",
           }}
           onWheel={(e) => e.stopPropagation()}
@@ -460,9 +460,8 @@ export default function WidgetStore({ onClose }) {
             const justRemoved = removed === def.id;
 
             return (
-              <motion.div
+              <div
                 key={def.id}
-                layout
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -512,7 +511,7 @@ export default function WidgetStore({ onClose }) {
                   justRemoved={justRemoved}
                   onClick={() => isActive ? handleRemove(def) : handleAdd(def)}
                 />
-              </motion.div>
+              </div>
             );
           })}
         </div>
