@@ -2096,10 +2096,10 @@ export default function AIChat() {
                     }} />
                   )}
 
-                  {/* Rendered markdown */}
+                  {/* Rendered markdown — strip CMD tags so they never leak into the UI */}
                   {(m.content || (!m.pending)) && (
                     <MarkdownRenderer
-                      content={m.content}
+                      content={m.role === "assistant" ? (parseCmdTags(m.content || "").clean) : m.content}
                       streaming={m.pending && i === messages.length - 1}
                     />
                   )}
@@ -2107,7 +2107,7 @@ export default function AIChat() {
                   {/* Copy button row — reveals on message hover via CSS .copy-reveal-row */}
                   {m.content && !m.pending && (
                     <div className="copy-reveal-row flex justify-end mt-2 -mb-1">
-                      <CopyButton text={m.content} />
+                      <CopyButton text={parseCmdTags(m.content).clean} />
                     </div>
                   )}
                 </div>
