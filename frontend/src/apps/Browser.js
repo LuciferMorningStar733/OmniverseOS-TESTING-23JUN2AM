@@ -204,6 +204,22 @@ export default function Browser() {
     setFavicon(getFaviconUrl(url));
     setFaviconErr(false);
 
+    // Load the iframe (or immediately block for known-blocked hosts)
+    if (isBlocked) {
+      setIframeUrl("");
+      setBlocked(true);
+      setLoading(false);
+    } else {
+      setBlocked(false);
+      setLoading(true);
+      setIframeUrl(url);
+      blockTimerRef.current = setTimeout(() => {
+        setLoading(false);
+        setBlocked(true);
+        setIframeUrl("");
+      }, 6000);
+    }
+
   }, [trackUrl]);
 
   // Listen for Cortex Actions navigation events
