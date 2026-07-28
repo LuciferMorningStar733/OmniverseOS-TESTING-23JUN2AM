@@ -297,12 +297,205 @@ function ActiveAppMenuBar({ activeId, windows }) {
   );
 }
 
+/* ─── AvatarMenu ─────────────────────────────────────────────────────────── */
+function AvatarMenu({ user, onClose, onLogoutRequest }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  const initial = (user?.name?.[0] ?? user?.email?.[0] ?? "A").toUpperCase();
+  const displayName = user?.name || user?.email || "Account";
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0,  scale: 1    }}
+      exit={{    opacity: 0, y: -4, scale: 0.97 }}
+      transition={{ duration: 0.13, ease: "easeOut" }}
+      style={{
+        position: "absolute",
+        top: "calc(100% + 6px)",
+        right: 0,
+        minWidth: 210,
+        background: "rgba(8,10,18,0.97)",
+        backdropFilter: "blur(40px) saturate(200%)",
+        WebkitBackdropFilter: "blur(40px) saturate(200%)",
+        border: "1px solid rgba(0,240,255,0.12)",
+        borderRadius: 12,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(0,240,255,0.06)",
+        zIndex: 99999,
+        overflow: "hidden",
+        fontFamily: "'Outfit', ui-sans-serif, sans-serif",
+      }}
+    >
+      {/* Profile header */}
+      <div style={{
+        padding: "12px 14px 10px",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        display: "flex", alignItems: "center", gap: 10,
+      }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+          background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: "1.5px solid rgba(0,240,255,0.3)",
+        }}>
+          <span style={{ color: "#000", fontSize: 13, fontWeight: 700 }}>{initial}</span>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 600, truncate: true, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {displayName}
+          </div>
+          {user?.email && user?.name && (
+            <div style={{ color: "#475569", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {user.email}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Menu items */}
+      {[
+        { icon: "fa-user", label: "Profile" },
+        { icon: "fa-gear", label: "Account Settings" },
+        { separator: true },
+        { icon: "fa-arrow-right-from-bracket", label: "Sign Out", danger: true, action: "logout" },
+      ].map((item, i) =>
+        item.separator ? (
+          <div key={i} style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "3px 0" }} />
+        ) : (
+          <button
+            key={i}
+            onClick={() => { if (item.action === "logout") { onClose(); onLogoutRequest(); } else onClose(); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 9,
+              width: "100%", background: "none", border: "none",
+              padding: "8px 14px", cursor: "pointer",
+              color: item.danger ? "#FF7090" : "#e2e8f0",
+              fontSize: 13,
+              transition: "background 0.1s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = item.danger ? "rgba(255,0,60,0.1)" : "rgba(0,240,255,0.09)"}
+            onMouseLeave={e => e.currentTarget.style.background = "none"}
+          >
+            <i className={`fa-solid ${item.icon} text-[11px]`} style={{ color: item.danger ? "#FF7090" : "#64748b", width: 14 }} />
+            <span>{item.label}</span>
+          </button>
+        )
+      )}
+    </motion.div>
+  );
+}
+
+/* ─── LogoutConfirmDialog ─────────────────────────────────────────────────── */
+function LogoutConfirmDialog({ onConfirm, onCancel }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) onCancel(); }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onCancel]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 99998,
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <motion.div
+        ref={ref}
+        initial={{ scale: 0.94, y: 12 }}
+        animate={{ scale: 1,    y: 0  }}
+        exit={{    scale: 0.94, y: 8  }}
+        transition={{ type: "spring", stiffness: 420, damping: 28 }}
+        style={{
+          background: "rgba(8,10,22,0.98)",
+          border: "1px solid rgba(255,0,60,0.25)",
+          borderRadius: 16,
+          padding: "24px 28px",
+          maxWidth: 320,
+          width: "90vw",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.8)",
+          fontFamily: "'Outfit', ui-sans-serif, sans-serif",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%",
+            background: "rgba(255,0,60,0.1)",
+            border: "1px solid rgba(255,0,60,0.25)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <i className="fa-solid fa-arrow-right-from-bracket" style={{ color: "#FF7090", fontSize: 14 }} />
+          </div>
+          <div>
+            <div style={{ color: "#fff", fontSize: 15, fontWeight: 600 }}>Sign out?</div>
+          </div>
+        </div>
+        <p style={{ color: "#64748b", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+          Your session will end and you'll be returned to the login screen.
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: "9px 0",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 9, cursor: "pointer",
+              color: "#94a3b8", fontSize: 13,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1, padding: "9px 0",
+              background: "rgba(255,0,60,0.12)",
+              border: "1px solid rgba(255,0,60,0.3)",
+              borderRadius: 9, cursor: "pointer",
+              color: "#FF7090", fontSize: 13, fontWeight: 600,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,0,60,0.22)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,0,60,0.12)"; }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 /* ─── TopBar ──────────────────────────────────────────────────────────────── */
 export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
   const { user, logout, setPaletteOpen, setNotifOpen, notifications, activeId, windows } = useOS();
   const { visible: widgetsVisible, toggleWidgets: toggleWidgets } = useWidgetManager();
   const [time, setTime]   = useState(new Date());
   const { isMobile, isTablet } = useBreakpoint();
+  const [avatarMenuOpen,   setAvatarMenuOpen]   = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogoutRequest = () => setShowLogoutConfirm(true);
+  const handleLogoutConfirm = () => { setShowLogoutConfirm(false); logout(); };
+  const handleLogoutCancel  = () => setShowLogoutConfirm(false);
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -314,67 +507,72 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
   /* ── Mobile ────────────────────────────────────────────────────────────── */
   if (isMobile) {
     return (
-      <div
-        className="absolute left-0 right-0 top-0 z-40 flex items-center gap-2"
-        style={{
-          background: "rgba(6, 8, 14, 0.82)",
-          backdropFilter: "blur(32px) saturate(200%)",
-          WebkitBackdropFilter: "blur(32px) saturate(200%)",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-          height: 60,
-          paddingLeft: 10,
-          paddingRight: 10,
-          paddingTop: "env(safe-area-inset-top, 0px)",
-        }}
-        data-testid="topbar"
-      >
-        {/* Logo icon */}
+      <>
         <div
-          className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg,#00F0FF,#FF003C)" }}
+          className="absolute left-0 right-0 top-0 z-40 flex items-center gap-2"
+          style={{
+            background: "rgba(6, 8, 14, 0.82)",
+            backdropFilter: "blur(32px) saturate(200%)",
+            WebkitBackdropFilter: "blur(32px) saturate(200%)",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            height: 60,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingTop: "env(safe-area-inset-top, 0px)",
+          }}
+          data-testid="topbar"
         >
-          <i className="fa-solid fa-infinity text-black text-xs" />
-        </div>
+          {/* Logo icon */}
+          <div
+            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg,#00F0FF,#FF003C)" }}
+          >
+            <i className="fa-solid fa-infinity text-black text-xs" />
+          </div>
 
-        {/* OS name — minimal, no duplicate search */}
-        <div className="flex-1 flex flex-col justify-center" style={{ paddingLeft: 6 }}>
-          <span style={{
-            fontSize: 13,
-            fontFamily: "'Outfit', sans-serif",
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.82)",
-            letterSpacing: "-0.01em",
-            lineHeight: 1,
-          }}>
-            OmniverseOS
-          </span>
-          <span style={{
-            fontSize: 9.5,
-            fontFamily: "'Outfit', sans-serif",
-            fontWeight: 400,
-            color: "rgba(0,240,255,0.55)",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            marginTop: 2,
-          }}>
-            Cortex Active
-          </span>
-        </div>
+          {/* OS name — minimal, no duplicate search */}
+          <div className="flex-1 flex flex-col justify-center" style={{ paddingLeft: 6 }}>
+            <span style={{
+              fontSize: 13,
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.82)",
+              letterSpacing: "-0.01em",
+              lineHeight: 1,
+            }}>
+              OmniverseOS
+            </span>
+            <span style={{
+              fontSize: 9.5,
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 400,
+              color: "rgba(0,240,255,0.55)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginTop: 2,
+            }}>
+              Cortex Active
+            </span>
+          </div>
 
-        {/* Notification bell */}
-        <button
-          onClick={() => setNotifOpen(true)}
-          className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-          aria-label="Notifications"
-        >
-          <i className="fa-solid fa-bell text-slate-300 text-sm" />
-          {unread > 0 && (
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF003C]" />
-          )}
-        </button>
-      </div>
+          {/* Notification bell */}
+          <button
+            onClick={() => setNotifOpen(true)}
+            className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+            aria-label="Notifications"
+          >
+            <i className="fa-solid fa-bell text-slate-300 text-sm" />
+            {unread > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF003C]" />
+            )}
+          </button>
+        </div>
+        <AnimatePresence>
+          {showLogoutConfirm && <LogoutConfirmDialog onConfirm={handleLogoutConfirm} onCancel={handleLogoutCancel} />}
+        </AnimatePresence>
+      </>
       );
   }
 
@@ -484,24 +682,38 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             </span>
           </div>
 
-          {/* Avatar */}
-          <button
-            onClick={logout}
-            title="Sign out"
-            style={{
-              width: 30, height: 30, borderRadius: "50%",
-              background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
-              border: "1.5px solid rgba(0,240,255,0.3)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", flexShrink: 0,
-            }}
-          >
-            <span style={{ color: "#000", fontSize: 12, fontWeight: 700 }}>
-              {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
-            </span>
-          </button>
+          {/* Avatar — opens profile menu */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setAvatarMenuOpen((v) => !v)}
+              title="Account"
+              style={{
+                width: 30, height: 30, borderRadius: "50%",
+                background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
+                border: "1.5px solid rgba(0,240,255,0.3)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              <span style={{ color: "#000", fontSize: 12, fontWeight: 700 }}>
+                {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
+              </span>
+            </button>
+            <AnimatePresence>
+              {avatarMenuOpen && (
+                <AvatarMenu
+                  user={user}
+                  onClose={() => setAvatarMenuOpen(false)}
+                  onLogoutRequest={handleLogoutRequest}
+                />
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
+      <AnimatePresence>
+        {showLogoutConfirm && <LogoutConfirmDialog onConfirm={handleLogoutConfirm} onCancel={handleLogoutCancel} />}
+      </AnimatePresence>
     );
   }
 
@@ -663,23 +875,37 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           </span>
         </div>
 
-        {/* Avatar */}
-        <button
-          onClick={logout}
-          title="Sign out"
-          style={{
-            width: 26, height: 26, borderRadius: "50%",
-            background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
-            border: "1.5px solid rgba(0,240,255,0.3)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", flexShrink: 0,
-          }}
-        >
-          <span style={{ color: "#000", fontSize: 11, fontWeight: 700 }}>
-            {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
-          </span>
-        </button>
+        {/* Avatar — opens profile menu */}
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setAvatarMenuOpen((v) => !v)}
+            title="Account"
+            style={{
+              width: 26, height: 26, borderRadius: "50%",
+              background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
+              border: "1.5px solid rgba(0,240,255,0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", flexShrink: 0,
+            }}
+          >
+            <span style={{ color: "#000", fontSize: 11, fontWeight: 700 }}>
+              {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
+            </span>
+          </button>
+          <AnimatePresence>
+            {avatarMenuOpen && (
+              <AvatarMenu
+                user={user}
+                onClose={() => setAvatarMenuOpen(false)}
+                onLogoutRequest={handleLogoutRequest}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
+    <AnimatePresence>
+      {showLogoutConfirm && <LogoutConfirmDialog onConfirm={handleLogoutConfirm} onCancel={handleLogoutCancel} />}
+    </AnimatePresence>
   );
 }
