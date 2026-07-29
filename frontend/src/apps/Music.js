@@ -9,11 +9,11 @@ import { toast } from "sonner";
 const LIBRARY = [
   // ── Live radio — 24/7 streams, almost impossible to take down ─────────
   { id: "jfKfPfyJRdk", title: "Lofi Hip Hop Radio",      artist: "Lofi Girl",           genre: "Lo-Fi",    live: true  },
-  { id: "5ksYslH7rms", title: "Chillhop Radio",          artist: "Chillhop Music",      genre: "Lo-Fi",    live: true  },
+  { id: "rUxyKA_-grg", title: "Lofi Study Radio",        artist: "Lofi Girl",           genre: "Lo-Fi",    live: true  },
   { id: "4xDzrJKXOOY", title: "Synthwave Radio",         artist: "Nightwave Plaza",     genre: "Synthwave",live: true  },
   { id: "7NOSDKb0HlU", title: "Late Night Vibes",        artist: "Lofi Records",        genre: "Lo-Fi",    live: true  },
   { id: "Na0w3Mz46GA", title: "Dark Synth Radio",        artist: "Retrowave",           genre: "Synthwave",live: true  },
-  { id: "UPnQXBOllBE", title: "Deep Focus Radio",        artist: "Chill Nation",        genre: "Lo-Fi",    live: true  },
+  { id: "DWcJFNfaw9c", title: "Jazz & Bossa Nova Radio",  artist: "Lofi Records",        genre: "Lo-Fi",    live: true  },
 
   // ── Synthwave / Electronic ─────────────────────────────────────────────
   { id: "wCTSOiJ0Gbs", title: "Nightcall",               artist: "Kavinsky",            genre: "Synthwave" },
