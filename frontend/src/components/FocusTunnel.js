@@ -349,7 +349,9 @@ export default function FocusTunnel({ active, onActivate, onDeactivate }) {
 
   const endSession = useCallback(async (completed = false) => {
     clearInterval(timerRef.current);
-    onDeactivate?.();
+    // NOTE: Do NOT call onDeactivate here — we need to stay mounted to show
+    // the summary. onDeactivate is called only from handleClose (when the user
+    // explicitly dismisses via "Return to Desktop" or the X button).
     setPhase("summary");
 
     // Generate a brief Cortex reflection
@@ -403,8 +405,24 @@ export default function FocusTunnel({ active, onActivate, onDeactivate }) {
     setPhase("picker");
     setTopic("");
     setSummary("");
-    onDeactivate?.();
+    onDeactivate?.();   // Only exit point — summary must be shown before this runs
   }, [onDeactivate]);
+
+  // Escape key dismisses the tunnel from any non-active phase,
+  // and from the active phase it ends the session early.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      if (phase === "active") {
+        endSession(false);
+      } else {
+        handleClose();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [phase, endSession, handleClose]);
 
   if (!active) return null;
 
