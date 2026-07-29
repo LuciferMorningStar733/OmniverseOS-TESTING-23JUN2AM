@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import DemoBadge from "../components/DemoBadge";
 
 const seed = [
-  { id: "dQw4w9WgXcQ", title: "Cyberpunk Night Drive — 4K", views: "2.3M", channel: "NightOps" },
-  { id: "9bZkp7q19f0", title: "Synthwave Mix 2026",         views: "892K", channel: "RetroFM"  },
-  { id: "kJQP7kiw5Fk", title: "Tokyo Neon Tour",            views: "1.1M", channel: "Wander"   },
-  { id: "fJ9rUzIMcZQ", title: "AI Music Production",        views: "412K", channel: "Cortex Lab"},
-  { id: "L_jWHffIx5E", title: "Vaporwave Aesthetic",        views: "765K", channel: "VHS"      },
-  { id: "60ItHLz5WEA", title: "Future Tech Showcase",       views: "1.9M", channel: "OmniCast" },
+  { id: "lTRiuFIWV54", title: "Night City Radio",         views: "1.2M",  channel: "CDPR"          },
+  { id: "dX3k_QDnzHE", title: "Midnight City",            views: "89M",   channel: "M83"           },
+  { id: "y8OnoxKotPQ", title: "Redline",                  views: "520K",  channel: "Electric Youth" },
+  { id: "gAjR4_CbPpQ", title: "Harder Better Faster",    views: "110M",  channel: "Daft Punk"     },
+  { id: "RxabLA7UQ9k", title: "Midnight Cruising",        views: "890K",  channel: "Midnight"      },
+  { id: "MV_3Dpw-BRY", title: "Dark All Day",             views: "8.5M",  channel: "Gunship"       },
 ];
 
 export default function Videos() {
