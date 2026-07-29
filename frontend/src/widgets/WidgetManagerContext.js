@@ -86,19 +86,31 @@ export const WidgetManagerProvider = ({ children }) => {
   const addWidget = useCallback((def) => {
     setLayout((prev) => {
       if (prev.find((w) => w.id === def.id)) return prev;
-      // Find a non-overlapping grid position for the new widget
-      const occupied = new Set(prev.map((w) => `${w.x},${w.y}`));
+      const newW = def.defaultW || 1;
+      const newH = def.defaultH || 1;
+
+      // True rectangle overlap check: does (col,row,newW,newH) intersect any existing widget?
+      const overlaps = (col, row) =>
+        prev.some((existing) => {
+          const eW = existing.w || 1;
+          const eH = existing.h || 1;
+          return !(col + newW <= existing.x ||
+                   col          >= existing.x + eW ||
+                   row + newH   <= existing.y ||
+                   row          >= existing.y + eH);
+        });
+
       let col = 0, row = 0;
-      // Try up to 20 positions to avoid overlap with existing widgets
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const key = `${col},${row}`;
-        if (!occupied.has(key)) break;
-        col += def.defaultW || 1;
-        if (col > 8) { col = 0; row += def.defaultH || 1; }
+      // Scan row-by-row left-to-right for the first free cell
+      for (let attempt = 0; attempt < 80; attempt++) {
+        if (!overlaps(col, row)) break;
+        col += 1;
+        if (col > 10) { col = 0; row += 1; }
       }
+
       const next = [...prev, {
         id: def.id, x: col, y: row,
-        w: def.defaultW, h: def.defaultH,
+        w: newW, h: newH,
         collapsed: false, pinned: false,
       }];
       localStorage.setItem(LS_LAYOUT, JSON.stringify(next));
