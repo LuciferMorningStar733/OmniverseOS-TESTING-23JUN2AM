@@ -579,6 +579,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
   /* ── Tablet (48px compact bar) ────────────────────────────────────────── */
   if (isTablet) {
     return (
+      <>
       <div
         className="absolute left-0 right-0 top-0 z-40 flex items-center"
         style={{
@@ -714,11 +715,13 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
       <AnimatePresence>
         {showLogoutConfirm && <LogoutConfirmDialog onConfirm={handleLogoutConfirm} onCancel={handleLogoutCancel} />}
       </AnimatePresence>
+      </>
     );
   }
 
   /* ── Desktop ───────────────────────────────────────────────────────────── */
   return (
+    <>
     <div
       className="absolute left-0 right-0 top-0 z-40"
       style={{
@@ -907,5 +910,6 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
     <AnimatePresence>
       {showLogoutConfirm && <LogoutConfirmDialog onConfirm={handleLogoutConfirm} onCancel={handleLogoutCancel} />}
     </AnimatePresence>
+    </>
   );
 }
