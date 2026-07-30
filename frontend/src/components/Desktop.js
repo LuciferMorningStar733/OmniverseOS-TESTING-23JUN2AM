@@ -213,11 +213,6 @@ function Desktop() {
     setShowWelcomeP(true);
   }, []);
 
-  const handleOnboardingNameSet = useCallback((name) => {
-    // Already saved to localStorage by OnboardingExperience; nothing extra needed here.
-    // Future: could update user profile via API.
-  }, []);
-
   const handleOnboardingWallpaperSelect = useCallback((wallpaperId) => {
     setWallpaper(wallpaperId);
   }, [setWallpaper]);
@@ -564,7 +559,6 @@ function Desktop() {
           >
             <OnboardingExperience
               onComplete={handleOnboardingComplete}
-              onNameSet={handleOnboardingNameSet}
               onWallpaperSelect={handleOnboardingWallpaperSelect}
             />
           </motion.div>
