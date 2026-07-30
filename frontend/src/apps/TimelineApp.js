@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { timelineApi } from "../lib/intelligenceApi";
 import { getTimeline } from "../lib/activityTimeline";
+import { formatTime } from "../lib/utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,11 +20,6 @@ function formatDay(iso) {
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
   return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-}
-
-function formatTime(ts) {
-  const d = new Date(typeof ts === "number" ? ts : ts);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 function dayKey(ts) {

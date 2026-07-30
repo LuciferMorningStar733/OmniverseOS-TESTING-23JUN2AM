@@ -260,14 +260,10 @@ export const aiApi = {
       }
 
       if (attempt === 0) {
-        console.log(`[AI] Attempt 1/${maxAttempts} | model: "${modelName}"`);
         onStatus?.({ stage: "connecting", text: "Connecting...", model: modelLabel });
       } else {
         const delay = RETRY_DELAYS_MS[attempt - 1] ?? 2500;
         const prevLabel = MODEL_LABELS[models[attempt - 1]] || models[attempt - 1];
-        console.log(
-          `[AI Retry] Attempt ${attempt + 1}/${maxAttempts} | model: "${modelName}" | delay: ${delay}ms | reason: ${lastError?.message}`
-        );
         onStatus?.({ stage: "unavailable", text: `${prevLabel} unavailable`, model: null });
         await sleep(400);
         onStatus?.({ stage: "switching", text: `Switching to ${modelLabel}...`, model: modelLabel });
@@ -291,7 +287,6 @@ export const aiApi = {
         );
 
         onStatus?.(null);
-        console.log(`[AI] Attempt ${attempt + 1} succeeded | model: "${modelName}"`);
         return { modelUsed: modelName };
       } catch (err) {
         // Only propagate AbortErrors that the CALLER initiated (outerSignal aborted).
@@ -423,13 +418,11 @@ export const ttsApi = {
       const blob = _ttsBlobCache.get(cacheKey);
       _ttsBlobCache.delete(cacheKey);
       _ttsBlobCache.set(cacheKey, blob);
-      console.log(`[GeminiTTS] Frontend cache HIT | voice=${voice} | chars=${text.length}`);
       return URL.createObjectURL(blob);
     }
 
     // ── 2. In-flight dedup — share an existing fetch ──────────────────────
     if (_ttsInflight.has(cacheKey)) {
-      console.log(`[GeminiTTS] Dedup — awaiting in-flight | voice=${voice}`);
       try {
         const blob = await _ttsInflight.get(cacheKey);
         // The in-flight promise completed — blob is now in _ttsBlobCache.
@@ -476,13 +469,6 @@ export const ttsApi = {
         err.status = res.status;
         throw err;
       }
-
-      const isBackendCacheHit = res.headers.get("X-Cache") === "HIT";
-      const voiceUsed = res.headers.get("X-Voice-Used") || voice;
-      const model     = res.headers.get("X-TTS-Model")  || "gemini-tts";
-      console.log(
-        `[GeminiTTS] ${isBackendCacheHit ? "Backend-cache HIT" : "Live"} | voice=${voiceUsed} | model=${model}`,
-      );
 
       return res.blob();
     })();

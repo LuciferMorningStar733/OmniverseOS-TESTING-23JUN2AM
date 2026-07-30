@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { clamp } from "../lib/utils";
 
 const LS_KEY = "omniverse_brightness";
 const DEFAULT_BRIGHTNESS = 100;
@@ -8,12 +9,12 @@ const DEFAULT_BRIGHTNESS = 100;
 export function useBrightness() {
   const [brightness, setBrightnessState] = useState(() => {
     const saved = parseInt(localStorage.getItem(LS_KEY) ?? "", 10);
-    return isNaN(saved) ? DEFAULT_BRIGHTNESS : Math.min(100, Math.max(10, saved));
+    return isNaN(saved) ? DEFAULT_BRIGHTNESS : clamp(saved, 10, 100);
   });
   const [open, setOpen] = useState(false);
 
   const setBrightness = useCallback((val) => {
-    const clamped = Math.min(100, Math.max(10, Math.round(val)));
+    const clamped = clamp(Math.round(val), 10, 100);
     setBrightnessState(clamped);
     localStorage.setItem(LS_KEY, String(clamped));
   }, []);

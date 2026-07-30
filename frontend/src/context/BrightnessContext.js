@@ -4,6 +4,7 @@
  * Consume with useBrightnessContext() anywhere: Desktop, TopBar, Settings.
  */
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { clamp } from "../lib/utils";
 
 const LS_KEY = "omniverse_brightness";
 const DEFAULT_BRIGHTNESS = 100;
@@ -13,12 +14,12 @@ const BrightnessContext = createContext(null);
 export function BrightnessProvider({ children }) {
   const [brightness, setBrightnessState] = useState(() => {
     const saved = parseInt(localStorage.getItem(LS_KEY) ?? "", 10);
-    return isNaN(saved) ? DEFAULT_BRIGHTNESS : Math.min(100, Math.max(10, saved));
+    return isNaN(saved) ? DEFAULT_BRIGHTNESS : clamp(saved, 10, 100);
   });
   const [open, setOpen] = useState(false);
 
   const setBrightness = useCallback((val) => {
-    const clamped = Math.min(100, Math.max(10, Math.round(val)));
+    const clamped = clamp(Math.round(val), 10, 100);
     setBrightnessState(clamped);
     localStorage.setItem(LS_KEY, String(clamped));
   }, []);
