@@ -63,19 +63,19 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
         filter: hovered
           ? `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${color}66)`
           : "none",
-        transition: "filter 0.15s ease, transform 0.15s cubic-bezier(0.34,1.56,0.64,1)",
+        transition: "filter var(--transition-fast) ease, transform var(--transition-fast) cubic-bezier(0.34,1.56,0.64,1)",
         transform: hovered ? "scale(1.18)" : "scale(1)",
       }}
     >
       <div style={{
         position: "absolute", inset: 0, clipPath: HEX_CLIP,
         background: hovered ? color : `rgba(${rgba},0.18)`,
-        transition: "background 0.15s ease",
+        transition: "background var(--transition-fast) ease",
       }} />
       <div style={{
         position: "absolute", inset: 1.5, clipPath: HEX_CLIP,
         background: hovered ? "rgba(0,0,0,0.40)" : "rgba(5,5,10,0.90)",
-        transition: "background 0.15s ease",
+        transition: "background var(--transition-fast) ease",
       }} />
       {hovered && (
         <div style={{
@@ -91,7 +91,7 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
         fontSize: 9, fontWeight: 700,
         color: hovered ? "#000" : color,
         fontFamily: "monospace", lineHeight: 1,
-        transition: "color 0.15s ease",
+        transition: "color var(--transition-fast) ease",
         zIndex: 2, userSelect: "none",
       }}>
         {icon}
@@ -124,7 +124,7 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
           color: "#00F0FF", zIndex: 2,
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation", flexShrink: 0,
-          transition: "opacity 0.15s",
+          transition: "opacity var(--transition-fast)",
         }}
       >
         <i className="fa-solid fa-chevron-left" style={{ fontSize: 18 }} />
@@ -165,7 +165,7 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
           marginLeft: "auto",
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation", flexShrink: 0,
-          transition: "background 0.14s, border-color 0.14s, color 0.14s",
+          transition: "background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast)",
         }}
         onPointerEnter={(e) => {
           e.currentTarget.style.background = "rgba(255,50,80,0.16)";
@@ -278,7 +278,7 @@ function ResizeHandles({ win, updateWindow, dragEnabled, onResizeStart, onResize
             ...style,
             /* Subtle glow on active resize handle */
             background: activeDir === dir ? "rgba(0,240,255,0.08)" : "transparent",
-            transition: "background 0.15s ease",
+            transition: "background var(--transition-fast) ease",
           }}
           onPointerDown={(e) => startResize(e, dir)}
           onPointerMove={(e) => onPointerMove(e, dir)}
@@ -432,7 +432,7 @@ export default function Window({ win, children }) {
           boxShadow: isActive
             ? `inset 0 0 0 1px ${accentColor}22, 0 0 0 1px rgba(255,255,255,0.04)`
             : "inset 0 0 0 1px rgba(255,255,255,0.04)",
-          transition: "box-shadow 0.22s ease",
+          transition: "box-shadow var(--transition-quick) ease",
         }}
       >
         <div style={{
@@ -505,7 +505,7 @@ export default function Window({ win, children }) {
         WebkitBackdropFilter: BLUR,
         background: "rgba(8,10,18,0.52)",
         border: `1px solid ${isActive ? `${accentColor}20` : "rgba(255,255,255,0.07)"}`,
-        transition: "box-shadow 0.28s ease, border-color 0.28s ease",
+        transition: "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease",
       }}
       data-testid={`window-${win.app}`}
     >
@@ -524,7 +524,7 @@ export default function Window({ win, children }) {
           ? `linear-gradient(to right, transparent 0%, ${accentColor}80 20%, ${accentColor} 50%, ${accentColor}80 80%, transparent 100%)`
           : "transparent",
         pointerEvents: "none", zIndex: 10,
-        transition: "background 0.35s ease",
+        transition: "background var(--transition-slow) ease",
       }} />
 
       {/* App-color ambient tint when active (subtle, top-down) */}
@@ -534,7 +534,7 @@ export default function Window({ win, children }) {
         background: isActive
           ? `radial-gradient(ellipse 80% 30% at 50% 0%, ${accentColor}08 0%, transparent 70%)`
           : "transparent",
-        transition: "background 0.35s ease",
+        transition: "background var(--transition-slow) ease",
       }} />
 
       {/* Desktop title bar */}
@@ -547,7 +547,7 @@ export default function Window({ win, children }) {
             ? `linear-gradient(to bottom, rgba(255,255,255,0.065), rgba(255,255,255,0.018))`
             : "rgba(255,255,255,0.018)",
           borderBottomColor: isActive ? `${accentColor}18` : "rgba(255,255,255,0.07)",
-          transition: "background 0.25s ease, border-color 0.25s ease",
+          transition: "background var(--transition-base) ease, border-color var(--transition-base) ease",
           userSelect: "none",
           position: "relative",
           zIndex: 1,
@@ -586,7 +586,7 @@ export default function Window({ win, children }) {
               filter: isActive
                 ? `drop-shadow(0 0 6px ${app.color}90)`
                 : `drop-shadow(0 0 3px ${app.color}40)`,
-              transition: "filter 0.25s ease",
+              transition: "filter var(--transition-base) ease",
             }}
           />
           <span
@@ -597,7 +597,7 @@ export default function Window({ win, children }) {
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: isActive ? "rgba(255,255,255,0.80)" : "rgba(255,255,255,0.40)",
-              transition: "color 0.25s ease",
+              transition: "color var(--transition-base) ease",
               maxWidth: 140,
               overflow: "hidden",
               textOverflow: "ellipsis",

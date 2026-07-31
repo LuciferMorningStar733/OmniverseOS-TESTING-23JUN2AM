@@ -454,7 +454,7 @@ function LogoutConfirmDialog({ onConfirm, onCancel }) {
               flex: 1, padding: "9px 0",
               background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 9, cursor: "pointer",
+              borderRadius: 8, cursor: "pointer",
               color: "#94a3b8", fontSize: 13,
               transition: "all 0.15s",
             }}
@@ -469,7 +469,7 @@ function LogoutConfirmDialog({ onConfirm, onCancel }) {
               flex: 1, padding: "9px 0",
               background: "rgba(255,0,60,0.12)",
               border: "1px solid rgba(255,0,60,0.3)",
-              borderRadius: 9, cursor: "pointer",
+              borderRadius: 8, cursor: "pointer",
               color: "#FF7090", fontSize: 13, fontWeight: 600,
               transition: "all 0.15s",
             }}

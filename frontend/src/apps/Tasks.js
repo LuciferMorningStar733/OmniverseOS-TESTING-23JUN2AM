@@ -188,6 +188,27 @@ export default function Tasks() {
   return (
     <div className="flex flex-col h-full text-white p-3 sm:p-5" data-testid="tasks-app">
 
+      {/* ── Load error banner ───────────────────────────────────── */}
+      {loadErr && (
+        <div
+          className="flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg flex-shrink-0"
+          style={{ background: "rgba(255,0,60,0.08)", border: "1px solid rgba(255,0,60,0.22)" }}
+        >
+          <span className="text-[11px] font-mono" style={{ color: "#FF7090" }}>
+            <i className="fa-solid fa-triangle-exclamation mr-1.5" />
+            Failed to load tasks — check your connection.
+          </span>
+          <motion.button
+            onClick={load}
+            whileTap={{ scale: 0.92 }}
+            className="text-[10px] font-mono px-2 py-1 rounded"
+            style={{ background: "rgba(255,0,60,0.15)", color: "#FF7090", border: "1px solid rgba(255,0,60,0.3)" }}
+          >
+            Retry
+          </motion.button>
+        </div>
+      )}
+
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2 flex-shrink-0">
         <div>
