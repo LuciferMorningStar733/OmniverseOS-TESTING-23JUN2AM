@@ -167,7 +167,7 @@ function MenuDropdown({ menu, onClose }) {
               width: "100%", background: "none", border: "none",
               padding: "7px 14px", cursor: "pointer",
               color: "#e2e8f0", fontSize: 13,
-              transition: "background 0.1s",
+              transition: "background var(--transition-fast)",
             }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(0,240,255,0.09)"}
             onMouseLeave={e => e.currentTarget.style.background = "none"}
@@ -202,7 +202,7 @@ function MenuBarItem({ menu }) {
           fontFamily: "'Outfit', ui-sans-serif, sans-serif",
           fontWeight: 500,
           cursor: "pointer",
-          transition: "all 0.15s",
+          transition: "all var(--transition-fast)",
           whiteSpace: "nowrap",
         }}
         onMouseEnter={e => { if (!open) e.currentTarget.style.color = "#fff"; }}
@@ -379,7 +379,7 @@ function AvatarMenu({ user, onClose, onLogoutRequest }) {
               padding: "8px 14px", cursor: "pointer",
               color: item.danger ? "#FF7090" : "#e2e8f0",
               fontSize: 13,
-              transition: "background 0.1s",
+              transition: "background var(--transition-fast)",
             }}
             onMouseEnter={e => e.currentTarget.style.background = item.danger ? "rgba(255,0,60,0.1)" : "rgba(0,240,255,0.09)"}
             onMouseLeave={e => e.currentTarget.style.background = "none"}
@@ -456,7 +456,7 @@ function LogoutConfirmDialog({ onConfirm, onCancel }) {
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: 8, cursor: "pointer",
               color: "#94a3b8", fontSize: 13,
-              transition: "all 0.15s",
+              transition: "all var(--transition-fast)",
             }}
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
@@ -471,7 +471,7 @@ function LogoutConfirmDialog({ onConfirm, onCancel }) {
               border: "1px solid rgba(255,0,60,0.3)",
               borderRadius: 8, cursor: "pointer",
               color: "#FF7090", fontSize: 13, fontWeight: 600,
-              transition: "all 0.15s",
+              transition: "all var(--transition-fast)",
             }}
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,0,60,0.22)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,0,60,0.12)"; }}
@@ -620,9 +620,10 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         </div>
 
         {/* Search pill — flexible center */}
-        <button
+        <motion.button
           data-testid="open-command-palette"
           onClick={() => setPaletteOpen(true)}
+          whileTap={{ scale: 0.96 }}
           style={{
             flex: 1,
             display: "flex", alignItems: "center", gap: 8,
@@ -635,28 +636,29 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             cursor: "pointer",
             maxWidth: 340,
             margin: "0 auto",
-            transition: "all 0.15s ease",
+            transition: "all var(--transition-fast) ease",
           }}
         >
           <i className="fa-solid fa-magnifying-glass" style={{ color: "#00F0FF", fontSize: 11 }} />
           <span style={{ color: "#64748b", fontSize: 12, fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap" }}>
             Search or ask Cortex…
           </span>
-        </button>
+        </motion.button>
 
         {/* Right cluster */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           {/* Notifications */}
-          <button
+          <motion.button
             onClick={() => setNotifOpen(true)}
             aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
+            whileTap={{ scale: 0.90 }}
             style={{
               background: unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)",
               border: `1px solid ${unread > 0 ? "rgba(255,0,60,0.25)" : "rgba(255,255,255,0.08)"}`,
               borderRadius: 6, width: 32, height: 32,
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", position: "relative",
-              transition: "all 0.15s ease",
+              transition: "all var(--transition-fast) ease",
             }}
           >
             <i className="fa-solid fa-bell" style={{ color: unread > 0 ? "#FF6B7A" : "#64748b", fontSize: 12 }} />
@@ -667,7 +669,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
                 background: "#FF003C",
               }} />
             )}
-          </button>
+          </motion.button>
 
           {/* Time */}
           <div style={{
@@ -685,9 +687,10 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
 
           {/* Avatar — opens profile menu */}
           <div style={{ position: "relative" }}>
-            <button
+            <motion.button
               onClick={() => setAvatarMenuOpen((v) => !v)}
               title="Account"
+              whileTap={{ scale: 0.88 }}
               style={{
                 width: 30, height: 30, borderRadius: "50%",
                 background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
@@ -699,7 +702,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
               <span style={{ color: "#000", fontSize: 12, fontWeight: 700 }}>
                 {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
               </span>
-            </button>
+            </motion.button>
             <AnimatePresence>
               {avatarMenuOpen && (
                 <AvatarMenu
@@ -745,9 +748,10 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
       </div>
 
       {/* Center: Search pill */}
-      <button
+      <motion.button
         data-testid="open-command-palette"
         onClick={() => setPaletteOpen(true)}
+        whileTap={{ scale: 0.96 }}
         style={{
           display: "flex", alignItems: "center", gap: 8,
           background: "rgba(255,255,255,0.06)",
@@ -759,7 +763,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           cursor: "pointer",
           flexShrink: 0,
           minWidth: 200,
-          transition: "all 0.15s ease",
+          transition: "all var(--transition-fast) ease",
         }}
         onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)"; }}
@@ -769,76 +773,80 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
           Search or ask Cortex…
         </span>
         <kbd style={{ marginLeft: 4, padding: "1px 5px", background: "rgba(255,255,255,0.08)", borderRadius: 4, color: "#475569", fontSize: 10, fontFamily: "monospace" }}>⌘K</kbd>
-      </button>
+      </motion.button>
 
       {/* Right cluster */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
 
         {/* Brightness */}
         {onOpenBrightness && (
-          <button
+          <motion.button
             onClick={onOpenBrightness}
             title="Brightness (Ctrl+Shift+B)"
+            whileTap={{ scale: 0.90 }}
             style={{
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 6, width: 26, height: 26,
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer",
-              transition: "all 0.15s",
+              transition: "all var(--transition-fast)",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(245,158,11,0.12)"; e.currentTarget.style.borderColor = "rgba(245,158,11,0.3)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
           >
             <i className="fa-solid fa-sun" style={{ color: "#F59E0B", fontSize: 11 }} />
-          </button>
+          </motion.button>
         )}
 
         {/* Widget toggle */}
-        <button
+        <motion.button
           onClick={toggleWidgets}
           aria-label={widgetsVisible ? "Hide widgets" : "Show widgets"}
           aria-pressed={widgetsVisible}
           title={widgetsVisible ? "Hide widgets" : "Show widgets"}
+          whileTap={{ scale: 0.90 }}
           style={{
             background: widgetsVisible ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.05)",
             border: `1px solid ${widgetsVisible ? "rgba(0,240,255,0.25)" : "rgba(255,255,255,0.08)"}`,
             borderRadius: 6, width: 26, height: 26,
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer",
-            transition: "all 0.15s ease",
+            transition: "all var(--transition-fast) ease",
           }}
           onMouseEnter={(e) => { if (!widgetsVisible) { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}}
           onMouseLeave={(e) => { if (!widgetsVisible) { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}}
         >
           <i className="fa-solid fa-table-cells" style={{ color: widgetsVisible ? "#00F0FF" : "#64748b", fontSize: 11 }} />
-        </button>
+        </motion.button>
 
         {/* Mission control */}
-        <button
+        <motion.button
           onClick={onOpenMissionControl}
           aria-label="Mission Control"
           title="Mission Control (Ctrl+Tab)"
+          whileTap={{ scale: 0.90 }}
           style={{
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 6, width: 26, height: 26,
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer",
-            transition: "all 0.15s ease",
+            transition: "all var(--transition-fast) ease",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
         >
           <i className="fa-solid fa-clone" style={{ color: "#64748b", fontSize: 11 }} />
-        </button>
+        </motion.button>
 
         {/* Notifications */}
-        <button
+        <motion.button
           onClick={() => setNotifOpen(true)}
           aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
           aria-live="polite"
           title={`Notifications${unread > 0 ? ` (${unread})` : ""}`}
+          whileTap={{ scale: 0.90 }}
           style={{
             background: unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)",
             border: `1px solid ${unread > 0 ? "rgba(255,0,60,0.25)" : "rgba(255,255,255,0.08)"}`,
@@ -848,7 +856,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
             cursor: "pointer",
             position: "relative",
-            transition: "all 0.15s ease",
+            transition: "all var(--transition-fast) ease",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = unread > 0 ? "rgba(255,0,60,0.16)" : "rgba(255,255,255,0.09)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = unread > 0 ? "rgba(255,0,60,0.08)" : "rgba(255,255,255,0.05)"; }}
@@ -862,7 +870,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
               {unread > 99 ? "99+" : unread}
             </span>
           )}
-        </button>
+        </motion.button>
 
         {/* Time */}
         <div style={{
@@ -880,9 +888,10 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
 
         {/* Avatar — opens profile menu */}
         <div style={{ position: "relative" }}>
-          <button
+          <motion.button
             onClick={() => setAvatarMenuOpen((v) => !v)}
             title="Account"
+            whileTap={{ scale: 0.88 }}
             style={{
               width: 26, height: 26, borderRadius: "50%",
               background: "linear-gradient(135deg,#00F0FF,#7B2FFF)",
@@ -894,7 +903,7 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             <span style={{ color: "#000", fontSize: 11, fontWeight: 700 }}>
               {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "A"}
             </span>
-          </button>
+          </motion.button>
           <AnimatePresence>
             {avatarMenuOpen && (
               <AvatarMenu
