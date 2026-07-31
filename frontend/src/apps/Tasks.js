@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { crud } from "../lib/api";
+import { toast } from "sonner";
 
 const c = crud("tasks");
 
@@ -151,8 +152,15 @@ export default function Tasks() {
   const [tasks, setTasks]       = useState([]);
   const [newTitle, setNewTitle] = useState("");
   const [adding, setAdding]     = useState(false);
+  const [loadErr, setLoadErr]   = useState(false);
 
-  const load = useCallback(() => c.list().then(setTasks).catch(() => {}), []);
+  const load = useCallback(() => {
+    setLoadErr(false);
+    return c.list().then(setTasks).catch(() => {
+      setLoadErr(true);
+      toast.error("Couldn't load tasks — check your connection.");
+    });
+  }, []);
   useEffect(() => { load(); }, [load]);
 
   const add = async () => {

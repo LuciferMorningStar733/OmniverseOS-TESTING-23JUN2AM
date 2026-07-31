@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { crud } from "../lib/api";
+import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
   AreaChart, Area, PieChart, Pie,
@@ -175,7 +176,9 @@ export default function Finance() {
   const [form, setForm] = useState({ title:"", amount:"", category:"food", type:"expense", date:new Date().toISOString().slice(0,10) });
   const [adding, setAdding] = useState(false);
 
-  const load = useCallback(()=>c.list().then(setTxns).catch(()=>{}),[]);
+  const load = useCallback(()=>c.list().then(setTxns).catch(()=>{
+    toast.error("Couldn't load transactions — check your connection.");
+  }),[]);
   useEffect(()=>{ load(); },[load]);
 
   const add = async () => {

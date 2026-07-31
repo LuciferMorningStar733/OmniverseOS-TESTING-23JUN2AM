@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import GhostTextArea from "../components/GhostTextArea";
 import { motion, AnimatePresence } from "framer-motion";
 import { crud } from "../lib/api";
+import { toast } from "sonner";
 
 const c = crud("notes");
 
@@ -141,7 +142,9 @@ export default function Notes() {
     c.list().then((n) => {
       setNotes(n);
       setSel((s) => s ? (n.find((x) => x.id === s.id) || n[0] || null) : (n[0] || null));
-    }).catch(() => {})
+    }).catch(() => {
+      toast.error("Couldn't load notes — check your connection.");
+    })
   , []);
 
   useEffect(() => { load(); }, [load]);
