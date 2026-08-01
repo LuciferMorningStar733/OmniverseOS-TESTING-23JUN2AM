@@ -4,6 +4,7 @@ import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider }
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
 import { parseCmdTags, executeCmdCommands } from "../lib/cmdTagParser";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
+import { getAppName } from "../lib/appNames";
 import { trackEvent } from "../lib/activityTimeline";
 import { rememberTranscript } from "../lib/memoryEngine";
 import { useOS } from "../context/OSContext";
@@ -17,6 +18,124 @@ import { useChatSessions } from "../hooks/useChatSessions";
 import ChatSessionSidebar from "../components/ChatSessionSidebar";
 
 const FALLBACK_SESSION_ID = "main";
+
+/* ── D7: Context Chips ──────────────────────────────────────────────────────
+   Renders a horizontal row of pill-chips showing every live workspace
+   context source Cortex is about to feed into its system prompt.
+   Click × on any chip to exclude that source from the next message.
+   Sources: active app · open apps (count) · memories used · current URL. */
+const CHIP_ACCENT = {
+  active:    { c: "#00F0FF", label: "Active" },
+  open:      { c: "#60A5FA", label: "Workspace" },
+  memory:    { c: "#CF9EFF", label: "Memory"    },
+  url:       { c: "#39FF14", label: "Browser"   },
+  workspace: { c: "#F59E0B", label: "Workspace" },
+};
+
+function Chip({ icon, label, accent, disabledState, onToggle, chipKey, title }) {
+  const dim = disabledState;
+  return (
+    <button
+      onClick={() => onToggle(chipKey)}
+      title={dim ? `${title || label} — click to include again` : `${title || label} — click × to exclude from next reply`}
+      className="context-chip"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "3px 8px 3px 9px",
+        borderRadius: 999,
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 10.5, letterSpacing: "0.02em",
+        cursor: "pointer",
+        userSelect: "none",
+        whiteSpace: "nowrap",
+        border: `1px solid ${dim ? "rgba(255,255,255,0.10)" : accent + "55"}`,
+        background: dim ? "rgba(255,255,255,0.03)" : accent + "18",
+        color: dim ? "rgba(255,255,255,0.35)" : accent,
+        textDecoration: dim ? "line-through" : "none",
+        transition: "all 0.15s ease",
+        flexShrink: 0,
+      }}
+    >
+      <i className={`fa-solid ${icon}`} style={{ fontSize: 9 }} />
+      <span>{label}</span>
+      <i className={`fa-solid ${dim ? "fa-plus" : "fa-xmark"}`} style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }} />
+    </button>
+  );
+}
+
+function ContextChips({ windows = [], activeId, relevantMemories = [], disabled, onToggle }) {
+  // Build a list of chip descriptors from live state.
+  const activeWin = windows.find(w => w.id === activeId) || null;
+  const activeName = activeWin ? getAppName(activeWin.app) : null;
+  const otherCount = Math.max(0, windows.length - (activeWin ? 1 : 0));
+
+  let browserUrl = null;
+  try { browserUrl = localStorage.getItem("cortex_current_url") || null; } catch { /* ignore */ }
+  let browserHost = null;
+  if (browserUrl) {
+    try { browserHost = new URL(browserUrl).hostname.replace(/^www\./, ""); } catch { browserHost = null; }
+  }
+
+  const chips = [];
+  if (activeName) {
+    chips.push({ key: "workspace", icon: "fa-square-caret-right", label: activeName, accent: CHIP_ACCENT.active.c, title: `Active app: ${activeName}` });
+  }
+  if (otherCount > 0) {
+    chips.push({ key: "workspace", icon: "fa-layer-group", label: `+${otherCount} open`, accent: CHIP_ACCENT.open.c, title: `${otherCount} other app${otherCount === 1 ? "" : "s"} open` });
+  }
+  if (browserHost) {
+    chips.push({ key: "workspace", icon: "fa-globe", label: browserHost.slice(0, 26), accent: CHIP_ACCENT.url.c, title: `Browser: ${browserUrl}` });
+  }
+  if (relevantMemories.length > 0) {
+    chips.push({ key: "memory", icon: "fa-brain", label: `${relevantMemories.length} ${relevantMemories.length === 1 ? "memory" : "memories"}`, accent: CHIP_ACCENT.memory.c, title: "Relevant long-term memories" });
+  }
+
+  // De-duplicate chips that share the same key by keeping first — but keep
+  // all visually so the user sees the full picture. Toggling any chip with
+  // the same key toggles that entire source class.
+  if (chips.length === 0) return null;
+
+  return (
+    <div
+      data-testid="context-chips"
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "6px 12px 6px",
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        background: "rgba(0,240,255,0.02)",
+        overflowX: "auto",
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
+        flexShrink: 0,
+      }}
+      className="scrollbar-none"
+    >
+      <span style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 9, letterSpacing: "0.12em",
+        color: "rgba(255,255,255,0.30)",
+        textTransform: "uppercase",
+        flexShrink: 0,
+        marginRight: 2,
+      }}>
+        Context
+      </span>
+      {chips.map((chip, i) => (
+        <Chip
+          key={i}
+          chipKey={chip.key}
+          icon={chip.icon}
+          label={chip.label}
+          accent={chip.accent}
+          title={chip.title}
+          disabledState={disabled?.has(chip.key)}
+          onToggle={onToggle}
+        />
+      ))}
+    </div>
+  );
+}
 
 /* ── Cyberpunk Radix Select (replaces native <select>) ─────────────────────── */
 const MODEL_OPTIONS = [
@@ -943,6 +1062,13 @@ export default function AIChat() {
   const touchTimerRef = useRef(null);
   const [relevantMemories, setRelevantMemories] = useState([]);
   const [showMemoryPanel, setShowMemoryPanel]   = useState(false);
+  // D7: Context Chips — track which live-workspace context sources are
+  // currently included in the AI system prompt.  Users can click × to
+  // exclude a source; the next message goes out without it.  Chips
+  // recompute reactively from open windows + relevantMemories.
+  const [disabledContext, setDisabledContext] = useState(() => new Set());
+  const disabledContextRef = useRef(disabledContext);
+  useEffect(() => { disabledContextRef.current = disabledContext; }, [disabledContext]);
   const [sidebarOpen, setSidebarOpen]           = useState(true);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
   const endRef             = useRef();
@@ -1441,13 +1567,19 @@ export default function AIChat() {
       // ── Cortex Unification: build live OS context system prompt ─────────
       // Aggregates active app, browser URL, recent apps/URLs, last session,
       // memory state — gives the LLM real awareness of the user's workspace.
-      let systemPrompt = buildCortexSystemPrompt({
-        windows: windowsRef.current,
-        activeId: activeIdRef.current,
-      });
+      // D7: honour the user's Context Chips — a disabled chip means that
+      // source is excluded from this turn's system prompt.
+      const disabled = disabledContextRef.current || new Set();
+      let systemPrompt = disabled.has("workspace")
+        ? "You are OmniverseOS Cortex — a friendly, witty cyberpunk AI assistant. The user has disabled workspace context for this turn; answer without referencing open apps or recent activity.\n\n"
+        : buildCortexSystemPrompt({
+            windows: windowsRef.current,
+            activeId: activeIdRef.current,
+          });
 
-      // Inject relevant memories into system prompt
-      if (fetchedMemories.length > 0) {
+      // Inject relevant memories into system prompt (unless the user
+      // disabled the "memory" chip).
+      if (!disabled.has("memory") && fetchedMemories.length > 0) {
         systemPrompt += "\n\n=== CORTEX LONG-TERM MEMORY ===\n";
         systemPrompt += "The following facts are permanently remembered about this user. Use them naturally without re-asking.\n";
         fetchedMemories.forEach((m, i) => {
@@ -2195,6 +2327,20 @@ export default function AIChat() {
         </button>
       )}
       </div>
+
+      {/* D7: Context Chips — show live workspace context Cortex is using.
+          Click × to exclude a source from the next message's system prompt. */}
+      <ContextChips
+        windows={windows}
+        activeId={activeId}
+        relevantMemories={relevantMemories}
+        disabled={disabledContext}
+        onToggle={(key) => setDisabledContext(prev => {
+          const next = new Set(prev);
+          if (next.has(key)) next.delete(key); else next.add(key);
+          return next;
+        })}
+      />
 
       {/* 🧠 Relevant memory indicator */}
       {relevantMemories.length > 0 && (
