@@ -723,3 +723,144 @@ agent_communication:
       
       The Calendar mobile QA (Step 6) is the stated RELEASE BLOCKER for this cycle,
       but it CANNOT be tested until the LocationSetup modal issue is resolved.
+
+  - agent: "testing"
+    message: |
+      RC1 RETEST AT HEAD f65b5ad — CRITICAL BLOCKER PERSISTS
+      Test Date: 2026-08-01 21:29:33
+      Credentials: qatest@omniverseos.dev / QaTest1234!
+      
+      🚨 RELEASE BLOCKER — LocationSetup Modal STILL Blocking ALL Interactions 🚨
+      
+      ═══════════════════════════════════════════════════════════════════════
+      BLOCKER STATUS: UNRESOLVED (Same issue as HEAD 2ae0f3a)
+      ═══════════════════════════════════════════════════════════════════════
+      
+      The LocationSetup modal continues to INTERCEPT ALL POINTER EVENTS after
+      login, preventing ANY interaction with the underlying application.
+      
+      EVIDENCE FROM HEAD f65b5ad:
+      - Modal visible with "Set your location" header
+      - Modal has × button (data-testid="location-close") and "Skip for now" button (data-testid="skip-location")
+      - Playwright error: "<div x-id='LocationSetup_106_4'> subtree intercepts pointer events"
+      - ALL dismiss methods FAIL (×, ESC, backdrop, "Skip for now")
+      - Fresh signups: LocationSetup modal does NOT appear (timeout after 10s)
+      - Existing user login (qatest@omniverseos.dev): LocationSetup modal BLOCKS all interactions
+      
+      CRITICAL FINDING:
+      The modal appears for EXISTING users (qatest@omniverseos.dev) who have
+      already completed location setup, which contradicts the expected behavior
+      stated in the review request: "If you SIGN IN with an existing account
+      that has already completed the above, only BootScreen shows."
+      
+      ROOT CAUSE ANALYSIS:
+      1. LocationSetup modal's backdrop div (LocationSetup_106_4) has pointer-events
+         set to capture ALL clicks
+      2. The modal does NOT dismiss when buttons are clicked programmatically
+      3. The isLocationSetupDone() check may not be working correctly for existing users
+      4. Console shows 401 errors on /api/auth/login (4 occurrences)
+      
+      ═══════════════════════════════════════════════════════════════════════
+      TEST RESULTS — 10-STEP RC1 RETEST
+      ═══════════════════════════════════════════════════════════════════════
+      
+      ❌ STEP 1: Auth flow — FAIL
+         - Backend health: ✓ PASS (status "healthy")
+         - Login submitted: ✓ PASS
+         - Desktop loaded: ✗ FAIL (LocationSetup modal blocking)
+         - Reload/logout/login: NOT TESTED (blocked by modal)
+      
+      ❌ STEP 2: LocationSetup dismiss matrix (fresh signups) — FAIL
+         - 2a (× button): ✗ FAIL - Modal did NOT appear for fresh signup
+         - 2b (ESC key): ✗ FAIL - Modal did NOT appear for fresh signup
+         - 2c (backdrop): ✗ FAIL - Modal did NOT appear for fresh signup
+         - 2d (Skip for now): ✗ FAIL - Modal did NOT appear for fresh signup
+         - NOTE: Fresh signups created successfully but LocationSetup never shown
+      
+      ⏸ STEP 3: Session CRUD (D1) — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ⏸ STEP 4: D7 Context Chips — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ⏸ STEP 5: Graceful AI error — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ⏸ STEP 6: Calendar mobile responsive (C4) — NOT TESTED (RELEASE BLOCKER)
+         - Blocked by LocationSetup modal overlay
+         - This is the PRIMARY test for this RC1 cycle
+      
+      ⏸ STEP 7: Memory app mobile — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ⏸ STEP 8: Widget Store — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ⏸ STEP 9: Runtime / A8 — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ⏸ STEP 10: Browser back/forward — NOT TESTED
+         - Blocked by LocationSetup modal overlay
+      
+      ═══════════════════════════════════════════════════════════════════════
+      FINAL SCORE: 0 PASS / 2 FAIL / 8 NOT TESTED (0% completion)
+      ═══════════════════════════════════════════════════════════════════════
+      
+      CONSOLE ERRORS:
+      - 4 × "Failed to load resource: 401 (Unauthorized)" on /api/auth/login
+      - These may indicate auth token issues or session problems
+      
+      ═══════════════════════════════════════════════════════════════════════
+      CRITICAL ISSUES SUMMARY
+      ═══════════════════════════════════════════════════════════════════════
+      
+      1. 🚨 BLOCKER: LocationSetup modal intercepts ALL pointer events
+         - Modal appears for existing users who have completed setup
+         - Modal does NOT appear for fresh signups
+         - No dismiss method works (×, ESC, backdrop, Skip)
+         - Playwright error: "LocationSetup_106_4 intercepts pointer events"
+      
+      2. 🚨 BLOCKER: isLocationSetupDone() logic broken
+         - Existing user (qatest@omniverseos.dev) sees LocationSetup modal
+         - Expected: Only BootScreen for existing users
+         - Actual: LocationSetup modal blocks entire app
+      
+      3. ⚠️ Auth errors: 401 Unauthorized on /api/auth/login
+         - May be related to modal blocking issue
+         - Needs investigation
+      
+      ═══════════════════════════════════════════════════════════════════════
+      RECOMMENDATION
+      ═══════════════════════════════════════════════════════════════════════
+      
+      🚨 DO NOT SHIP RC1 — CRITICAL BLOCKER UNRESOLVED 🚨
+      
+      The LocationSetup modal blocking issue from HEAD 2ae0f3a has NOT been fixed
+      at HEAD f65b5ad. The issue has WORSENED:
+      
+      - Previous: Modal appeared and blocked interactions
+      - Current: Modal appears for WRONG users (existing vs fresh) AND blocks interactions
+      
+      IMMEDIATE ACTION REQUIRED:
+      
+      1. FIX LocationSetup modal pointer-events blocking:
+         - Remove pointer-events: auto from backdrop div (LocationSetup_106_4)
+         - OR ensure backdrop click handler properly dismisses modal
+         - OR use pointer-events: none on backdrop, only capture on modal content
+      
+      2. FIX isLocationSetupDone() logic:
+         - Verify localStorage key "omniverse_location_setup_done" is checked correctly
+         - Ensure existing users (qatest@omniverseos.dev) skip LocationSetup
+         - Ensure fresh signups DO see LocationSetup
+      
+      3. INVESTIGATE 401 auth errors:
+         - Check if auth token is being properly stored/retrieved
+         - Verify /api/auth/login endpoint is working correctly
+      
+      4. RE-RUN full 10-step test suite after fixes
+      
+      The Calendar mobile QA (Step 6) is the PRIMARY RELEASE BLOCKER for this
+      RC1 cycle, but it CANNOT be tested until the LocationSetup modal issue
+      is completely resolved.
+      
+      TESTING CANNOT PROCEED until this blocker is fixed.
