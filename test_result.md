@@ -582,3 +582,144 @@ agent_communication:
 
       Report PASS / PARTIAL / FAIL per numbered step with viewport +
       screenshot filename.  Do NOT weaken any test to make it green.
+
+  - agent: "testing"
+    message: |
+      RC1 FINAL HARDENING TEST RESULTS — HEAD 2ae0f3a
+      Test Date: 2026-08-01
+      Credentials: qatest@omniverseos.dev / QaTest1234!
+      
+      🚨 CRITICAL BLOCKER FOUND — RELEASE BLOCKER 🚨
+      
+      ═══════════════════════════════════════════════════════════════════════
+      BLOCKER: LocationSetup Modal STILL Blocking All Interactions
+      ═══════════════════════════════════════════════════════════════════════
+      
+      The LocationSetup modal appears after login and INTERCEPTS ALL POINTER EVENTS,
+      preventing ANY interaction with the underlying application. This blocks:
+      
+      ❌ ALL Calendar testing (Step 6 - RELEASE BLOCKER)
+      ❌ Session CRUD testing (Step 3)
+      ❌ Context Chips toggle testing (Step 4)
+      ❌ Memory app testing (Step 7)
+      ❌ Widget Store testing (Step 8)
+      
+      EVIDENCE:
+      - Modal visible with "Set your location" header
+      - Modal has × button (top-right) and "Skip for now" button (bottom)
+      - Playwright error: "<div LocationSetup_106_4> intercepts pointer events"
+      - Clicking "Skip for now" button in script does NOT dismiss the modal
+      - All subsequent clicks timeout after 30s with "intercepts pointer events"
+      
+      ROOT CAUSE:
+      The LocationSetup modal's backdrop or container is capturing pointer events
+      and preventing clicks from reaching the underlying UI, even after attempting
+      to dismiss it programmatically.
+      
+      PREVIOUS FIX ATTEMPT:
+      In the previous test cycle, this issue was reported as FIXED. However, the
+      fix was incomplete or has regressed. The modal still blocks interactions.
+      
+      ═══════════════════════════════════════════════════════════════════════
+      TEST RESULTS SUMMARY
+      ═══════════════════════════════════════════════════════════════════════
+      
+      ✅ STEP 1: Backend Health Check
+         - GET /api/health returns {"status": "healthy"}
+         - PASS
+      
+      ✅ STEP 1b: Auth Flow
+         - Login with qatest@omniverseos.dev successful
+         - Desktop loads correctly
+         - PASS
+      
+      ❌ STEP 2: LocationSetup Modal Dismiss
+         - NOT TESTED (blocked by modal issue)
+         - Modal appears but "Skip for now" click does not work
+         - FAIL - Modal blocking
+      
+      ❌ STEP 3: Session CRUD (D1)
+         - AI Chat app opened successfully
+         - "New Chat" button found
+         - Click BLOCKED by LocationSetup modal overlay
+         - Error: "LocationSetup_106_4 intercepts pointer events"
+         - FAIL - Blocked by modal
+      
+      ✅ STEP 4a: D7 Context Chips Visibility
+         - [data-testid="context-chips"] found and visible
+         - 1 chip present (showing "AI Chat")
+         - PASS
+      
+      ❌ STEP 4b: D7 Context Chips Toggle
+         - Chip click BLOCKED by LocationSetup modal overlay
+         - Error: "LocationSetup_106_4 intercepts pointer events"
+         - FAIL - Blocked by modal
+      
+      ✅ STEP 5: AI Graceful Error (NO-KEY)
+         - No "RUNTIME CRASH" panel appeared
+         - App remains stable when AI returns error
+         - Toast notification: "Cortex is unresponsive after all retries: Stream error: 500"
+         - PASS - Graceful error handling working
+      
+      ❌ STEP 6: Calendar Mobile QA (RELEASE BLOCKER)
+         - Attempted to open Calendar at 5 viewports
+         - ALL viewports FAILED
+         - Calendar app opened but shows "Set your location" modal header
+         - Month header NOT visible (modal covers it)
+         - Cannot test month name, truncation, chevrons, or overflow
+         - FAIL - Blocked by modal at ALL viewports:
+           * 320x568: FAIL
+           * 375x812: FAIL
+           * 430x932: FAIL
+           * 768x1024: FAIL
+           * 1440x900: FAIL
+      
+      ❌ STEP 7: Memory App Mobile
+         - NOT TESTED (would be blocked by modal)
+      
+      ❌ STEP 8: Widget Store
+         - NOT TESTED (would be blocked by modal)
+      
+      ❌ STEP 9: Runtime Stability
+         - NOT TESTED (cannot open multiple apps due to modal)
+      
+      ❌ STEP 10: Browser Back/Forward
+         - NOT TESTED
+      
+      ═══════════════════════════════════════════════════════════════════════
+      FINAL SCORE: 3 PASS / 7 FAIL (30% pass rate)
+      ═══════════════════════════════════════════════════════════════════════
+      
+      PASSED:
+      ✓ Backend health check
+      ✓ Auth flow (login)
+      ✓ AI graceful error handling (no crash)
+      ✓ Context chips visibility
+      
+      FAILED:
+      ✗ LocationSetup modal dismiss (BLOCKER)
+      ✗ Session CRUD (blocked by modal)
+      ✗ Context chips toggle (blocked by modal)
+      ✗ Calendar mobile QA - ALL 5 viewports (RELEASE BLOCKER - blocked by modal)
+      ✗ Memory app mobile (not tested - blocked)
+      ✗ Widget Store (not tested - blocked)
+      ✗ Runtime stability (not tested - blocked)
+      
+      ═══════════════════════════════════════════════════════════════════════
+      RECOMMENDATION
+      ═══════════════════════════════════════════════════════════════════════
+      
+      🚨 DO NOT SHIP RC1 🚨
+      
+      The LocationSetup modal blocking issue is a CRITICAL RELEASE BLOCKER that
+      prevents users from interacting with the application after login. This must
+      be fixed before RC1 can be released.
+      
+      IMMEDIATE ACTION REQUIRED:
+      1. Fix LocationSetup modal to properly dismiss on "Skip for now" click
+      2. Ensure modal does NOT intercept pointer events after dismissal
+      3. Verify modal can be dismissed via ALL methods (×, ESC, backdrop, Skip)
+      4. Re-run full test suite after fix
+      
+      The Calendar mobile QA (Step 6) is the stated RELEASE BLOCKER for this cycle,
+      but it CANNOT be tested until the LocationSetup modal issue is resolved.
