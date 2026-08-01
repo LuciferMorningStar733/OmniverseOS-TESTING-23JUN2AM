@@ -756,6 +756,45 @@ input[type="range"]::-moz-range-thumb {
   -webkit-user-select: none;
 }
 
+/* ── C7: iPad / WebKit — controls should behave like controls,
+       not text. This prevents iOS from raising the copy/select
+       callout on ordinary taps against buttons, tabs, dock items,
+       widgets and the top bar.  IMPORTANT: text-selectable regions
+       (message bodies, editable inputs, notes) are re-enabled below
+       so users can still highlight legitimate text. ─────────── */
+button,
+[role="button"],
+.dock,
+.dock *,
+.topbar,
+.topbar *,
+.widget-shell,
+.widget-shell .widget-header,
+.tab-strip,
+.tab-strip *,
+[data-testid="dock"],
+[data-testid="topbar"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+/* Re-enable text selection where the user genuinely reads / copies. */
+.markdown-content,
+.markdown-content *,
+.chat-message,
+.chat-message *,
+[contenteditable="true"],
+input,
+textarea,
+.select-text,
+.select-text * {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 /* ── P9: Overflow guard for app windows ──────────────────────── */
 /* Ensure app content never bleeds through window borders        */
 .app-window-inner {

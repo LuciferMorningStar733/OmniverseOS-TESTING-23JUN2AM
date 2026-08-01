@@ -261,13 +261,29 @@ export default function CalendarApp() {
           <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-slate-500 mb-0.5">// Schedule</div>
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <button onClick={()=>setMonth(new Date(y,m-1))} className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0">
+              <button
+                onClick={()=>setMonth(new Date(y,m-1))}
+                aria-label="Previous month"
+                className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0"
+              >
                 <i className="fa-solid fa-chevron-left text-xs"/>
               </button>
-              <h2 className="font-heading text-base sm:text-xl md:text-2xl font-black min-w-0 flex-1 truncate whitespace-nowrap text-center sm:text-left">
-                {month.toLocaleString("default",{month:"long",year:"numeric"})}
+              {/* C4: Month header — never truncate. Full name at ≥sm, short name on
+                  mobile so it always fits without a "J..." ellipsis regression. */}
+              <h2 className="font-heading font-black min-w-0 flex-1 text-center sm:text-left whitespace-nowrap"
+                  style={{ fontSize:"clamp(14px, 4.2vw, 24px)", lineHeight:1.15 }}>
+                <span className="sm:hidden">
+                  {month.toLocaleString("default",{month:"short",year:"numeric"})}
+                </span>
+                <span className="hidden sm:inline">
+                  {month.toLocaleString("default",{month:"long",year:"numeric"})}
+                </span>
               </h2>
-              <button onClick={()=>setMonth(new Date(y,m+1))} className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0">
+              <button
+                onClick={()=>setMonth(new Date(y,m+1))}
+                aria-label="Next month"
+                className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0"
+              >
                 <i className="fa-solid fa-chevron-right text-xs"/>
               </button>
             </div>
