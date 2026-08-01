@@ -198,8 +198,19 @@ function Desktop() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
-  const handleLocationComplete = useCallback(() => {
+  const handleLocationComplete = useCallback((city) => {
     setShowLocation(false);
+    // If the user explicitly SKIPPED (city === null), also treat it as
+    // "I want to explore, not sit through intro slides" and short-circuit
+    // the onboarding chain.  This prevents the confusing UX of clicking
+    // × on LocationSetup only to be immediately dropped into a second
+    // full-screen overlay.  Users who *entered* a city still get the
+    // friendly first-run onboarding they signed up for.
+    if (city === null) {
+      markOnboardingDone();
+      setShowWelcomeP(true);
+      return;
+    }
     if (!hasSeenOnboarding()) {
       setShowOnboarding(true);
     } else {
