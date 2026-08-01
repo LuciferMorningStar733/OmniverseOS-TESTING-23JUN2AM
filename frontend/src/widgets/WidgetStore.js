@@ -263,14 +263,17 @@ export default function WidgetStore({ onClose }) {
           cursor: "default",
           borderRadius: "20px 20px 0 0",
           boxSizing: "border-box",
+          // C8: respect iOS home-indicator safe area so the sheet
+          // never sits under the physical bezel/gesture bar.
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
           ...GLASS,
         } : {
           position: "fixed",
           top: "calc(50% - 44px)",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 400,
-          height: 650,
+          width: "min(400px, calc(100vw - 24px))",
+          height: "min(650px, calc(100vh - 120px))",
           display: "flex",
           flexDirection: "column",
           zIndex: 201,
