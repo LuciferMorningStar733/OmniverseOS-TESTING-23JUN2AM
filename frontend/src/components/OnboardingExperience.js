@@ -745,6 +745,14 @@ export default function OnboardingExperience({ onComplete, onNameSet, onWallpape
     onComplete?.();
   }, [onComplete]);
 
+  // Esc dismisses onboarding from any slide (matches LocationSetup + the
+  // rest of the OS's modal-dismissal convention).  Testing-agent friendly.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") handleSkip(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleSkip]);
+
   const variants = {
     enter:  (d) => ({ opacity: 0, x: d > 0 ? 60 : -60, scale: 0.97 }),
     center: { opacity: 1, x: 0, scale: 1 },
@@ -782,6 +790,7 @@ export default function OnboardingExperience({ onComplete, onNameSet, onWallpape
       {slideIndex < SLIDES.length - 1 && (
         <button
           onClick={handleSkip}
+          data-testid="skip-onboarding"
           style={{
             position: "absolute", top: 20, right: 20,
             background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.45)",

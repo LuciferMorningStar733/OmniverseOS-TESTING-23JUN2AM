@@ -139,6 +139,7 @@ export default function LocationSetup({ onComplete }) {
           type="button"
           onClick={handleSkip}
           aria-label="Skip location setup"
+          data-testid="location-close"
           style={{
             position: "absolute", top: 12, right: 12,
             width: 30, height: 30, borderRadius: 10,
@@ -234,6 +235,7 @@ export default function LocationSetup({ onComplete }) {
               <button
                 type="button"
                 onClick={handleSkip}
+                data-testid="skip-location"
                 style={{
                   marginTop: 4,
                   padding: "10px",
