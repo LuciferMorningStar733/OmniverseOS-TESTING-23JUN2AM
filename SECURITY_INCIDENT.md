@@ -51,7 +51,9 @@ secret, and no user password entered Git history.
    rewrite Git history to remove the value.  The safest tool is
    [`git filter-repo`](https://github.com/newren/git-filter-repo):
    ```bash
-   git filter-repo --replace-text <(echo 'sk-emergent-eEc8d826940E0349a8==REDACTED')
+   git filter-repo --replace-text <(echo '<LEAKED_KEY_VALUE>==REDACTED')
+   # (retrieve the exact leaked value from `git show 5d42fc7 -- test_result.md`
+   #  when running this command; do not commit the literal value again.)
    git push --force-with-lease origin main
    ```
    This IS a destructive history rewrite; every collaborator will need
