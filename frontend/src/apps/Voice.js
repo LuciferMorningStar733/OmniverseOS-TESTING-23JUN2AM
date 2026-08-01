@@ -68,6 +68,7 @@ function getDefaultVoiceSettings() {
     conversationTimeout: "never",
     autoResumeListen: true,
     wakeWordEnabled: false,
+    bargeIn: false,
     voiceFeedback: true,
     preferredVoiceName: null,
     rate: 1.0,
@@ -698,6 +699,9 @@ export default function Voice() {
   const settingsRef         = useRef(settings);
   const autoListenTimerRef  = useRef(null);
   const timeoutTimerRef     = useRef(null);
+  // Barge-in detector refs
+  const bargeInRecogRef     = useRef(null);
+  const bargeInActiveRef    = useRef(false);
   const wakeRecogRef        = useRef(null);
   const phaseRef            = useRef("idle");
   const startListeningRef   = useRef(null);
@@ -901,6 +905,7 @@ export default function Voice() {
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
+    stopBargeInDetector();
     clearTimeout(autoListenTimerRef.current);
     cancelSpeechRef.current?.();
     cancelSpeechRef.current = null;
@@ -909,7 +914,7 @@ export default function Voice() {
       setPhase("idle");
       setDetectedEmotion("neutral");
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Browser TTS speak
   const speakBrowser = useCallback((rawText) => {
@@ -919,12 +924,17 @@ export default function Voice() {
 
     const s = settingsRef.current;
     setDetectedEmotion(detectEmotion(rawText));
-    if (mountedRef.current) setPhase("speaking");
+    if (mountedRef.current) {
+      setPhase("speaking");
+      // Arm barge-in detector so user can naturally interrupt Cortex's speech
+      startBargeInDetector();
+    }
 
     cancelSpeechRef.current?.();
     cancelSpeechRef.current = null;
 
     const handleEnd = () => {
+      stopBargeInDetector();
       cancelSpeechRef.current = null;
       if (!mountedRef.current) return;
       setPhase("idle");
@@ -986,7 +996,13 @@ export default function Voice() {
       const cancel = streamSpeak(cleanText, {
         voiceId: s.streamVoiceId || getStreamVoiceId(),
         rate: s.rate || 1.0, volume: s.volume ?? 1.0,
-        onStart: () => { if (mountedRef.current) setPhase("speaking"); },
+        onStart: () => {
+          if (mountedRef.current) {
+            setPhase("speaking");
+            // Start barge-in detector after TTS begins (browser AEC is active)
+            startBargeInDetector();
+          }
+        },
         onEnd: handleEnd,
         onError: (err) => {
           console.warn("[StreamTTS] falling back to browser TTS:", err?.message);
@@ -997,7 +1013,7 @@ export default function Voice() {
       return;
     }
 
-    // Fallback: Browser TTS
+    // Fallback: Browser TTS (also arm barge-in after phase transitions to speaking)
     browserFallback();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1025,7 +1041,10 @@ export default function Voice() {
     const r = new SR();
     r.continuous      = true;   // FIX: keep recognition alive — silence timer drives stop
     r.interimResults  = true;
-    r.lang            = "en-US";
+    // Use the browser/OS configured language for accent-robust recognition.
+    // "en-IN" for Indian users, "en-GB" for UK users, etc. — far better than
+    // hard-coding "en-US" for all English speakers worldwide.
+    r.lang            = navigator.language || "en-US";
     r.maxAlternatives = 3;
 
     transcriptRef.current     = "";
@@ -1277,6 +1296,90 @@ export default function Voice() {
       wakeRecogRef.current = null;
     }
   }, []);
+
+  // ── Barge-in detector — listens for real user speech while Cortex speaks ───
+  // Uses the browser's built-in AEC so Cortex's own TTS audio is filtered out.
+  // Only triggers when a real utterance (≥3 chars) is detected mid-playback.
+  const stopBargeInDetector = useCallback(() => {
+    bargeInActiveRef.current = false;
+    if (bargeInRecogRef.current) {
+      bargeInRecogRef.current.onend    = null;
+      bargeInRecogRef.current.onresult = null;
+      bargeInRecogRef.current.onerror  = null;
+      try { bargeInRecogRef.current.stop(); } catch {}
+      bargeInRecogRef.current = null;
+    }
+  }, []);
+
+  const startBargeInDetector = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || !settingsRef.current.bargeIn) return;
+    if (bargeInRecogRef.current) return; // already running
+
+    bargeInActiveRef.current = true;
+
+    const tryStart = () => {
+      if (!bargeInActiveRef.current || !mountedRef.current) return;
+      if (bargeInRecogRef.current) return;
+
+      const r = new SR();
+      r.continuous      = false;   // short sessions → browser restarts = auto-recovery
+      r.interimResults  = true;    // fire immediately on first speech fragment
+      r.lang            = navigator.language || "en-US";
+      r.maxAlternatives = 1;
+
+      r.onresult = (e) => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = (e.results[i][0]?.transcript || "").trim();
+          // Minimum 3 chars of real speech — filters out single phoneme noise
+          if (transcript.length >= 3 && phaseRef.current === "speaking") {
+            // Real intentional speech detected — trigger barge-in
+            bargeInActiveRef.current = false;
+            bargeInRecogRef.current  = null;
+            try { r.stop(); } catch {}
+
+            // Stop TTS immediately
+            cancelSpeechRef.current?.();
+            cancelSpeechRef.current = null;
+            cancelSpeech();
+            clearTimeout(autoListenTimerRef.current);
+            if (mountedRef.current) {
+              setPhase("idle");
+              setDetectedEmotion("neutral");
+            }
+            // Brief pause then start main recognition (the user's words)
+            setTimeout(() => {
+              if (mountedRef.current) startListeningRef.current?.();
+            }, 120);
+            return;
+          }
+        }
+      };
+
+      r.onerror = (e) => {
+        bargeInRecogRef.current = null;
+        // Suppress aborted / no-speech / not-allowed — don't log noise
+        if (e.error === "aborted" || e.error === "not-allowed") return;
+        // Restart on transient network/audio errors if still needed
+        if (bargeInActiveRef.current && phaseRef.current === "speaking") {
+          setTimeout(tryStart, 600);
+        }
+      };
+
+      r.onend = () => {
+        bargeInRecogRef.current = null;
+        // Auto-restart so detector stays alive for the full TTS duration
+        if (bargeInActiveRef.current && phaseRef.current === "speaking") {
+          setTimeout(tryStart, 200);
+        }
+      };
+
+      bargeInRecogRef.current = r;
+      try { r.start(); } catch { bargeInRecogRef.current = null; }
+    };
+
+    tryStart();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (settings.wakeWordEnabled) startWakeWord();
@@ -2011,6 +2114,22 @@ export default function Voice() {
           {/* Wake Word */}
           <Card>
             <SectionHeader label="Voice Activation" />
+
+            <SettingRow label="Barge-In" desc="Interrupt Cortex by speaking while it's responding">
+              <Toggle value={settings.bargeIn} onChange={(v) => updateSettings({ bargeIn: v })} />
+            </SettingRow>
+
+            {settings.bargeIn && (
+              <div style={{
+                marginTop: 4, marginBottom: 10, padding: "10px 12px", borderRadius: 10,
+                background: "rgba(0,229,255,0.05)", border: "1px solid rgba(0,229,255,0.15)",
+                fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                color: "rgba(0,229,255,0.65)", lineHeight: 1.6,
+              }}>
+                <i className="fa-solid fa-circle-info" style={{ marginRight: 6 }} />
+                Speak 3+ syllables to interrupt Cortex mid-response. Echo cancellation prevents Cortex's voice from triggering itself.
+              </div>
+            )}
 
             <SettingRow label={`"Hey Cortex" Wake Word`} desc='Say "Hey Cortex" to activate hands-free'>
               <Toggle value={settings.wakeWordEnabled} onChange={(v) => updateSettings({ wakeWordEnabled: v })} />
