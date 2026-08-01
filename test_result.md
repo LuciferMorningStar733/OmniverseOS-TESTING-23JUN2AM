@@ -150,7 +150,7 @@ backend:
           
           ROOT CAUSE - ENVIRONMENT CONFIGURATION ERROR:
           backend/.env contains EMERGENT_LLM_KEY but the code expects GEMINI_API_KEY.
-          - backend/.env has: EMERGENT_LLM_KEY=sk-emergent-eEc8d826940E0349a8
+          - backend/.env has: EMERGENT_LLM_KEY=<REDACTED — see SECURITY_INCIDENT.md>
           - backend/server.py line 36: GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
           - backend/providers.py line 216: gemini_key = os.environ.get("GEMINI_API_KEY", "")
           - EMERGENT_LLM_KEY is not referenced anywhere in the backend codebase
@@ -414,7 +414,7 @@ agent_communication:
       
       ROOT CAUSE:
       backend/.env has EMERGENT_LLM_KEY but code expects GEMINI_API_KEY.
-      - Line in .env: EMERGENT_LLM_KEY=sk-emergent-eEc8d826940E0349a8
+      - Line in .env: EMERGENT_LLM_KEY=<REDACTED — see SECURITY_INCIDENT.md>
       - Code expects: GEMINI_API_KEY (server.py:36, providers.py:216)
       - EMERGENT_LLM_KEY is never referenced in the codebase
       
