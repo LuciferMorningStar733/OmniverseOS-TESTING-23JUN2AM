@@ -2269,6 +2269,12 @@ export default function AIChat() {
                 >
                   {m.content}
                 </div>
+                {/* Copy button — reveals on hover or tap, aligned right to match bubble */}
+                {(hoveredMsgIdx === i || touchedMsgIdx === i) && m.content && (
+                  <div className="flex justify-end mt-1 -mb-1">
+                    <CopyButton text={m.content} />
+                  </div>
+                )}
                 {/* Timestamp — fades in on hover or tap */}
                 {(hoveredMsgIdx === i || touchedMsgIdx === i) && formatMessageTime(m.ts) && (
                   <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", marginTop: 3, textAlign: "right", paddingRight: 4, fontFamily: "'JetBrains Mono',monospace", animation: "fadeSlideUp 0.15s ease" }}>
