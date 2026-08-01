@@ -856,6 +856,11 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
 
     async def event_gen():
         full = []
+        # SSE control tokens the frontend parser treats as signals.
+        # If an AI model mistakenly emits one of these patterns as literal text,
+        # we prefix it with a zero-width space so the client reads it as content,
+        # not as a control frame — preventing CMD/error-code syntax leakage.
+        _CONTROL_PREFIXES = ("[DONE]", "[quota_exceeded]", "[error:", "[error ", "[sources:", "[confidence:", "[provider:")
         try:
             # Emit source cards (research mode) then confidence metadata.
             # Both arrive before the AI text stream so the UI can render them immediately.
@@ -873,8 +878,16 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                     # Signal which provider is responding — frontend parses this
                     yield f"data: [provider:{value}]\n\n"
                 elif kind == "chunk":
-                    full.append(value)
-                    yield f"data: {value}\n\n"
+                    chunk = value or ""
+                    if not chunk:
+                        continue  # skip empty chunks to avoid spurious SSE frames
+                    full.append(chunk)
+                    # Safety: if a text chunk literally starts with a control token,
+                    # escape it so the client parser never misidentifies it.
+                    safe_chunk = chunk
+                    if any(chunk.startswith(prefix) for prefix in _CONTROL_PREFIXES):
+                        safe_chunk = "\u200b" + chunk  # prepend zero-width space
+                    yield f"data: {safe_chunk}\n\n"
                 elif kind == "error":
                     code = value or "500"
                     if code == "429":
@@ -883,7 +896,23 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                         yield f"data: [error:{code}]\n\n"
         except Exception as e:
             logging.error("Unexpected error in event_gen: %s", e)
+            # Persist any partial content that arrived before the failure.
+            # This prevents a total data loss when the provider drops mid-stream.
+            if full:
+                try:
+                    await db.chat_messages.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "user_id": user["id"],
+                        "session_id": req.session_id,
+                        "role": "assistant",
+                        "content": "".join(full),
+                        "created_at": now_iso(),
+                    })
+                except Exception:
+                    pass  # DB failure during error path — already logging the primary error
             yield "data: [error:500]\n\n"
+            yield "data: [DONE]\n\n"
+            return
 
         if full:
             await db.chat_messages.insert_one({

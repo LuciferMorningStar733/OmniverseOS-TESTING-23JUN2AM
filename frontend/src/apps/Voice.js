@@ -1190,30 +1190,51 @@ export default function Voice() {
             system: systemPrompt,
           },
           (delta) => { fullResponse += delta; },
-          null,
+          // onStatus — discard partial content when a provider retry is triggered
+          // so the TTS doesn't speak a fragment from the failed attempt followed
+          // by the full response from the retry (duplicate/garbled output).
+          (status) => {
+            if (status?.stage === "switching") fullResponse = "";
+          },
           ctrl.signal,
         );
         if (!mountedRef.current || ctrl.signal.aborted) return;
 
-        appendToConversation("user", text);
-        appendToConversation("assistant", fullResponse);
-        setSessionTurnCount((n) => n + 1);
+        // Strip any internal CMD syntax that may have leaked into the voice response.
+        // CMD tags ([CMD:...]) are meant for the desktop UI action system, not TTS.
+        const cleanResponse = fullResponse.replace(/\[CMD:[^\]]*\]/gi, "").trim();
 
-        memoryApi.extract(text, fullResponse).catch(() => {});
+        if (cleanResponse) {
+          appendToConversation("user", text);
+          appendToConversation("assistant", cleanResponse);
+          setSessionTurnCount((n) => n + 1);
+          memoryApi.extract(text, cleanResponse).catch(() => {});
 
-        if (settingsRef.current.voiceFeedback) {
-          speakBrowser(fullResponse);
+          if (settingsRef.current.voiceFeedback) {
+            speakBrowser(cleanResponse);
+          } else {
+            if (mountedRef.current) setPhase("idle");
+          }
         } else {
+          // Empty after cleanup — treat as a silent failure (provider returned nothing useful)
           if (mountedRef.current) setPhase("idle");
         }
       } catch (err) {
-        if (err?.name === "AbortError") return;
+        if (err?.name === "AbortError") return; // user cancelled — not a failure
         if (!mountedRef.current) return;
         setPhase("idle");
-        if (err?.status === 429) {
-          toast.error("Cortex is rate-limited. Please wait a moment.");
+
+        // Categorise the failure so the toast is informative, not generic.
+        if (err?.code === "OFFLINE") {
+          toast.error("No internet connection — check your network and try again.", { duration: 6000 });
+        } else if (err?.status === 429) {
+          toast.error("Cortex is busy — Flash and backup providers are both rate-limited. Try again in a moment.", { duration: 7000 });
+        } else if (err?.status === 503 || err?.status === 502) {
+          toast.error("Cortex providers are temporarily overloaded. Please try again shortly.", { duration: 7000 });
+        } else if (err?.name === "TimeoutError" || err?.message?.includes("timed out")) {
+          toast.error("Cortex took too long to respond — please try again.", { duration: 5000 });
         } else {
-          toast.error("Cortex response failed. Please try again.");
+          toast.error("Cortex response failed — please try again.", { duration: 4000 });
         }
       }
     };
