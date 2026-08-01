@@ -46,6 +46,24 @@ export default function LocationSetup({ onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
 
+  // A1/UX: allow the user to dismiss the modal — the "location" feature is a
+  // NICE-to-have (used for weather + geo-aware greetings), not a hard
+  // prerequisite for the OS.  Skipping stores an empty city and marks the
+  // setup done so the modal never re-prompts.
+  const handleSkip = useCallback(() => {
+    try {
+      localStorage.setItem(LS_LOCATION_DONE, "1");
+    } catch { /* ignore */ }
+    onComplete(null);
+  }, [onComplete]);
+
+  // ESC key dismisses the modal (matches every other modal in the OS).
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") handleSkip(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleSkip]);
+
   const handleAuto = useCallback(async () => {
     setStep("auto");
     setLoading(true);
@@ -89,6 +107,7 @@ export default function LocationSetup({ onComplete }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleSkip(); }}
       style={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.72)",
@@ -103,6 +122,7 @@ export default function LocationSetup({ onComplete }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: 400,
           maxWidth: "90vw",
@@ -111,8 +131,29 @@ export default function LocationSetup({ onComplete }) {
           borderRadius: 20,
           padding: "32px 28px",
           boxShadow: "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(168,85,247,0.08)",
+          position: "relative",
         }}
       >
+        {/* Close (skip) button — top-right */}
+        <button
+          type="button"
+          onClick={handleSkip}
+          aria-label="Skip location setup"
+          style={{
+            position: "absolute", top: 12, right: 12,
+            width: 30, height: 30, borderRadius: 10,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            color: "rgba(255,255,255,0.55)",
+            fontSize: 12, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.09)"; e.currentTarget.style.color = "#fff"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+        >
+          <i className="fa-solid fa-xmark" />
+        </button>
         {/* Icon */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{
@@ -187,6 +228,26 @@ export default function LocationSetup({ onComplete }) {
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🏙 Enter city manually</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", marginTop: 2 }}>Type your city name</div>
                 </div>
+              </button>
+
+              {/* Skip — always available, matches macOS/iOS "Not now" pattern. */}
+              <button
+                type="button"
+                onClick={handleSkip}
+                style={{
+                  marginTop: 4,
+                  padding: "10px",
+                  background: "transparent",
+                  border: "none",
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: 12,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: "0.04em",
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                Skip for now
               </button>
             </motion.div>
           )}
