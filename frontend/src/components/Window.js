@@ -385,12 +385,100 @@ export default function Window({ win, children }) {
   const handleMaximize = useCallback(() => toggleMaximize(win.id), [toggleMaximize, win.id]);
   const handleFocus    = useCallback(() => { if (!isActive) focusWindow(win.id); }, [isActive, focusWindow, win.id]);
 
+  /* ── Geometry (declared BEFORE any early return so it's safe for hooks) ── */
+  const topPad    = isMobile ? 60 : isTablet ? 48 : 56;
+  const bottomPad = isTouch ? 0 : 96;
+
+  /* ── LIQUID DRAG hooks — declared unconditionally at the top level of
+     the component, BEFORE any early return (win.minimized / isTouch).
+     Fixes react-hooks/rules-of-hooks violation from d8ad9f1. */
+  const nodeRef       = useRef(null);
+  const dragRef       = useRef(null);
+  const [snapTarget, setSnapTarget] = useState(null);
+
+  const commitDragEnd = useCallback((finalX, finalY) => {
+    setIsDragging(false);
+    setSnapTarget(null);
+    if (nodeRef.current) {
+      nodeRef.current.style.transform = "";
+      nodeRef.current.style.transition = "";
+    }
+    updateWindow(win.id, { x: Math.round(finalX), y: Math.round(finalY) });
+  }, [win.id, updateWindow]);
+
+  const onTitlebarPointerDown = useCallback((e) => {
+    // Touch/mobile branch and maximized windows disable liquid drag; guard here.
+    if (isTouch || win.maximized) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    const t = e.target;
+    if (t && t.closest && t.closest("button, input, textarea, [data-nodrag]")) return;
+    e.preventDefault();
+    if (!isActive) focusWindow(win.id);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    setIsDragging(true);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startPX: e.clientX, startPY: e.clientY,
+      startWX: win.x,     startWY: win.y,
+      lastPX:  e.clientX, lastPY:  e.clientY,
+      raf: 0, pendingSnap: null,
+    };
+    if (nodeRef.current) nodeRef.current.style.transition = "none";
+  }, [isTouch, win.maximized, win.id, win.x, win.y, isActive, focusWindow]);
+
+  const onTitlebarPointerMove = useCallback((e) => {
+    const s = dragRef.current;
+    if (!s) return;
+    s.lastPX = e.clientX;
+    s.lastPY = e.clientY;
+    if (s.raf) return;
+    s.raf = requestAnimationFrame(() => {
+      s.raf = 0;
+      const cur = dragRef.current;
+      if (!cur || !nodeRef.current) return;
+      const dx = cur.lastPX - cur.startPX;
+      const dy = cur.lastPY - cur.startPY;
+      nodeRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+      const target = computeSnapTarget(cur.lastPX, cur.lastPY, viewport.w, viewport.h, topPad, bottomPad);
+      cur.pendingSnap = target;
+      setSnapTarget(target);
+    });
+  }, [viewport.w, viewport.h, topPad, bottomPad]);
+
+  const onTitlebarPointerUp = useCallback((e) => {
+    const s = dragRef.current;
+    if (!s) return;
+    if (s.raf) { cancelAnimationFrame(s.raf); s.raf = 0; }
+    try { e.currentTarget.releasePointerCapture(s.pointerId); } catch { /* ignore */ }
+    const dx = s.lastPX - s.startPX;
+    const dy = s.lastPY - s.startPY;
+    const rawX = s.startWX + dx;
+    const rawY = s.startWY + dy;
+    const savedW = win.w, savedH = win.h;
+    const startWX = s.startWX, startWY = s.startWY;
+    const pending = s.pendingSnap;
+    dragRef.current = null;
+    if (pending) {
+      setIsDragging(false);
+      setSnapTarget(null);
+      if (nodeRef.current) {
+        nodeRef.current.style.transform = "";
+        nodeRef.current.style.transition = "";
+      }
+      updateWindow(win.id, {
+        x: Math.round(pending.x), y: Math.round(pending.y),
+        w: Math.round(pending.w), h: Math.round(pending.h),
+        _prev: { x: startWX, y: startWY, w: savedW, h: savedH },
+      });
+      return;
+    }
+    const { nx, ny } = clampPosition(rawX, rawY, savedW, savedH, viewport.w, viewport.h, topPad, bottomPad);
+    commitDragEnd(nx, ny);
+  }, [commitDragEnd, viewport.w, viewport.h, topPad, bottomPad, win.id, win.w, win.h, updateWindow]);
+
   if (win.minimized) return null;
 
   /* ── Geometry ────────────────────────────────────────────────────────── */
-  // topPad: space below topbar. Mobile=60px, Tablet=48px, Desktop=56px
-  const topPad    = isMobile ? 60 : isTablet ? 48 : 56;
-  const bottomPad = isTouch ? 0 : 96; // dock hides when windows open → fill to screen edge
   const availH    = viewport.h - topPad - bottomPad;
 
   let animX, animY, animW, animH, dragEnabled;
@@ -480,115 +568,9 @@ export default function Window({ win, children }) {
   }
 
   /* ══ DESKTOP / TABLET ════════════════════════════════════════════════════ */
-  /* ── LIQUID DRAG PIPELINE ──────────────────────────────────────────────────
-     Replaces framer-motion's `drag` prop with native pointer events + direct
-     DOM transforms.  Root cause of the previous jitter: framer's `animate`
-     prop and `drag` prop both controlled x/y — every pointerup triggered a
-     React state update that fought framer's internal transform, causing the
-     window to visibly snap to fixed positions instead of tracking the pointer.
-
-     New pipeline:
-       - pointerdown  → capture pointer, remember (pointerX, pointerY, winX, winY)
-       - pointermove  → set node.style.transform = translate3d(dx, dy, 0)  (NO React state)
-       - pointerup    → clear transform, then updateWindow() with final (x, y)
-       - snap preview → separate DOM overlay driven by pointer position only
-
-     Position is now the pure CSS left/top of the container (no framer x/y).
-     Framer still handles open/close spring (opacity + scale) via
-     AnimatePresence in Desktop.js. */
-  const nodeRef       = useRef(null);
-  const dragRef       = useRef(null);
-  const [snapTarget, setSnapTarget] = useState(null);
-
-  const commitDragEnd = useCallback((finalX, finalY) => {
-    setIsDragging(false);
-    setSnapTarget(null);
-    if (nodeRef.current) {
-      nodeRef.current.style.transform = "";
-      nodeRef.current.style.transition = "";
-    }
-    updateWindow(win.id, { x: Math.round(finalX), y: Math.round(finalY) });
-  }, [win.id, updateWindow]);
-
-  const onTitlebarPointerDown = useCallback((e) => {
-    if (!dragEnabled) return;
-    if (e.button !== undefined && e.button !== 0) return; // primary button only
-    // Ignore drags initiated on interactive titlebar children (hex controls, etc.).
-    const t = e.target;
-    if (t && t.closest && t.closest("button, input, textarea, [data-nodrag]")) return;
-    e.preventDefault();
-    handleFocus();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-    setIsDragging(true);
-    dragRef.current = {
-      pointerId: e.pointerId,
-      startPX: e.clientX,
-      startPY: e.clientY,
-      startWX: win.x,
-      startWY: win.y,
-      lastPX:  e.clientX,
-      lastPY:  e.clientY,
-      raf:     0,
-      pendingSnap: null,
-    };
-    // Kill any transitions on the node during drag so it tracks pointer 1:1.
-    if (nodeRef.current) nodeRef.current.style.transition = "none";
-  }, [dragEnabled, handleFocus, win.x, win.y]);
-
-  const onTitlebarPointerMove = useCallback((e) => {
-    const s = dragRef.current;
-    if (!s) return;
-    s.lastPX = e.clientX;
-    s.lastPY = e.clientY;
-    if (s.raf) return;
-    s.raf = requestAnimationFrame(() => {
-      s.raf = 0;
-      const cur = dragRef.current;
-      if (!cur || !nodeRef.current) return;
-      const dx = cur.lastPX - cur.startPX;
-      const dy = cur.lastPY - cur.startPY;
-      // Direct compositor-friendly transform — no React re-render per frame.
-      nodeRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
-      // Snap-preview: does the pointer sit inside an edge activation zone?
-      const target = computeSnapTarget(cur.lastPX, cur.lastPY, viewport.w, viewport.h, topPad, bottomPad);
-      cur.pendingSnap = target;
-      setSnapTarget(target);
-    });
-  }, [viewport.w, viewport.h, topPad, bottomPad]);
-
-  const onTitlebarPointerUp = useCallback((e) => {
-    const s = dragRef.current;
-    if (!s) return;
-    if (s.raf) { cancelAnimationFrame(s.raf); s.raf = 0; }
-    try { e.currentTarget.releasePointerCapture(s.pointerId); } catch { /* ignore */ }
-    const dx = s.lastPX - s.startPX;
-    const dy = s.lastPY - s.startPY;
-    const rawX = s.startWX + dx;
-    const rawY = s.startWY + dy;
-    dragRef.current = null;
-    // If the user released while a snap target was active, commit the snap
-    // (position + size).  Otherwise commit a clamped freeform position.
-    if (s.pendingSnap) {
-      const t = s.pendingSnap;
-      setIsDragging(false);
-      setSnapTarget(null);
-      if (nodeRef.current) {
-        nodeRef.current.style.transform = "";
-        nodeRef.current.style.transition = "";
-      }
-      updateWindow(win.id, {
-        x: Math.round(t.x),
-        y: Math.round(t.y),
-        w: Math.round(t.w),
-        h: Math.round(t.h),
-        // Remember the pre-snap freeform rect so double-click restore feels natural.
-        _prev: { x: s.startWX, y: s.startWY, w: win.w, h: win.h },
-      });
-      return;
-    }
-    const { nx, ny } = clampPosition(rawX, rawY, win.w, win.h, viewport.w, viewport.h, topPad, bottomPad);
-    commitDragEnd(nx, ny);
-  }, [commitDragEnd, viewport.w, viewport.h, topPad, bottomPad, win.id, win.w, win.h, updateWindow]);
+  /* Liquid drag pipeline hooks are declared at the top of the component
+     (above win.minimized / isTouch early returns).  See the block just
+     before `if (win.minimized) return null;` for the pointer handlers. */
 
   return (
     <>
