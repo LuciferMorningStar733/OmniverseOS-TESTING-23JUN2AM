@@ -17,6 +17,31 @@ const MIN_H = 220;
 const SNAP_THRESHOLD = 22;
 const KEEP_VISIBLE   = 90;  // px — min visible title bar width
 
+/* ── Liquid Drag: edge-snap activation zones ─────────────────────────────── */
+/* Distance from a viewport edge at which the snap PREVIEW appears.
+   Below this the pointer is still freeform — the preview only commits
+   on pointerup while the pointer is inside the zone. */
+const EDGE_ZONE = 24;
+
+/* Compute which snap region (if any) the pointer is currently activating.
+   Returns one of: "left" | "right" | "top" | "tl" | "tr" | "bl" | "br" | null
+   plus the target rect to render as the ghost preview. */
+function computeSnapTarget(pointerX, pointerY, viewW, viewH, topPad, bottomPad) {
+  const nearL = pointerX <= EDGE_ZONE;
+  const nearR = pointerX >= viewW - EDGE_ZONE;
+  const nearT = pointerY <= topPad + EDGE_ZONE;
+  const nearB = pointerY >= viewH - bottomPad - EDGE_ZONE;
+  const usableH = viewH - topPad - bottomPad;
+  if (nearT && nearL) return { key: "tl", x: 0,           y: topPad,             w: viewW / 2, h: usableH / 2 };
+  if (nearT && nearR) return { key: "tr", x: viewW / 2,   y: topPad,             w: viewW / 2, h: usableH / 2 };
+  if (nearB && nearL) return { key: "bl", x: 0,           y: topPad + usableH/2, w: viewW / 2, h: usableH / 2 };
+  if (nearB && nearR) return { key: "br", x: viewW / 2,   y: topPad + usableH/2, w: viewW / 2, h: usableH / 2 };
+  if (nearT)          return { key: "top",   x: 0, y: topPad, w: viewW, h: usableH };  // maximize
+  if (nearL)          return { key: "left",  x: 0, y: topPad, w: viewW / 2, h: usableH };
+  if (nearR)          return { key: "right", x: viewW / 2, y: topPad, w: viewW / 2, h: usableH };
+  return null;
+}
+
 /* ── Hex window controls ─────────────────────────────────────────────────── */
 const HEX_CLIP     = "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
 const HEX_STYLE_ID = "omni-hex-btn-styles";
@@ -455,57 +480,175 @@ export default function Window({ win, children }) {
   }
 
   /* ══ DESKTOP / TABLET ════════════════════════════════════════════════════ */
+  /* ── LIQUID DRAG PIPELINE ──────────────────────────────────────────────────
+     Replaces framer-motion's `drag` prop with native pointer events + direct
+     DOM transforms.  Root cause of the previous jitter: framer's `animate`
+     prop and `drag` prop both controlled x/y — every pointerup triggered a
+     React state update that fought framer's internal transform, causing the
+     window to visibly snap to fixed positions instead of tracking the pointer.
+
+     New pipeline:
+       - pointerdown  → capture pointer, remember (pointerX, pointerY, winX, winY)
+       - pointermove  → set node.style.transform = translate3d(dx, dy, 0)  (NO React state)
+       - pointerup    → clear transform, then updateWindow() with final (x, y)
+       - snap preview → separate DOM overlay driven by pointer position only
+
+     Position is now the pure CSS left/top of the container (no framer x/y).
+     Framer still handles open/close spring (opacity + scale) via
+     AnimatePresence in Desktop.js. */
+  const nodeRef       = useRef(null);
+  const dragRef       = useRef(null);
+  const [snapTarget, setSnapTarget] = useState(null);
+
+  const commitDragEnd = useCallback((finalX, finalY) => {
+    setIsDragging(false);
+    setSnapTarget(null);
+    if (nodeRef.current) {
+      nodeRef.current.style.transform = "";
+      nodeRef.current.style.transition = "";
+    }
+    updateWindow(win.id, { x: Math.round(finalX), y: Math.round(finalY) });
+  }, [win.id, updateWindow]);
+
+  const onTitlebarPointerDown = useCallback((e) => {
+    if (!dragEnabled) return;
+    if (e.button !== undefined && e.button !== 0) return; // primary button only
+    // Ignore drags initiated on interactive titlebar children (hex controls, etc.).
+    const t = e.target;
+    if (t && t.closest && t.closest("button, input, textarea, [data-nodrag]")) return;
+    e.preventDefault();
+    handleFocus();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    setIsDragging(true);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startPX: e.clientX,
+      startPY: e.clientY,
+      startWX: win.x,
+      startWY: win.y,
+      lastPX:  e.clientX,
+      lastPY:  e.clientY,
+      raf:     0,
+      pendingSnap: null,
+    };
+    // Kill any transitions on the node during drag so it tracks pointer 1:1.
+    if (nodeRef.current) nodeRef.current.style.transition = "none";
+  }, [dragEnabled, handleFocus, win.x, win.y]);
+
+  const onTitlebarPointerMove = useCallback((e) => {
+    const s = dragRef.current;
+    if (!s) return;
+    s.lastPX = e.clientX;
+    s.lastPY = e.clientY;
+    if (s.raf) return;
+    s.raf = requestAnimationFrame(() => {
+      s.raf = 0;
+      const cur = dragRef.current;
+      if (!cur || !nodeRef.current) return;
+      const dx = cur.lastPX - cur.startPX;
+      const dy = cur.lastPY - cur.startPY;
+      // Direct compositor-friendly transform — no React re-render per frame.
+      nodeRef.current.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+      // Snap-preview: does the pointer sit inside an edge activation zone?
+      const target = computeSnapTarget(cur.lastPX, cur.lastPY, viewport.w, viewport.h, topPad, bottomPad);
+      cur.pendingSnap = target;
+      setSnapTarget(target);
+    });
+  }, [viewport.w, viewport.h, topPad, bottomPad]);
+
+  const onTitlebarPointerUp = useCallback((e) => {
+    const s = dragRef.current;
+    if (!s) return;
+    if (s.raf) { cancelAnimationFrame(s.raf); s.raf = 0; }
+    try { e.currentTarget.releasePointerCapture(s.pointerId); } catch { /* ignore */ }
+    const dx = s.lastPX - s.startPX;
+    const dy = s.lastPY - s.startPY;
+    const rawX = s.startWX + dx;
+    const rawY = s.startWY + dy;
+    dragRef.current = null;
+    // If the user released while a snap target was active, commit the snap
+    // (position + size).  Otherwise commit a clamped freeform position.
+    if (s.pendingSnap) {
+      const t = s.pendingSnap;
+      setIsDragging(false);
+      setSnapTarget(null);
+      if (nodeRef.current) {
+        nodeRef.current.style.transform = "";
+        nodeRef.current.style.transition = "";
+      }
+      updateWindow(win.id, {
+        x: Math.round(t.x),
+        y: Math.round(t.y),
+        w: Math.round(t.w),
+        h: Math.round(t.h),
+        // Remember the pre-snap freeform rect so double-click restore feels natural.
+        _prev: { x: s.startWX, y: s.startWY, w: win.w, h: win.h },
+      });
+      return;
+    }
+    const { nx, ny } = clampPosition(rawX, rawY, win.w, win.h, viewport.w, viewport.h, topPad, bottomPad);
+    commitDragEnd(nx, ny);
+  }, [commitDragEnd, viewport.w, viewport.h, topPad, bottomPad, win.id, win.w, win.h, updateWindow]);
+
   return (
+    <>
+      {/* Snap preview ghost overlay — rendered outside the window so it never
+         participates in the window's transform.  Rendered only while dragging. */}
+      {isDragging && snapTarget && (
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            top: snapTarget.y, left: snapTarget.x,
+            width: snapTarget.w, height: snapTarget.h,
+            zIndex: 9998,
+            pointerEvents: "none",
+            borderRadius: 20,
+            background: `linear-gradient(135deg, ${accentColor}18 0%, ${accentColor}08 100%)`,
+            border: `1.5px dashed ${accentColor}90`,
+            boxShadow: `inset 0 0 60px ${accentColor}22, 0 0 30px ${accentColor}30`,
+            transition: "top 120ms ease, left 120ms ease, width 120ms ease, height 120ms ease, opacity 120ms ease",
+            backdropFilter: "blur(6px)",
+          }}
+        />
+      )}
+
     <motion.div
       key={win.id}
-      initial={{ opacity: 0, scale: 0.88, y: animY + 24, x: animX, width: animW, height: animH }}
-      animate={{ opacity: 1, scale: 1,    y: animY,       x: animX, width: animW, height: animH }}
+      ref={nodeRef}
+      initial={{ opacity: 0, scale: 0.88 }}
+      animate={{ opacity: 1, scale: 1 }}
       exit={{
-        opacity: 0, scale: 0.86, y: animY + 18,
-        transition: {
-          duration: 0.18, ease: [0.4, 0, 0.8, 0],
-          opacity: { duration: 0.12 },
-        },
+        opacity: 0, scale: 0.86,
+        transition: { duration: 0.18, ease: [0.4, 0, 0.8, 0], opacity: { duration: 0.12 } },
       }}
       transition={{
-        /* opacity + scale spring only — purely visual, not layout */
         opacity: { duration: 0.16, ease: "easeOut" },
         scale:   { type: "spring", damping: 24, stiffness: 340 },
-        /* x, y, width, height must be instant — any tween causes the
-           "elastic resize" bug where the window lags behind the cursor */
-        x:      { type: "tween", duration: 0 },
-        y:      { type: "tween", duration: 0 },
-        width:  { type: "tween", duration: 0 },
-        height: { type: "tween", duration: 0 },
-      }}
-      drag={dragEnabled && !isResizing}
-      dragHandle={dragEnabled ? ".window-handle" : undefined}
-      dragMomentum={false}
-      dragElastic={0}
-      dragConstraints={dragConstraints}
-      onDragStart={() => setIsDragging(true)}
-      onDragEnd={(_, info) => {
-        if (!dragEnabled) return;
-        const rawX = win.x + info.offset.x;
-        const rawY = win.y + info.offset.y;
-        const { nx: cx, ny: cy } = clampPosition(rawX, rawY, win.w, win.h, viewport.w, viewport.h, topPad, bottomPad);
-        const { nx, ny } = snapPosition(cx, cy, win.w, win.h, viewport.w, viewport.h, topPad, bottomPad);
-        updateWindow(win.id, { x: Math.round(nx), y: Math.round(ny) });
-        setTimeout(() => setIsDragging(false), 32);
       }}
       onMouseDown={handleFocus}
       onTouchStart={handleFocus}
       className="absolute overflow-hidden rounded-2xl"
       style={{
         zIndex: win.z,
-        top: 0, left: 0,
-        willChange: "transform, opacity",
+        /* CSS positioning — the source of truth for window x/y.  During
+           active dragging, an additional translate3d() is applied directly
+           to the DOM node via ref, bypassing React entirely. */
+        top:    animY,
+        left:   animX,
+        width:  animW,
+        height: animH,
+        willChange: isDragging ? "transform" : "opacity",
         boxShadow: isActive ? SHADOW_ACTIVE(accentColor) : SHADOW_INACTIVE,
         backdropFilter: BLUR,
         WebkitBackdropFilter: BLUR,
         background: "rgba(8,10,18,0.52)",
         border: `1px solid ${isActive ? `${accentColor}20` : "rgba(255,255,255,0.07)"}`,
-        transition: "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease",
+        /* No `transition: all` — that would cause the window to LAG behind
+           the cursor.  Only chrome (shadow, border) transitions gently. */
+        transition: isDragging
+          ? "none"
+          : "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease",
       }}
       data-testid={`window-${win.app}`}
     >
@@ -537,7 +680,7 @@ export default function Window({ win, children }) {
         transition: "background var(--transition-slow) ease",
       }} />
 
-      {/* Desktop title bar */}
+      {/* Desktop title bar — LIQUID DRAG SURFACE */}
       <div
         className="window-handle flex items-center justify-between px-3 border-b flex-shrink-0"
         style={{
@@ -551,7 +694,12 @@ export default function Window({ win, children }) {
           userSelect: "none",
           position: "relative",
           zIndex: 1,
+          touchAction: "none",  // required for pointer capture on touch devices
         }}
+        onPointerDown={onTitlebarPointerDown}
+        onPointerMove={onTitlebarPointerMove}
+        onPointerUp={onTitlebarPointerUp}
+        onPointerCancel={onTitlebarPointerUp}
         onDoubleClick={handleMaximize}
       >
         {/* Left — window controls */}
@@ -670,5 +818,6 @@ export default function Window({ win, children }) {
         )}
       </AnimatePresence>
     </motion.div>
+    </>
   );
 }
