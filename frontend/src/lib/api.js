@@ -11,6 +11,55 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
+/**
+ * Lightweight SSE helper for the three destination apps (Adversary, War Room, Dead Reckoning).
+ * Streams from a backend POST endpoint, calling onChunk for each text chunk.
+ * Throws on HTTP errors or backend [error:*] signals.
+ */
+export async function streamSSE(endpoint, body, onChunk, signal) {
+  const token = localStorage.getItem("omniverse_token");
+  const res = await fetch(`${API}${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  if (!res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop() ?? "";
+      for (const line of parts) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6);
+        if (payload === "[DONE]") return;
+        if (payload.startsWith("[error:")) {
+          const err = new Error(payload.slice(7, -1) || "Stream error");
+          err.status = 500;
+          throw err;
+        }
+        onChunk(payload);
+      }
+    }
+  } finally {
+    try { reader.releaseLock(); } catch { /* ignore */ }
+  }
+}
+
 export const authApi = {
   signup: (data) => api.post("/auth/signup", data).then((r) => r.data),
   login: (data) => api.post("/auth/login", data).then((r) => r.data),

@@ -986,6 +986,232 @@ async def ai_faceoff(req: FaceOffReq, user=Depends(get_current_user)):
     results = await asyncio.gather(*tasks)
     return {"results": list(results)}
 
+# ══════════════════════════════════════════════════════════════════════════════
+# The Adversary — Brutal idea destruction + what survived
+# ══════════════════════════════════════════════════════════════════════════════
+
+class AdversaryReq(BaseModel):
+    idea: str
+    phase: str = "attack"          # "attack" | "survive"
+    attack_text: str = ""          # populated on phase=survive
+
+_ADVERSARY_ATTACK_SYSTEM = """You are the sharpest, most ruthless critic alive. Your only job is to destroy this idea.
+
+Attack every assumption. Find the fatal market flaw. Expose the deluded founder hypothesis. Name the competitor that already won. Break the unit economics. Find the human behaviour assumption that is simply wrong. Challenge the timing. Challenge the moat. Challenge the team capability implied.
+
+Rules:
+- Be surgical and specific. No vague criticism — name the exact flaw.
+- Do NOT hedge. No "however", no "on the other hand", no "that said".
+- Do NOT compliment anything. Not even one word of praise.
+- Write 8–12 paragraphs. Each paragraph is a separate angle of attack.
+- Write as if you are testifying against this idea in court.
+- End with one sentence that summarises the core fatal flaw in plain language."""
+
+_ADVERSARY_SURVIVE_SYSTEM = """You just delivered a brutal, thorough attack on an idea. Now answer one question honestly: what couldn't you break?
+
+Read the original idea and the full attack. Find the assumptions that held up under maximum pressure. Find the claims your attack couldn't actually land on. Find the kernel of genuine insight that survived the assault.
+
+Rules:
+- Be honest. This is NOT consolation — it is what is actually real and defensible.
+- Only include things that genuinely survived. If nothing did, say so.
+- 3–5 paragraphs. Each one identifies something specific that your attack could not destroy.
+- End with one sentence: the single strongest thing this idea has going for it."""
+
+@api.post("/ai/adversary")
+async def ai_adversary(req: AdversaryReq, user=Depends(get_current_user)):
+    """Two-phase streaming: attack the idea, then reveal what survived."""
+    await rate_limit(f"adversary:{user['id']}", max_per_min=8)
+    if not req.idea or len(req.idea) > 4000:
+        raise HTTPException(400, "Idea missing or too long (max 4000 chars)")
+
+    if req.phase == "attack":
+        system  = _ADVERSARY_ATTACK_SYSTEM
+        message = f"Destroy this idea:\n\n{req.idea.strip()}"
+    else:
+        system  = _ADVERSARY_SURVIVE_SYSTEM
+        message = (
+            f"Original idea:\n{req.idea.strip()}\n\n"
+            f"Your attack:\n{req.attack_text.strip()}\n\n"
+            "Now: what survived?"
+        )
+
+    async def event_gen():
+        try:
+            async for kind, value in ai_service.generate_stream(
+                preferred="auto",
+                gemini_model="gemini-2.5-flash",
+                message=message,
+                system=system,
+                history=[],
+            ):
+                if kind == "chunk" and value:
+                    yield f"data: {value}\n\n"
+                elif kind == "error":
+                    yield f"data: [error:{value or 500}]\n\n"
+        except Exception as exc:
+            logging.error("Adversary error: %s", exc)
+            yield "data: [error:500]\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# The War Room — 5 agents react to your pitch simultaneously
+# ══════════════════════════════════════════════════════════════════════════════
+
+_WAR_ROOM_AGENTS = [
+    {
+        "id":     "investor",
+        "name":   "The Investor",
+        "role":   "Skeptical VC · seen 10,000 pitches",
+        "color":  "#F59E0B",
+        "system": (
+            "You are a hard-nosed venture capitalist. You think in market size, defensibility, "
+            "timing, team, and exit multiples. You have seen every pitch pattern. "
+            "React to this idea commercially — what excites you, what worries you, what question "
+            "kills the deal. Be direct. 3–4 sentences."
+        ),
+    },
+    {
+        "id":     "customer",
+        "name":   "The Customer",
+        "role":   "Target user · hasn't heard of this yet",
+        "color":  "#39FF14",
+        "system": (
+            "You are the target customer for this product. You have never heard of it. "
+            "React honestly as if a friend just pitched it to you — what confuses you, "
+            "what excites you, would you pay for it, would you tell someone else. "
+            "Speak naturally. 3–4 sentences."
+        ),
+    },
+    {
+        "id":     "competitor",
+        "name":   "The Competitor",
+        "role":   "CEO of the startup that already does this",
+        "color":  "#FF003C",
+        "system": (
+            "You are the CEO of the most direct competitor to this idea. You are not worried. "
+            "Explain specifically why, what you would do to neutralise this entrant within 90 days, "
+            "and what they have fundamentally misunderstood about your market. "
+            "Be confident and specific. 3–4 sentences."
+        ),
+    },
+    {
+        "id":     "critic",
+        "name":   "The Internal Critic",
+        "role":   "Skeptical co-founder · execution over ideas",
+        "color":  "#A855F7",
+        "system": (
+            "You are a skeptical co-founder or senior team member. You do not care about the idea — "
+            "you care about what it actually takes to build and ship it. "
+            "Challenge the assumptions about effort, time, hiring, and the hard technical or "
+            "operational problem they are glossing over. 3–4 sentences."
+        ),
+    },
+    {
+        "id":     "journalist",
+        "name":   "The Journalist",
+        "role":   "Tech reporter · writing the skeptical piece",
+        "color":  "#60A5FA",
+        "system": (
+            "You are a technology journalist assigned to write the sceptical take on this idea. "
+            "Find the narrative hook — the one reason this probably fails — and write your "
+            "opening paragraph. Sharp, quotable, specific. 3–4 sentences as the lede of your piece."
+        ),
+    },
+]
+
+class WarRoomReq(BaseModel):
+    situation: str
+
+@api.post("/ai/warroom")
+async def ai_warroom(req: WarRoomReq, user=Depends(get_current_user)):
+    """Run all 5 War Room agents in parallel and return their responses."""
+    await rate_limit(f"warroom:{user['id']}", max_per_min=5)
+    if not req.situation or len(req.situation) > 4000:
+        raise HTTPException(400, "Situation missing or too long (max 4000 chars)")
+
+    async def call_agent(agent: dict) -> dict:
+        try:
+            chunks = []
+            async for kind, value in ai_service.generate_stream(
+                preferred="auto",
+                gemini_model="gemini-2.5-flash",
+                message=req.situation.strip(),
+                system=agent["system"],
+                history=[],
+            ):
+                if kind == "chunk" and value:
+                    chunks.append(value)
+            return {**agent, "text": "".join(chunks), "error": None}
+        except Exception as exc:
+            logging.error("War Room agent %s error: %s", agent["id"], exc)
+            return {**agent, "text": "", "error": str(exc)[:120]}
+
+    responses = await asyncio.gather(*[call_agent(a) for a in _WAR_ROOM_AGENTS])
+    return {"agents": list(responses)}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dead Reckoning — cold trajectory projection from current behaviour
+# ══════════════════════════════════════════════════════════════════════════════
+
+class DeadReckoningReq(BaseModel):
+    input: str
+
+_DEAD_RECKONING_SYSTEM = """You are a cold, precise trajectory analyst. You do not motivate. You do not judge. You calculate.
+
+You will receive an honest self-assessment of someone's current habits, patterns, decisions, and stated goals.
+Your job is to compute where those patterns actually lead — not where the person hopes they lead.
+
+Respond in exactly three labelled sections:
+
+## WHERE YOU'RE HEADING
+Project the natural outcome of their current behaviour at 1 year, 3 years, and 5 years.
+Base this ONLY on what they said they currently do — not what they wish to do.
+Be specific: name positions, numbers, scenarios, financial states, relationship states.
+This is physics, not punishment. Behaviour compounds.
+
+## THE GAP
+State the difference between where they are heading and what they said they want.
+Be precise. Do not soften. The gap is the truth — it is also the most useful thing you can give them.
+
+## THE DELTA
+Name the specific behaviours — not mindset shifts, not motivation — that would alter the trajectory if changed.
+Frequency matters: name how often, not just what.
+Maximum 5 deltas. Each one is a lever, not a lecture."""
+
+@api.post("/ai/deadreckoning")
+async def ai_dead_reckoning(req: DeadReckoningReq, user=Depends(get_current_user)):
+    """Stream a cold trajectory projection based on the user's honest self-assessment."""
+    await rate_limit(f"deadreckoning:{user['id']}", max_per_min=5)
+    if not req.input or len(req.input) > 5000:
+        raise HTTPException(400, "Input missing or too long (max 5000 chars)")
+
+    async def event_gen():
+        try:
+            async for kind, value in ai_service.generate_stream(
+                preferred="auto",
+                gemini_model="gemini-2.5-flash",
+                message=f"Here is my honest self-assessment:\n\n{req.input.strip()}",
+                system=_DEAD_RECKONING_SYSTEM,
+                history=[],
+            ):
+                if kind == "chunk" and value:
+                    yield f"data: {value}\n\n"
+                elif kind == "error":
+                    yield f"data: [error:{value or 500}]\n\n"
+        except Exception as exc:
+            logging.error("Dead Reckoning error: %s", exc)
+            yield "data: [error:500]\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @api.get("/ai/chat/history/{session_id}")
 async def chat_history(session_id: str, user=Depends(get_current_user)):
     msgs = await db.chat_messages.find(
