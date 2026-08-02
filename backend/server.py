@@ -43,6 +43,11 @@ gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
 
+def _sse_event(data: str) -> str:
+    """Encode one SSE event without losing embedded newlines."""
+    normalized = str(data).replace("\r\n", "\n").replace("\r", "\n")
+    return "".join(f"data: {line}\n" for line in normalized.split("\n")) + "\n"
+
 from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -887,7 +892,7 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
                     safe_chunk = chunk
                     if any(chunk.startswith(prefix) for prefix in _CONTROL_PREFIXES):
                         safe_chunk = "\u200b" + chunk  # prepend zero-width space
-                    yield f"data: {safe_chunk}\n\n"
+                    yield _sse_event(safe_chunk)
                 elif kind == "error":
                     code = value or "500"
                     if code == "429":
@@ -1045,7 +1050,7 @@ async def ai_adversary(req: AdversaryReq, user=Depends(get_current_user)):
                 history=[],
             ):
                 if kind == "chunk" and value:
-                    yield f"data: {value}\n\n"
+                    yield _sse_event(value)
                 elif kind == "error":
                     yield f"data: [error:{value or 500}]\n\n"
         except Exception as exc:
@@ -1200,7 +1205,7 @@ async def ai_dead_reckoning(req: DeadReckoningReq, user=Depends(get_current_user
                 history=[],
             ):
                 if kind == "chunk" and value:
-                    yield f"data: {value}\n\n"
+                    yield _sse_event(value)
                 elif kind == "error":
                     yield f"data: [error:{value or 500}]\n\n"
         except Exception as exc:

@@ -12,6 +12,103 @@ api.interceptors.request.use((cfg) => {
 });
 
 /**
+ * Incremental SSE parser.
+ *
+ * Network reads are arbitrary byte boundaries, not SSE event boundaries. This
+ * parser also implements the SSE data-field rule: consecutive `data:` lines
+ * are joined with a newline, which keeps multiline model output intact.
+ */
+export function createSSEParser(onEvent) {
+  let buffer = "";
+  let dataLines = [];
+
+  const dispatch = () => {
+    if (!dataLines.length) return;
+    const payload = dataLines.join("\n");
+    dataLines = [];
+    onEvent(payload);
+  };
+
+  const processLine = (line) => {
+    if (line === "") {
+      dispatch();
+      return;
+    }
+    if (line.startsWith(":")) return;
+
+    const separator = line.indexOf(":");
+    const field = separator === -1 ? line : line.slice(0, separator);
+    if (field !== "data") return;
+
+    let value = separator === -1 ? "" : line.slice(separator + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+    dataLines.push(value);
+  };
+
+  return {
+    push(text) {
+      buffer += String(text);
+      while (true) {
+        const lf = buffer.indexOf("\n");
+        const cr = buffer.indexOf("\r");
+        let lineEnd = -1;
+        if (lf !== -1 && cr !== -1) lineEnd = Math.min(lf, cr);
+        else lineEnd = Math.max(lf, cr);
+        if (lineEnd === -1) return;
+
+        // A CR at the end of a network read may be the first half of CRLF.
+        if (buffer[lineEnd] === "\r" && lineEnd === buffer.length - 1) return;
+
+        const isCrLf = buffer[lineEnd] === "\r" && buffer[lineEnd + 1] === "\n";
+        processLine(buffer.slice(0, lineEnd));
+        buffer = buffer.slice(lineEnd + (isCrLf ? 2 : 1));
+      }
+    },
+    flush() {
+      if (buffer) {
+        processLine(buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer);
+        buffer = "";
+      }
+      dispatch();
+    },
+  };
+}
+
+/**
+ * Consume a fetch Response as SSE. Returning false from onEvent stops
+ * consumption after the current event (used for the [DONE] sentinel).
+ */
+export async function consumeSSE(response, onEvent) {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let shouldStop = false;
+  const parser = createSSEParser((payload) => {
+    if (shouldStop) return;
+    if (onEvent(payload) === false) shouldStop = true;
+  });
+  let stopped = false;
+
+  try {
+    while (!stopped) {
+      const { done, value } = await reader.read();
+      if (done) {
+        parser.push(decoder.decode());
+        parser.flush();
+        break;
+      }
+      const decoded = decoder.decode(value, { stream: true });
+      parser.push(decoded);
+      // A callback can request early termination without dropping the current
+      // event or reading another network chunk.
+      stopped = shouldStop;
+    }
+  } finally {
+    try { reader.releaseLock(); } catch { /* ignore */ }
+  }
+}
+
+/**
  * Lightweight SSE helper for the three destination apps (Adversary, War Room, Dead Reckoning).
  * Streams from a backend POST endpoint, calling onChunk for each text chunk.
  * Throws on HTTP errors or backend [error:*] signals.
@@ -33,31 +130,16 @@ export async function streamSSE(endpoint, body, onChunk, signal) {
     throw err;
   }
   if (!res.body) return;
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() ?? "";
-      for (const line of parts) {
-        if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6);
-        if (payload === "[DONE]") return;
-        if (payload.startsWith("[error:")) {
-          const err = new Error(payload.slice(7, -1) || "Stream error");
-          err.status = 500;
-          throw err;
-        }
-        onChunk(payload);
-      }
+  await consumeSSE(res, (payload) => {
+    if (payload === "[DONE]") return false;
+    if (payload.startsWith("[error:")) {
+      const err = new Error(payload.slice(7, -1) || "Stream error");
+      err.status = 500;
+      throw err;
     }
-  } finally {
-    try { reader.releaseLock(); } catch { /* ignore */ }
-  }
+    onChunk(payload);
+    return true;
+  });
 }
 
 export const authApi = {
@@ -186,82 +268,66 @@ async function _singleStreamAttempt(data, onDelta, onFirstToken, outerSignal, on
   }
 
   if (!res.body) return;
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
   let firstToken = false;
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() || "";
-      for (const line of parts) {
-        if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6);
+  await consumeSSE(res, (payload) => {
+    if (payload === "[DONE]") return false;
 
-        if (payload === "[DONE]") return;
-
-        // Structured error signals from the backend
-        if (payload === "[quota_exceeded]") {
-          const err = new Error("Gemini quota exceeded for this model.");
-          err.status = 429;
-          throw err;
-        }
-        if (payload.startsWith("[error:")) {
-          const code = payload.slice(7, -1).trim();
-          const status = classifyStreamError(code);
-          const err = new Error(`Stream error: ${code}`);
-          err.status = status;
-          throw err;
-        }
-        // Legacy unstructured backend error — classify and throw for retry
-        if (payload.startsWith("[error ")) {
-          const inner = payload.slice(7, -1).trim();
-          const status = classifyStreamError(inner);
-          const err = new Error(inner);
-          err.status = status;
-          throw err;
-        }
-
-        // Source cards metadata (research mode) — parse and pass to caller, not content
-        if (payload.startsWith("[sources:")) {
-          try {
-            const sources = JSON.parse(payload.slice(9, -1));
-            onSources?.(sources);
-          } catch { /* malformed sources — ignore */ }
-          continue;
-        }
-
-        // Answer Confidence metadata — parse and pass to caller, not content
-        if (payload.startsWith("[confidence:")) {
-          try {
-            const confidence = JSON.parse(payload.slice(12, -1));
-            onConfidence?.(confidence);
-          } catch { /* malformed confidence — ignore */ }
-          continue;
-        }
-
-        // Active provider signal — pass to caller, do not emit as content
-        if (payload.startsWith("[provider:")) {
-          const providerName = payload.slice(10, -1).trim();
-          onProvider?.(providerName);
-          continue;
-        }
-
-        // Real content — notify on first token
-        if (!firstToken) {
-          firstToken = true;
-          onFirstToken?.();
-        }
-        onDelta(payload);
-      }
+    // Structured error signals from the backend
+    if (payload === "[quota_exceeded]") {
+      const err = new Error("Gemini quota exceeded for this model.");
+      err.status = 429;
+      throw err;
     }
-  } finally {
-    try { reader.releaseLock(); } catch { /* ignore */ }
-  }
+    if (payload.startsWith("[error:")) {
+      const code = payload.slice(7, -1).trim();
+      const status = classifyStreamError(code);
+      const err = new Error(`Stream error: ${code}`);
+      err.status = status;
+      throw err;
+    }
+    // Legacy unstructured backend error — classify and throw for retry
+    if (payload.startsWith("[error ")) {
+      const inner = payload.slice(7, -1).trim();
+      const status = classifyStreamError(inner);
+      const err = new Error(inner);
+      err.status = status;
+      throw err;
+    }
+
+    // Source cards metadata (research mode) — parse and pass to caller, not content
+    if (payload.startsWith("[sources:")) {
+      try {
+        const sources = JSON.parse(payload.slice(9, -1));
+        onSources?.(sources);
+      } catch { /* malformed sources — ignore */ }
+      return true;
+    }
+
+    // Answer Confidence metadata — parse and pass to caller, not content
+    if (payload.startsWith("[confidence:")) {
+      try {
+        const confidence = JSON.parse(payload.slice(12, -1));
+        onConfidence?.(confidence);
+      } catch { /* malformed confidence — ignore */ }
+      return true;
+    }
+
+    // Active provider signal — pass to caller, do not emit as content
+    if (payload.startsWith("[provider:")) {
+      const providerName = payload.slice(10, -1).trim();
+      onProvider?.(providerName);
+      return true;
+    }
+
+    // Real content — notify on first token
+    if (!firstToken) {
+      firstToken = true;
+      onFirstToken?.();
+    }
+    onDelta(payload);
+    return true;
+  });
 }
 
 export const aiApi = {

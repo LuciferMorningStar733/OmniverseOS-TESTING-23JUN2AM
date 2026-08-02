@@ -11,7 +11,7 @@
  *   onError(err)         — stream or network error
  */
 
-import { API } from "./api";
+import { API, consumeSSE } from "./api";
 
 /**
  * Run a swarm goal and stream results.
@@ -44,38 +44,29 @@ export async function runSwarm(goal, { onAgent, onSynthesis, onDone, onError } =
     return;
   }
 
-  const reader  = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buf += decoder.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() || "";
-
-      for (const chunk of parts) {
-        if (!chunk.startsWith("data: ")) continue;
-        const payload = chunk.slice(6).trim();
-
-        if (payload === "[DONE]") {
-          onDone?.();
-          return;
-        }
-
-        let evt;
-        try { evt = JSON.parse(payload); }
-        catch { continue; }
-
-        if (evt.type === "agent")     onAgent?.(evt.agent);
-        if (evt.type === "synthesis") onSynthesis?.(evt.content);
-        if (evt.type === "done")      { onDone?.(); return; }
-        if (evt.type === "error")     { onError?.(new Error(evt.message)); return; }
+    await consumeSSE(res, (payload) => {
+      if (payload === "[DONE]") {
+        onDone?.();
+        return false;
       }
-    }
+
+      let evt;
+      try { evt = JSON.parse(payload); }
+      catch { return true; }
+
+      if (evt.type === "agent") onAgent?.(evt.agent);
+      if (evt.type === "synthesis") onSynthesis?.(evt.content);
+      if (evt.type === "done") {
+        onDone?.();
+        return false;
+      }
+      if (evt.type === "error") {
+        onError?.(new Error(evt.message));
+        return false;
+      }
+      return true;
+    });
   } catch (err) {
     if (err?.name !== "AbortError") onError?.(err);
   }
