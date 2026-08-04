@@ -90,7 +90,7 @@ export default function ImageGen() {
         <div className="mono-label">// Visual Synthesis</div>
         <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">Image Generation</h2>
         <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.25)", marginBottom: 16 }}>
-          Powered by Imagen-4 · Semantic fidelity preserved
+          Powered by Imagen-4 · Prompt forwarded verbatim · Best-effort photorealism
         </div>
 
         {/* Image viewport */}
@@ -162,7 +162,7 @@ export default function ImageGen() {
               <i className="fa-solid fa-image text-5xl opacity-30" />
               <div className="mt-3 text-sm">Describe what you want to see</div>
               <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-                Your exact prompt reaches the model unchanged
+                Your prompt is forwarded to Imagen-4 verbatim
               </div>
             </div>
           )}
@@ -191,7 +191,7 @@ export default function ImageGen() {
 
         {/* Tip */}
         <div style={{ marginTop: 8, fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.18)", lineHeight: 1.5 }}>
-          Tip: Include brand names, model numbers, colors, and viewpoints — they are preserved verbatim.
+          Tip: Be specific — colors, materials, lighting, and viewpoint strongly guide the output. Brand and model names are sent as-is; Imagen-4 uses best effort for product-specific accuracy.
         </div>
       </div>
 

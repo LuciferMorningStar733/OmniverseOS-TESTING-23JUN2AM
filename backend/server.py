@@ -1429,7 +1429,9 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
             raise HTTPException(429, "AI quota exceeded. Try again later")
         if "400" in err_str or "safety" in err_str.lower() or "INVALID_ARGUMENT" in err_str:
             raise HTTPException(400, "Prompt blocked by safety filters")
-        raise HTTPException(500, f"Image generation failed: {err_str}")
+        # Do NOT forward err_str to the client — the Google GenAI SDK may
+        # include the prompt text or internal API payloads in the error message.
+        raise HTTPException(500, "Image generation failed. Please try again.")
 
 @api.get("/ai/image/history")
 async def image_history(user=Depends(get_current_user)):
