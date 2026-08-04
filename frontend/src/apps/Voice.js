@@ -541,11 +541,13 @@ function StatusBadge({ phase, thinkingMsg }) {
 }
 
 // ── Toggle ────────────────────────────────────────────────────────────────
-function Toggle({ value, onChange, disabled }) {
+function Toggle({ value, onChange, disabled, ariaLabel }) {
   return (
     <button
       onClick={() => !disabled && onChange(!value)}
       disabled={disabled}
+      aria-label={ariaLabel}
+      aria-pressed={value}
       style={{
         width: 44, height: 26, borderRadius: 13, flexShrink: 0,
         background: value ? "#4A9EFF" : "rgba(255,255,255,0.10)",
@@ -702,6 +704,7 @@ export default function Voice() {
   // Barge-in detector refs
   const bargeInRecogRef     = useRef(null);
   const bargeInActiveRef    = useRef(false);
+  const bargeTranscriptRef  = useRef("");
   const wakeRecogRef        = useRef(null);
   const phaseRef            = useRef("idle");
   const startListeningRef   = useRef(null);
@@ -715,6 +718,10 @@ export default function Voice() {
   // true when the recognition was stopped deliberately (silence timer / user tap / error).
   // false = browser ended it unexpectedly (Android Chrome fires onend even with continuous=true).
   const intentionalStopRef  = useRef(false);
+  // Monotonically identifies the active TTS request. Browser speech can emit
+  // late onerror/onend callbacks after cancel(), and those callbacks must not
+  // end a newer response or restart listening at the wrong time.
+  const speechGenerationRef = useRef(0);
   // Unlock AudioContext on first tap so TTS works on Android Chrome.
   const audioUnlockedRef    = useRef(false);
 
@@ -805,12 +812,14 @@ export default function Voice() {
 
     return () => {
       mountedRef.current = false;
+      speechGenerationRef.current += 1;
       window.speechSynthesis?.removeEventListener("voiceschanged", onChanged);
       clearTimeout(autoListenTimerRef.current);
       clearTimeout(timeoutTimerRef.current);
       clearTimeout(silenceTimerRef.current);
       cancelSpeechRef.current?.();
       abortRef.current?.abort();
+      stopBargeInDetector();
       stopWakeWord();
       // Clean up waveform animation
       cancelAnimationFrame(animFrameRef.current);
@@ -905,6 +914,7 @@ export default function Voice() {
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
+    speechGenerationRef.current += 1;
     stopBargeInDetector();
     clearTimeout(autoListenTimerRef.current);
     cancelSpeechRef.current?.();
@@ -922,6 +932,7 @@ export default function Voice() {
     const cleanText = stripMarkdown(rawText);
     if (!cleanText) return;
 
+    const speechGeneration = ++speechGenerationRef.current;
     const s = settingsRef.current;
     setDetectedEmotion(detectEmotion(rawText));
     if (mountedRef.current) {
@@ -934,6 +945,7 @@ export default function Voice() {
     cancelSpeechRef.current = null;
 
     const handleEnd = () => {
+      if (speechGeneration !== speechGenerationRef.current) return;
       stopBargeInDetector();
       cancelSpeechRef.current = null;
       if (!mountedRef.current) return;
@@ -962,9 +974,14 @@ export default function Voice() {
       const attemptBrowser = (voiceObj) => {
         const cancel = browserSpeak(cleanText, {
           voice: voiceObj, rate: s.rate || 1.0, pitch: s.pitch || 1.0, volume: s.volume ?? 1.0,
-          onStart: () => { if (mountedRef.current) setPhase("speaking"); },
+          onStart: () => {
+            if (speechGeneration === speechGenerationRef.current && mountedRef.current) {
+              setPhase("speaking");
+            }
+          },
           onEnd: handleEnd,
           onError: (err) => {
+            if (speechGeneration !== speechGenerationRef.current) return;
             cancelSpeechRef.current = null;
             if (!mountedRef.current) return;
             if (retryCount < 2) {
@@ -997,7 +1014,7 @@ export default function Voice() {
         voiceId: s.streamVoiceId || getStreamVoiceId(),
         rate: s.rate || 1.0, volume: s.volume ?? 1.0,
         onStart: () => {
-          if (mountedRef.current) {
+          if (speechGeneration === speechGenerationRef.current && mountedRef.current) {
             setPhase("speaking");
             // Start barge-in detector after TTS begins (browser AEC is active)
             startBargeInDetector();
@@ -1005,6 +1022,7 @@ export default function Voice() {
         },
         onEnd: handleEnd,
         onError: (err) => {
+          if (speechGeneration !== speechGenerationRef.current) return;
           console.warn("[StreamTTS] falling back to browser TTS:", err?.message);
           browserFallback();
         },
@@ -1020,7 +1038,7 @@ export default function Voice() {
   // ── STT: start listening ──────────────────────────────────────────────────
   // FIX (Priority 3): continuous=true + silence detection timer.
   // The previous continuous=false caused immediate stop after first silence.
-  const startListening = useCallback(() => {
+  const startListening = useCallback((initialText = "") => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       toast.error("Speech recognition is not supported in this browser.");
@@ -1047,9 +1065,9 @@ export default function Voice() {
     r.lang            = navigator.language || "en-US";
     r.maxAlternatives = 3;
 
-    transcriptRef.current     = "";
+    transcriptRef.current     = initialText.trim();
     finalizedUntilRef.current = 0;
-    setTranscript("");
+    setTranscript(transcriptRef.current);
     setInterimText("");
     setVoiceError(null);
     setPhase("listening");
@@ -1323,6 +1341,7 @@ export default function Voice() {
   // Only triggers when a real utterance (≥3 chars) is detected mid-playback.
   const stopBargeInDetector = useCallback(() => {
     bargeInActiveRef.current = false;
+    bargeTranscriptRef.current = "";
     if (bargeInRecogRef.current) {
       bargeInRecogRef.current.onend    = null;
       bargeInRecogRef.current.onresult = null;
@@ -1338,6 +1357,7 @@ export default function Voice() {
     if (bargeInRecogRef.current) return; // already running
 
     bargeInActiveRef.current = true;
+    bargeTranscriptRef.current = "";
 
     const tryStart = () => {
       if (!bargeInActiveRef.current || !mountedRef.current) return;
@@ -1350,30 +1370,41 @@ export default function Voice() {
       r.maxAlternatives = 1;
 
       r.onresult = (e) => {
+        let latestTranscript = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const transcript = (e.results[i][0]?.transcript || "").trim();
-          // Minimum 3 chars of real speech — filters out single phoneme noise
-          if (transcript.length >= 3 && phaseRef.current === "speaking") {
-            // Real intentional speech detected — trigger barge-in
-            bargeInActiveRef.current = false;
-            bargeInRecogRef.current  = null;
-            try { r.stop(); } catch {}
+          latestTranscript = transcript || latestTranscript;
+        }
+        if (latestTranscript) bargeTranscriptRef.current = latestTranscript;
 
-            // Stop TTS immediately
-            cancelSpeechRef.current?.();
-            cancelSpeechRef.current = null;
-            cancelSpeech();
-            clearTimeout(autoListenTimerRef.current);
-            if (mountedRef.current) {
-              setPhase("idle");
-              setDetectedEmotion("neutral");
-            }
-            // Brief pause then start main recognition (the user's words)
-            setTimeout(() => {
-              if (mountedRef.current) startListeningRef.current?.();
-            }, 120);
-            return;
+        // Minimum 3 chars of real speech — filters out single phoneme noise.
+        // Use only the latest interim transcript: browser recognition usually
+        // replaces interim text on each result, so concatenating it would
+        // duplicate words in the interruption handoff.
+        if (latestTranscript.length >= 3 && phaseRef.current === "speaking") {
+          const interruption = normalizeTranscript(latestTranscript, {
+            browserUrl: window.location.href, activeAppId: "voice",
+          }).trim();
+          bargeInActiveRef.current = false;
+          bargeInRecogRef.current  = null;
+          try { r.stop(); } catch {}
+
+          // Stop TTS immediately
+          cancelSpeechRef.current?.();
+          cancelSpeechRef.current = null;
+          cancelSpeech();
+          clearTimeout(autoListenTimerRef.current);
+          if (mountedRef.current) {
+            setPhase("idle");
+            setDetectedEmotion("neutral");
           }
+          speechGenerationRef.current += 1;
+          // Brief pause then start main recognition with the words already
+          // captured by the detector, so the interruption becomes the next
+          // turn instead of being silently discarded.
+          setTimeout(() => {
+            if (mountedRef.current) startListeningRef.current?.(interruption);
+          }, 120);
         }
       };
 
@@ -1401,6 +1432,13 @@ export default function Voice() {
 
     tryStart();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Turning barge-in off while Cortex is speaking must tear down the
+  // microphone listener immediately; otherwise the old mode remains active
+  // until the current response ends.
+  useEffect(() => {
+    if (!settings.bargeIn) stopBargeInDetector();
+  }, [settings.bargeIn, stopBargeInDetector]);
 
   useEffect(() => {
     if (settings.wakeWordEnabled) startWakeWord();
@@ -2136,8 +2174,15 @@ export default function Voice() {
           <Card>
             <SectionHeader label="Voice Activation" />
 
-            <SettingRow label="Barge-In" desc="Interrupt Cortex by speaking while it's responding">
-              <Toggle value={settings.bargeIn} onChange={(v) => updateSettings({ bargeIn: v })} />
+             <SettingRow
+               label={`Barge-In ${settings.bargeIn ? "ON" : "OFF"}`}
+               desc={settings.bargeIn ? "Speak to stop Cortex and start your next turn" : "Cortex finishes speaking unless you stop it"}
+             >
+               <Toggle
+                 value={settings.bargeIn}
+                 onChange={(v) => updateSettings({ bargeIn: v })}
+                 ariaLabel={`Barge-In ${settings.bargeIn ? "on" : "off"}`}
+               />
             </SettingRow>
 
             {settings.bargeIn && (
