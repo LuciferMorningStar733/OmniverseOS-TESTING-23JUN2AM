@@ -393,7 +393,7 @@ const ActiveProviderBadge = React.memo(function ActiveProviderBadge({ provider, 
 });
 
 /* ── Copy button ─────────────────────────────────────────────────────────────── */
-function CopyButton({ text }) {
+function CopyButton({ text, label = "Copy" }) {
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef(null);
 
@@ -407,7 +407,7 @@ function CopyButton({ text }) {
     };
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      toast.success("Response copied!", { duration: 1500, style: { fontSize: 13 } });
+      toast.success("Copied!", { duration: 1500, style: { fontSize: 13 } });
       resetAfter();
     }).catch(() => {
       try {
@@ -430,7 +430,8 @@ function CopyButton({ text }) {
   return (
     <button
       onClick={handleCopy}
-      title="Copy response"
+      title="Copy"
+      aria-label="Copy message"
       className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg transition-all duration-200 flex-shrink-0 select-none"
       style={{
         background: copied ? "rgba(57,255,20,0.12)" : "rgba(255,255,255,0.04)",
@@ -468,9 +469,60 @@ function CopyButton({ text }) {
       ) : (
         <>
           <i className="fa-regular fa-copy text-[9px]" />
-          Copy
+          {label}
         </>
       )}
+    </button>
+  );
+}
+
+/* ── Regenerate button ────────────────────────────────────────────────────────── */
+function RegenerateButton({ onRegenerate }) {
+  const [active, setActive] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  const handleClick = useCallback(() => {
+    if (active) return;
+    setActive(true);
+    timerRef.current = setTimeout(() => setActive(false), 1800);
+    onRegenerate?.();
+  }, [active, onRegenerate]);
+
+  return (
+    <button
+      onClick={handleClick}
+      title="Regenerate response"
+      aria-label="Regenerate response"
+      className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg transition-all duration-200 flex-shrink-0 select-none"
+      style={{
+        background: active ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.04)",
+        border: active
+          ? "1px solid rgba(0,240,255,0.30)"
+          : "1px solid rgba(255,255,255,0.08)",
+        color: active ? "#00F0FF" : "rgba(255,255,255,0.4)",
+        transition: "all 0.18s ease",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = "rgba(0,240,255,0.08)";
+          e.currentTarget.style.border = "1px solid rgba(0,240,255,0.25)";
+          e.currentTarget.style.color = "#00F0FF";
+          e.currentTarget.style.boxShadow = "0 0 8px rgba(0,240,255,0.12)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+          e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
+          e.currentTarget.style.color = "rgba(255,255,255,0.4)";
+          e.currentTarget.style.boxShadow = "none";
+        }
+      }}
+    >
+      <i className={`fa-solid ${active ? "fa-spinner fa-spin" : "fa-rotate-right"} text-[9px]`} />
+      {active ? "sending…" : "regenerate"}
     </button>
   );
 }
@@ -1921,14 +1973,10 @@ export default function AIChat() {
           from { opacity: 0; transform: scaleX(0); transform-origin: left; }
           to   { opacity: 1; transform: scaleX(1); }
         }
-        .copy-reveal-row { opacity: 0; transition: opacity 0.18s ease; }
-        .group:hover .copy-reveal-row { opacity: 1; }
         .cortex-msg-user   { animation: msgEntrance 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
         .cortex-msg-ai     { animation: msgEntrance 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
         .cortex-prompt-chip { animation: promptChipIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
-        @media (hover: none) {
-          .copy-reveal-row { opacity: 0.55 !important; }
-        }
+        .msg-actions-row   { animation: fadeSlideUp 0.15s ease; }
         .mode-switcher-row::-webkit-scrollbar { display: none; }
         /* Debate mode — vertical stream on mobile, 2×2 grid on desktop */
         .debate-mobile-stream { display: none; }
@@ -2181,7 +2229,7 @@ export default function AIChat() {
               <div style={{ maxWidth: "min(82%, 680px)" }}>
                 {m.modelUsed && <FallbackBadge modelId={m.modelUsed} />}
                 <div
-                  className="group relative rounded-2xl"
+                  className="relative rounded-2xl"
                   style={{ padding: "16px 24px", background: "#050B14", border: "1px solid rgba(255,255,255,0.04)", fontSize: 15, fontWeight: 300, lineHeight: 1.8, color: "rgba(255,255,255,0.90)" }}
                 >
                   {/* Thinking indicator — premium wave when waiting for first token */}
@@ -2236,9 +2284,15 @@ export default function AIChat() {
                     />
                   )}
 
-                  {/* Copy button row — reveals on message hover via CSS .copy-reveal-row */}
-                  {m.content && !m.pending && (
-                    <div className="copy-reveal-row flex justify-end mt-2 -mb-1">
+                  {/* Action row — copy + regenerate, reveals on hover or tap via JS state */}
+                  {m.content && !m.pending && (hoveredMsgIdx === i || touchedMsgIdx === i) && (
+                    <div className="msg-actions-row flex justify-end gap-1 mt-2 -mb-1">
+                      <RegenerateButton
+                        onRegenerate={() => {
+                          const prevUserMsg = messages.slice(0, i).reverse().find(x => x.role === "user");
+                          if (prevUserMsg?.content) sendRef.current?.(prevUserMsg.content);
+                        }}
+                      />
                       <CopyButton text={parseCmdTags(m.content).clean} />
                     </div>
                   )}
