@@ -61,6 +61,36 @@ const VOICE_SESSION_KEY  = "cortex_voice_history";
 const VOICE_SETTINGS_KEY = "cortex_voice_settings_v2";
 const MAX_HISTORY_PAIRS  = 15;
 const SILENCE_TIMEOUT_MS = 2400; // continuous=true: stop after 2.4s silence
+const NETWORK_RETRY_MAX  = 2;    // transient network errors — retry up to 2×
+
+// ── STT language selection ────────────────────────────────────────────────
+// Prefers navigator.languages[0] (most-specific user preference) over
+// navigator.language (OS locale). Maps bare language codes to sensible
+// regional BCP-47 variants understood by the Web Speech API's server-side
+// STT engine (Chrome/Edge), which natively supports Indian English (en-IN),
+// British English (en-GB), Australian English (en-AU), US English (en-US),
+// and many other global English accents when the correct tag is supplied.
+const BARE_LANG_DEFAULTS = {
+  en: "en-US", fr: "fr-FR", de: "de-DE", es: "es-ES", pt: "pt-BR",
+  zh: "zh-CN", ja: "ja-JP", ko: "ko-KR", ar: "ar-SA", hi: "hi-IN",
+  it: "it-IT", ru: "ru-RU", nl: "nl-NL", pl: "pl-PL", sv: "sv-SE",
+  da: "da-DK", fi: "fi-FI", nb: "nb-NO", tr: "tr-TR", id: "id-ID",
+  vi: "vi-VN", th: "th-TH",
+};
+
+function getSTTLanguage() {
+  const candidates =
+    Array.isArray(navigator.languages) && navigator.languages.length > 0
+      ? navigator.languages
+      : [navigator.language];
+  for (const lang of candidates) {
+    if (!lang) continue;
+    if (lang.includes("-")) return lang; // already region-qualified: en-IN, en-GB, etc.
+    const expanded = BARE_LANG_DEFAULTS[lang.toLowerCase()];
+    if (expanded) return expanded;
+  }
+  return "en-US";
+}
 
 function getDefaultVoiceSettings() {
   return {
@@ -722,6 +752,8 @@ export default function Voice() {
   // late onerror/onend callbacks after cancel(), and those callbacks must not
   // end a newer response or restart listening at the wrong time.
   const speechGenerationRef = useRef(0);
+  // Counts consecutive network errors so auto-retry has a ceiling.
+  const networkRetryCountRef = useRef(0);
   // Unlock AudioContext on first tap so TTS works on Android Chrome.
   const audioUnlockedRef    = useRef(false);
 
@@ -1036,12 +1068,17 @@ export default function Voice() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── STT: start listening ──────────────────────────────────────────────────
-  // FIX (Priority 3): continuous=true + silence detection timer.
-  // The previous continuous=false caused immediate stop after first silence.
-  const startListening = useCallback((initialText = "") => {
+  // continuous=true + silence detection timer drives stop.
+  // langOverride is used for the language-not-supported en-US fallback retry.
+  const startListening = useCallback((initialText = "", langOverride = null) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      toast.error("Speech recognition is not supported in this browser.");
+      // Persistent error state — not just a transient toast — so the UI
+      // reflects the permanent unavailability rather than looking broken.
+      setVoiceError(
+        "Speech recognition is not supported in this browser. " +
+        "Please use Chrome or Edge for voice features."
+      );
       return;
     }
     if (startedRef.current) return;
@@ -1057,12 +1094,14 @@ export default function Voice() {
     }
 
     const r = new SR();
-    r.continuous      = true;   // FIX: keep recognition alive — silence timer drives stop
+    r.continuous      = true;   // keep recognition alive — silence timer drives stop
     r.interimResults  = true;
-    // Use the browser/OS configured language for accent-robust recognition.
-    // "en-IN" for Indian users, "en-GB" for UK users, etc. — far better than
-    // hard-coding "en-US" for all English speakers worldwide.
-    r.lang            = navigator.language || "en-US";
+    // getSTTLanguage() prefers navigator.languages[0] and expands bare codes
+    // (e.g. "en" → "en-US", "en-IN" stays "en-IN"). This gives Chrome/Edge's
+    // server-side STT the correct regional accent model: Indian English, British
+    // English, Australian English, US English, etc. Passing langOverride lets
+    // the language-not-supported fallback retry with "en-US" without recursion.
+    r.lang            = langOverride || getSTTLanguage();
     r.maxAlternatives = 3;
 
     transcriptRef.current     = initialText.trim();
@@ -1090,6 +1129,7 @@ export default function Voice() {
 
     r.onresult = (e) => {
       resetSilenceTimer(); // extend window on every result
+      networkRetryCountRef.current = 0; // successful speech resets the retry counter
       let finalText = "";
       let interim   = "";
       for (let i = Math.max(e.resultIndex, finalizedUntilRef.current); i < e.results.length; i++) {
@@ -1116,16 +1156,82 @@ export default function Voice() {
 
     r.onerror = (e) => {
       clearTimeout(silenceTimerRef.current);
-      intentionalStopRef.current = true; // errors count as intentional (don't auto-restart)
       startedRef.current = false;
       if (mountedRef.current) {
         setPhase("idle");
         setInterimText("");
       }
+
       if (e.error === "not-allowed") {
-        setVoiceError("Microphone access denied — please allow access and try again.");
-      } else if (e.error !== "aborted" && e.error !== "no-speech") {
-        toast.error(`Microphone error: ${e.error}`);
+        // Permanent — microphone permission denied by the user.
+        intentionalStopRef.current = true;
+        setVoiceError("Microphone access denied — please allow access in your browser settings and try again.");
+
+      } else if (e.error === "service-not-allowed") {
+        // Permanent — enterprise/browser policy blocks the STT service.
+        intentionalStopRef.current = true;
+        setVoiceError("Speech recognition is disabled by your browser or network policy.");
+
+      } else if (e.error === "audio-capture") {
+        // Permanent until the user connects a microphone.
+        intentionalStopRef.current = true;
+        setVoiceError("No microphone found — please connect a microphone and try again.");
+
+      } else if (e.error === "language-not-supported") {
+        // The STT service doesn't support the detected language.
+        // Retry silently with en-US once; if that also fails, give up.
+        intentionalStopRef.current = true;
+        if (!langOverride) {
+          // First attempt — fall back to en-US and retry.
+          setTimeout(() => {
+            if (mountedRef.current && !startedRef.current) {
+              startListeningRef.current?.(transcriptRef.current, "en-US");
+            }
+          }, 200);
+        } else {
+          // Already tried en-US — the service itself is unavailable.
+          toast.error(
+            "Speech recognition is currently unavailable for your language. " +
+            "Try switching your browser language to English.",
+            { duration: 7000 },
+          );
+        }
+
+      } else if (e.error === "network") {
+        // Transient — auto-retry with exponential back-off, capped at NETWORK_RETRY_MAX.
+        networkRetryCountRef.current += 1;
+        if (networkRetryCountRef.current <= NETWORK_RETRY_MAX) {
+          intentionalStopRef.current = false;
+          const delay = 800 * networkRetryCountRef.current;
+          setTimeout(() => {
+            if (mountedRef.current && !startedRef.current && phaseRef.current === "listening") {
+              startListeningRef.current?.(transcriptRef.current, langOverride);
+            }
+          }, delay);
+        } else {
+          intentionalStopRef.current = true;
+          networkRetryCountRef.current = 0;
+          toast.error(
+            "Speech recognition lost its network connection — please check your connection and try again.",
+            { duration: 7000 },
+          );
+        }
+
+      } else if (e.error === "aborted") {
+        // Deliberate stop — no message needed.
+        intentionalStopRef.current = true;
+
+      } else if (e.error === "no-speech") {
+        // Silence timer triggered this — the countdown UI already communicates it.
+        intentionalStopRef.current = true;
+
+      } else {
+        // Unexpected error — surface the code so it's debuggable.
+        intentionalStopRef.current = true;
+        toast.error(
+          `Speech recognition error — please try again. (${e.error})`,
+          { duration: 5000 },
+        );
       }
     };
 
