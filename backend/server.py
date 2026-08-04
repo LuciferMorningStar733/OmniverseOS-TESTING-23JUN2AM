@@ -229,10 +229,14 @@ class ChatSessionCreateReq(BaseModel):
     title: str = Field(default="New Chat", max_length=200)
     provider: str = "gemini"
     model: str = "gemini-2.5-flash"
+    app_type: str = Field(default="chat", max_length=50)
 
 class ChatSessionUpdateReq(BaseModel):
     title: Optional[str] = Field(default=None, max_length=200)
     pinned: Optional[bool] = None
+
+class BulkMessagesReq(BaseModel):
+    messages: list[dict]
 
 # ── Gemini TTS constants ───────────────────────────────────────────────────
 _GEMINI_TTS_FEMALE_VOICES = ["Kore", "Aoede", "Zephyr", "Leda", "Schedar"]
@@ -1266,10 +1270,14 @@ async def _upsert_session(user_id: str, session_id: str, **extra) -> dict:
     return result or doc
 
 @api.get("/ai/sessions")
-async def list_sessions(search: str = "", user=Depends(get_current_user)):
+async def list_sessions(search: str = "", app_type: str = "chat", user=Depends(get_current_user)):
     """List all sessions for the user, pinned first then by updated_at desc."""
     uid = user["id"]
-    query: dict = {"user_id": uid}
+    # For chat (default), include sessions that pre-date app_type field
+    if app_type == "chat":
+        query: dict = {"user_id": uid, "$or": [{"app_type": "chat"}, {"app_type": {"$exists": False}}]}
+    else:
+        query = {"user_id": uid, "app_type": app_type}
     if search.strip():
         query["title"] = {"$regex": re.escape(search.strip()), "$options": "i"}
     sessions = await db.chat_sessions.find(query, {"_id": 0}).sort(
@@ -1310,6 +1318,7 @@ async def create_session(req: ChatSessionCreateReq, user=Depends(get_current_use
         "pinned": False,
         "provider": req.provider,
         "model": req.model,
+        "app_type": req.app_type,
         "created_at": ts,
         "updated_at": ts,
         "message_count": 0,
@@ -1374,6 +1383,36 @@ async def duplicate_session(session_id: str, user=Depends(get_current_user)):
     new_doc.pop("_id", None)
     new_doc["message_count"] = len(msgs)
     return new_doc
+
+@api.post("/ai/sessions/{session_id}/messages")
+async def save_session_messages(session_id: str, req: BulkMessagesReq, user=Depends(get_current_user)):
+    """Bulk-save messages for a tool run session (replaces any existing messages)."""
+    uid = user["id"]
+    sess = await db.chat_sessions.find_one({"user_id": uid, "session_id": session_id})
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    # Replace messages atomically
+    await db.chat_messages.delete_many({"user_id": uid, "session_id": session_id})
+    ts = now_iso()
+    docs = []
+    for msg in req.messages[:500]:
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "user_id": uid,
+            "session_id": session_id,
+            "role": str(msg.get("role", "user"))[:20],
+            "content": str(msg.get("content", ""))[:20000],
+            "meta": msg.get("meta", {}),
+            "created_at": str(msg.get("created_at", ts)),
+        })
+    if docs:
+        await db.chat_messages.insert_many([{**d, "_id": d["id"]} for d in docs])
+    preview = next((d["content"] for d in docs if d["role"] == "user"), "")
+    await db.chat_sessions.update_one(
+        {"user_id": uid, "session_id": session_id},
+        {"$set": {"updated_at": ts, "message_count": len(docs), "preview": preview[:120]}},
+    )
+    return {"saved": len(docs)}
 
 @api.post("/ai/sessions/{session_id}/auto-title")
 async def auto_title_session(session_id: str, user=Depends(get_current_user)):
