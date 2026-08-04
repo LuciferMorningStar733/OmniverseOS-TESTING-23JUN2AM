@@ -1351,6 +1351,11 @@ export default function Voice() {
         // Categorise the failure so the toast is informative, not generic.
         if (err?.code === "OFFLINE") {
           toast.error("No internet connection — check your network and try again.", { duration: 6000 });
+        } else if (err?.status === 401) {
+          // 401 from /api/ai/chat/stream means the JWT session expired.
+          // This is distinct from a provider auth error (which the backend
+          // swallows internally) — it needs a page reload to re-authenticate.
+          toast.error("Session expired — please refresh the page and log in again.", { duration: 8000 });
         } else if (err?.status === 429) {
           toast.error("Cortex is busy — Flash and backup providers are both rate-limited. Try again in a moment.", { duration: 7000 });
         } else if (err?.status === 503 || err?.status === 502) {

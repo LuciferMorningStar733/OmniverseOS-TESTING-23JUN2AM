@@ -112,34 +112,54 @@ export async function consumeSSE(response, onEvent) {
  * Lightweight SSE helper for the three destination apps (Adversary, War Room, Dead Reckoning).
  * Streams from a backend POST endpoint, calling onChunk for each text chunk.
  * Throws on HTTP errors or backend [error:*] signals.
+ *
+ * timeoutMs covers the FULL lifecycle (connect + stream) so a backend that
+ * responds with HTTP 200 but then hangs mid-stream will still be aborted.
+ * Default 90 s — longer than the main chat timeout because Adversary/War Room
+ * responses are intentionally large.
  */
-export async function streamSSE(endpoint, body, onChunk, signal) {
+export async function streamSSE(endpoint, body, onChunk, signal, timeoutMs = 90_000) {
   const token = localStorage.getItem("omniverse_token");
-  const res = await fetch(`${API}${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}`);
-    err.status = res.status;
-    throw err;
-  }
-  if (!res.body) return;
-  await consumeSSE(res, (payload) => {
-    if (payload === "[DONE]") return false;
-    if (payload.startsWith("[error:")) {
-      const err = new Error(payload.slice(7, -1) || "Stream error");
-      err.status = 500;
+
+  // Merge caller signal with an internal timeout so hung streams don't block forever.
+  const ctrl = new AbortController();
+  const timer = setTimeout(
+    () => ctrl.abort(new DOMException(`streamSSE timed out after ${timeoutMs}ms`, "TimeoutError")),
+    timeoutMs,
+  );
+  const onOuter = signal ? () => ctrl.abort(signal.reason) : null;
+  if (onOuter) signal.addEventListener("abort", onOuter, { once: true });
+
+  try {
+    const res = await fetch(`${API}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
       throw err;
     }
-    onChunk(payload);
-    return true;
-  });
+    if (!res.body) return;
+    await consumeSSE(res, (payload) => {
+      if (payload === "[DONE]") return false;
+      if (payload.startsWith("[error:")) {
+        const err = new Error(payload.slice(7, -1) || "Stream error");
+        err.status = 500;
+        throw err;
+      }
+      onChunk(payload);
+      return true;
+    });
+  } finally {
+    clearTimeout(timer);
+    if (onOuter) signal?.removeEventListener("abort", onOuter);
+  }
 }
 
 export const authApi = {
@@ -246,9 +266,12 @@ async function _singleStreamAttempt(data, onDelta, onFirstToken, outerSignal, on
   const token = localStorage.getItem("omniverse_token");
   const { signal, cleanup } = makeTimedSignal(outerSignal, REQUEST_TIMEOUT_MS);
 
-  let res;
+  // cleanup() is intentionally deferred to the outer finally so the timeout
+  // fires over the FULL lifecycle: connect + stream body consumption.
+  // Previously cleanup() ran right after fetch() resolved (headers received),
+  // leaving hung mid-stream bodies with no timeout protection.
   try {
-    res = await fetch(`${API}/ai/chat/stream`, {
+    const res = await fetch(`${API}/ai/chat/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -257,77 +280,81 @@ async function _singleStreamAttempt(data, onDelta, onFirstToken, outerSignal, on
       body: JSON.stringify(data),
       signal,
     });
+
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+
+    if (!res.body) return;
+    let firstToken = false;
+
+    await consumeSSE(res, (payload) => {
+      if (payload === "[DONE]") return false;
+
+      // Structured error signals from the backend
+      if (payload === "[quota_exceeded]") {
+        const err = new Error("Gemini quota exceeded for this model.");
+        err.status = 429;
+        throw err;
+      }
+      if (payload.startsWith("[error:")) {
+        const code = payload.slice(7, -1).trim();
+        const status = classifyStreamError(code);
+        const err = new Error(`Stream error: ${code}`);
+        err.status = status;
+        throw err;
+      }
+      // Legacy unstructured backend error — classify and throw for retry
+      if (payload.startsWith("[error ")) {
+        const inner = payload.slice(7, -1).trim();
+        const status = classifyStreamError(inner);
+        const err = new Error(inner);
+        err.status = status;
+        throw err;
+      }
+
+      // Source cards metadata (research mode) — parse and pass to caller, not content
+      if (payload.startsWith("[sources:")) {
+        try {
+          const sources = JSON.parse(payload.slice(9, -1));
+          onSources?.(sources);
+        } catch { /* malformed sources — ignore */ }
+        return true;
+      }
+
+      // Answer Confidence metadata — parse and pass to caller, not content
+      if (payload.startsWith("[confidence:")) {
+        try {
+          const confidence = JSON.parse(payload.slice(12, -1));
+          onConfidence?.(confidence);
+        } catch { /* malformed confidence — ignore */ }
+        return true;
+      }
+
+      // Active provider signal — pass to caller, do not emit as content
+      if (payload.startsWith("[provider:")) {
+        const providerName = payload.slice(10, -1).trim();
+        onProvider?.(providerName);
+        return true;
+      }
+
+      // Real content — notify on first token
+      if (!firstToken) {
+        firstToken = true;
+        onFirstToken?.();
+      }
+      onDelta(payload);
+      return true;
+    });
   } finally {
+    // Always release the timeout/abort-listener, whether we succeeded,
+    // threw, or were aborted. This deferred placement (vs. the previous
+    // "after fetch()" placement) keeps the timer active across the full
+    // SSE body consumption so hung mid-stream reads are also timed out.
     cleanup();
   }
-
-  if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}`);
-    err.status = res.status;
-    throw err;
-  }
-
-  if (!res.body) return;
-  let firstToken = false;
-
-  await consumeSSE(res, (payload) => {
-    if (payload === "[DONE]") return false;
-
-    // Structured error signals from the backend
-    if (payload === "[quota_exceeded]") {
-      const err = new Error("Gemini quota exceeded for this model.");
-      err.status = 429;
-      throw err;
-    }
-    if (payload.startsWith("[error:")) {
-      const code = payload.slice(7, -1).trim();
-      const status = classifyStreamError(code);
-      const err = new Error(`Stream error: ${code}`);
-      err.status = status;
-      throw err;
-    }
-    // Legacy unstructured backend error — classify and throw for retry
-    if (payload.startsWith("[error ")) {
-      const inner = payload.slice(7, -1).trim();
-      const status = classifyStreamError(inner);
-      const err = new Error(inner);
-      err.status = status;
-      throw err;
-    }
-
-    // Source cards metadata (research mode) — parse and pass to caller, not content
-    if (payload.startsWith("[sources:")) {
-      try {
-        const sources = JSON.parse(payload.slice(9, -1));
-        onSources?.(sources);
-      } catch { /* malformed sources — ignore */ }
-      return true;
-    }
-
-    // Answer Confidence metadata — parse and pass to caller, not content
-    if (payload.startsWith("[confidence:")) {
-      try {
-        const confidence = JSON.parse(payload.slice(12, -1));
-        onConfidence?.(confidence);
-      } catch { /* malformed confidence — ignore */ }
-      return true;
-    }
-
-    // Active provider signal — pass to caller, do not emit as content
-    if (payload.startsWith("[provider:")) {
-      const providerName = payload.slice(10, -1).trim();
-      onProvider?.(providerName);
-      return true;
-    }
-
-    // Real content — notify on first token
-    if (!firstToken) {
-      firstToken = true;
-      onFirstToken?.();
-    }
-    onDelta(payload);
-    return true;
-  });
 }
 
 export const aiApi = {
