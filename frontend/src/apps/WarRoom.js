@@ -18,11 +18,21 @@ const AGENT_META = {
 const AGENT_ORDER = ["investor", "customer", "competitor", "critic", "journalist"];
 
 // ── Typing animation — reveals text char-by-char when it first appears ─────
+// P16: skip char-by-char for long texts (>300 chars) to prevent UI lag on
+//      large agent responses. Render instantly; no perceptible quality loss.
+const ANIM_THRESHOLD = 300;
+
 function AnimatedText({ text, color }) {
   const [shown, setShown] = useState(0);
   const prevText = useRef("");
 
   useEffect(() => {
+    // Long responses: skip animation, just show everything immediately
+    if (text.length > ANIM_THRESHOLD) {
+      setShown(text.length);
+      prevText.current = text;
+      return;
+    }
     if (text.length > prevText.current.length) {
       const newChars = text.length - prevText.current.length;
       let i = 0;
@@ -101,11 +111,13 @@ function AgentCard({ agent, loading, revealed }) {
         )}
       </div>
 
-      {/* Response */}
+      {/* Response — P16: max-height cap prevents massive cards on long responses */}
       <div style={{
         fontSize: 13, lineHeight: 1.7,
         color: agent.text ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.2)",
         minHeight: 60,
+        maxHeight: 320,
+        overflowY: agent.text && agent.text.length > 400 ? "auto" : "visible",
         borderTop: `1px solid ${color}12`, paddingTop: 10,
         fontStyle: agent.error ? "italic" : "normal",
       }}>
@@ -231,7 +243,7 @@ export default function WarRoom() {
   }, [reset]);
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "row", overflow: "hidden" }}>
+    <div data-testid="warroom-app" style={{ height: "100%", display: "flex", flexDirection: "row", overflow: "hidden" }}>
       {/* ── History sidebar ─────────────────────────────────────────────── */}
       {sidebarOpen && (
         <ToolHistorySidebar
@@ -251,7 +263,9 @@ export default function WarRoom() {
       <div style={{
         flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
         background: "radial-gradient(ellipse at top right, rgba(245,158,11,0.05) 0%, transparent 60%)",
-        padding: "20px 24px", gap: 16, color: "#fff", overflowY: "auto",
+        /* P16: clamp padding on small screens */
+        padding: "clamp(12px, 3vw, 24px) clamp(12px, 3vw, 24px)",
+        gap: 16, color: "#fff", overflowY: "auto",
       }}>
         <style>{`
           @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }

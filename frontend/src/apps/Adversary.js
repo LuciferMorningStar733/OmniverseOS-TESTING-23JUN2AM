@@ -211,7 +211,7 @@ export default function Adversary() {
   const isRunning = phase === PHASE.ATTACKING || phase === PHASE.SURVIVING;
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "row", overflow: "hidden" }}>
+    <div data-testid="adversary-app" style={{ height: "100%", display: "flex", flexDirection: "row", overflow: "hidden" }}>
       {/* ── History sidebar ───────────────────────────────────────────────── */}
       {sidebarOpen && (
         <ToolHistorySidebar
@@ -231,7 +231,9 @@ export default function Adversary() {
       <div style={{
         flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
         background: "radial-gradient(ellipse at top left, rgba(255,0,60,0.05) 0%, transparent 60%)",
-        padding: "20px 24px", gap: 16, color: "#fff", overflow: "hidden",
+        /* P17: clamp padding on small screens */
+        padding: "clamp(12px, 3vw, 24px) clamp(12px, 3vw, 24px)",
+        gap: 16, color: "#fff", overflow: "hidden",
       }}>
         <style>{`
           @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
