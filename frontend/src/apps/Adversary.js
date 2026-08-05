@@ -3,6 +3,8 @@ import { streamSSE } from "../lib/api";
 import { toast } from "sonner";
 import { useToolSessions } from "../hooks/useToolSessions";
 import ToolHistorySidebar from "../components/ToolHistorySidebar";
+import FollowupThread from "../components/FollowupThread";
+import { writeCrossToolContext, adversaryToWarRoom } from "../lib/crossToolBridge";
 
 // ── Phase constants ────────────────────────────────────────────────────────
 const PHASE = { IDLE: "idle", ATTACKING: "attacking", SURVIVING: "surviving", DONE: "done" };
@@ -172,6 +174,13 @@ export default function Adversary() {
             { role: "assistant", content: surviveAcc,           meta: { section: "survive" }, created_at: ts },
           ], trimmed);
         }
+        // P11: make context available to War Room
+        writeCrossToolContext({
+          from:    "adversary",
+          to:      "warroom",
+          label:   `Adversary: "${trimmed.slice(0, 60)}${trimmed.length > 60 ? "…" : ""}"`,
+          context: adversaryToWarRoom({ idea: trimmed, attackText: attackRef.current, surviveText: surviveAcc }),
+        });
       }
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -398,6 +407,44 @@ export default function Adversary() {
                 loading={phase === PHASE.SURVIVING}
                 placeholder="What couldn't be broken…"
               />
+            )}
+
+            {/* P9: Multi-turn follow-up thread */}
+            {phase === PHASE.DONE && (
+              <FollowupThread
+                tool="adversary"
+                context={`Idea:\n${idea}\n\n## ASSAULT\n${attackText}\n\n## WHAT SURVIVED\n${surviveText}`}
+                accentColor="#FF003C"
+              />
+            )}
+
+            {/* P11: Cross-tool — send to War Room */}
+            {phase === PHASE.DONE && surviveText && (
+              <div style={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+                <button
+                  title="Send this analysis to War Room as context"
+                  onClick={() => {
+                    writeCrossToolContext({
+                      from:    "adversary",
+                      to:      "warroom",
+                      label:   `Adversary: "${idea.slice(0, 60)}${idea.length > 60 ? "…" : ""}"`,
+                      context: adversaryToWarRoom({ idea, attackText, surviveText }),
+                    });
+                    toast.success("Context ready — open War Room to load it.", { duration: 3000 });
+                  }}
+                  style={{
+                    padding: "6px 14px", borderRadius: 7, cursor: "pointer",
+                    background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.22)",
+                    color: "rgba(245,158,11,0.7)", fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 10, letterSpacing: "0.08em", transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#F59E0B"; e.currentTarget.style.background = "rgba(245,158,11,0.14)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(245,158,11,0.7)"; e.currentTarget.style.background = "rgba(245,158,11,0.08)"; }}
+                >
+                  <i className="fa-solid fa-arrow-right" style={{ marginRight: 5, fontSize: 8 }} />
+                  Send to War Room
+                </button>
+              </div>
             )}
           </div>
         )}

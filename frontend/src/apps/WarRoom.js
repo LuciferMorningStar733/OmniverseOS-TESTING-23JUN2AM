@@ -3,6 +3,8 @@ import { api } from "../lib/api";
 import { toast } from "sonner";
 import { useToolSessions } from "../hooks/useToolSessions";
 import ToolHistorySidebar from "../components/ToolHistorySidebar";
+import FollowupThread from "../components/FollowupThread";
+import { readCrossToolContext, clearCrossToolContext, writeCrossToolContext, warRoomToDeadReckoning } from "../lib/crossToolBridge";
 
 // ── Agent colour palette ───────────────────────────────────────────────────
 const AGENT_META = {
@@ -128,6 +130,7 @@ export default function WarRoom() {
   const [agents,      setAgents]      = useState([]);
   const [revealed,    setRevealed]    = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [crossImport, setCrossImport] = useState(null); // P11
   const mountedRef  = useRef(true);
   const sessionRef  = useRef(null);
 
@@ -163,6 +166,12 @@ export default function WarRoom() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId]);
+
+  // P11: Cross-tool import from Adversary
+  useEffect(() => {
+    const imported = readCrossToolContext("warroom");
+    if (imported) setCrossImport(imported);
+  }, []);
 
   const convene = useCallback(async () => {
     const trimmed = situation.trim();
@@ -290,6 +299,40 @@ export default function WarRoom() {
           </div>
         </div>
 
+        {/* P11: Cross-tool import banner from Adversary */}
+        {crossImport && agents.length === 0 && !loading && (
+          <div style={{
+            flexShrink: 0, padding: "10px 14px", borderRadius: 10,
+            background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.25)",
+            display: "flex", alignItems: "center", gap: 10, animation: "fadeSlideUp 0.3s ease",
+          }}>
+            <i className="fa-solid fa-arrow-right-to-bracket" style={{ color: "#F59E0B", fontSize: 11 }} />
+            <span style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Inter', sans-serif" }}>
+              Context available from <strong style={{ color: "#F59E0B" }}>The Adversary</strong>: {crossImport.label}
+            </span>
+            <button
+              onClick={() => {
+                setSituation(crossImport.context);
+                clearCrossToolContext();
+                setCrossImport(null);
+              }}
+              style={{
+                padding: "4px 12px", borderRadius: 6, cursor: "pointer",
+                background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.3)",
+                color: "#F59E0B", fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+              }}
+            >Load</button>
+            <button
+              onClick={() => { clearCrossToolContext(); setCrossImport(null); }}
+              style={{
+                width: 22, height: 22, borderRadius: 5, cursor: "pointer",
+                background: "transparent", border: "none",
+                color: "rgba(255,255,255,0.25)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >×</button>
+          </div>
+        )}
+
         {/* ── Input form ───────────────────────────────────────────────────── */}
         {!loading && agents.length === 0 && (
           <div style={{ flexShrink: 0, animation: "fadeSlideUp 0.25s ease" }}>
@@ -399,6 +442,46 @@ export default function WarRoom() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* P9: Multi-turn follow-up thread */}
+        {agents.length > 0 && !loading && (
+          <>
+            <FollowupThread
+              tool="warroom"
+              context={`Situation: ${situation}\n\n${agents.map((a) => {
+                const meta = AGENT_META[a.id] || {};
+                return `${meta.name || a.name} (${meta.role || ""}):\n${a.text || ""}`;
+              }).join("\n\n")}`}
+              accentColor="#F59E0B"
+            />
+            {/* P11: Send to Dead Reckoning */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                title="Send War Room context to Dead Reckoning"
+                onClick={() => {
+                  writeCrossToolContext({
+                    from:    "warroom",
+                    to:      "deadreckoning",
+                    label:   `War Room: "${situation.slice(0, 55)}${situation.length > 55 ? "…" : ""}"`,
+                    context: warRoomToDeadReckoning({ situation, agents }),
+                  });
+                  toast.success("Context ready — open Dead Reckoning to load it.", { duration: 3000 });
+                }}
+                style={{
+                  padding: "6px 14px", borderRadius: 7, cursor: "pointer",
+                  background: "rgba(123,47,255,0.08)", border: "1px solid rgba(123,47,255,0.22)",
+                  color: "rgba(123,47,255,0.7)", fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10, letterSpacing: "0.08em", transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#7B2FFF"; e.currentTarget.style.background = "rgba(123,47,255,0.14)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(123,47,255,0.7)"; e.currentTarget.style.background = "rgba(123,47,255,0.08)"; }}
+              >
+                <i className="fa-solid fa-arrow-right" style={{ marginRight: 5, fontSize: 8 }} />
+                Send to Dead Reckoning
+              </button>
+            </div>
+          </>
         )}
 
         {/* ── Empty state ──────────────────────────────────────────────────── */}

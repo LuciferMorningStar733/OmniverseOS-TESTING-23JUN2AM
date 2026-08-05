@@ -1230,6 +1230,104 @@ async def ai_dead_reckoning(req: DeadReckoningReq, user=Depends(get_current_user
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# P9/P10 — Multi-turn tool follow-up with context windowing
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ToolChatReq(BaseModel):
+    tool: str    = Field(..., max_length=20)       # "adversary"|"warroom"|"deadreckoning"
+    context: str = Field(default="", max_length=10000)  # original run output
+    history: list[ChatHistoryMessage] = Field(default=[], max_length=24)
+    message: str = Field(..., min_length=1, max_length=4000)
+
+_TOOL_SYSTEMS: dict[str, str] = {
+    "adversary": (
+        "You are the Adversary — a precise, unflinching analytical critic. "
+        "The original idea and your full attack/survive analysis appear in the context below. "
+        "Continue the conversation in your analytical role. "
+        "When the user references 'point four', 'that claim', 'the gap you found', etc., "
+        "look up the specific element in the provided context. "
+        "If asked to re-evaluate after a fix, re-run your reasoning from scratch given the new assumption. "
+        "Remain adversarial — do not soften just because the user pushes back."
+    ),
+    "warroom": (
+        "You are the synthesis voice of the War Room — five expert perspectives "
+        "(Investor, Customer, Competitor, Internal Critic, Journalist). "
+        "The original situation and all five agent responses appear in the context. "
+        "On follow-up questions: if asked about a specific agent ('Investor, respond to...'), "
+        "write in that agent's voice. If asked a general follow-up, synthesise across agents "
+        "or respond from whichever perspective is most relevant. "
+        "Reference specific prior responses when continuing the dialogue."
+    ),
+    "deadreckoning": (
+        "You are a cold trajectory analyst. "
+        "The original self-assessment and the full trajectory projection appear in the context. "
+        "When asked to recalculate with changed inputs ("assume 10 hours per week instead"), "
+        "compute a revised projection for that specific delta while holding all other inputs constant. "
+        "Do not re-run the full analysis unless asked — focus on the changed variable. "
+        "Remain calibrated and honest."
+    ),
+}
+
+def _build_context_window(history: list, max_verbatim: int = 8) -> list[dict]:
+    """P10: Keep last max_verbatim turns verbatim; compress older turns into a summary block."""
+    if len(history) <= max_verbatim:
+        return [{"role": m.role, "content": m.content[:3000]} for m in history]
+
+    older  = history[:-max_verbatim]
+    recent = history[-max_verbatim:]
+
+    lines: list[str] = []
+    for m in older:
+        label   = "User" if m.role == "user" else "Assistant"
+        snippet = m.content[:250]
+        if len(m.content) > 250:
+            snippet += "…"
+        lines.append(f"{label}: {snippet}")
+
+    return [
+        {"role": "user",      "content": "[Earlier conversation — compressed for context]\n" + "\n".join(lines)},
+        {"role": "assistant", "content": "Understood — I have context from our earlier exchanges."},
+        *[{"role": m.role, "content": m.content[:3000]} for m in recent],
+    ]
+
+@api.post("/ai/tool/followup")
+async def ai_tool_followup(req: ToolChatReq, user=Depends(get_current_user)):
+    """P9 — Multi-turn follow-up for Adversary, War Room, Dead Reckoning."""
+    await rate_limit(f"tool_followup:{user['id']}", max_per_min=20)
+
+    base_system = _TOOL_SYSTEMS.get(
+        req.tool,
+        "You are a helpful AI assistant. Use the provided context to answer the follow-up.",
+    )
+    if req.context.strip():
+        system = f"{base_system}\n\n[Original run context — reference this for follow-ups]\n{req.context.strip()[:6000]}"
+    else:
+        system = base_system
+
+    windowed = _build_context_window(req.history)
+
+    async def event_gen():
+        try:
+            async for kind, value in ai_service.generate_stream(
+                preferred="auto",
+                gemini_model="gemini-2.5-flash",
+                message=req.message.strip(),
+                system=system,
+                history=windowed,
+            ):
+                if kind == "chunk" and value:
+                    yield _sse_event(value)
+                elif kind == "error":
+                    yield f"data: [error:{value or 500}]\n\n"
+        except Exception as exc:
+            logging.error("Tool followup error: %s", exc)
+            yield "data: [error:500]\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
 @api.get("/ai/chat/history/{session_id}")
 async def chat_history(session_id: str, user=Depends(get_current_user)):
     msgs = await db.chat_messages.find(

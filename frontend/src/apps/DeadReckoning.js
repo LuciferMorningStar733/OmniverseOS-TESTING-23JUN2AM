@@ -3,6 +3,8 @@ import { streamSSE } from "../lib/api";
 import { toast } from "sonner";
 import { useToolSessions } from "../hooks/useToolSessions";
 import ToolHistorySidebar from "../components/ToolHistorySidebar";
+import FollowupThread from "../components/FollowupThread";
+import { readCrossToolContext, clearCrossToolContext } from "../lib/crossToolBridge";
 
 const ACCENT = "#7B2FFF";
 
@@ -242,6 +244,7 @@ export default function DeadReckoning() {
   const [output,      setOutput]      = useState("");
   const [done,        setDone]        = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [crossImport, setCrossImport] = useState(null); // P11
   const abortRef   = useRef(null);
   const mountedRef = useRef(true);
   const bottomRef  = useRef(null);
@@ -267,6 +270,12 @@ export default function DeadReckoning() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId]);
+
+  // P11: Cross-tool import from War Room
+  useEffect(() => {
+    const imported = readCrossToolContext("deadreckoning");
+    if (imported) setCrossImport(imported);
+  }, []);
 
   useEffect(() => {
     if (output) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -396,6 +405,40 @@ export default function DeadReckoning() {
             </div>
           </div>
         </div>
+
+        {/* P11: Cross-tool import banner from War Room */}
+        {crossImport && !output && !loading && (
+          <div style={{
+            flexShrink: 0, padding: "10px 14px", borderRadius: 10,
+            background: `${ACCENT}0a`, border: `1px solid ${ACCENT}25`,
+            display: "flex", alignItems: "center", gap: 10, animation: "drFadeUp 0.3s ease",
+          }}>
+            <i className="fa-solid fa-arrow-right-to-bracket" style={{ color: ACCENT, fontSize: 11 }} />
+            <span style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Inter', sans-serif" }}>
+              Context from <strong style={{ color: ACCENT }}>War Room</strong>: {crossImport.label}
+            </span>
+            <button
+              onClick={() => {
+                setInput(crossImport.context);
+                clearCrossToolContext();
+                setCrossImport(null);
+              }}
+              style={{
+                padding: "4px 12px", borderRadius: 6, cursor: "pointer",
+                background: `${ACCENT}18`, border: `1px solid ${ACCENT}30`,
+                color: ACCENT, fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+              }}
+            >Load</button>
+            <button
+              onClick={() => { clearCrossToolContext(); setCrossImport(null); }}
+              style={{
+                width: 22, height: 22, borderRadius: 5, cursor: "pointer",
+                background: "transparent", border: "none",
+                color: "rgba(255,255,255,0.25)", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >×</button>
+          </div>
+        )}
 
         {/* ── Input form ───────────────────────────────────────────────────── */}
         {!loading && !output && (
@@ -541,6 +584,15 @@ export default function DeadReckoning() {
                   <i className="fa-solid fa-check" style={{ fontSize: 9, color: `${ACCENT}70` }} />
                   TRAJECTORY LOCKED · {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </div>
+              )}
+
+              {/* P9: Multi-turn follow-up thread */}
+              {done && (
+                <FollowupThread
+                  tool="deadreckoning"
+                  context={`Self-assessment:\n${input}\n\nTrajectory projection:\n${output}`}
+                  accentColor={ACCENT}
+                />
               )}
 
               <div ref={bottomRef} />
