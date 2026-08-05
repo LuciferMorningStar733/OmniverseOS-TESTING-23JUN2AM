@@ -520,6 +520,141 @@ async def ai_tts_gemini_test(user=Depends(get_current_user)):
         return {"ok": False, "step": "request", "error": str(exc)}
 
 
+# ── Fish Audio TTS ────────────────────────────────────────────────────────────
+#
+# SECURITY: FISH_AUDIO_API_KEY is read from the server environment and NEVER
+# sent to the browser.  The browser calls /api/ai/tts-fish — the backend
+# calls Fish Audio's API.  The key is never in logs, responses, or errors.
+#
+# Configuration via environment variables (all optional except FISH_AUDIO_API_KEY):
+#   FISH_AUDIO_API_KEY  — required; set via Replit Secrets
+#   FISH_TTS_MODEL      — default "speech-1.5" (Fish Audio 2025 stable model)
+#   FISH_TTS_FORMAT     — "mp3" or "wav", default "mp3" (broadest browser compat)
+#   FISH_TTS_TIMEOUT    — seconds, default "15"
+_FISH_AUDIO_API_KEY  = os.environ.get("FISH_AUDIO_API_KEY", "")
+_FISH_TTS_ENDPOINT   = "https://api.fish.audio/v1/tts"
+_FISH_TTS_MODEL      = os.environ.get("FISH_TTS_MODEL", "speech-1.5")
+_FISH_TTS_FORMAT     = os.environ.get("FISH_TTS_FORMAT", "mp3")
+_FISH_TTS_TIMEOUT    = float(os.environ.get("FISH_TTS_TIMEOUT", "15"))
+
+# Failure categories that should trigger client-side fallback (not retried)
+_FISH_FALLBACK_STATUSES = {401, 403, 404, 429, 500, 502, 503, 504}
+
+
+class FishTtsReq(BaseModel):
+    text: str = Field(..., min_length=1, max_length=4000)
+    model: Optional[str] = Field(default=None, max_length=50)
+
+
+@api.post("/ai/tts-fish")
+async def ai_tts_fish(req: FishTtsReq, user=Depends(get_current_user)):
+    """
+    Fish Audio TTS — server-side proxy.
+    FISH_AUDIO_API_KEY is used here and NEVER returned to the client.
+    Returns raw MP3 (or WAV) bytes.  Falls back to 503 if the key is absent
+    so the frontend can cascade to Puter/browser TTS without hanging.
+    """
+    if not _FISH_AUDIO_API_KEY:
+        raise HTTPException(503, "Fish Audio API key not configured on this server")
+
+    await rate_limit(f"tts_fish:{user['id']}", max_per_min=60)
+
+    model = req.model if req.model else _FISH_TTS_MODEL
+
+    # Build request payload using Fish Audio v1 TTS schema.
+    # "latency": "balanced" lowers time-to-first-audio vs "normal" for
+    # conversational use.  Format is mp3 for broadest HTMLAudioElement support
+    # (Safari, Chrome, Firefox, Edge, iOS, Android).
+    payload = {
+        "text": req.text,
+        "format": _FISH_TTS_FORMAT,
+        "mp3_bitrate": 128,
+        "normalize": True,
+        "latency": "balanced",
+        "model": model,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=_FISH_TTS_TIMEOUT) as http:
+            resp = await http.post(
+                _FISH_TTS_ENDPOINT,
+                json=payload,
+                headers={
+                    # Bearer token is in the header — httpx will NOT include it
+                    # in any error messages or logs we generate below.
+                    "Authorization": f"Bearer {_FISH_AUDIO_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+        # Map Fish error codes to informative (but key-safe) HTTP responses
+        if resp.status_code == 401 or resp.status_code == 403:
+            logging.warning("Fish Audio auth failure: HTTP %s", resp.status_code)
+            raise HTTPException(resp.status_code, "Fish Audio authentication failed — check FISH_AUDIO_API_KEY")
+        if resp.status_code == 422:
+            logging.warning("Fish Audio 422 (bad request): %s", resp.text[:200])
+            raise HTTPException(422, "Fish Audio rejected the request — check model or text")
+        if resp.status_code == 429:
+            logging.warning("Fish Audio rate-limited")
+            raise HTTPException(429, "Fish Audio rate limit exceeded — try again shortly")
+        if not resp.is_success:
+            logging.warning("Fish Audio HTTP %s: %s", resp.status_code, resp.text[:200])
+            raise HTTPException(502, f"Fish Audio returned HTTP {resp.status_code}")
+
+        audio_bytes = resp.content
+        if not audio_bytes or len(audio_bytes) < 100:
+            raise HTTPException(502, "Fish Audio returned empty or malformed audio")
+
+        content_type = "audio/mpeg" if _FISH_TTS_FORMAT == "mp3" else "audio/wav"
+        logging.info(
+            "Fish TTS OK | model=%s | format=%s | bytes=%d | user=%s",
+            model, _FISH_TTS_FORMAT, len(audio_bytes), user["id"],
+        )
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=content_type,
+            headers={
+                "X-TTS-Provider": "fish-audio",
+                "X-TTS-Model":    model,
+                "X-TTS-Format":   _FISH_TTS_FORMAT,
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        logging.warning("Fish TTS timeout after %.1fs", _FISH_TTS_TIMEOUT)
+        raise HTTPException(504, "Fish Audio request timed out")
+    except Exception as exc:
+        # Sanitize: never reflect raw httpx errors (may contain the Bearer token
+        # in the URL if httpx reformats the request internally)
+        logging.error("Fish TTS unexpected error: %s", type(exc).__name__, exc_info=True)
+        raise HTTPException(502, "Fish Audio TTS request failed — falling back")
+
+
+@api.get("/ai/tts-fish/status")
+async def ai_tts_fish_status(user=Depends(get_current_user)):
+    """
+    Non-destructive diagnostic — reports whether Fish Audio is configured.
+    Does NOT make a Fish API call or consume quota.
+    FISH_AUDIO_API_KEY is NEVER returned — only its presence is confirmed.
+    """
+    key_present = bool(_FISH_AUDIO_API_KEY)
+    return {
+        "configured": key_present,
+        "model":      _FISH_TTS_MODEL,
+        "format":     _FISH_TTS_FORMAT,
+        "endpoint":   _FISH_TTS_ENDPOINT,
+        "timeout_s":  _FISH_TTS_TIMEOUT,
+        "message": (
+            "Fish Audio API key is present and ready"
+            if key_present
+            else "FISH_AUDIO_API_KEY not set — add it via Replit Secrets"
+        ),
+    }
+
+
 # ---------- Routes: Auth ----------
 @api.get("/")
 async def root():

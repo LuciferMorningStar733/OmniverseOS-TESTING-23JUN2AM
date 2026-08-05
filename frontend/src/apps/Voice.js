@@ -18,6 +18,7 @@ import {
   getStreamVoiceId,
   saveStreamVoiceId,
 } from "../lib/streamTTS";
+import { speakCortex } from "../lib/cortexTTSManager";
 import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
@@ -1039,6 +1040,41 @@ export default function Voice() {
       };
       attemptBrowser(preferredVoice);
     };
+
+    // Level 1–3 Fish Audio chain (Fish → Puter → Stream → Browser)
+    if (s.voiceEngine === "fish") {
+      const { cancel } = speakCortex(cleanText, {
+        generationRef:    speechGenerationRef,
+        speechGeneration,
+        voiceEngine:      "fish",
+        streamVoiceId:    s.streamVoiceId || getStreamVoiceId(),
+        rate:             s.rate  || 1.0,
+        pitch:            s.pitch || 1.0,
+        volume:           s.volume ?? 1.0,
+        onStart: () => {
+          if (speechGeneration === speechGenerationRef.current && mountedRef.current) {
+            setPhase("speaking");
+            startBargeInDetector();
+          }
+        },
+        onEnd:  handleEnd,
+        onError: (err) => {
+          if (speechGeneration !== speechGenerationRef.current) return;
+          console.warn("[CortexTTS] all providers failed:", err?.message);
+          if (mountedRef.current) {
+            setPhase("idle");
+            clearTimeout(autoListenTimerRef.current);
+            autoListenTimerRef.current = setTimeout(() => {
+              if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
+                startListeningRef.current?.();
+              }
+            }, 900);
+          }
+        },
+      });
+      cancelSpeechRef.current = cancel;
+      return;
+    }
 
     // Primary: Stream TTS
     if (s.voiceEngine !== "browser" && isStreamTTSAvailable()) {
@@ -2329,12 +2365,13 @@ export default function Voice() {
           <Card>
             <SectionHeader label="Voice Matrix" />
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 14, marginTop: -4, lineHeight: 1.6 }}>
-              Human mode uses Amazon Neural TTS via StreamElements (free, no key needed). Browser uses your device's built-in voice engine.
+              Fish Audio uses neural AI voices via the server (requires API key). Neural Human uses Amazon Polly via StreamElements (free). Browser uses your device's built-in voice engine.
             </p>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               {[
-                { key: "stream",  label: "Neural Human", desc: "Amazon Polly · Realistic" },
+                { key: "fish",    label: "Fish Audio",   desc: "Neural AI · Premium" },
+                { key: "stream",  label: "Neural Human", desc: "Amazon Polly · Free" },
                 { key: "browser", label: "Device Voice",  desc: "Browser built-in" },
               ].map(({ key, label, desc }) => {
                 const active = settings.voiceEngine === key;
