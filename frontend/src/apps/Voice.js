@@ -1258,8 +1258,11 @@ export default function Voice() {
         intentionalStopRef.current = true;
 
       } else if (e.error === "no-speech") {
-        // Silence timer triggered this — the countdown UI already communicates it.
-        intentionalStopRef.current = true;
+        // The STT server fires no-speech when its internal window empties (can
+        // happen in ~1-2s). This is NOT the user intentionally stopping — the
+        // silence timer (SILENCE_TIMEOUT_MS) drives deliberate stops. Mark as
+        // non-intentional so onend's restart logic silently resumes the session.
+        intentionalStopRef.current = false;
 
       } else {
         // Unexpected error — surface the code so it's debuggable.
