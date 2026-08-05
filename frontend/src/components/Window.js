@@ -304,6 +304,11 @@ function ResizeHandles({ win, updateWindow, dragEnabled, onResizeStart, onResize
             /* Subtle glow on active resize handle */
             background: activeDir === dir ? "rgba(0,240,255,0.08)" : "transparent",
             transition: "background var(--transition-fast) ease",
+            /* P14 — iPad: prevent text-selection callout on resize grips */
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
+            touchAction: "none",
           }}
           onPointerDown={(e) => startResize(e, dir)}
           onPointerMove={(e) => onPointerMove(e, dir)}
@@ -674,6 +679,9 @@ export default function Window({ win, children }) {
           borderBottomColor: isActive ? `${accentColor}18` : "rgba(255,255,255,0.07)",
           transition: "background var(--transition-base) ease, border-color var(--transition-base) ease",
           userSelect: "none",
+          WebkitUserSelect: "none",
+          /* P14 — iPad: prevent iOS text-selection callout on window titlebar */
+          WebkitTouchCallout: "none",
           position: "relative",
           zIndex: 1,
           touchAction: "none",  // required for pointer capture on touch devices

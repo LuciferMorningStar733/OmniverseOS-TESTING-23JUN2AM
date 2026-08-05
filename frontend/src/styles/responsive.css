@@ -1330,3 +1330,151 @@ button, a, [role="button"] {
     box-shadow: none !important;
   }
 }
+
+/* ============================================================
+   P13 — MOBILE RESPONSIVE POLISH: ULTRA-SMALL PHONES
+   320px → 360px → 375px — Samsung Galaxy / older iPhones
+============================================================ */
+
+/* ── 360px and below — compact layout pass ───────────────────── */
+@media (max-width: 360px) {
+
+  /* TopBar: shrink clock & icons so nothing overflows */
+  [data-testid="topbar"] {
+    font-size: 11px !important;
+  }
+  [data-testid="topbar"] .text-xs {
+    font-size: 10px !important;
+  }
+
+  /* Dock: reduce icon size and gap */
+  [data-testid="dock-root"] i {
+    font-size: 18px !important;
+  }
+  [data-testid="dock-root"] > div > div {
+    gap: 10px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  /* AI Chat: compact input row */
+  [data-testid="chat-input"],
+  [data-testid="ai-chat-input"] {
+    padding: 8px 10px !important;
+  }
+
+  /* Cortex: reduce floating button size */
+  [data-testid="cortex-trigger"] {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  /* Window mobile header: shrink title */
+  [data-testid^="window-"] .mobile-header-title {
+    font-size: 13px !important;
+    max-width: 40vw !important;
+  }
+}
+
+/* ── 320px — absolute minimum (very old phones) ──────────────── */
+@media (max-width: 320px) {
+  [data-testid="dock-root"] i {
+    font-size: 16px !important;
+  }
+  [data-testid="dock-root"] > div > div {
+    gap: 8px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  /* App grid: 3-col max */
+  [data-testid="app-launcher"] .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+/* ── Mobile landscape: virtual keyboard safe area ────────────── */
+@media (max-width: 767px) and (orientation: landscape) {
+
+  /* Push content above the keyboard using CSS env */
+  [data-testid="desktop-root"] {
+    padding-bottom: env(keyboard-inset-height, 0px);
+  }
+
+  /* Dock: collapse to icon-only row in landscape */
+  [data-testid="dock-root"] {
+    height: auto !important;
+    min-height: 52px !important;
+  }
+  [data-testid="dock-root"] .dock-label {
+    display: none !important;
+  }
+  [data-testid="dock-root"] i {
+    font-size: 18px !important;
+  }
+
+  /* Chat input: keep above keyboard */
+  [data-testid="chat-input"],
+  [data-testid="ai-chat-input"] {
+    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Cortex: move trigger up on landscape */
+  [data-testid="cortex-trigger"] {
+    bottom: max(64px, env(safe-area-inset-bottom, 0px) + 60px) !important;
+  }
+}
+
+/* ── Mobile: AI response bubbles — clamp width on tiny screens ── */
+@media (max-width: 390px) {
+  .chat-message,
+  [data-testid="chat-message"] {
+    max-width: 92vw !important;
+  }
+  /* Model badge / chip: allow wrap */
+  [data-testid="model-select"] {
+    max-width: 52vw !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ── Mobile: War Room / Adversary — stack cards vertically ──── */
+@media (max-width: 767px) {
+  [data-testid="war-room-app"] .agent-grid,
+  [data-testid="warroom-app"] .agent-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  /* Dead Reckoning: full-width year cards */
+  [data-testid="dead-reckoning-app"] .year-card {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ── Tablet: War Room grid — 2-col instead of 3-col ─────────── */
+@media (max-width: 1023px) and (min-width: 768px) {
+  [data-testid="war-room-app"] .agent-grid,
+  [data-testid="warroom-app"] .agent-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ── P13: Long AI responses — readable line length cap ────────── */
+@media (max-width: 767px) {
+  .markdown-content {
+    max-width: 100% !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+  }
+  /* Prevent code blocks from forcing horizontal scroll on phone */
+  .markdown-content pre,
+  .markdown-content code {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-x: hidden !important;
+  }
+}
