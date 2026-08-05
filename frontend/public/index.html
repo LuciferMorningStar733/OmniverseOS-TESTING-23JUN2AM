@@ -61,6 +61,8 @@
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <!-- Puter.js — TTS fallback provider (user-pays model, no extra API key needed) -->
+    <!-- quiet=true suppresses the App Store popup and SSO/CORS noise -->
+    <script>window.puter = window.puter || {}; window.puter.quiet = true;</script>
     <script src="https://js.puter.com/v2/"></script>
   </body>
 </html>
