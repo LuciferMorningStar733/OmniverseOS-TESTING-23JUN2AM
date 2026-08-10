@@ -192,8 +192,21 @@ export function browserSpeak(text, {
   utterance.pitch  = Math.min(2.0, Math.max(0.0, pitch));
   utterance.volume = Math.min(1.0, Math.max(0.0, volume));
 
-  // Voice selection: explicit > preferred > auto-best
-  const targetVoice = voice || getPreferredVoiceObject() || getBestVoice()?.voice || null;
+  // Voice selection: explicit object > explicit string match > preferred > auto-best
+  let targetVoice = null;
+  if (typeof voice === "object" && voice !== null) {
+    targetVoice = voice;
+  } else if (typeof voice === "string" && voice.trim()) {
+    const term = voice.toLowerCase();
+    const raw = getRawVoices();
+    targetVoice =
+      raw.find((v) => v.name.toLowerCase() === term) ||
+      raw.find((v) => v.name.toLowerCase().includes(term)) ||
+      null;
+  }
+  if (!targetVoice) {
+    targetVoice = getPreferredVoiceObject() || getBestVoice()?.voice || null;
+  }
   if (targetVoice) utterance.voice = targetVoice;
 
   let keepAliveTimer = null;

@@ -75,6 +75,14 @@ export function isStreamTTSAvailable() {
   return !!(window.AudioContext || window.webkitAudioContext);
 }
 
+function getVoicePitch(voiceId) {
+  const id = (voiceId || "").toLowerCase();
+  if (id.includes("brian") || id.includes("matthew") || id.includes("joey") || id.includes("russell")) return 0.88;
+  if (id.includes("amy") || id.includes("emma") || id.includes("joanna") || id.includes("kendra") || id.includes("kimberly") || id.includes("salli") || id.includes("nicole")) return 1.18;
+  if (id.includes("justin")) return 1.35;
+  return 1.0;
+}
+
 // ── Core speak function ────────────────────────────────────────────────────
 export function streamSpeak(rawText, {
   voiceId  = null,
@@ -157,8 +165,10 @@ export function streamSpeak(rawText, {
     } catch (err) {
       safeCloseCtx();
       if (!cancelled) {
-        // Failover to browser Web Speech API if StreamElements API returns 401 / fails
+        // Failover to browser Web Speech API with distinct voice pitch & matching
         activeCancel = browserSpeak(rawText, {
+          voice: selectedVoice,
+          pitch: getVoicePitch(selectedVoice),
           rate,
           volume,
           onStart,
