@@ -18,6 +18,7 @@ import {
   getStreamVoiceId,
   saveStreamVoiceId,
 } from "../lib/streamTTS";
+import { fishSpeak } from "../lib/fishTTS";
 import { speakCortex } from "../lib/cortexTTSManager";
 import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
@@ -912,12 +913,13 @@ export default function Voice() {
       const done = () => { if (mountedRef.current) setIsLivePreviewing(false); };
       setIsLivePreviewing(true);
 
-      if (merged.voiceEngine !== "browser" && isStreamTTSAvailable()) {
-        const cancel = streamSpeak(phrase, {
-          voiceId: merged.streamVoiceId || getStreamVoiceId(),
-          rate: merged.rate || 1.0, volume: merged.volume ?? 1.0,
+      if (merged.voiceEngine !== "browser") {
+        const cancel = fishSpeak(phrase, {
+          volume: merged.volume ?? 1.0,
+          onStart: () => {},
           onEnd: done,
           onError: () => {
+            // fallback to browser TTS if Fish Audio fails
             if (!isBrowserTTSSupported()) { done(); return; }
             cancelSpeechRef.current = browserSpeak(phrase, {
               rate: merged.rate || 1.0, pitch: merged.pitch || 1.0, volume: merged.volume ?? 1.0,
@@ -1080,11 +1082,10 @@ export default function Voice() {
       return;
     }
 
-    // Primary: Stream TTS
-    if (s.voiceEngine !== "browser" && isStreamTTSAvailable()) {
-      const cancel = streamSpeak(cleanText, {
-        voiceId: s.streamVoiceId || getStreamVoiceId(),
-        rate: s.rate || 1.0, volume: s.volume ?? 1.0,
+    // Primary: Fish Audio TTS (routed through backend proxy)
+    if (s.voiceEngine !== "browser") {
+      const cancel = fishSpeak(cleanText, {
+        volume: s.volume ?? 1.0,
         onStart: () => {
           if (speechGeneration === speechGenerationRef.current && mountedRef.current) {
             setPhase("speaking");
@@ -1095,7 +1096,7 @@ export default function Voice() {
         onEnd: handleEnd,
         onError: (err) => {
           if (speechGeneration !== speechGenerationRef.current) return;
-          console.warn("[StreamTTS] falling back to browser TTS:", err?.message);
+          console.warn("[FishTTS] falling back to browser TTS:", err?.message);
           browserFallback();
         },
       });
@@ -2511,13 +2512,15 @@ export default function Voice() {
                             cancelSpeechRef.current?.();
                             cancelSpeechRef.current = null;
                             setPreviewingVoice(v.id);
-                            const phrase = `Hi, I'm ${v.label}. Cortex is online.`;
-                            const cancel = streamSpeak(phrase, {
-                              voiceId: v.id,
-                              rate: settings.rate || 1.0,
+                            const phrase = `Hi, I'm ${v.label}. This is Cortex speaking with Fish Audio.`;
+                            const cancel = fishSpeak(phrase, {
                               volume: settings.volume ?? 1.0,
+                              onStart: () => {},
                               onEnd:   () => { if (mountedRef.current) setPreviewingVoice(null); },
-                              onError: () => { if (mountedRef.current) setPreviewingVoice(null); },
+                              onError: () => {
+                                if (!mountedRef.current) return;
+                                setPreviewingVoice(null);
+                              },
                             });
                             cancelSpeechRef.current = cancel;
                           }

@@ -159,8 +159,8 @@ async def ai_tts_gemini_test():
 
 def _get_fish_api_key() -> str:
     return (
-        os.environ.get("FISH_AUDIO_API_KEY")
-        or os.environ.get("FISHAUDIO_API_KEY")
+        os.environ.get("FISHAUDIO_API_KEY")
+        or os.environ.get("FISH_AUDIO_API_KEY")
         or ""
     )
 

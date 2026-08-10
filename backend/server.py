@@ -520,7 +520,7 @@ async def ai_tts_gemini_test(user=Depends(get_current_user)):
 #   FISH_TTS_MODEL      — default "speech-1.5" (Fish Audio 2025 stable model)
 #   FISH_TTS_FORMAT     — "mp3" or "wav", default "mp3" (broadest browser compat)
 #   FISH_TTS_TIMEOUT    — seconds, default "15"
-_FISH_AUDIO_API_KEY  = os.environ.get("FISH_AUDIO_API_KEY", "")
+_FISH_AUDIO_API_KEY  = os.environ.get("FISHAUDIO_API_KEY") or os.environ.get("FISH_AUDIO_API_KEY", "")
 _FISH_TTS_ENDPOINT   = "https://api.fish.audio/v1/tts"
 _FISH_TTS_MODEL      = os.environ.get("FISH_TTS_MODEL", "speech-1.5")
 _FISH_TTS_FORMAT     = os.environ.get("FISH_TTS_FORMAT", "mp3")
