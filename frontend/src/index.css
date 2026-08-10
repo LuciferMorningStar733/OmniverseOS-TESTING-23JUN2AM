@@ -215,6 +215,21 @@ html, body, #root {
 ::selection      { background: rgba(0, 240, 255, 0.3); color: #fff; }
 ::-moz-selection { background: rgba(0, 240, 255, 0.3); color: #fff; }
 
+/* Scoped touch-callout suppression for UI buttons and OS controls */
+button, [role="button"], .os-control {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Preserve normal text selection inside input fields and textareas */
+input, textarea, [contenteditable="true"], select {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* ── Custom scrollbars ───────────────────────────────────────── */
 ::-webkit-scrollbar            { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track      { background: transparent; }

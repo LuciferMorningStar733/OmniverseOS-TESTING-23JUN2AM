@@ -1,5 +1,5 @@
 import { useVoiceSynthesis } from "../apps/Voice/hooks/useVoiceSynthesis";
-import { preprocessForTTS } from "../lib/cortexTTSManager";
+import { speakCortex, preprocessForTTS } from "../lib/cortexTTSManager";
 
 describe("useVoiceSynthesis Hook Tests", () => {
   it("should export useVoiceSynthesis function", () => {
@@ -13,5 +13,11 @@ describe("useVoiceSynthesis Hook Tests", () => {
     expect(cleaned).not.toContain("**");
     expect(cleaned).not.toContain("[CMD:");
     expect(cleaned).toContain("Hello world");
+  });
+
+  it("should return a cancel handle when speakCortex is invoked", () => {
+    const res = speakCortex("Test synthesis", { voiceEngine: "fish" });
+    expect(typeof res.cancel).toBe("function");
+    res.cancel();
   });
 });

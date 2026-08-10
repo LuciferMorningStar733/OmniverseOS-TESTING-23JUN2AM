@@ -38,6 +38,7 @@ export function useVoiceRecognition({
   continuousConversation = true,
 }) {
   const [isListening, setIsListening] = useState(false);
+  const [voiceState, setVoiceState] = useState("IDLE"); // IDLE | STARTING | LISTENING | PROCESSING | ERROR
   const [transcript, setTranscript] = useState("");
   const [interimText, setInterimText] = useState("");
   const [sttError, setSttError] = useState(null);
@@ -45,6 +46,7 @@ export function useVoiceRecognition({
   const recogRef = useRef(null);
   const intentionalStopRef = useRef(false);
   const networkRetryCountRef = useRef(0);
+  const consecutiveRestartCountRef = useRef(0);
   const silenceTimerRef = useRef(null);
   const mountedRef = useRef(true);
 
@@ -85,6 +87,7 @@ export function useVoiceRecognition({
     }
     if (mountedRef.current) {
       setIsListening(false);
+      setVoiceState("IDLE");
     }
   }, []);
 
@@ -94,17 +97,28 @@ export function useVoiceRecognition({
 
     if (!SpeechRecognition) {
       setSttError("Speech recognition is not supported in this browser.");
+      setVoiceState("ERROR");
       return false;
     }
 
-    // Stop any existing instance cleanly
-    stopListening();
+    // Stop existing instance cleanly if running
+    if (recogRef.current) {
+      try {
+        recogRef.current.onstart = null;
+        recogRef.current.onresult = null;
+        recogRef.current.onerror = null;
+        recogRef.current.onend = null;
+        recogRef.current.abort();
+      } catch {}
+      recogRef.current = null;
+    }
 
     intentionalStopRef.current = false;
     networkRetryCountRef.current = 0;
     setSttError(null);
     setTranscript("");
     setInterimText("");
+    setVoiceState("STARTING");
 
     try {
       const recog = new SpeechRecognition();
@@ -115,11 +129,13 @@ export function useVoiceRecognition({
       recog.onstart = () => {
         if (!mountedRef.current) return;
         setIsListening(true);
+        setVoiceState("LISTENING");
         resetSilenceTimer();
       };
 
       recog.onresult = (event) => {
         if (!mountedRef.current) return;
+        consecutiveRestartCountRef.current = 0; // Reset error counter on speech
         let finalStr = "";
         let interimStr = "";
 
@@ -156,7 +172,6 @@ export function useVoiceRecognition({
         const err = event.error;
 
         if (err === "no-speech") {
-          // Graceful handling of no-speech
           clearTimeout(silenceTimerRef.current);
           return;
         }
@@ -174,10 +189,13 @@ export function useVoiceRecognition({
             return;
           }
           setSttError("Network connection lost during speech recognition.");
+          setVoiceState("ERROR");
         } else if (err === "not-allowed") {
           setSttError("Microphone access denied. Please check permissions.");
+          setVoiceState("ERROR");
         } else if (err !== "aborted") {
           setSttError(`Speech recognition error: ${err}`);
+          setVoiceState("ERROR");
         }
 
         setIsListening(false);
@@ -187,15 +205,19 @@ export function useVoiceRecognition({
         if (!mountedRef.current) return;
         clearTimeout(silenceTimerRef.current);
 
-        // Auto-restart continuous listening if ended unexpectedly by Chrome
-        if (!intentionalStopRef.current && continuousConversation) {
-          try {
-            recog.start();
-            return;
-          } catch {}
+        // Auto-restart continuous listening if ended unexpectedly by Chrome (no-speech, timeout, etc.)
+        if (!intentionalStopRef.current && continuousConversation && consecutiveRestartCountRef.current < 5) {
+          consecutiveRestartCountRef.current += 1;
+          setTimeout(() => {
+            if (mountedRef.current && !intentionalStopRef.current) {
+              startListening();
+            }
+          }, 150);
+          return;
         }
 
         setIsListening(false);
+        setVoiceState("IDLE");
       };
 
       recogRef.current = recog;
@@ -204,9 +226,10 @@ export function useVoiceRecognition({
     } catch (exc) {
       setSttError(`Failed to start microphone: ${exc.message}`);
       setIsListening(false);
+      setVoiceState("ERROR");
       return false;
     }
-  }, [continuousConversation, onFinalTranscript, onInterimTranscript, onSpeechEnd, resetSilenceTimer, stopListening]);
+  }, [continuousConversation, onFinalTranscript, onInterimTranscript, onSpeechEnd, resetSilenceTimer]);
 
   const clearTranscript = useCallback(() => {
     setTranscript("");
@@ -215,6 +238,7 @@ export function useVoiceRecognition({
 
   return {
     isListening,
+    voiceState,
     transcript,
     interimText,
     sttError,

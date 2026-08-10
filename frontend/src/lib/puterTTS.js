@@ -17,12 +17,33 @@
 
 const PUTER_SPEAK_TIMEOUT_MS = 7_000; // 7 s — auth popup window before giving up
 
+let puterLoadingPromise = null;
+
 function isPuterReady() {
   return (
     typeof window !== "undefined" &&
     typeof window.puter !== "undefined" &&
     typeof window.puter?.ai?.txt2speech === "function"
   );
+}
+
+function loadPuterScript() {
+  if (isPuterReady()) return Promise.resolve(true);
+  if (puterLoadingPromise) return puterLoadingPromise;
+
+  puterLoadingPromise = new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+    window.puter = window.puter || {};
+    window.puter.quiet = true;
+
+    const script = document.createElement("script");
+    script.src = "https://js.puter.com/v2/";
+    script.async = true;
+    script.onload = () => resolve(isPuterReady());
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return puterLoadingPromise;
 }
 
 /**
@@ -58,7 +79,8 @@ export function puterSpeak(rawText, {
 
   (async () => {
     try {
-      if (!isPuterReady()) {
+      const loaded = await loadPuterScript();
+      if (!loaded || !isPuterReady()) {
         throw new Error("Puter.js not available");
       }
 

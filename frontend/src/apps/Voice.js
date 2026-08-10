@@ -109,7 +109,7 @@ function getDefaultVoiceSettings() {
     pitch: 1.0,
     volume: 1.0,
     autoSelectBestVoice: true,
-    voiceEngine: "stream",
+    voiceEngine: "fish",
     streamVoiceId: DEFAULT_STREAM_VOICE,
   };
 }

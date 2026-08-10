@@ -164,3 +164,89 @@ async def ai_tts_fish_status():
         "configured": bool(key),
         "status": "ready" if key else "unconfigured",
     }
+
+@router.post("/ai/tts-fish")
+async def ai_tts_fish(req: FishTtsReq):
+    key = os.environ.get("FISH_AUDIO_API_KEY", "")
+    if not key:
+        raise HTTPException(503, "Fish Audio API key not configured on server")
+
+    ref_id = req.reference_id or "default"
+    cache_key = _tts_cache_key(req.text, f"fish_{ref_id}")
+    cached = _tts_cache_get(cache_key)
+    if cached:
+        audio_bytes, mime_type = cached
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-TTS-Provider": "fish-cache",
+                "X-Cache": "HIT",
+                "Cache-Control": "no-store",
+            },
+        )
+
+    if cache_key in _tts_inflight:
+        try:
+            audio_bytes, mime_type = await asyncio.shield(_tts_inflight[cache_key])
+        except Exception:
+            raise HTTPException(502, "Fish TTS request failed. Please try again.")
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-TTS-Provider": "fish-dedup",
+                "X-Cache": "HIT",
+                "Cache-Control": "no-store",
+            },
+        )
+
+    inflight_fut: asyncio.Future = asyncio.get_running_loop().create_future()
+    _tts_inflight[cache_key] = inflight_fut
+
+    url = "https://api.fish.audio/v1/tts"
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "text": req.text,
+        "format": "mp3",
+    }
+    if req.reference_id:
+        payload["reference_id"] = req.reference_id
+
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as http:
+            resp = await http.post(url, headers=headers, json=payload)
+
+        if resp.status_code != 200:
+            logging.error("[FishTTS] Backend request failed with status HTTP %s", resp.status_code)
+            raise HTTPException(resp.status_code, "Fish Audio synthesis error")
+
+        audio_bytes = resp.content
+        mime_type = resp.headers.get("content-type", "audio/mpeg")
+
+        _tts_cache_set(cache_key, audio_bytes, mime_type)
+        if not inflight_fut.done():
+            inflight_fut.set_result((audio_bytes, mime_type))
+
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-TTS-Provider": "fish",
+                "X-Cache": "MISS",
+                "Cache-Control": "no-store",
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logging.error("[FishTTS] Exception during synthesis: %s", exc)
+        safe_exc = HTTPException(502, "Fish TTS request failed")
+        if not inflight_fut.done():
+            inflight_fut.set_exception(safe_exc)
+        raise safe_exc
+    finally:
+        _tts_inflight.pop(cache_key, None)

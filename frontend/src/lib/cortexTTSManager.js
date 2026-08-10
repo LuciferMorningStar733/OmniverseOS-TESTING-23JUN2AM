@@ -155,7 +155,7 @@ export function speakCortex(rawText, {
   onError        = null,
   onProviderUsed = null,
   volume         = 1.0,
-  voiceEngine    = "stream",
+  voiceEngine    = "fish",
   streamVoiceId  = null,
   rate           = 1.0,
   pitch          = 1.0,
