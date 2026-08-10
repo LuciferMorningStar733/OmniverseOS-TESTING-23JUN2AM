@@ -157,9 +157,17 @@ async def ai_tts_gemini_test():
         "inflight_requests": len(_tts_inflight),
     }
 
+def _get_fish_api_key() -> str:
+    return (
+        os.environ.get("FISH_AUDIO_API_KEY")
+        or os.environ.get("FISHAUDIO_API_KEY")
+        or os.environ.get("TINYFISH_API_KEY")
+        or ""
+    )
+
 @router.get("/ai/tts-fish/status")
 async def ai_tts_fish_status():
-    key = os.environ.get("FISH_AUDIO_API_KEY", "")
+    key = _get_fish_api_key()
     return {
         "configured": bool(key),
         "status": "ready" if key else "unconfigured",
@@ -167,7 +175,7 @@ async def ai_tts_fish_status():
 
 @router.post("/ai/tts-fish")
 async def ai_tts_fish(req: FishTtsReq):
-    key = os.environ.get("FISH_AUDIO_API_KEY", "")
+    key = _get_fish_api_key()
     if not key:
         raise HTTPException(503, "Fish Audio API key not configured on server")
 
