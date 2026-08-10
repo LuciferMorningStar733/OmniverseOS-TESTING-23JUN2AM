@@ -1377,22 +1377,6 @@ async def ai_dead_reckoning(req: DeadReckoningReq, user=Depends(get_current_user
     return StreamingResponse(event_gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-                message=f"Here is my honest self-assessment:\n\n{req.input.strip()}",
-                system=_DEAD_RECKONING_SYSTEM,
-                history=[],
-            ):
-                if kind == "chunk" and value:
-                    yield _sse_event(value)
-                elif kind == "error":
-                    yield f"data: [error:{value or 500}]\n\n"
-        except Exception as exc:
-            logging.error("Dead Reckoning error: %s", exc)
-            yield "data: [error:500]\n\n"
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(event_gen(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # P9/P10 — Multi-turn tool follow-up with context windowing
@@ -1426,7 +1410,7 @@ _TOOL_SYSTEMS: dict[str, str] = {
     "deadreckoning": (
         "You are a cold trajectory analyst. "
         "The original self-assessment and the full trajectory projection appear in the context. "
-        "When asked to recalculate with changed inputs ("assume 10 hours per week instead"), "
+        "When asked to recalculate with changed inputs ('assume 10 hours per week instead'), "
         "compute a revised projection for that specific delta while holding all other inputs constant. "
         "Do not re-run the full analysis unless asked — focus on the changed variable. "
         "Remain calibrated and honest."
@@ -2795,6 +2779,7 @@ from routers.auth import router as auth_router
 from routers.productivity import router as productivity_router
 from routers.memory import router as memory_router
 from routers.agents import router as agents_router
+from routers.system import router as system_router
 
 app.include_router(api)
 app.include_router(tts_router, prefix="/api")
@@ -2802,6 +2787,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(productivity_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
 app.include_router(agents_router, prefix="/api")
+app.include_router(system_router, prefix="/api")
 
 _cors_env = os.environ.get("CORS_ORIGINS", "*")
 if _cors_env.strip() == "*":
