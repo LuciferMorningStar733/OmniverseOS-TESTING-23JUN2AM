@@ -2791,9 +2791,17 @@ Rules:
 
 
 from routers.tts import router as tts_router
+from routers.auth import router as auth_router
+from routers.productivity import router as productivity_router
+from routers.memory import router as memory_router
+from routers.agents import router as agents_router
 
 app.include_router(api)
 app.include_router(tts_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(productivity_router, prefix="/api")
+app.include_router(memory_router, prefix="/api")
+app.include_router(agents_router, prefix="/api")
 
 _cors_env = os.environ.get("CORS_ORIGINS", "*")
 if _cors_env.strip() == "*":
