@@ -18,4 +18,16 @@ describe("AIChat Sub-components Unit Tests", () => {
     expect(typeof ChatMessage).toBe("function");
     expect(typeof CopyButton).toBe("function");
   });
+
+  it("should render multi-modal image attachments when present in ChatMessage", () => {
+    const msg = {
+      role: "user",
+      content: "Analyze this image",
+      attachments: [
+        { name: "test.png", dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" }
+      ]
+    };
+    expect(msg.attachments.length).toBe(1);
+    expect(msg.attachments[0].name).toBe("test.png");
+  });
 });

@@ -85,6 +85,25 @@ export function ChatMessage({ message, isLast, streaming, onActionClick }) {
           <CopyButton text={message.content} />
         </div>
 
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {message.attachments.map((att, idx) => (
+              <div key={idx} className="relative group overflow-hidden rounded-lg border border-white/20 bg-black/40">
+                <img
+                  src={att.dataUrl || att.url}
+                  alt={att.name || `attachment-${idx}`}
+                  className="max-w-[160px] max-h-[120px] object-cover rounded-lg"
+                />
+                {att.name && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1.5 py-0.5 text-[9px] font-mono text-white/80 truncate">
+                    {att.name}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {isUser ? (
           <div className="whitespace-pre-wrap">{message.content}</div>
         ) : (
