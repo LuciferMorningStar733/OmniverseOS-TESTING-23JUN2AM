@@ -1,6 +1,4 @@
-// streamTTS.js — Free human-quality TTS via StreamElements (Amazon Polly Neural voices)
-// No API key. No account. Backed by Amazon Neural voices (same engine as Alexa).
-// Works in all modern browsers via Web Audio API (AudioContext).
+import { browserSpeak } from "./browserTTS";
 
 const SE_URL  = "https://api.streamelements.com/kappa/v2/speech";
 const MAX_CHUNK = 200; // chars per API call (conservative for reliability)
@@ -78,16 +76,6 @@ export function isStreamTTSAvailable() {
 }
 
 // ── Core speak function ────────────────────────────────────────────────────
-// Returns a cancel() function (synchronous). Audio fetches/plays async.
-//
-// Options:
-//   voiceId  — one of the STREAM_VOICES ids (default: stored preference)
-//   rate     — playback speed 0.5–2.0 (applied via AudioContext playbackRate)
-//   volume   — 0.0–1.0
-//   onStart  — called when first chunk starts playing
-//   onEnd    — called after all chunks finish (or cancel is NOT called)
-//   onError  — called if fetch or decode fails
-//
 export function streamSpeak(rawText, {
   voiceId  = null,
   rate     = 1.0,
@@ -102,11 +90,19 @@ export function streamSpeak(rawText, {
   let cancelled   = false;
   let audioCtx    = null;
   let currentSrc  = null;
+  let activeCancel = null;
+
+  const safeCloseCtx = () => {
+    if (audioCtx && audioCtx.state !== "closed") {
+      try { audioCtx.close(); } catch {}
+    }
+  };
 
   const cancel = () => {
     cancelled = true;
     try { currentSrc?.stop(); }  catch {}
-    try { audioCtx?.close(); }   catch {}
+    safeCloseCtx();
+    try { activeCancel?.(); } catch {}
   };
 
   (async () => {
@@ -155,12 +151,21 @@ export function streamSpeak(rawText, {
         });
       }
 
-      try { audioCtx.close(); } catch {}
+      safeCloseCtx();
       if (!cancelled) onEnd?.();
 
     } catch (err) {
-      try { audioCtx?.close(); } catch {}
-      if (!cancelled) onError?.(err);
+      safeCloseCtx();
+      if (!cancelled) {
+        // Failover to browser Web Speech API if StreamElements API returns 401 / fails
+        activeCancel = browserSpeak(rawText, {
+          rate,
+          volume,
+          onStart,
+          onEnd,
+          onError: () => onError?.(err),
+        });
+      }
     }
   })();
 

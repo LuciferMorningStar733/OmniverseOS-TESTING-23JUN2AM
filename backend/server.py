@@ -126,17 +126,17 @@ class LoginReq(BaseModel):
     password: str
 
 class ChatHistoryMessage(BaseModel):
-    role: str
-    content: str = Field(..., max_length=3000)
+    role: str = "user"
+    content: str = Field(default="", max_length=10000)
 
 class ChatReq(BaseModel):
-    session_id: str = Field(..., max_length=120)
+    session_id: str = Field(default="main", max_length=120)
     message: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LEN)
     provider: str = "gemini"
     model: str = "gemini-2.5-flash"
     preferred_provider: str = "auto"
-    system: Optional[str] = Field(default=None, max_length=4000)
-    history: list[ChatHistoryMessage] = Field(default=[], max_length=30)
+    system: Optional[str] = Field(default=None, max_length=8000)
+    history: list[ChatHistoryMessage] = Field(default=[], max_length=50)
     mode: str = "chat"  # "chat" | "web" | "research"
 
 class ImageGenReq(BaseModel):

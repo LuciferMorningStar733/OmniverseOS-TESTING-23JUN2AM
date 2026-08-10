@@ -10,8 +10,8 @@ from rate_limiter import rate_limiter
 router = APIRouter(prefix="/ai", tags=["agents"])
 
 class AgentHistoryMsg(BaseModel):
-    role: str
-    content: str = Field(..., max_length=5000)
+    role: str = "user"
+    content: str = Field(default="", max_length=10000)
 
 class FaceoffReq(BaseModel):
     topic: str = Field(..., min_length=1, max_length=2000)
