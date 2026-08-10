@@ -161,7 +161,6 @@ def _get_fish_api_key() -> str:
     return (
         os.environ.get("FISH_AUDIO_API_KEY")
         or os.environ.get("FISHAUDIO_API_KEY")
-        or os.environ.get("TINYFISH_API_KEY")
         or ""
     )
 
