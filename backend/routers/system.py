@@ -12,17 +12,22 @@ async def get_system_health():
     db_status = "disconnected"
     db_latency_ms = 0.0
 
+    notes_count = 0
+    tasks_count = 0
+    memories_count = 0
+
     try:
         if db is not None:
             await db.command("ping")
             db_latency_ms = round((time.perf_counter() - t0) * 1000, 2)
             db_status = "connected"
-    except Exception:
-        db_status = "degraded"
 
-    notes_count = await db.notes.count_documents({}) if db is not None else 0
-    tasks_count = await db.tasks.count_documents({}) if db is not None else 0
-    memories_count = await db.cortex_memories.count_documents({}) if db is not None else 0
+            notes_count = await db.notes.count_documents({})
+            tasks_count = await db.tasks.count_documents({})
+            memories_count = await db.cortex_memories.count_documents({})
+    except Exception:
+        db_status = "disconnected"
+        db_latency_ms = 0.0
 
     limiter_type = "Redis" if hasattr(rate_limiter, "_redis") and rate_limiter._redis is not None else "Memory (Fallback)"
 
