@@ -56,6 +56,7 @@ export const APPS = [
   { id: "adversary",    name: "The Adversary", icon: "fa-crosshairs",      color: "#FF003C", Component: lazy(() => import("../apps/Adversary")),      group: "ai" },
   { id: "warroom",      name: "War Room",      icon: "fa-chess-king",      color: "#F59E0B", Component: lazy(() => import("../apps/WarRoom")),         group: "ai" },
   { id: "deadreckoning",name: "Dead Reckoning",icon: "fa-compass-drafting",color: "#7B2FFF", Component: lazy(() => import("../apps/DeadReckoning")),   group: "ai" },
+  { id: "matrix",       name: "Neural Matrix", icon: "fa-project-diagram", color: "#00F0FF", Component: lazy(() => import("../apps/NeuralMatrix")),   group: "ai" },
 ];
 
 export const getApp = (id) => APPS.find((a) => a.id === id);

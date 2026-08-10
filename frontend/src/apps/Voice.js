@@ -24,6 +24,7 @@ import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
 import VoiceWaveform from "../components/VoiceWaveform";
+import CyberOrb from "../components/CyberOrb";
 import useVoiceRecognition from "./Voice/hooks/useVoiceRecognition";
 import useVoiceSynthesis from "./Voice/hooks/useVoiceSynthesis";
 import useVoiceInterruption from "./Voice/hooks/useVoiceInterruption";
@@ -1859,25 +1860,16 @@ export default function Voice() {
             )}
           </div>
 
-          {/* ── AI Core — single primary interaction ── */}
-          <AICoreOrb
-            phase={phase}
-            audioLevels={audioLevels}
-            silenceKey={silenceKey}
-            onClick={handleMicClick}
-            onTouchStart={(e) => { orbSwipeTouchY.current = e.touches[0]?.clientY ?? null; }}
-            onTouchEnd={(e) => {
-              const startY = orbSwipeTouchY.current;
-              orbSwipeTouchY.current = null;
-              if (startY == null) return;
-              const deltaY = (e.changedTouches[0]?.clientY ?? startY) - startY;
-              if (deltaY >= 40 && isSpeaking) {
-                e.preventDefault();
-                stopSpeaking();
-                setTimeout(() => { if (mountedRef.current) startListening(); }, 150);
-              }
-            }}
-          />
+          {/* ── Cybernetic 3D Audio-Reactive Visualizer ── */}
+          <div className="mb-4 flex items-center justify-center">
+            <CyberOrb
+              state={isSpeaking ? "SPEAKING" : isListening ? "LISTENING" : isThinking ? "THINKING" : "IDLE"}
+              isListening={isListening}
+              isSpeaking={isSpeaking}
+              size={220}
+              onClick={handleMicClick}
+            />
+          </div>
 
           {/* Status badge */}
           <div style={{ marginTop: 20, marginBottom: 8 }}>
