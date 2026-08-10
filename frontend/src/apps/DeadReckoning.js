@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { streamSSE } from "../lib/api";
+import { useAgentStream } from "../hooks/useAgentStream";
 import { toast } from "sonner";
 import { useToolSessions } from "../hooks/useToolSessions";
 import ToolHistorySidebar from "../components/ToolHistorySidebar";
@@ -245,7 +246,7 @@ export default function DeadReckoning() {
   const [done,        setDone]        = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [crossImport, setCrossImport] = useState(null); // P11
-  const abortRef   = useRef(null);
+  const { stopStream } = useAgentStream("/api/ai/deadreckoning");
   const mountedRef = useRef(true);
   const bottomRef  = useRef(null);
   const sessionRef = useRef(null);

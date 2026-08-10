@@ -5,8 +5,8 @@
 import { APPS, getApp } from "../lib/apps";
 
 describe("apps registry", () => {
-  test("exposes exactly 19 apps", () => {
-    expect(APPS).toHaveLength(19);
+  test("exposes exactly 26 apps", () => {
+    expect(APPS).toHaveLength(26);
   });
 
   test("every app has required fields", () => {

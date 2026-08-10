@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { streamSSE } from "../lib/api";
+import { useAgentStream } from "../hooks/useAgentStream";
 import { toast } from "sonner";
 import { useToolSessions } from "../hooks/useToolSessions";
 import ToolHistorySidebar from "../components/ToolHistorySidebar";
@@ -57,7 +58,7 @@ function StreamPanel({ text, color, label, icon, loading, placeholder }) {
         flex: 1, overflowY: "auto", padding: "18px 20px",
         fontFamily: "'Inter', sans-serif", fontSize: 13.5, lineHeight: 1.75,
         color: text ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.2)",
-        whiteSpace: "pre-wrap", wordBreak: "break-word",
+        whiteSpace: "pre-wrap", wordBreak: "word-wrap",
       }}>
         {text || (!loading && placeholder)}
         {loading && !text && (
@@ -85,7 +86,7 @@ export default function Adversary() {
   const [attackText,  setAttackText]  = useState("");
   const [surviveText, setSurviveText] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const abortRef   = useRef(null);
+  const { stopStream } = useAgentStream("/api/ai/adversary");
   const attackRef  = useRef("");
   const mountedRef = useRef(true);
   const sessionRef = useRef(null); // current run's sessionId
@@ -115,9 +116,9 @@ export default function Adversary() {
   }, [activeSessionId]);
 
   const cancel = useCallback(() => {
-    abortRef.current?.abort();
+    stopStream();
     if (mountedRef.current) setPhase(attackText ? PHASE.DONE : PHASE.IDLE);
-  }, [attackText]);
+  }, [attackText, stopStream]);
 
   const run = useCallback(async () => {
     const trimmed = idea.trim();

@@ -83,22 +83,11 @@ app = FastAPI(title="OmniverseOS API", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
-# ---------- Rate limiting (in-process token bucket) ----------
-import time
-import asyncio
-from collections import defaultdict
-_RATE_BUCKETS: dict[str, list[float]] = defaultdict(list)
-_RATE_LOCK = asyncio.Lock()
+# ---------- Rate limiting (Pluggable Redis / Memory Fallback) ----------
+from rate_limiter import rate_limiter
 
 async def rate_limit(key: str, max_per_min: int = 20):
-    now = time.monotonic()
-    cutoff = now - 60.0
-    async with _RATE_LOCK:
-        bucket = _RATE_BUCKETS[key]
-        bucket[:] = [t for t in bucket if t > cutoff]
-        if len(bucket) >= max_per_min:
-            raise HTTPException(429, "Rate limit exceeded. Try again shortly.")
-        bucket.append(now)
+    await rate_limiter.check_rate_limit(key, max_per_min)
 
 # ---------- Helpers ----------
 def now_iso() -> str:
@@ -1134,10 +1123,15 @@ async def ai_faceoff(req: FaceOffReq, user=Depends(get_current_user)):
 # The Adversary — Brutal idea destruction + what survived
 # ══════════════════════════════════════════════════════════════════════════════
 
+class AgentHistoryMessage(BaseModel):
+    role: str
+    content: str = Field(..., max_length=5000)
+
 class AdversaryReq(BaseModel):
     idea: str
-    phase: str = "attack"          # "attack" | "survive"
+    phase: str = "attack"          # "attack" | "survive" | "followup"
     attack_text: str = ""          # populated on phase=survive
+    history: list[AgentHistoryMessage] = Field(default=[], max_length=30)
 
 _ADVERSARY_ATTACK_SYSTEM = """You are the sharpest, most ruthless critic alive. Your only job is to destroy this idea.
 
@@ -1161,23 +1155,32 @@ Rules:
 - 3–5 paragraphs. Each one identifies something specific that your attack could not destroy.
 - End with one sentence: the single strongest thing this idea has going for it."""
 
+_ADVERSARY_FOLLOWUP_SYSTEM = """You are The Adversary in an ongoing strategic sparring conversation.
+Maintain your sharp, analytical, unsparing persona while engaging directly with the user's follow-up adjustments, questions, or pivots.
+Re-evaluate their revised plan in light of the prior attack and survival analysis."""
+
 @api.post("/ai/adversary")
 async def ai_adversary(req: AdversaryReq, user=Depends(get_current_user)):
-    """Two-phase streaming: attack the idea, then reveal what survived."""
+    """Two-phase streaming: attack the idea, reveal what survived, and support multi-turn sparring."""
     await rate_limit(f"adversary:{user['id']}", max_per_min=8)
-    if not req.idea or len(req.idea) > 4000:
-        raise HTTPException(400, "Idea missing or too long (max 4000 chars)")
+    if not req.idea or len(req.idea) > 5000:
+        raise HTTPException(400, "Idea missing or too long (max 5000 chars)")
 
     if req.phase == "attack":
         system  = _ADVERSARY_ATTACK_SYSTEM
         message = f"Destroy this idea:\n\n{req.idea.strip()}"
-    else:
+    elif req.phase == "survive":
         system  = _ADVERSARY_SURVIVE_SYSTEM
         message = (
             f"Original idea:\n{req.idea.strip()}\n\n"
             f"Your attack:\n{req.attack_text.strip()}\n\n"
             "Now: what survived?"
         )
+    else:
+        system  = _ADVERSARY_FOLLOWUP_SYSTEM
+        message = req.idea.strip()
+
+    history_list = [{"role": m.role, "content": m.content} for m in req.history]
 
     async def event_gen():
         try:
@@ -1186,7 +1189,7 @@ async def ai_adversary(req: AdversaryReq, user=Depends(get_current_user)):
                 gemini_model="gemini-2.5-flash",
                 message=message,
                 system=system,
-                history=[],
+                history=history_list,
             ):
                 if kind == "chunk" and value:
                     yield _sse_event(value)
@@ -1202,7 +1205,7 @@ async def ai_adversary(req: AdversaryReq, user=Depends(get_current_user)):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# The War Room — 5 agents react to your pitch simultaneously
+# The War Room — 5 agents react to your pitch simultaneously & follow-up debate
 # ══════════════════════════════════════════════════════════════════════════════
 
 _WAR_ROOM_AGENTS = [
@@ -1269,13 +1272,16 @@ _WAR_ROOM_AGENTS = [
 
 class WarRoomReq(BaseModel):
     situation: str
+    history: list[AgentHistoryMessage] = Field(default=[], max_length=30)
 
 @api.post("/ai/warroom")
 async def ai_warroom(req: WarRoomReq, user=Depends(get_current_user)):
-    """Run all 5 War Room agents in parallel and return their responses."""
+    """Run all 5 War Room agents in parallel and return their responses, supporting conversation history."""
     await rate_limit(f"warroom:{user['id']}", max_per_min=5)
-    if not req.situation or len(req.situation) > 4000:
-        raise HTTPException(400, "Situation missing or too long (max 4000 chars)")
+    if not req.situation or len(req.situation) > 5000:
+        raise HTTPException(400, "Situation missing or too long (max 5000 chars)")
+
+    history_list = [{"role": m.role, "content": m.content} for m in req.history]
 
     async def call_agent(agent: dict) -> dict:
         try:
@@ -1285,7 +1291,7 @@ async def ai_warroom(req: WarRoomReq, user=Depends(get_current_user)):
                 gemini_model="gemini-2.5-flash",
                 message=req.situation.strip(),
                 system=agent["system"],
-                history=[],
+                history=history_list,
             ):
                 if kind == "chunk" and value:
                     chunks.append(value)
@@ -1304,6 +1310,7 @@ async def ai_warroom(req: WarRoomReq, user=Depends(get_current_user)):
 
 class DeadReckoningReq(BaseModel):
     input: str
+    history: list[AgentHistoryMessage] = Field(default=[], max_length=30)
 
 _DEAD_RECKONING_SYSTEM = """You are a cold, precise trajectory analyst. You do not motivate. You do not judge. You calculate.
 
@@ -1336,18 +1343,40 @@ Name the specific behaviours — not mindset shifts, not motivation — that wou
 Frequency matters: name how often, not just what.
 Format as a numbered or bulleted list. Maximum 5 deltas. Each one is a lever, not a lecture."""
 
+_DEAD_RECKONING_FOLLOWUP_SYSTEM = """You are a cold, precise trajectory analyst in an ongoing follow-up consultation.
+Recalculate the user's trajectory, gap, or deltas taking into account their new constraints, questions, or updated habit inputs."""
+
 @api.post("/ai/deadreckoning")
 async def ai_dead_reckoning(req: DeadReckoningReq, user=Depends(get_current_user)):
-    """Stream a cold trajectory projection based on the user's honest self-assessment."""
+    """Stream a cold trajectory projection based on the user's honest self-assessment, with follow-up support."""
     await rate_limit(f"deadreckoning:{user['id']}", max_per_min=5)
     if not req.input or len(req.input) > 5000:
         raise HTTPException(400, "Input missing or too long (max 5000 chars)")
+
+    system = _DEAD_RECKONING_FOLLOWUP_SYSTEM if req.history else _DEAD_RECKONING_SYSTEM
+    history_list = [{"role": m.role, "content": m.content} for m in req.history]
 
     async def event_gen():
         try:
             async for kind, value in ai_service.generate_stream(
                 preferred="auto",
                 gemini_model="gemini-2.5-flash",
+                message=req.input.strip(),
+                system=system,
+                history=history_list,
+            ):
+                if kind == "chunk" and value:
+                    yield _sse_event(value)
+                elif kind == "error":
+                    yield f"data: [error:{value or 500}]\n\n"
+        except Exception as exc:
+            logging.error("Dead Reckoning error: %s", exc)
+            yield "data: [error:500]\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
                 message=f"Here is my honest self-assessment:\n\n{req.input.strip()}",
                 system=_DEAD_RECKONING_SYSTEM,
                 history=[],
@@ -1883,7 +1912,7 @@ async def delete_cortex_memory(mid: str, user=Depends(get_current_user)):
 
 @api.post("/memories/relevant")
 async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current_user)):
-    """Keyword-score all user memories and return the most relevant to the query."""
+    """Hybrid scoring memory retrieval (Semantic/Keyword similarity + Recency + Importance + Relevance reason)."""
     all_mems = await db.cortex_memories.find(
         {"user_id": user["id"]}, {"_id": 0}
     ).sort("importance_score", -1).to_list(500)
@@ -1894,15 +1923,46 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
             "have","has","can","could","would","should","will","and","or",
             "of","in","on","at","to","for","with","about","that","this"}
     qwords = set(req.query.lower().split()) - stop
-    def score(m):
+    now_dt = datetime.now(timezone.utc)
+
+    def hybrid_score(m):
         text = (m.get("title","") + " " + m.get("content","") + " " + m.get("category","")).lower()
         words = set(text.split()) - stop
-        overlap = len(qwords & words)
-        imp = float(m.get("importance_score", 0.5))
-        nf  = 3.0 if m.get("never_forget") else 1.0
-        pin = 1.5 if m.get("pinned") else 1.0
-        return (overlap * 2 + imp) * nf * pin
-    scored = sorted(all_mems, key=score, reverse=True)
+        overlap = len(qwords & words) if qwords else 0
+        similarity = (overlap * 2.5)
+
+        # Recency score (decay over time)
+        created_str = m.get("created_at") or m.get("updated_at")
+        hours_old = 720.0
+        if created_str:
+            try:
+                dt = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                hours_old = max(0.0, (now_dt - dt).total_seconds() / 3600.0)
+            except Exception:
+                pass
+        recency = max(0.1, 1.0 - (hours_old / 720.0))  # 30-day window decay
+
+        importance = float(m.get("importance_score", 0.5))
+        nf_mult = 3.0 if m.get("never_forget") else 1.0
+        pin_mult = 1.5 if m.get("pinned") else 1.0
+
+        final_score = (similarity + recency + importance) * nf_mult * pin_mult
+        
+        # Build explainable relevance reason
+        reasons = []
+        if overlap > 0:
+            reasons.append(f"Matches {overlap} key term(s)")
+        if m.get("never_forget"):
+            reasons.append("Never Forget flag")
+        if m.get("pinned"):
+            reasons.append("Pinned")
+        if recency > 0.8:
+            reasons.append("Recent memory")
+        m["relevance_reason"] = " · ".join(reasons) if reasons else "High importance score"
+        m["hybrid_score"] = round(final_score, 2)
+        return final_score
+
+    scored = sorted(all_mems, key=hybrid_score, reverse=True)
     nf_mems = [m for m in all_mems if m.get("never_forget")]
     top = scored[:req.limit]
     seen = {m["id"] for m in top}
@@ -1917,10 +1977,8 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
             {"id": {"$in": ids}, "user_id": user["id"]},
             {"$set": {"last_used": now_iso()}, "$inc": {"use_count": 1}}
         )
-        # Update local copies with incremented count
         for m in top:
             m["use_count"] = int(m.get("use_count", 0)) + 1
-        # Track daily activity for the heatmap
         today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         await db.memory_activity.update_one(
             {"user_id": user["id"], "date": today_date},
@@ -2732,7 +2790,10 @@ Rules:
 
 
 
+from routers.tts import router as tts_router
+
 app.include_router(api)
+app.include_router(tts_router, prefix="/api")
 
 _cors_env = os.environ.get("CORS_ORIGINS", "*")
 if _cors_env.strip() == "*":

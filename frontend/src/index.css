@@ -1515,9 +1515,9 @@ textarea:disabled {
 .window-content h3 { font-size: 1rem; line-height: 1.35; margin-bottom: 0.35em; }
 .window-content p  { margin-bottom: 0.75em; line-height: 1.65; }
 
-/* ── P14 — OS chrome: comprehensive touch callout suppression ── */
-/* Titlebar, dock, topbar, widget headers, tabs — all OS chrome
-   elements that should never trigger iOS text-selection callouts */
+/* ── P14 — OS chrome & iPad: comprehensive touch callout suppression ── */
+/* Titlebar, dock, topbar, widget headers, tabs, app cards, buttons — all OS chrome
+   elements that should never trigger iOS text-selection callouts on iPad/mobile */
 [data-testid^="window-"] .window-handle,
 [data-testid="dock-root"],
 [data-testid="dock-root"] *,
@@ -1528,11 +1528,29 @@ textarea:disabled {
 .tab-strip *,
 [data-testid="mission-control"],
 [data-testid="app-launcher"],
-[data-testid="app-launcher"] * {
+[data-testid="app-launcher"] *,
+button,
+a,
+.app-card,
+.desktop-icon,
+.modal-header,
+.dropdown-menu,
+[role="button"] {
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
   touch-action: manipulation;
+}
+
+/* Explicit inputs preserve native text selection */
+input,
+textarea,
+[contenteditable="true"],
+.selectable-text {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
 }
 
 /* Drag handles specifically: no touch at all (pointer events handle it) */

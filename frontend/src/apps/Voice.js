@@ -24,6 +24,9 @@ import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
 import VoiceWaveform from "../components/VoiceWaveform";
+import useVoiceRecognition from "./Voice/hooks/useVoiceRecognition";
+import useVoiceSynthesis from "./Voice/hooks/useVoiceSynthesis";
+import useVoiceInterruption from "./Voice/hooks/useVoiceInterruption";
 
 // ── Inline OS context builder ─────────────────────────────────────────────
 function buildVoiceContextPrompt(windows, activeId) {
