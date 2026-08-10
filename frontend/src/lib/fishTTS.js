@@ -85,8 +85,15 @@ export function fishSpeak(rawText, {
       if (cancelled) return;
 
       if (!res.ok) {
-        const err = new Error(`Fish TTS HTTP ${res.status}`);
+        let errMsg = `Fish TTS HTTP ${res.status}`;
+        if (res.status === 402) errMsg = "Fish Audio: Insufficient credits — add credits at fish.audio/app/developers";
+        if (res.status === 401) errMsg = "Fish Audio: Invalid API key — check FISHAUDIO_API_KEY in Render environment";
+        if (res.status === 403) errMsg = "Fish Audio: API key access denied";
+        if (res.status === 429) errMsg = "Fish Audio: Rate limited — try again shortly";
+        if (res.status === 503) errMsg = "Fish Audio: API key not configured on server";
+        const err = new Error(errMsg);
         err.status = res.status;
+        console.error("[FishTTS]", errMsg);
         throw err;
       }
 
