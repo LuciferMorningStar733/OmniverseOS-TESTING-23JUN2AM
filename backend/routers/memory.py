@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from core.database import db, now_iso
 from core.auth import get_current_user
+from core.vector_service import generate_embedding_async, cosine_similarity
 
 router = APIRouter(tags=["memory"])
 
@@ -46,16 +47,21 @@ async def list_cortex_memories(user=Depends(get_current_user)):
 @router.post("/memories")
 async def create_cortex_memory(req: CortexMemoryReq, user=Depends(get_current_user)):
     category = req.category if req.category in CORTEX_MEMORY_CATEGORIES else "Other"
+    title_val = req.title or req.content[:60]
+    full_text = f"{title_val} {req.content} {category}"
+    vec = await generate_embedding_async(full_text)
+
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
-        "title": req.title or req.content[:60],
+        "title": title_val,
         "content": req.content,
         "category": category,
         "importance_score": req.importance_score,
         "pinned": req.pinned,
         "never_forget": req.never_forget,
         "source_message": req.source_message,
+        "embedding": vec,
         "use_count": 0,
         "created_at": now_iso(),
         "updated_at": now_iso(),
@@ -68,13 +74,18 @@ async def create_cortex_memory(req: CortexMemoryReq, user=Depends(get_current_us
 @router.put("/memories/{mid}")
 async def update_cortex_memory(mid: str, req: CortexMemoryUpdateReq, user=Depends(get_current_user)):
     category = req.category if req.category in CORTEX_MEMORY_CATEGORIES else "Other"
+    title_val = req.title or req.content[:60]
+    full_text = f"{title_val} {req.content} {category}"
+    vec = await generate_embedding_async(full_text)
+
     update_data = {
-        "title": req.title or req.content[:60],
+        "title": title_val,
         "content": req.content,
         "category": category,
         "importance_score": req.importance_score,
         "pinned": req.pinned,
         "never_forget": req.never_forget,
+        "embedding": vec,
         "updated_at": now_iso(),
     }
     res = await db.cortex_memories.update_one(
@@ -98,19 +109,18 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
     ).sort("importance_score", -1).to_list(500)
     if not all_mems:
         return []
-    stop = {"i","a","an","the","is","it","my","me","you","do","did",
-            "what","which","who","how","when","where","was","are","be",
-            "have","has","can","could","would","should","will","and","or",
-            "of","in","on","at","to","for","with","about","that","this"}
-    qwords = set(req.query.lower().split()) - stop
+
+    q_vec = await generate_embedding_async(req.query)
     now_dt = datetime.now(timezone.utc)
 
-    def hybrid_score(m):
-        text = (m.get("title","") + " " + m.get("content","") + " " + m.get("category","")).lower()
-        words = set(text.split()) - stop
-        overlap = len(qwords & words) if qwords else 0
-        similarity = (overlap * 2.5)
+    def hybrid_vector_score(m):
+        m_vec = m.get("embedding")
+        if m_vec and isinstance(m_vec, list):
+            cos_sim = cosine_similarity(q_vec, m_vec)
+        else:
+            cos_sim = 0.0
 
+        # Recency score (decay over time)
         created_str = m.get("created_at") or m.get("updated_at")
         hours_old = 720.0
         if created_str:
@@ -125,22 +135,25 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
         nf_mult = 3.0 if m.get("never_forget") else 1.0
         pin_mult = 1.5 if m.get("pinned") else 1.0
 
-        final_score = (similarity + recency + importance) * nf_mult * pin_mult
+        final_score = (cos_sim * 4.0 + recency + importance) * nf_mult * pin_mult
 
         reasons = []
-        if overlap > 0:
-            reasons.append(f"Matches {overlap} key term(s)")
+        if cos_sim > 0.05:
+            pct = int(round(cos_sim * 100))
+            reasons.append(f"{pct}% Vector Similarity")
         if m.get("never_forget"):
             reasons.append("Never Forget flag")
         if m.get("pinned"):
             reasons.append("Pinned")
         if recency > 0.8:
             reasons.append("Recent memory")
+
         m["relevance_reason"] = " · ".join(reasons) if reasons else "High importance score"
         m["hybrid_score"] = round(final_score, 2)
+        m["vector_similarity"] = round(cos_sim, 3)
         return final_score
 
-    scored = sorted(all_mems, key=hybrid_score, reverse=True)
+    scored = sorted(all_mems, key=hybrid_vector_score, reverse=True)
     nf_mems = [m for m in all_mems if m.get("never_forget")]
     top = scored[:req.limit]
     seen = {m["id"] for m in top}
