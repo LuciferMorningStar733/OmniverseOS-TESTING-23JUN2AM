@@ -2455,12 +2455,12 @@ export default function Voice() {
             </div>
           </Card>
 
-          {/* Neural Voice Selection (stream engine) */}
+          {/* Fish Audio Voice Selection */}
           {settings.voiceEngine !== "browser" && (
             <Card>
-              <SectionHeader label="Neural Voice Selection" />
+              <SectionHeader label="Fish Audio Human Voice" />
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 14, marginTop: -4, lineHeight: 1.6 }}>
-                Amazon Neural voices — free, no account needed. Tap ▶ to preview any voice.
+                Real human voices — powered by Fish Audio. Tap ▶ to preview any voice.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -2477,7 +2477,6 @@ export default function Voice() {
                         background: isSelected ? "rgba(74,158,255,0.07)" : "rgba(255,255,255,0.02)",
                         border: isSelected ? "1px solid rgba(74,158,255,0.4)" : "1px solid rgba(255,255,255,0.05)",
                         transition: "all 0.15s ease",
-                        animation: "cortexFadeUp 0.15s ease both",
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -2488,9 +2487,9 @@ export default function Voice() {
                           <span style={{
                             fontSize: 8, fontFamily: "monospace", fontWeight: 700,
                             padding: "1px 5px", borderRadius: 3,
-                            background: "rgba(57,255,20,0.08)", border: "1px solid rgba(57,255,20,0.2)", color: "#39FF14",
+                            background: "rgba(0,240,255,0.08)", border: "1px solid rgba(0,240,255,0.25)", color: "#00F0FF",
                           }}>
-                            NEURAL
+                            FISH AUDIO
                           </span>
                           <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.3)" }}>
                             {v.gender === "M" ? "♂" : "♀"} {v.accent}
@@ -2512,30 +2511,28 @@ export default function Voice() {
                             cancelSpeechRef.current?.();
                             cancelSpeechRef.current = null;
                             setPreviewingVoice(v.id);
-                            const phrase = `Hi, I'm ${v.label}. This is Cortex speaking with Fish Audio.`;
+                            const phrase = `Hi, I'm ${v.label}. Cortex is online and ready.`;
                             const cancel = fishSpeak(phrase, {
                               volume: settings.volume ?? 1.0,
                               onStart: () => {},
                               onEnd:   () => { if (mountedRef.current) setPreviewingVoice(null); },
-                              onError: () => {
-                                if (!mountedRef.current) return;
-                                setPreviewingVoice(null);
-                              },
+                              onError: () => { if (mountedRef.current) setPreviewingVoice(null); },
                             });
                             cancelSpeechRef.current = cancel;
                           }
                         }}
                         style={{
                           display: "flex", alignItems: "center", gap: 5,
-                          marginLeft: 10, padding: "6px 10px", borderRadius: 8,
+                          marginLeft: 10, padding: "6px 12px", borderRadius: 8,
                           fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
-                          background: isPreviewing ? "rgba(74,158,255,0.12)" : "rgba(255,255,255,0.05)",
-                          border: isPreviewing ? "1px solid rgba(74,158,255,0.35)" : "1px solid rgba(255,255,255,0.08)",
-                          color: isPreviewing ? "#4A9EFF" : "rgba(255,255,255,0.45)",
-                          cursor: "pointer", flexShrink: 0,
+                          background: isPreviewing ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.05)",
+                          border: isPreviewing ? "1px solid rgba(0,240,255,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                          color: isPreviewing ? "#00F0FF" : "rgba(255,255,255,0.45)",
+                          cursor: "pointer", flexShrink: 0, transition: "all 0.15s ease",
                         }}
                       >
-                        <i className={`fa-solid ${isPreviewing ? "fa-stop" : "fa-play"}`} style={{ fontSize: 8, animation: isPreviewing ? "cortexStatusDot 1s infinite" : "none" }} />
+                        <i className={`fa-solid ${isPreviewing ? "fa-stop" : "fa-play"}`}
+                           style={{ fontSize: 8, animation: isPreviewing ? "cortexStatusDot 1s infinite" : "none" }} />
                         {isPreviewing ? "Stop" : "Try"}
                       </button>
                     </div>
