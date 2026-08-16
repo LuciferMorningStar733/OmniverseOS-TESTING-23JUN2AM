@@ -213,7 +213,7 @@ class ProviderManager(AIProvider):
     def init(self):
         if self._initialised:
             return
-        gemini_key = os.environ.get("GEMINI_API_KEY", "")
+        gemini_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
         if gemini_key:
             self._gemini_client = genai.Client(api_key=gemini_key)
         self._deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")

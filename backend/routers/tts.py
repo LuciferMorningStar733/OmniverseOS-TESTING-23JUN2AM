@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
 _GEMINI_TTS_MODEL = "gemini-2.5-flash"
 _GEMINI_TTS_ALL_VOICES = {
     "Kore", "Aoede", "Zephyr", "Leda", "Schedar",

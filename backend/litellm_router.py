@@ -29,6 +29,13 @@ import litellm
 litellm.suppress_debug_info = True
 litellm.drop_params = True  # ignore provider-unsupported kwargs instead of erroring
 
+# If the deployment provides EMERGENT_LLM_KEY instead of GEMINI_API_KEY, expose
+# it under the canonical name so both our availability checks and LiteLLM's own
+# internal key lookup find it without any other code changes.
+_emergent = os.environ.get("EMERGENT_LLM_KEY", "")
+if _emergent and not os.environ.get("GEMINI_API_KEY", ""):
+    os.environ["GEMINI_API_KEY"] = _emergent
+
 
 # ── litellm model-string mapping ───────────────────────────────────────────
 # Maps OmniverseOS's internal provider names to LiteLLM's "<provider>/<model>"

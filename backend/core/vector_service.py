@@ -7,7 +7,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
 EMBEDDING_MODEL = "text-embedding-004"
 VECTOR_DIM = 128
 
@@ -33,7 +33,7 @@ async def generate_embedding_async(text: str) -> list[float]:
     if not text or not text.strip():
         return _fallback_vector("empty")
 
-    key = os.environ.get("GEMINI_API_KEY", "")
+    key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
     if key:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{EMBEDDING_MODEL}:embedContent?key={key}"
         payload = {
