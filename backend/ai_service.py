@@ -178,3 +178,20 @@ class AIService:
 
 # Singleton — import and use this throughout the codebase
 ai_service = AIService()
+
+
+async def generate_stream(
+    prompt: str,
+    system: str = "",
+    history: list | None = None,
+) -> AsyncGenerator[str, None]:
+    """Backward-compatible stream helper for the agent routers."""
+    async for kind, value in ai_service.generate_stream(
+        "gemini",
+        "gemini-2.5-flash",
+        prompt,
+        system,
+        history,
+    ):
+        if kind == "chunk" and value:
+            yield value

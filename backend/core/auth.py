@@ -1,5 +1,5 @@
 import os
-import pyjwt
+import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import HTTPException, Depends
