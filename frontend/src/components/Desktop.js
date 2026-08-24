@@ -190,6 +190,19 @@ function Desktop() {
     }
   }, []);
 
+  // Guard: if showLocation somehow becomes true for a user who already
+  // completed setup (e.g. hot-reload, multi-tab race), dismiss it immediately.
+  useEffect(() => {
+    if (showLocation && isLocationSetupDone()) {
+      setShowLocation(false);
+      if (shouldRunNightAgent()) {
+        setShowMorningBrief(true);
+      } else {
+        setShowWelcomeP(true);
+      }
+    }
+  }, [showLocation]);
+
   // Stamp last-seen on every page visibility change so the gap is accurate
   useEffect(() => {
     stampLastSeen();

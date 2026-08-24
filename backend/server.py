@@ -1819,6 +1819,10 @@ async def list_events(user=Depends(get_current_user)):
 async def create_event(req: EventReq, user=Depends(get_current_user)):
     return await create_for_user("events", user["id"], req.model_dump())
 
+@api.put("/events/{eid}")
+async def update_event(eid: str, req: EventReq, user=Depends(get_current_user)):
+    return await update_for_user("events", user["id"], eid, req.model_dump())
+
 @api.delete("/events/{eid}")
 async def delete_event(eid: str, user=Depends(get_current_user)):
     return await delete_for_user("events", user["id"], eid)
@@ -1831,6 +1835,10 @@ async def list_txns(user=Depends(get_current_user)):
 @api.post("/transactions")
 async def create_txn(req: TxnReq, user=Depends(get_current_user)):
     return await create_for_user("transactions", user["id"], req.model_dump())
+
+@api.put("/transactions/{tid}")
+async def update_txn(tid: str, req: TxnReq, user=Depends(get_current_user)):
+    return await update_for_user("transactions", user["id"], tid, req.model_dump())
 
 @api.delete("/transactions/{tid}")
 async def delete_txn(tid: str, user=Depends(get_current_user)):
@@ -2115,6 +2123,10 @@ async def list_files(user=Depends(get_current_user)):
 @api.post("/files")
 async def create_file(req: FileReq, user=Depends(get_current_user)):
     return await create_for_user("files", user["id"], req.model_dump())
+
+@api.put("/files/{fid}")
+async def update_file(fid: str, req: FileReq, user=Depends(get_current_user)):
+    return await update_for_user("files", user["id"], fid, req.model_dump())
 
 @api.delete("/files/{fid}")
 async def delete_file(fid: str, user=Depends(get_current_user)):

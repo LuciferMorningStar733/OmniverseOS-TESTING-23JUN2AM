@@ -22,6 +22,13 @@ function getIcon(type) {
   return "fa-circle-info";
 }
 
+const ACTION_COLOR = {
+  open_app:     "#00F0FF",
+  open_url:     "#A855F7",
+  reply_cortex: "#39FF14",
+  dismiss:      "#FF003C",
+};
+
 const STAGGER = { staggerChildren: 0.055, delayChildren: 0.05 };
 const ITEM_V  = {
   hidden:  { opacity: 0, x: 28, scale: 0.96 },
@@ -29,9 +36,69 @@ const ITEM_V  = {
   exit:    { opacity: 0, x: 40, scale: 0.94, transition: { duration: 0.18 } },
 };
 
-function NotifCard({ n, onDismiss }) {
+function NotifAction({ action, onDismiss, nId, openApp, setNotifOpen }) {
+  const color = ACTION_COLOR[action.type] || "#00F0FF";
+
+  const handleClick = useCallback(() => {
+    try {
+      switch (action.type) {
+        case "open_app":
+          openApp?.(action.payload);
+          setNotifOpen?.(false);
+          break;
+        case "open_url":
+          openApp?.("browser");
+          window.dispatchEvent(new CustomEvent("cortex:navigate", { detail: { url: action.payload } }));
+          setNotifOpen?.(false);
+          break;
+        case "reply_cortex":
+          openApp?.("chat");
+          setNotifOpen?.(false);
+          break;
+        case "dismiss":
+          onDismiss(nId);
+          break;
+        default:
+          break;
+      }
+    } catch { /* silent */ }
+  }, [action, nId, onDismiss, openApp, setNotifOpen]);
+
+  return (
+    <button
+      onClick={handleClick}
+      style={{
+        padding: "3px 10px",
+        borderRadius: 6,
+        fontSize: 10.5,
+        fontFamily: "'JetBrains Mono', monospace",
+        border: `1px solid ${color}30`,
+        background: `${color}0e`,
+        color: color,
+        cursor: "pointer",
+        transition: "all 0.15s",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        WebkitTapHighlightColor: "transparent",
+        flexShrink: 0,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = `${color}20`; e.currentTarget.style.borderColor = `${color}60`; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = `${color}0e`; e.currentTarget.style.borderColor = `${color}30`; }}
+    >
+      {action.type === "open_app" && <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 8 }} />}
+      {action.type === "open_url" && <i className="fa-solid fa-link" style={{ fontSize: 8 }} />}
+      {action.type === "reply_cortex" && <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 8 }} />}
+      {action.label}
+    </button>
+  );
+}
+
+function NotifCard({ n, onDismiss, openApp, setNotifOpen }) {
   const color = getColor(n.type);
   const icon  = getIcon(n.type);
+  const hasActions = Array.isArray(n.actions) && n.actions.length > 0;
+
   return (
     <motion.div
       variants={ITEM_V}
@@ -61,6 +128,22 @@ function NotifCard({ n, onDismiss }) {
           <div style={{ fontFamily: "monospace", fontSize: 9.5, color: "rgba(255,255,255,0.22)", marginTop: 5, letterSpacing: "0.05em" }}>
             {new Date(n.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </div>
+
+          {/* Action buttons */}
+          {hasActions && (
+            <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}>
+              {n.actions.map((action, i) => (
+                <NotifAction
+                  key={i}
+                  action={action}
+                  nId={n.id}
+                  onDismiss={onDismiss}
+                  openApp={openApp}
+                  setNotifOpen={setNotifOpen}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -87,7 +170,7 @@ function NotifCard({ n, onDismiss }) {
 }
 
 export default function NotificationCenter() {
-  const { notifOpen, setNotifOpen, notifications, clearNotifications, dismissNotification } = useOS();
+  const { notifOpen, setNotifOpen, notifications, clearNotifications, dismissNotification, openApp } = useOS();
   const { isMobile } = useBreakpoint();
 
   const handleDismiss = useCallback((id) => dismissNotification(id), [dismissNotification]);
@@ -207,7 +290,13 @@ export default function NotificationCenter() {
               <AnimatePresence mode="popLayout">
                 <motion.div variants={STAGGER} initial="hidden" animate="show" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {notifications.map((n) => (
-                    <NotifCard key={n.id} n={n} onDismiss={handleDismiss} />
+                    <NotifCard
+                      key={n.id}
+                      n={n}
+                      onDismiss={handleDismiss}
+                      openApp={openApp}
+                      setNotifOpen={setNotifOpen}
+                    />
                   ))}
                 </motion.div>
               </AnimatePresence>

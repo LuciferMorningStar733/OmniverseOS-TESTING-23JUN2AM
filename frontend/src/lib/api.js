@@ -362,6 +362,8 @@ export const aiApi = {
   history: (sid) => api.get(`/ai/chat/history/${sid}`).then((r) => r.data),
   image: (prompt) => api.post("/ai/image", { prompt }).then((r) => r.data),
   imageHistory: () => api.get("/ai/image/history").then((r) => r.data),
+  /** Generate a wallpaper image — same Imagen-4 endpoint, semantic alias for clarity */
+  generateWallpaper: (prompt) => api.post("/ai/image", { prompt }).then((r) => r.data),
 
   // Legacy wrapper — kept for backward compatibility with Voice.js and others
   chatStream: async (data, onDelta, signal) => {

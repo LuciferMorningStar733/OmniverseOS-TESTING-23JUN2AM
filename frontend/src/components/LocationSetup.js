@@ -107,7 +107,7 @@ export default function LocationSetup({ onComplete }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={(e) => { if (e.target === e.currentTarget) handleSkip(); }}
+      data-testid="location-backdrop"
       style={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.72)",
@@ -115,14 +115,35 @@ export default function LocationSetup({ onComplete }) {
         WebkitBackdropFilter: "blur(16px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 3000,
+        /* pointer-events: none on the backdrop prevents the GPU compositing
+           layer (created by backdropFilter) from intercepting clicks.
+           The inner card uses pointer-events: auto, and a dedicated backdrop-
+           dismiss button handles backdrop clicks without relying on e.target
+           comparisons that break across compositing boundaries. */
+        pointerEvents: "none",
       }}
     >
+      {/* Backdrop dismiss — a real <button> at inset-0 so Playwright/WebKit
+          can reliably click it without depending on compositing-layer hit tests. */}
+      <button
+        type="button"
+        aria-label="Dismiss location setup"
+        data-testid="location-backdrop-btn"
+        onClick={handleSkip}
+        style={{
+          position: "fixed", inset: 0,
+          background: "transparent",
+          border: "none",
+          cursor: "default",
+          zIndex: 3000,
+          pointerEvents: "auto",
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
-        onClick={(e) => e.stopPropagation()}
         style={{
           width: 400,
           maxWidth: "90vw",
@@ -132,6 +153,8 @@ export default function LocationSetup({ onComplete }) {
           padding: "32px 28px",
           boxShadow: "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(168,85,247,0.08)",
           position: "relative",
+          zIndex: 3001,
+          pointerEvents: "auto",
         }}
       >
         {/* Close (skip) button — top-right */}

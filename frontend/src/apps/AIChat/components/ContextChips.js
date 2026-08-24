@@ -1,4 +1,5 @@
 import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { getAppName } from "../../../lib/appNames";
 
 const CHIP_ACCENT = {
@@ -69,8 +70,9 @@ export function ContextChips({ windows = [], activeId, relevantMemories = [], di
   if (chips.length === 0) return null;
 
   return (
-    <div
+    <motion.div
       data-testid="context-chips"
+      layout
       style={{
         display: "flex", alignItems: "center", gap: 6,
         padding: "6px 12px 6px",
@@ -95,19 +97,40 @@ export function ContextChips({ windows = [], activeId, relevantMemories = [], di
         Context
       </span>
 
-      {chips.map((c, i) => (
-        <Chip
-          key={`${c.key}-${i}`}
-          chipKey={c.key}
-          icon={c.icon}
-          label={c.label}
-          accent={c.accent}
-          title={c.title}
-          disabledState={Boolean(disabled[c.key])}
-          onToggle={onToggle}
-        />
-      ))}
-    </div>
+      <AnimatePresence initial={false} mode="popLayout">
+        {chips.map((c, i) => (
+          <motion.div
+            key={`${c.key}-${i}`}
+            layout
+            initial={{ scale: 0.70, opacity: 0, y: 4 }}
+            animate={{
+              scale: Boolean(disabled[c.key]) ? 0.94 : 1,
+              opacity: Boolean(disabled[c.key]) ? 0.55 : 1,
+              y: 0,
+            }}
+            exit={{ scale: 0.70, opacity: 0, y: 4 }}
+            transition={{
+              type: "spring",
+              stiffness: 440,
+              damping: 24,
+              mass: 0.3,
+              delay: i * 0.04,
+            }}
+            style={{ flexShrink: 0 }}
+          >
+            <Chip
+              chipKey={c.key}
+              icon={c.icon}
+              label={c.label}
+              accent={c.accent}
+              title={c.title}
+              disabledState={Boolean(disabled[c.key])}
+              onToggle={onToggle}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

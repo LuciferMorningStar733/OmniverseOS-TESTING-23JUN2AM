@@ -96,6 +96,27 @@
     localStorage.setItem(LS_CUSTOM, JSON.stringify([wp, ...existing].slice(0, 20)));
     return wp;
   };
+
+  /** Add an AI-generated wallpaper (base64 PNG from Imagen-4) */
+  export const addAIWallpaper = (prompt, image_b64) => {
+    const existing = getCustomWallpapers();
+    const id = `ai-wp-${Date.now()}`;
+    const shortPrompt = prompt.length > 32 ? prompt.slice(0, 32) + "…" : prompt;
+    const wp = {
+      id,
+      name: shortPrompt,
+      className: "wp-custom",
+      accent: "#A855F7",
+      dataURL: `data:image/png;base64,${image_b64}`,
+      category: "Custom",
+      typo: {},
+      aiGenerated: true,
+      prompt,
+    };
+    localStorage.setItem(LS_CUSTOM, JSON.stringify([wp, ...existing].slice(0, 20)));
+    return wp;
+  };
+
   export const deleteCustomWallpaper = (id) => {
     const filtered = getCustomWallpapers().filter((w) => w.id !== id);
     localStorage.setItem(LS_CUSTOM, JSON.stringify(filtered));

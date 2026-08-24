@@ -502,10 +502,10 @@ const DockTooltip = memo(function DockTooltip({ name, visible }) {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 4, scale: 0.90 }}
+          initial={{ opacity: 0, y: 6, scale: 0.80 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 4, scale: 0.90 }}
-          transition={{ duration: 0.12, ease: "easeOut" }}
+          exit={{ opacity: 0, y: 6, scale: 0.80 }}
+          transition={{ type: "spring", stiffness: 480, damping: 24, mass: 0.2 }}
           style={{
             position: "absolute",
             bottom: "calc(100% + 10px)",
@@ -554,13 +554,14 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 
   const handleClick = useCallback(async () => {
     playClick();
+    // macOS Launchpad-matched bounce: compress → overshoot → settle
     await animateScope(scope.current, {
-      scale: [1, 0.80, 1.24, 0.94, 1.04, 1],
-      y:     [0,  6,   -8,   2,   -2,   0],
+      scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
+      y:     [0,  6,   -10,  3,   -3,   1,    0],
     }, {
-      duration: 0.46,
+      duration: 0.52,
       ease: "easeOut",
-      times: [0, 0.14, 0.40, 0.64, 0.82, 1],
+      times: [0, 0.12, 0.38, 0.56, 0.74, 0.88, 1],
     });
     openApp(app.id);
   }, [animateScope, scope, openApp, app.id]);
@@ -588,7 +589,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
       animate={{ scale }}
-      transition={{ type: "spring", stiffness: 350, damping: 20, mass: 0.35 }}
+      transition={{ type: "spring", stiffness: 420, damping: 18, mass: 0.28 }}
       className="group relative flex-shrink-0"
       style={{
         width: 44, height: 44,
@@ -633,14 +634,14 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
           className="absolute rounded-full"
           style={{
             bottom: -5, left: "50%", x: "-50%",
-            width: isActive ? 8 : 4,
+            width: isActive ? 16 : 4,
             height: isActive ? 4 : 4,
             borderRadius: 2,
             background: isActive ? app.color : "rgba(0,240,255,0.55)",
             boxShadow: isActive
               ? `0 0 10px ${app.color}BB, 0 0 20px ${app.color}44`
               : "0 0 6px rgba(0,240,255,0.4)",
-            transition: "width 0.28s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
+            transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
           }}
         />
       )}

@@ -75,7 +75,7 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
     color === "#FCEE09" ? "252,238,9" :
     "0,240,255";
   return (
-    <button
+    <motion.button
       data-testid={testId}
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
@@ -85,12 +85,10 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
       style={{
         position: "relative", width: 22, height: 22,
         background: "transparent", border: "none", cursor: "pointer", padding: 0,
-        filter: hovered
-          ? `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${color}66)`
-          : "none",
-        transition: "filter var(--transition-fast) ease, transform var(--transition-fast) cubic-bezier(0.34,1.56,0.64,1)",
-        transform: hovered ? "scale(1.18)" : "scale(1)",
       }}
+      whileHover={{ scale: 1.22, filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${color}66)` }}
+      whileTap={{ scale: 0.82 }}
+      transition={{ type: "spring", stiffness: 500, damping: 22, mass: 0.3 }}
     >
       <div style={{
         position: "absolute", inset: 0, clipPath: HEX_CLIP,
@@ -121,7 +119,7 @@ const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
       }}>
         {icon}
       </div>
-    </button>
+    </motion.button>
   );
 });
 
@@ -603,15 +601,18 @@ export default function Window({ win, children }) {
     <motion.div
       key={win.id}
       ref={nodeRef}
-      initial={{ opacity: 0, scale: 0.88 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, scale: 0.87, y: 20, filter: "blur(4px)" }}
+      animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
       exit={{
-        opacity: 0, scale: 0.86,
-        transition: { duration: 0.18, ease: [0.4, 0, 0.8, 0], opacity: { duration: 0.12 } },
+        opacity: 0, scale: 0.93, y: 6, filter: "blur(3px)",
+        transition: { type: "spring", stiffness: 520, damping: 38, mass: 0.6 },
       }}
       transition={{
-        opacity: { duration: 0.16, ease: "easeOut" },
-        scale:   { type: "spring", damping: 24, stiffness: 340 },
+        type: "spring",
+        stiffness: 340,
+        damping: 28,
+        mass: 0.75,
+        filter: { duration: 0.18, ease: "easeOut" },
       }}
       onMouseDown={handleFocus}
       onTouchStart={handleFocus}

@@ -16,7 +16,9 @@
 //
 // SECURITY: FISH_AUDIO_API_KEY is never read here — it lives in the backend.
 
-import { fishSpeak }                         from "./fishTTS";
+import { kokoroSpeak, getKokoroVoiceId }      from "./kokoroTTS";
+import { edgeSpeak }                           from "./edgeTTS";
+import { fishSpeak }                           from "./fishTTS";
 import { puterSpeak }                        from "./puterTTS";
 import { streamSpeak, isStreamTTSAvailable, getStreamVoiceId } from "./streamTTS";
 import { browserSpeak, isBrowserTTSSupported, getPreferredVoiceObject } from "./browserTTS";
@@ -24,9 +26,12 @@ import { browserSpeak, isBrowserTTSSupported, getPreferredVoiceObject } from "./
 // ── In-memory circuit breakers ──────────────────────────────────────────────
 // Keyed by provider name. Not persisted — resets on page load.
 const _circuit = {
-  fish:  { failures: 0, openUntil: 0, THRESHOLD: 3, COOLDOWN_MS: 60_000 },
-  puter: { failures: 0, openUntil: 0, THRESHOLD: 2, COOLDOWN_MS: 30_000 },
+  kokoro: { failures: 0, openUntil: 0, THRESHOLD: 2, COOLDOWN_MS: 120_000 }, // longer cooldown — model may be cold-starting
+  edge:   { failures: 0, openUntil: 0, THRESHOLD: 3, COOLDOWN_MS: 45_000 },
+  fish:   { failures: 0, openUntil: 0, THRESHOLD: 3, COOLDOWN_MS: 60_000 },
+  puter:  { failures: 0, openUntil: 0, THRESHOLD: 2, COOLDOWN_MS: 30_000 },
 };
+
 
 function _isOpen(provider) {
   const c = _circuit[provider];
@@ -124,6 +129,7 @@ function _log(event) {
  * speakCortex — dispatch text through the 3-tier provider chain.
  *
  * Provider selection:
+ *   voiceEngine === "kokoro"  → Level 0 (Kokoro-82M, free) → 1 → 2 → 3 (full chain)
  *   voiceEngine === "fish"    → Level 1 → 2 → 3 (full chain)
  *   voiceEngine === "stream"  → Level 3A only (StreamElements, existing behaviour)
  *   voiceEngine === "browser" → Level 3B only (Web Speech API, existing behaviour)
@@ -140,7 +146,7 @@ function _log(event) {
  *   @param {function} onError           — Called if all providers fail
  *   @param {function} onProviderUsed    — Called with provider name string
  *   @param {number}   volume            — 0.0–1.0
- *   @param {string}   voiceEngine       — "fish" | "stream" | "browser"
+ *   @param {string}   voiceEngine       — "kokoro" | "fish" | "stream" | "browser"
  *   @param {string}   streamVoiceId     — StreamElements voice ID
  *   @param {number}   rate              — Speech rate 0.5–2.0
  *   @param {number}   pitch             — Pitch 0.0–2.0 (browser engine only)
@@ -155,7 +161,7 @@ export function speakCortex(rawText, {
   onError        = null,
   onProviderUsed = null,
   volume         = 1.0,
-  voiceEngine    = "fish",
+  voiceEngine    = "kokoro",
   streamVoiceId  = null,
   rate           = 1.0,
   pitch          = 1.0,
@@ -328,9 +334,84 @@ export function speakCortex(rawText, {
     cancelActive = cancelFn;
   };
 
+  // ── Level 1 — Edge TTS (Microsoft free neural) ─────────────────────────
+  const tryEdge = () => {
+    if (cancelled || isStale()) return;
+
+    if (_isOpen("edge")) {
+      _log({ level: 1, provider: "edge", status: "circuit-open", latency_ms: Date.now() - t0 });
+      tryFish();
+      return;
+    }
+
+    _log({ level: 1, provider: "edge", latency_ms: Date.now() - t0 });
+
+    const cancelFn = edgeSpeak(text, {
+      volume,
+      onStart: () => {
+        if (cancelled || isStale()) { cancelFn?.(); return; }
+        _onSuccess("edge");
+        onStart?.();
+        onProviderUsed?.("edge");
+      },
+      onEnd: () => {
+        if (isStale() || cancelled) return;
+        onEnd?.();
+      },
+      onError: (err) => {
+        if (cancelled || isStale()) return;
+        _log({ level: 1, provider: "edge", status: "failed", error: err?.message, latency_ms: Date.now() - t0 });
+        _onFailure("edge");
+        tryFish();
+      },
+    });
+    cancelActive = cancelFn;
+  };
+
+  // ── Level 0 — Kokoro (free, open-source) ───────────────────────────────
+  const tryKokoro = () => {
+    if (cancelled || isStale()) return;
+
+    if (_isOpen("kokoro")) {
+      _log({ level: 0, provider: "kokoro", status: "circuit-open", latency_ms: Date.now() - t0 });
+      tryEdge();
+      return;
+    }
+
+    _log({ level: 0, provider: "kokoro", latency_ms: Date.now() - t0 });
+
+    const cancelFn = kokoroSpeak(text, {
+      volume,
+      speed: rate, // Kokoro accepts speed natively — maps cleanly from rate
+      onStart: () => {
+        if (cancelled || isStale()) { cancelFn?.(); return; }
+        _onSuccess("kokoro");
+        onStart?.();
+        onProviderUsed?.("kokoro");
+      },
+      onEnd: () => {
+        if (isStale() || cancelled) return;
+        onEnd?.();
+      },
+      onError: (err) => {
+        if (cancelled || isStale()) return;
+        _log({ level: 0, provider: "kokoro", status: "failed", error: err?.message, latency_ms: Date.now() - t0 });
+        _onFailure("kokoro");
+        tryEdge();
+      },
+    });
+    cancelActive = cancelFn;
+  };
+
   // ── Dispatch based on voiceEngine setting ──────────────────────────────
-  if (voiceEngine === "fish") {
-    // Full 3-tier chain: Fish → Puter → Stream → Browser
+  if (voiceEngine === "kokoro") {
+    // Level 0 chain: Kokoro → Edge → Fish → Puter → Stream → Browser
+    tryKokoro();
+  } else if (voiceEngine === "edge") {
+    // Level 1 chain: Edge → Fish → Puter → Stream → Browser
+    tryEdge();
+  } else if (voiceEngine === "fish") {
+    // Level 2 chain: Fish → Puter → Stream → Browser
     tryFish();
   } else if (voiceEngine === "browser") {
     // Existing behaviour: Browser only
@@ -343,3 +424,4 @@ export function speakCortex(rawText, {
 
   return { cancel };
 }
+

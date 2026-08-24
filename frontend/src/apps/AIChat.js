@@ -21,6 +21,8 @@ import useChatStream from "./AIChat/hooks/useChatStream";
 import ModelSelect, { MODEL_OPTIONS } from "./AIChat/components/ModelSelector";
 import ChatHeader, { StatusPanel } from "./AIChat/components/ChatHeader";
 import ChatMessage from "./AIChat/components/ChatMessage";
+import { getActivePersona, PERSONAS, setActivePersona, PERSONA_KEY } from "../lib/cortexPersonas";
+import { cortexScheduler } from "../lib/cortexScheduler";
 
 const FALLBACK_SESSION_ID = "main";
 
@@ -717,7 +719,10 @@ export default function AIChat() {
   // Cleanup touch-reveal timer on unmount
   useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
 
-  const { openApp, closeWindow, focusWindow, minimize, windows, activeId } = useOS();
+  const { openApp, closeWindow, focusWindow, minimize, windows, activeId, pushNotification } = useOS();
+  const [activePersonaId, setActivePersonaIdState] = useState(() => getActivePersona().id);
+  // Jobs counter — reactive update after SCHEDULE tag fires
+  const [scheduledJobCount, setScheduledJobCount] = useState(() => cortexScheduler.listJobs().length);
   const windowsRef    = useRef([]);
   const activeIdRef   = useRef(null);
   const messagesRef   = useRef([]);
@@ -1282,6 +1287,15 @@ export default function AIChat() {
             closeWindow,
             focusWindow,
             windows: windowsRef.current,
+            onSchedule: (job) => {
+              pushNotification(
+                `\u23F0 Reminder set: ${job.title}`,
+                `Fires in ${cortexScheduler.formatRemaining(job)}${job.recur !== "none" ? ` \u00b7 repeats ${job.recur}` : ""}.`,
+                "success",
+                [{ label: "View in Settings", type: "open_app", payload: "settings" }]
+              );
+              setScheduledJobCount(cortexScheduler.listJobs().length);
+            },
           });
         }
       }
@@ -1623,7 +1637,7 @@ export default function AIChat() {
             <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
           </div>
         </div>
-        {/* ROW 2 on mobile / inline on desktop: Mode Switcher + desktop Model Selector */}
+        {/* ROW 2 on mobile / inline on desktop: Mode Switcher + desktop Model Selector + Persona chips */}
         <div className="flex items-center w-full md:w-auto gap-2">
           <ModeSwitcher mode={chatMode} onChange={setChatMode} disabled={streaming} />
           {/* Model selector — desktop only, hidden on mobile */}
@@ -1631,6 +1645,48 @@ export default function AIChat() {
             {activeProvider && <ActiveProviderBadge provider={activeProvider} prevProvider={prevProvider} />}
             <ModelSelect value={modelValue} onChange={setModelValue} disabled={streaming} />
           </div>
+          {/* Persona quick-picker chips */}
+          <div className="hidden md:flex items-center gap-1 ml-1" style={{ flexShrink: 0 }}>
+            {PERSONAS.map((p) => {
+              const active = activePersonaId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  title={`${p.name}: ${p.desc}`}
+                  onClick={() => { setActivePersona(p.id); setActivePersonaIdState(p.id); }}
+                  style={{
+                    width: 26, height: 26, borderRadius: 8,
+                    border: active ? `1px solid ${p.color}60` : "1px solid rgba(255,255,255,0.08)",
+                    background: active ? `${p.color}18` : "rgba(255,255,255,0.03)",
+                    color: active ? p.color : "rgba(255,255,255,0.3)",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.18s", flexShrink: 0, fontSize: 10,
+                    boxShadow: active ? `0 0 8px ${p.color}30` : "none",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <i className={`fa-solid ${p.icon}`} />
+                </button>
+              );
+            })}
+          </div>
+          {/* Scheduler badge — shown when there are active reminders */}
+          {scheduledJobCount > 0 && (
+            <button
+              title={`${scheduledJobCount} active reminder${scheduledJobCount !== 1 ? "s" : ""} — view in Settings`}
+              onClick={() => openApp("settings")}
+              style={{
+                height: 22, padding: "0 8px", borderRadius: 6,
+                background: "rgba(0,240,255,0.08)", border: "1px solid rgba(0,240,255,0.25)",
+                color: "#00F0FF", fontSize: 9.5, fontFamily: "monospace",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                flexShrink: 0, transition: "all 0.15s",
+              }}
+            >
+              <i className="fa-solid fa-clock" style={{ fontSize: 8 }} />
+              {scheduledJobCount}
+            </button>
+          )}
         </div>
       </div>
 

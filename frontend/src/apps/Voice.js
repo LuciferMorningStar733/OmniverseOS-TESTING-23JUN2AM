@@ -24,6 +24,7 @@ import { parseActions, executeActions } from "../lib/cortexActions";
 import { useOS } from "../context/OSContext";
 import { toast } from "sonner";
 import { normalizeTranscript } from "../lib/speechCorrection.js";
+import { trackEvent } from "../lib/activityTimeline";
 import VoiceWaveform from "../components/VoiceWaveform";
 import CyberOrb from "../components/CyberOrb";
 import useVoiceRecognition from "./Voice/hooks/useVoiceRecognition";
@@ -111,7 +112,7 @@ function getDefaultVoiceSettings() {
     pitch: 1.0,
     volume: 1.0,
     autoSelectBestVoice: true,
-    voiceEngine: "fish",
+    voiceEngine: "kokoro",
     streamVoiceId: DEFAULT_STREAM_VOICE,
   };
 }
@@ -914,12 +915,15 @@ export default function Voice() {
       setIsLivePreviewing(true);
 
       if (merged.voiceEngine !== "browser") {
-        const cancel = fishSpeak(phrase, {
-          volume: merged.volume ?? 1.0,
+        const { cancel } = speakCortex(phrase, {
+          voiceEngine:   merged.voiceEngine || "kokoro",
+          streamVoiceId: merged.streamVoiceId || getStreamVoiceId(),
+          rate:          merged.rate || 1.0,
+          pitch:         merged.pitch || 1.0,
+          volume:        merged.volume ?? 1.0,
           onStart: () => {},
           onEnd: done,
           onError: () => {
-            // fallback to browser TTS if Fish Audio fails
             if (!isBrowserTTSSupported()) { done(); return; }
             cancelSpeechRef.current = browserSpeak(phrase, {
               rate: merged.rate || 1.0, pitch: merged.pitch || 1.0, volume: merged.volume ?? 1.0,
@@ -938,6 +942,7 @@ export default function Voice() {
         done();
       }
     }, 250);
+
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Conversation helpers
@@ -1047,12 +1052,12 @@ export default function Voice() {
       attemptBrowser(preferredVoice);
     };
 
-    // Level 1–3 Fish Audio chain (Fish → Puter → Stream → Browser)
-    if (s.voiceEngine === "fish") {
+    // Provider chain (Kokoro → Edge → Fish → Puter → Stream → Browser)
+    if (s.voiceEngine !== "browser") {
       const { cancel } = speakCortex(cleanText, {
         generationRef:    speechGenerationRef,
         speechGeneration,
-        voiceEngine:      "fish",
+        voiceEngine:      s.voiceEngine || "kokoro",
         streamVoiceId:    s.streamVoiceId || getStreamVoiceId(),
         rate:             s.rate  || 1.0,
         pitch:            s.pitch || 1.0,
@@ -1066,37 +1071,7 @@ export default function Voice() {
         onEnd:  handleEnd,
         onError: (err) => {
           if (speechGeneration !== speechGenerationRef.current) return;
-          console.warn("[CortexTTS] all providers failed:", err?.message);
-          if (mountedRef.current) {
-            setPhase("idle");
-            clearTimeout(autoListenTimerRef.current);
-            autoListenTimerRef.current = setTimeout(() => {
-              if (mountedRef.current && !startedRef.current && phaseRef.current === "idle") {
-                startListeningRef.current?.();
-              }
-            }, 900);
-          }
-        },
-      });
-      cancelSpeechRef.current = cancel;
-      return;
-    }
-
-    // Primary: Fish Audio TTS (routed through backend proxy)
-    if (s.voiceEngine !== "browser") {
-      const cancel = fishSpeak(cleanText, {
-        volume: s.volume ?? 1.0,
-        onStart: () => {
-          if (speechGeneration === speechGenerationRef.current && mountedRef.current) {
-            setPhase("speaking");
-            // Start barge-in detector after TTS begins (browser AEC is active)
-            startBargeInDetector();
-          }
-        },
-        onEnd: handleEnd,
-        onError: (err) => {
-          if (speechGeneration !== speechGenerationRef.current) return;
-          console.warn("[FishTTS] falling back to browser TTS:", err?.message);
+          console.warn("[CortexTTS] all providers failed, falling back to browser:", err?.message);
           browserFallback();
         },
       });
@@ -1106,6 +1081,7 @@ export default function Voice() {
 
     // Fallback: Browser TTS (also arm barge-in after phase transitions to speaking)
     browserFallback();
+
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── STT: start listening ──────────────────────────────────────────────────
@@ -1239,9 +1215,9 @@ export default function Voice() {
         }
 
       } else if (e.error === "network") {
-        // Transient — auto-retry with exponential back-off, capped at NETWORK_RETRY_MAX.
+        // Transient network error — auto-retry if active listening, otherwise handle silently
         networkRetryCountRef.current += 1;
-        if (networkRetryCountRef.current <= NETWORK_RETRY_MAX) {
+        if (networkRetryCountRef.current <= NETWORK_RETRY_MAX && phaseRef.current === "listening") {
           intentionalStopRef.current = false;
           const delay = 800 * networkRetryCountRef.current;
           setTimeout(() => {
@@ -1252,11 +1228,11 @@ export default function Voice() {
         } else {
           intentionalStopRef.current = true;
           networkRetryCountRef.current = 0;
-          toast.error(
-            "Speech recognition lost its network connection — please check your connection and try again.",
-            { duration: 7000 },
-          );
+          if (phaseRef.current === "listening") {
+            setVoiceError("Speech recognition network connection interrupted.");
+          }
         }
+
 
       } else if (e.error === "aborted") {
         // Deliberate stop — no message needed.
@@ -1376,6 +1352,9 @@ export default function Voice() {
           appendToConversation("user", text);
           appendToConversation("assistant", cleanResponse);
           setSessionTurnCount((n) => n + 1);
+          // Feed transcript into the activity timeline so voice commands
+          // appear in Universal Search under the voice_command source.
+          try { trackEvent("voice_command", { text: text.slice(0, 120) }); } catch {}
           memoryApi.extract(text, cleanResponse).catch(() => {});
 
           if (settingsRef.current.voiceFeedback) {
@@ -2364,13 +2343,15 @@ export default function Voice() {
           <Card>
             <SectionHeader label="Voice Matrix" />
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 14, marginTop: -4, lineHeight: 1.6 }}>
-              Fish Audio uses neural AI voices via the server (requires API key). Neural Human uses Amazon Polly via StreamElements (free). Browser uses your device's built-in voice engine.
+              Kokoro-82M & Edge Neural provide hyper-realistic human voice for free. Fish Audio uses server AI (key required). Neural Human uses Amazon Polly (free). Device Voice uses browser built-in synthesis.
             </p>
 
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
               {[
-                { key: "fish",    label: "Fish Audio",   desc: "Neural AI · Premium" },
-                { key: "stream",  label: "Neural Human", desc: "Amazon Polly · Free" },
+                { key: "kokoro",  label: "Kokoro 82M",   desc: "Local Neural · Free" },
+                { key: "edge",    label: "Edge Neural",   desc: "Microsoft · Free" },
+                { key: "fish",    label: "Fish Audio",    desc: "Neural AI · Key" },
+                { key: "stream",  label: "Neural Human",  desc: "Amazon Polly · Free" },
                 { key: "browser", label: "Device Voice",  desc: "Browser built-in" },
               ].map(({ key, label, desc }) => {
                 const active = settings.voiceEngine === key;
@@ -2379,7 +2360,7 @@ export default function Voice() {
                     key={key}
                     onClick={() => updateSettings({ voiceEngine: key })}
                     style={{
-                      flex: 1, borderRadius: 12, padding: "10px 8px", textAlign: "center",
+                      flex: "1 1 120px", borderRadius: 12, padding: "10px 8px", textAlign: "center",
                       background: active ? "rgba(74,158,255,0.10)" : "rgba(255,255,255,0.03)",
                       border: active ? "1px solid rgba(74,158,255,0.45)" : "1px solid rgba(255,255,255,0.06)",
                       color: active ? "#4A9EFF" : "rgba(255,255,255,0.4)",
@@ -2392,6 +2373,7 @@ export default function Voice() {
                 );
               })}
             </div>
+
 
             {isLivePreviewing && (
               <div style={{

@@ -17,7 +17,9 @@
  *   memory, clipboard, watchlist, nebula
  */
 
-const CMD_TAG_RE = /\[CMD:(OPEN_APP|CLOSE_APP|FOCUS_APP|OPEN_URL):([^\]]+)\]/g;
+import { cortexScheduler } from "./cortexScheduler";
+
+const CMD_TAG_RE = /\[CMD:(OPEN_APP|CLOSE_APP|FOCUS_APP|OPEN_URL|SCHEDULE):([^\]]+)\]/g;
 
 /**
  * Parse CMD tags from raw AI response text.
@@ -51,9 +53,9 @@ export function parseCmdTags(text) {
  * best-effort side-effect and must never crash the chat stream.
  *
  * @param {Array<{type: string, arg: string}>} commands
- * @param {{ openApp: Function, closeWindow: Function, focusWindow: Function, windows: Array }} os
+ * @param {{ openApp: Function, closeWindow: Function, focusWindow: Function, windows: Array, onSchedule: Function }} os
  */
-export function executeCmdCommands(commands, { openApp, closeWindow, focusWindow, windows } = {}) {
+export function executeCmdCommands(commands, { openApp, closeWindow, focusWindow, windows, onSchedule } = {}) {
   for (const { type, arg } of commands) {
     try {
       switch (type) {
@@ -82,6 +84,24 @@ export function executeCmdCommands(commands, { openApp, closeWindow, focusWindow
             new CustomEvent("cortex:navigate", { detail: { url: arg } })
           );
           break;
+
+        case "SCHEDULE": {
+          try {
+            const params = JSON.parse(arg);
+            if (params.id && params.title && typeof params.delay_ms === "number") {
+              const job = cortexScheduler.schedule({
+                id: params.id,
+                title: params.title,
+                delay_ms: Math.max(1000, params.delay_ms), // minimum 1s
+                recur: params.recur || "none",
+              });
+              onSchedule?.(job);
+            }
+          } catch {
+            // Malformed JSON — silently ignore
+          }
+          break;
+        }
 
         default:
           break;

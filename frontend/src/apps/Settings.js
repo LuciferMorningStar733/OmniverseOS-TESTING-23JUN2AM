@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import WallpaperStudio from "../components/WallpaperStudio";
+import ExportManager from "../components/ExportManager";
 import { useMobilePrefs, LOCK_TIMEOUT_OPTIONS } from "../hooks/useMobilePrefs";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getPreferredProvider, setPreferredProvider, getVoicePrefs, setVoicePrefs, authApi } from "../lib/api";
@@ -14,6 +15,9 @@ import {
   getAllSoundPrefs, setSoundsEnabled, setSoundCategory,
   playClick, playNotification, playBoot, playAIProcess, playAmbientTick,
 } from "../lib/soundEngine";
+import { PERSONAS, getActivePersona, setActivePersona } from "../lib/cortexPersonas";
+import { cortexScheduler } from "../lib/cortexScheduler";
+import { KOKORO_VOICES, getKokoroVoiceId, saveKokoroVoiceId } from "../lib/kokoroTTS";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
 function ToggleRow({ label, desc, value, onChange }) {
@@ -95,8 +99,9 @@ const PROVIDER_OPTIONS = [
 
 /* ── Main Settings component ───────────────────────────────────────────────── */
 const VOICE_PROVIDER_OPTIONS = [
-  { value: "stream",  label: "StreamElements (Free)", desc: "Amazon Polly Neural voices — human quality, no API key required" },
-  { value: "browser", label: "Browser (local)",        desc: "Uses your device's built-in voices — Microsoft Edge Neural, Chrome, Apple" },
+  { value: "kokoro",  label: "Kokoro (Free · Best Quality)", desc: "Kokoro-82M open-source model — 14 natural voices, runs on your server, no API key" },
+  { value: "stream",  label: "StreamElements (Free)",         desc: "Amazon Polly Neural voices — human quality, no API key required" },
+  { value: "browser", label: "Browser (local)",               desc: "Uses your device's built-in voices — Microsoft Edge Neural, Chrome, Apple" },
 ];
 
 const RATE_OPTIONS = [
@@ -124,6 +129,13 @@ export default function Settings() {
   const currentCity = getStoredCity();
 
   const [voicePrefs, setVoicePrefsState] = useState(() => getVoicePrefs());
+  const [activePersonaId, setActivePersonaId] = useState(() => getActivePersona().id);
+  const [scheduledJobs, setScheduledJobs] = useState(() => cortexScheduler.listJobs());
+  const [kokoroVoice, setKokoroVoiceState] = useState(() => getKokoroVoiceId());
+
+  function refreshJobs() {
+    setScheduledJobs(cortexScheduler.listJobs());
+  }
 
   function handleVoicePrefChange(key, value) {
     const next = { ...voicePrefs, [key]: value };
@@ -267,6 +279,109 @@ export default function Settings() {
       {/* System Sounds — Priority 10 */}
       <SoundSettingsSection />
 
+      {/* Cortex AI Persona — Feature 1.2 */}
+      <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+        <div className="mono-label">// Cortex Persona</div>
+        <h3 className="font-heading text-base font-bold mb-1">AI Personality</h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Choose how Cortex thinks, speaks, and responds. Swap anytime — changes take effect on the next message.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          {PERSONAS.map((p) => {
+            const active = activePersonaId === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => { setActivePersona(p.id); setActivePersonaId(p.id); }}
+                style={{
+                  width: "100%", textAlign: "left", padding: "10px 14px",
+                  borderRadius: 12,
+                  border: active ? `1px solid ${p.color}60` : "1px solid rgba(255,255,255,0.07)",
+                  background: active ? `${p.color}0d` : "rgba(255,255,255,0.02)",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+                  transition: "all 0.18s ease", WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <div style={{
+                  width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                  background: active ? `${p.color}22` : "rgba(255,255,255,0.05)",
+                  border: active ? `1px solid ${p.color}40` : "1px solid rgba(255,255,255,0.08)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.18s",
+                }}>
+                  <i className={`fa-solid ${p.icon}`} style={{
+                    fontSize: 14,
+                    color: active ? p.color : "rgba(255,255,255,0.3)",
+                    filter: active ? `drop-shadow(0 0 6px ${p.color}80)` : "none",
+                    transition: "all 0.18s",
+                  }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13, fontWeight: 700,
+                    color: active ? p.color : "rgba(255,255,255,0.8)",
+                    transition: "color 0.18s",
+                  }}>{p.name}</div>
+                  <div style={{
+                    fontSize: 10.5, color: "rgba(255,255,255,0.35)",
+                    fontFamily: "'JetBrains Mono', monospace", marginTop: 1,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>{p.desc}</div>
+                </div>
+                {active && (
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                    background: p.color,
+                    boxShadow: `0 0 10px ${p.color}`,
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Cortex Scheduler Status — Feature 1.1 */}
+      {scheduledJobs.length > 0 && (
+        <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+          <div className="mono-label">// Cortex Scheduler</div>
+          <h3 className="font-heading text-base font-bold mb-1">Active Reminders</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+            {scheduledJobs.map((job) => (
+              <div key={job.id} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "9px 12px", borderRadius: 10,
+                background: "rgba(0,240,255,0.05)",
+                border: "1px solid rgba(0,240,255,0.12)",
+              }}>
+                <i className="fa-solid fa-clock" style={{ color: "#00F0FF", fontSize: 11, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, color: "#fff", fontWeight: 600, whiteSpace: "nowrap",
+                    overflow: "hidden", textOverflow: "ellipsis" }}>{job.title}</div>
+                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(0,240,255,0.55)", marginTop: 1 }}>
+                    fires in {cortexScheduler.formatRemaining(job)}
+                    {job.recur !== "none" && ` · ${job.recur}`}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { cortexScheduler.cancel(job.id); refreshJobs(); }}
+                  style={{
+                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                    background: "rgba(255,0,60,0.08)", border: "1px solid rgba(255,0,60,0.2)",
+                    color: "#FF6B7A", fontSize: 10, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.15s",
+                  }}
+                  title="Cancel reminder"
+                >
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Cortex AI Provider */}
       <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
         <div className="mono-label">// Cortex</div>
@@ -317,7 +432,8 @@ export default function Settings() {
         <div className="mono-label">// Voice</div>
         <h3 className="font-heading text-base font-bold mb-1">Cortex Voice</h3>
         <p className="text-xs text-slate-500 mb-4">
-          StreamElements uses Amazon Polly Neural voices — human quality, completely free, no API key required. Browser uses your device's built-in voices (Microsoft Edge Neural on Windows, Apple on macOS/iOS).
+          Kokoro uses a free open-source AI model running on your server — no API key or payment required.
+          StreamElements uses Amazon Polly Neural voices. Browser uses your device's built-in voices.
         </p>
 
         {/* Provider */}
@@ -370,6 +486,62 @@ export default function Settings() {
             onChange={(v) => handleVoicePrefChange("rate", v)}
           />
         </div>
+
+        {/* Kokoro voice picker — only shown when Kokoro is selected */}
+        {voicePrefs.provider === "kokoro" && (
+          <div className="mb-4">
+            <div className="text-xs text-slate-400 font-mono uppercase tracking-widest mb-2">Kokoro Voice</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {/* Group by accent */}
+              {["American", "British"].map((accent) => {
+                const group = KOKORO_VOICES.filter((v) => v.accent === accent);
+                return (
+                  <div key={accent}>
+                    <div style={{
+                      fontSize: 9, fontFamily: "monospace", color: "rgba(255,255,255,0.25)",
+                      letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4,
+                    }}>{accent}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {group.map((v) => {
+                        const active = kokoroVoice === v.id;
+                        return (
+                          <button
+                            key={v.id}
+                            onClick={() => { saveKokoroVoiceId(v.id); setKokoroVoiceState(v.id); }}
+                            title={v.note}
+                            style={{
+                              padding: "5px 10px",
+                              borderRadius: 7,
+                              fontSize: 11.5,
+                              fontFamily: "'JetBrains Mono', monospace",
+                              border: active
+                                ? "1px solid rgba(57,255,20,0.6)"
+                                : "1px solid rgba(255,255,255,0.09)",
+                              background: active
+                                ? "rgba(57,255,20,0.10)"
+                                : "rgba(255,255,255,0.04)",
+                              color: active ? "#39FF14" : "rgba(255,255,255,0.55)",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                              display: "flex", alignItems: "center", gap: 5,
+                              WebkitTapHighlightColor: "transparent",
+                            }}
+                          >
+                            <span style={{ fontSize: 10, opacity: 0.6 }}>{v.gender === "F" ? "♀" : "♂"}</span>
+                            {v.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
+              First request downloads ~320MB model (one-time). Subsequent requests: ~200–500ms.
+            </div>
+          </div>
+        )}
 
         {/* Volume */}
         <div>
@@ -444,6 +616,16 @@ export default function Settings() {
             Replay Onboarding Experience
           </button>
         </div>
+      </div>
+
+      {/* Data & Privacy — Feature 6.3: Export Everything */}
+      <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+        <div className="mono-label">// Data & Privacy</div>
+        <h3 className="font-heading text-base font-bold mb-1">Export Your Data</h3>
+        <p className="text-xs text-slate-500 mb-5">
+          Download all your OmniverseOS data — notes, tasks, calendar, memories, and more. Fully portable, no lock-in.
+        </p>
+        <ExportManager />
       </div>
 
       {/* Security — Change Password */}

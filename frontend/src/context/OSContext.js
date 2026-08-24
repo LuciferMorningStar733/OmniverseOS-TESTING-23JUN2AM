@@ -10,8 +10,9 @@ import { DEFAULT_WALLPAPER } from "../lib/wallpapers";
 import { trackEvent }  from "../lib/activityTimeline";
 import { autoSave }    from "../lib/workspaceSnapshot";
 import { rememberActiveApp, rememberLastUrl, memClear } from "../lib/memoryEngine";
-import { autoRestore, saveSnapshot, loadSnapshot, getAutoSnapshot } from "../lib/workspaceSnapshot";
+import { autoRestore, saveSnapshot, loadSnapshot, getAutoSnapshot, deleteSnapshot } from "../lib/workspaceSnapshot";
 import { playWindowOpen, playWindowClose, playNotification } from "../lib/soundEngine";
+import { cortexScheduler } from "../lib/cortexScheduler";
 
 const OSContext = createContext(null);
 
@@ -88,6 +89,31 @@ export const OSProvider = ({ children }) => {
     };
     init();
   }, []);
+
+  // ── Cortex Scheduler init ─────────────────────────────────────────────────
+  useEffect(() => {
+    // Wire the scheduler's fire callback to pushNotification BEFORE hydrating
+    // so missed reminders (negative remaining time) fire with a notification immediately.
+    cortexScheduler.setOnFire((job) => {
+      playNotification();
+      const missed = job.missed;
+      const title = missed ? `⏰ Missed: ${job.title}` : `⏰ ${job.title}`;
+      const message = missed
+        ? `This reminder fired while you were away.`
+        : `Cortex reminder — tap to open chat.`;
+      const actions = [{ label: "Open Chat", type: "open_app", payload: "chat" }];
+      const n = {
+        id:   `n-sched-${Date.now()}`,
+        title,
+        message,
+        type: "info",
+        time: new Date().toISOString(),
+        actions,
+      };
+      setNotifications((prev) => [n, ...prev].slice(0, 50));
+    });
+    cortexScheduler.hydrate();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── auth actions ─────────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
@@ -274,6 +300,11 @@ export const OSProvider = ({ children }) => {
     return true;
   }, [windows]);
 
+  const deleteNamedWorkspace = useCallback((name) => {
+    if (!name) return;
+    deleteSnapshot(name);
+  }, []);
+
   const restoreNamedWorkspace = useCallback((name) => {
     const snap = loadSnapshot(name);
     if (!snap?.windows?.length) return 0;
@@ -283,7 +314,13 @@ export const OSProvider = ({ children }) => {
   const lastWorkspace = useCallback(() => getAutoSnapshot(), []);
 
   // ── notifications ────────────────────────────────────────────────────────────
-  const pushNotification = useCallback((title, message, type = "info") => {
+  /**
+   * @param {string} title
+   * @param {string} message
+   * @param {string} [type="info"] — "info"|"success"|"warning"|"error"
+   * @param {Array<{label:string, type:string, payload:string}>} [actions] — optional action buttons
+   */
+  const pushNotification = useCallback((title, message, type = "info", actions = []) => {
     playNotification();
     const n = {
       id:   `n-${Date.now()}`,
@@ -291,6 +328,7 @@ export const OSProvider = ({ children }) => {
       message,
       type,
       time: new Date().toISOString(),
+      actions: actions || [],
     };
     setNotifications((prev) => [n, ...prev].slice(0, 50));
   }, []);
@@ -317,6 +355,7 @@ export const OSProvider = ({ children }) => {
         trackUrl,
         // Workspace Restore (Priority 2)
         restoreLastWorkspace, restoreNamedWorkspace, saveCurrentWorkspace, lastWorkspace,
+        deleteNamedWorkspace,
       }}
     >
       {children}

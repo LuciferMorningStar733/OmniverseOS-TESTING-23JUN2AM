@@ -129,6 +129,7 @@ export default function MissionControl({ open, onClose }) {
   const {
     windows, activeId, focusWindow, closeWindow, minimize, openApp,
     restoreLastWorkspace, restoreNamedWorkspace, saveCurrentWorkspace,
+    deleteNamedWorkspace,
   } = useOS();
   const visibleWindows = useMemo(() => windows.filter((w) => !w.minimized), [windows]);
   const minimizedWindows = useMemo(() => windows.filter((w) => w.minimized), [windows]);
@@ -157,6 +158,11 @@ export default function MissionControl({ open, onClose }) {
   const handleRestoreNamed = (name) => {
     const n = restoreNamedWorkspace(name);
     if (n > 0) onClose();
+  };
+
+  const handleDeleteNamed = (name) => {
+    deleteNamedWorkspace(name);
+    setTick((t) => t + 1);
   };
 
   const handleSave = () => {
@@ -304,15 +310,25 @@ export default function MissionControl({ open, onClose }) {
                   {namedSnaps.length > 0 && (
                     <div className="mt-2 flex flex-col gap-1">
                       {namedSnaps.slice(0, 4).map((name) => (
-                        <button
-                          key={name}
-                          onClick={() => handleRestoreNamed(name)}
-                          data-testid={`mission-restore-named-${name}`}
-                          className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] px-2.5 py-1.5 text-[11px] font-mono text-slate-300 transition"
-                        >
-                          <i className="fa-solid fa-bookmark text-[#FCEE09] text-[10px]" />
-                          <span className="truncate flex-1 text-left">{name}</span>
-                        </button>
+                        <div key={name} className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleRestoreNamed(name)}
+                            data-testid={`mission-restore-named-${name}`}
+                            className="flex items-center gap-2 flex-1 min-w-0 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] px-2.5 py-1.5 text-[11px] font-mono text-slate-300 transition"
+                          >
+                            <i className="fa-solid fa-bookmark text-[#FCEE09] text-[10px]" />
+                            <span className="truncate flex-1 text-left">{name}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteNamed(name)}
+                            data-testid={`mission-delete-named-${name}`}
+                            title={`Delete "${name}"`}
+                            className="w-6 h-6 flex-shrink-0 rounded-md flex items-center justify-center border border-white/10 bg-white/[0.03] hover:bg-red-500/20 hover:border-red-500/30 text-slate-500 hover:text-red-300 transition"
+                          >
+                            <i className="fa-solid fa-xmark text-[9px]" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}

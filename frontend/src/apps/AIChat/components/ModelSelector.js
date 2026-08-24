@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
 
 export const MODEL_OPTIONS = [
@@ -21,37 +22,44 @@ export function ModelSelect({ value, onChange, disabled }) {
   return (
     <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled}>
       <SelectPrimitive.Trigger
+        asChild
         data-testid="model-select"
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono outline-none
-          border border-white/10 bg-white/[0.04]
-          hover:border-[#00F0FF]/35 hover:bg-[#00F0FF]/[0.06]
-          focus:border-[#00F0FF]/50 focus:ring-0
-          data-[disabled]:opacity-30 data-[disabled]:cursor-not-allowed
-          transition-all duration-200 select-none"
-        style={{ color: "rgba(255,255,255,0.7)", minWidth: 0 }}
       >
-        <SelectPrimitive.Value>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "#E2E8F0", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
-              {current.label}
-            </span>
-            {current.badge && (
-              <span style={{
-                fontSize: 8, fontFamily: "monospace", fontWeight: 700,
-                padding: "1px 4px", borderRadius: 3,
-                background: BADGE_COLORS[current.badge]?.bg,
-                border: `1px solid ${BADGE_COLORS[current.badge]?.border}`,
-                color: BADGE_COLORS[current.badge]?.text,
-                letterSpacing: "0.08em",
-              }}>
-                {current.badge}
+        <motion.button
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono outline-none
+            border border-white/10 bg-white/[0.04]
+            hover:border-[#00F0FF]/35 hover:bg-[#00F0FF]/[0.06]
+            focus:border-[#00F0FF]/50 focus:ring-0
+            data-[disabled]:opacity-30 data-[disabled]:cursor-not-allowed
+            transition-colors duration-200 select-none"
+          style={{ color: "rgba(255,255,255,0.7)", minWidth: 0 }}
+          whileHover={{ scale: 1.03, y: -1 }}
+          whileTap={{ scale: 0.96, y: 0 }}
+          transition={{ type: "spring", stiffness: 480, damping: 22, mass: 0.3 }}
+        >
+          <SelectPrimitive.Value>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: "#E2E8F0", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+                {current.label}
               </span>
-            )}
-          </span>
-        </SelectPrimitive.Value>
-        <SelectPrimitive.Icon>
-          <i className="fa-solid fa-chevron-down" style={{ fontSize: 8, color: "rgba(255,255,255,0.35)", marginLeft: 2 }} />
-        </SelectPrimitive.Icon>
+              {current.badge && (
+                <span style={{
+                  fontSize: 8, fontFamily: "monospace", fontWeight: 700,
+                  padding: "1px 4px", borderRadius: 3,
+                  background: BADGE_COLORS[current.badge]?.bg,
+                  border: `1px solid ${BADGE_COLORS[current.badge]?.border}`,
+                  color: BADGE_COLORS[current.badge]?.text,
+                  letterSpacing: "0.08em",
+                }}>
+                  {current.badge}
+                </span>
+              )}
+            </span>
+          </SelectPrimitive.Value>
+          <SelectPrimitive.Icon>
+            <i className="fa-solid fa-chevron-down" style={{ fontSize: 8, color: "rgba(255,255,255,0.35)", marginLeft: 2 }} />
+          </SelectPrimitive.Icon>
+        </motion.button>
       </SelectPrimitive.Trigger>
 
       <SelectPrimitive.Portal>

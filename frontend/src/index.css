@@ -99,6 +99,24 @@
   --ease-out:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
+  /* ── macOS NSSpringAnimation-matched presets ──────────────────
+     snappy:   menu popups, chips, tooltips  (stiffness≈400 damping≈26)
+     bouncy:   dock icons, badge pop         (stiffness≈380 damping≈18)
+     gentle:   window open/focus            (stiffness≈320 damping≈28)
+     overdamp: window close, dismiss        (stiffness≈500 damping≈38)
+     swipe:    swipe-to-dismiss, drag       (stiffness≈600 damping≈40)
+  ──────────────────────────────────────────────────────────────── */
+  --spring-snappy:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-bouncy:   cubic-bezier(0.68, -0.40, 0.27, 1.55);
+  --spring-gentle:   cubic-bezier(0.22, 1.00, 0.36, 1);
+  --spring-overdamp: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --spring-swipe:    cubic-bezier(0.15, 0.85, 0.36, 1);
+
+  /* Spring durations (matched to Framer Motion defaults) */
+  --spring-t-fast:   0.18s;
+  --spring-t-mid:    0.28s;
+  --spring-t-slow:   0.40s;
+
   /* Spacing — 8-step scale (4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48 px) */
   --space-1:  0.25rem;   /*  4px */
   --space-2:  0.5rem;    /*  8px */
@@ -1571,4 +1589,189 @@ textarea,
 /* Drag handles specifically: no touch at all (pointer events handle it) */
 [data-testid^="window-"] .window-handle {
   touch-action: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   APPLE SPRING SYSTEM — macOS-calibrated animations
+   All keyframes and utilities for the OS-wide spring polish pass.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── springPop — for chips, badges, tooltips, menu items ─────── */
+/* Matches the feel of NSSpringAnimation with bounce=0.5          */
+@keyframes springPop {
+  0%   { transform: scale(0.72); opacity: 0; }
+  55%  { transform: scale(1.06); opacity: 1; }
+  78%  { transform: scale(0.97); }
+  92%  { transform: scale(1.02); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.spring-pop { animation: springPop var(--spring-t-mid) var(--spring-snappy) both; }
+
+/* ── springOpen — windows, modals, sheets ────────────────────── */
+@keyframes springOpen {
+  0%   { opacity: 0; transform: scale(0.87) translateY(20px); filter: blur(4px); }
+  50%  { opacity: 1; filter: blur(0); }
+  70%  { transform: scale(1.015) translateY(-2px); }
+  86%  { transform: scale(0.997) translateY(1px); }
+  100% { transform: scale(1)     translateY(0); }
+}
+.spring-open { animation: springOpen var(--spring-t-slow) var(--spring-gentle) both; }
+
+/* ── springClose — windows, modals, toasts ───────────────────── */
+@keyframes springClose {
+  0%   { opacity: 1; transform: scale(1)    translateY(0);  filter: blur(0); }
+  40%  { opacity: 1; transform: scale(1.01) translateY(-2px); }
+  100% { opacity: 0; transform: scale(0.93) translateY(6px);  filter: blur(3px); }
+}
+.spring-close { animation: springClose 0.22s var(--spring-overdamp) both; }
+
+/* ── dockMagBounce — dock icon on app launch ─────────────────── */
+/* Tighter than the existing dockBounce — matches macOS Launchpad */
+@keyframes dockMagBounce {
+  0%   { transform: scale(1)    translateY(0); }
+  12%  { transform: scale(0.78) translateY(6px); }
+  38%  { transform: scale(1.32) translateY(-10px); }
+  56%  { transform: scale(0.93) translateY(3px); }
+  74%  { transform: scale(1.07) translateY(-3px); }
+  88%  { transform: scale(0.98) translateY(1px); }
+  100% { transform: scale(1)    translateY(0); }
+}
+
+/* ── activeDotExpand — dock active indicator pill ────────────── */
+@keyframes activeDotExpand {
+  0%   { width: 3px;  opacity: 0.5; }
+  60%  { width: 22px; opacity: 1; }
+  80%  { width: 16px; }
+  100% { width: 18px; opacity: 1; }
+}
+.dock-active-pill-spring {
+  animation: activeDotExpand 0.36s var(--spring-snappy) both;
+}
+
+/* ── notifSlideIn — toast from top-right with spring overshoot ── */
+@keyframes notifSlideIn {
+  0%   { opacity: 0; transform: translateX(110%) scale(0.88); }
+  55%  { opacity: 1; transform: translateX(-8px) scale(1.02); }
+  78%  { transform: translateX(4px) scale(0.99); }
+  100% { opacity: 1; transform: translateX(0)   scale(1); }
+}
+.notif-slide-in { animation: notifSlideIn 0.38s var(--spring-gentle) both; }
+
+/* ── notifSlideOut — toast dismiss swipe ────────────────────── */
+@keyframes notifSlideOut {
+  0%   { opacity: 1; transform: translateX(0)    scale(1); }
+  100% { opacity: 0; transform: translateX(120%) scale(0.9); }
+}
+.notif-slide-out { animation: notifSlideOut 0.22s var(--spring-overdamp) both; }
+
+/* ── heartbeat — system health status orb ───────────────────── */
+@keyframes heartbeat {
+  0%   { transform: scale(1);    box-shadow: 0 0  6px currentColor; }
+  14%  { transform: scale(1.18); box-shadow: 0 0 16px currentColor; }
+  28%  { transform: scale(1);    box-shadow: 0 0  6px currentColor; }
+  42%  { transform: scale(1.10); box-shadow: 0 0 12px currentColor; }
+  56%  { transform: scale(1);    box-shadow: 0 0  6px currentColor; }
+  100% { transform: scale(1);    box-shadow: 0 0  6px currentColor; }
+}
+.heartbeat { animation: heartbeat 1.4s ease-in-out infinite; }
+
+/* ── spotlightOpen — command palette reveal ─────────────────── */
+@keyframes spotlightOpen {
+  0%   { opacity: 0; transform: scale(0.90) translateY(-12px); filter: blur(8px) saturate(60%); }
+  55%  { filter: blur(0) saturate(100%); }
+  65%  { transform: scale(1.012) translateY(2px); }
+  82%  { transform: scale(0.998) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0) saturate(100%); }
+}
+.spotlight-open { animation: spotlightOpen 0.32s var(--spring-gentle) both; }
+
+@keyframes spotlightClose {
+  0%   { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+  100% { opacity: 0; transform: scale(0.93) translateY(-8px); filter: blur(6px); }
+}
+.spotlight-close { animation: spotlightClose 0.20s var(--spring-overdamp) both; }
+
+/* ── spotlightSweep — frosted light streak on open ───────────── */
+@keyframes spotlightSweep {
+  0%   { transform: translateX(-100%) skewX(-12deg); opacity: 0; }
+  40%  { opacity: 0.15; }
+  100% { transform: translateX(250%)  skewX(-12deg); opacity: 0; }
+}
+.spotlight-sweep {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+  animation: spotlightSweep 0.55s var(--spring-gentle) both;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+/* ── appSwitcherOpen — ⌘+Tab strip ─────────────────────────── */
+@keyframes appSwitcherOpen {
+  0%   { opacity: 0; transform: scale(0.82) translateY(10px); filter: blur(6px); }
+  60%  { filter: blur(0); }
+  72%  { transform: scale(1.018); }
+  88%  { transform: scale(0.997); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.app-switcher-open  { animation: appSwitcherOpen  0.30s var(--spring-gentle) both; }
+.app-switcher-close { animation: springClose       0.20s var(--spring-overdamp) both; }
+
+/* ── providerDotExpand — provider status badge hover ────────── */
+@keyframes providerExpand {
+  0%   { opacity: 0; transform: scale(0.8); }
+  60%  { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.provider-expand { animation: providerExpand 0.22s var(--spring-snappy) both; }
+
+/* ── staggerChildren — animate children in sequence ──────────── */
+/* Usage: add .stagger-children to parent; children get delay by index via JS */
+.stagger-item {
+  animation: springPop var(--spring-t-mid) var(--spring-snappy) both;
+}
+
+/* ── hapticPress — tactile button press (pure CSS) ──────────── */
+/* Feels like pressing a physical button: fast compress, spring release */
+.haptic-press {
+  transition:
+    transform var(--spring-t-fast) var(--spring-snappy),
+    box-shadow var(--spring-t-fast) ease,
+    background  var(--spring-t-fast) ease;
+}
+.haptic-press:active {
+  transform: scale(0.92) translateY(1px);
+}
+.haptic-press:not(:active) {
+  transform: scale(1) translateY(0);
+}
+
+/* ── inputFocusSpring — input fields spring focus ring ───────── */
+.input-spring {
+  transition:
+    border-color  var(--spring-t-mid) var(--spring-snappy),
+    box-shadow    var(--spring-t-mid) var(--spring-snappy),
+    background    var(--spring-t-mid) ease;
+}
+.input-spring:focus {
+  border-color: rgba(0, 240, 255, 0.5);
+  box-shadow:
+    0 0 0 3px rgba(0, 240, 255, 0.12),
+    0 0 0 1px rgba(0, 240, 255, 0.3);
+  outline: none;
+}
+
+/* ── layoutSpring — Framer Motion layout= prop CSS assist ───── */
+/* When Framer Motion animates layout changes, this ensures GPU accel */
+.layout-spring {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* ── Window titlebar spring drag feedback ────────────────────── */
+/* Applied via JS on pointerdown during window drag */
+.window-drag-active {
+  transition: transform 0.08s var(--spring-snappy);
+  transform: scale(0.994);
 }

@@ -117,6 +117,13 @@ function friendlyUrl(url) {
  *   onOpenUrl  (url: string) => void
  *   onDismiss  () => void
  */
+// localStorage key for persisting dismiss across sessions
+const LS_WELCOME_DISMISSED = "omniverse_welcome_card_dismissed";
+
+export function resetWelcomeCard() {
+  localStorage.removeItem(LS_WELCOME_DISMISSED);
+}
+
 export default function CortexWelcomeCard({ onOpenApp, onOpenUrl, onDismiss }) {
   const { restoreLastWorkspace, user } = useOS();
   const recentApps = useMemo(() => getRecentApps(6), []);
@@ -124,7 +131,18 @@ export default function CortexWelcomeCard({ onOpenApp, onOpenUrl, onDismiss }) {
   const autoSnap   = useMemo(() => getAutoSnapshot(), []);
   const userName   = memGet("userName", null) || user?.name || null;
 
+  // Skip render entirely if the user has previously dismissed
+  const wasDismissed = (() => {
+    try { return !!localStorage.getItem(LS_WELCOME_DISMISSED); } catch { return false; }
+  })();
+  if (wasDismissed) return null;
+
   const hasContent = recentApps.length > 0 || recentUrls.length > 0;
+
+  const handleDismiss = () => {
+    try { localStorage.setItem(LS_WELCOME_DISMISSED, "1"); } catch {}
+    onDismiss?.();
+  };
 
   return (
     <div style={S.card} data-testid="cortex-welcome-card">
@@ -220,7 +238,7 @@ export default function CortexWelcomeCard({ onOpenApp, onOpenUrl, onDismiss }) {
         </div>
       )}
 
-      <button style={S.dismissBtn} onClick={onDismiss}>
+      <button style={S.dismissBtn} onClick={handleDismiss}>
         Dismiss
       </button>
     </div>

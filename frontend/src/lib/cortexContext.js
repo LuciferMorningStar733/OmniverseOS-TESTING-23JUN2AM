@@ -17,6 +17,8 @@ import { getRecentApps, getRecentUrls, getTimeline } from "./activityTimeline";
 import { memGet } from "./memoryEngine";
 import { getAutoSnapshot } from "./workspaceSnapshot";
 import { getAppName } from "./appNames";
+import { getActivePersona } from "./cortexPersonas";
+import { cortexScheduler } from "./cortexScheduler";
 // NOTE: do NOT import from "./apps" here — apps.js lazy-imports AI apps (AIChat, Voice, etc.)
 // which statically import this file, creating a circular dependency that causes
 // "Cannot access '...' before initialization" TDZ crashes in production builds.
@@ -117,7 +119,9 @@ export function buildCortexSystemPrompt(osContext = {}) {
     } catch { return null; }
   })();
   
-  let prompt = `You are OmniverseOS Cortex — a friendly, witty cyberpunk AI assistant living inside an operating system.\n\n`;
+  // ── Active persona preamble ────────────────────────────────────────────────
+  const persona = getActivePersona();
+  let prompt = `${persona.preamble}\n\n`;
   prompt += `Current time: ${timeStr}, ${dateStr}\n`;
   if (userLocation?.city) {
     const loc = [userLocation.city, userLocation.region, userLocation.country].filter(Boolean).join(", ");
@@ -163,28 +167,43 @@ export function buildCortexSystemPrompt(osContext = {}) {
     prompt += `${ctx.lastSession.windowCount} windows were open ${timeAgo}: ${ctx.lastSession.apps.join(", ")}\n`;
   }
   
-  // ── Behavioral guidelines ──────────────────────────────────────────────────
+  // ── Active persona reminder ────────────────────────────────────────────────
   prompt += `\n=== YOUR ROLE ===\n`;
+  prompt += `Active persona: ${persona.name}\n`;
   prompt += `- Be concise, helpful, and creative\n`;
   prompt += `- Reference the user's current context naturally\n`;
   prompt += `- Suggest actions based on what's open or recent\n`;
   prompt += `- When the user says "open X" or "search Y", acknowledge it briefly\n`;
-  prompt += `- Maintain a friendly, slightly witty cyberpunk persona\n`;
+  prompt += `- Stay in character for the "${persona.name}" persona\n`;
+
+  // ── Active Scheduler Jobs ─────────────────────────────────────────────────
+  const scheduledJobs = cortexScheduler.listJobs();
+  if (scheduledJobs.length > 0) {
+    prompt += `\n=== ACTIVE SCHEDULED REMINDERS (do NOT re-schedule these) ===\n`;
+    for (const job of scheduledJobs) {
+      const remaining = cortexScheduler.formatRemaining(job);
+      const recur = job.recur !== "none" ? ` [${job.recur}]` : "";
+      prompt += `- "${job.title}" fires in ${remaining}${recur} (id: ${job.id})\n`;
+    }
+  }
 
   // ── P9: CMD tag instructions ───────────────────────────────────────────────
-  prompt += `\n=== APP LAUNCHER (CMD TAGS) ===\n`;
-  prompt += `When the user asks you to open, close, switch to, or navigate somewhere, embed a machine-readable CMD tag INLINE in your response text. The tag is stripped before display — the user never sees it.\n\n`;
+  prompt += `\n=== OS ACTIONS (CMD TAGS) ===\n`;
+  prompt += `Embed machine-readable CMD tags INLINE in your response to trigger real OS actions. Tags are stripped before display — the user never sees them.\n\n`;
   prompt += `Tag syntax:\n`;
-  prompt += `  [CMD:OPEN_APP:appId]        — open an OS app\n`;
-  prompt += `  [CMD:CLOSE_APP:appId]       — close an OS app\n`;
-  prompt += `  [CMD:FOCUS_APP:appId]       — focus/bring an app to the foreground\n`;
-  prompt += `  [CMD:OPEN_URL:https://...]  — open a URL in the browser\n\n`;
+  prompt += `  [CMD:OPEN_APP:appId]                                          — open an OS app\n`;
+  prompt += `  [CMD:CLOSE_APP:appId]                                         — close an OS app\n`;
+  prompt += `  [CMD:FOCUS_APP:appId]                                         — focus/bring an app to the foreground\n`;
+  prompt += `  [CMD:OPEN_URL:https://...]                                    — open a URL in the browser\n`;
+  prompt += `  [CMD:SCHEDULE:{"id":"<uid>","title":"<text>","delay_ms":<ms>,"recur":"none|daily|weekly"}]  — schedule a reminder\n\n`;
   prompt += `Valid app IDs: chat, notes, tasks, calendar, files, music, videos, browser, settings, dashboard, analytics, finance, code, image, voice, memory, clipboard, watchlist, nebula\n\n`;
   prompt += `Usage rules:\n`;
-  prompt += `  - Embed the tag inline with your reply. Example: "Sure, opening Notes for you! [CMD:OPEN_APP:notes]"\n`;
-  prompt += `  - Only emit a CMD tag when you are ACTUALLY performing the action — not in hypothetical, informational, or conditional answers.\n`;
-  prompt += `  - One tag per action. If the user asks to open multiple things, emit one tag per app/URL.\n`;
-  prompt += `  - For web searches or external sites, use OPEN_URL with a full URL rather than OPEN_APP:browser.\n`;
+  prompt += `  - Embed the tag inline with your reply. Example: "Sure, opening Notes! [CMD:OPEN_APP:notes]"\n`;
+  prompt += `  - Only emit CMD tags when ACTUALLY performing the action — not hypothetically.\n`;
+  prompt += `  - One tag per action. Multiple actions = multiple tags.\n`;
+  prompt += `  - For reminders: convert natural language time to delay_ms. "in 2 hours" = 7200000. "tomorrow morning" ≈ ms until 9am next day.\n`;
+  prompt += `  - id for SCHEDULE must be a short unique slug (e.g. "remind-call-john-1").\n`;
+  prompt += `  - Do NOT schedule something already in the ACTIVE SCHEDULED REMINDERS list above.\n`;
 
   return prompt;
 }

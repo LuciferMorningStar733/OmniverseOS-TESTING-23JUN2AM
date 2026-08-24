@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
   import { motion, AnimatePresence } from "framer-motion";
   import { useOS } from "../context/OSContext";
+  import { aiApi } from "../lib/api";
   import {
     WALLPAPERS, WALLPAPER_CATEGORIES,
-    getCustomWallpapers, addCustomWallpaper, deleteCustomWallpaper,
+    getCustomWallpapers, addCustomWallpaper, deleteCustomWallpaper, addAIWallpaper,
     getFavorites, toggleFavorite, getRecentWallpapers, trackRecentWallpaper,
   } from "../lib/wallpapers";
 
@@ -163,9 +164,191 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
     );
   }
 
+  /* ── AI Generate Tab ────────────────────────────────────────────────────── */
+  function AIGenerateTab({ onApply }) {
+    const [prompt,    setPrompt]    = useState("");
+    const [loading,   setLoading]   = useState(false);
+    const [error,     setError]     = useState(null);
+    const [history,   setHistory]   = useState(() => {
+      try { return JSON.parse(localStorage.getItem("ai_wp_history") || "[]"); } catch { return []; }
+    });
+    const inputRef = useRef(null);
+
+    const generate = useCallback(async () => {
+      const p = prompt.trim();
+      if (!p || loading) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await aiApi.generateWallpaper(
+          `Desktop wallpaper: ${p}. Cyberpunk aesthetic, dark background, ultra-wide 16:9, cinematic, stunning.`
+        );
+        if (!result?.image_b64) throw new Error("No image returned");
+        const wp = addAIWallpaper(p, result.image_b64);
+        const newHistory = [{ prompt: p, dataURL: wp.dataURL, id: wp.id }, ...history].slice(0, 8);
+        setHistory(newHistory);
+        localStorage.setItem("ai_wp_history", JSON.stringify(newHistory));
+        onApply(wp.id);
+        setPrompt("");
+      } catch (err) {
+        const status = err?.response?.status ?? err?.status;
+        if (status === 429) setError("Quota reached — try again in a moment.");
+        else if (status === 400) setError("Prompt blocked by safety filters. Try rephrasing.");
+        else setError("Generation failed. Check your connection and try again.");
+      } finally {
+        setLoading(false);
+      }
+    }, [prompt, loading, history, onApply]);
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Prompt row */}
+        <div style={{
+          display: "flex", gap: 8,
+          background: "rgba(168,85,247,0.06)",
+          border: "1px solid rgba(168,85,247,0.2)",
+          borderRadius: 14, padding: 10,
+        }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <i className="fa-solid fa-wand-magic-sparkles" style={{
+              position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+              fontSize: 11, color: "rgba(168,85,247,0.7)", pointerEvents: "none",
+            }} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Describe your dream wallpaper…"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generate(); } }}
+              disabled={loading}
+              style={{
+                width: "100%", height: 38, paddingLeft: 32, paddingRight: 10,
+                background: "transparent", border: "none", outline: "none",
+                color: "#fff", fontSize: 12.5, fontFamily: "'JetBrains Mono', monospace",
+              }}
+            />
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={generate}
+            disabled={!prompt.trim() || loading}
+            style={{
+              height: 38, padding: "0 16px", borderRadius: 10, flexShrink: 0,
+              background: loading ? "rgba(168,85,247,0.10)" : "rgba(168,85,247,0.18)",
+              border: "1px solid rgba(168,85,247,0.45)",
+              color: "#A855F7", fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace",
+              cursor: loading ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: 6, opacity: (!prompt.trim() && !loading) ? 0.45 : 1,
+              transition: "all 0.18s",
+            }}
+          >
+            {loading ? (
+              <><i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 10 }} />Generating…</>
+            ) : (
+              <><i className="fa-solid fa-sparkles" style={{ fontSize: 10 }} />Generate</>
+            )}
+          </motion.button>
+        </div>
+
+        {/* Generating shimmer */}
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: "16px", borderRadius: 12, textAlign: "center",
+              background: "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,240,255,0.04))",
+              border: "1px solid rgba(168,85,247,0.15)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "center", gap: 5, marginBottom: 10 }}>
+              {[0,1,2,3].map((i) => (
+                <div key={i} style={{
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: `rgba(168,85,247,${0.4 + i * 0.15})`,
+                  animation: `typingWave 1.2s ease-in-out ${i * 0.15}s infinite`,
+                }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(168,85,247,0.7)", fontFamily: "monospace", letterSpacing: "0.1em" }}>
+              IMAGEN-4 GENERATING…
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
+              Crafting your cyberpunk wallpaper
+            </div>
+          </motion.div>
+        )}
+
+        {/* Error */}
+        {error && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: "10px 14px", borderRadius: 10,
+              background: "rgba(255,0,60,0.06)",
+              border: "1px solid rgba(255,0,60,0.2)",
+              color: "#FF6B7A", fontSize: 11.5, fontFamily: "monospace",
+              display: "flex", gap: 8, alignItems: "center",
+            }}
+          >
+            <i className="fa-solid fa-triangle-exclamation" />{error}
+          </motion.div>
+        )}
+
+        {/* History grid */}
+        {history.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.3)",
+              letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+              Previously Generated
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {history.map((item) => (
+                <motion.button
+                  key={item.id}
+                  whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                  onClick={() => onApply(item.id)}
+                  style={{
+                    aspectRatio: "16/10", borderRadius: 10, overflow: "hidden",
+                    border: "1px solid rgba(168,85,247,0.2)",
+                    cursor: "pointer", position: "relative",
+                    backgroundImage: `url(${item.dataURL})`,
+                    backgroundSize: "cover", backgroundPosition: "center",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <div style={{
+                    position: "absolute", inset: "auto 0 0 0",
+                    padding: "10px 7px 5px",
+                    background: "linear-gradient(to top, rgba(0,0,0,0.9), transparent)",
+                    fontSize: 9, color: "rgba(255,255,255,0.65)", fontFamily: "monospace",
+                    textAlign: "left", lineHeight: 1.3,
+                  }}>
+                    {item.prompt.length > 30 ? item.prompt.slice(0, 30) + "…" : item.prompt}
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tip */}
+        {history.length === 0 && !loading && (
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 11, fontFamily: "monospace", paddingTop: 8 }}>
+            <i className="fa-solid fa-lightbulb" style={{ color: "rgba(168,85,247,0.4)", marginRight: 6 }} />
+            Try: "neon tokyo cityscape at night" or "deep space nebula aurora"
+          </div>
+        )}
+      </div>
+    );
+  }
+
   /* ── Main WallpaperStudio ────────────────────────────────────────────────── */
   export default function WallpaperStudio() {
     const { wallpaper, setWallpaper } = useOS();
+    const [tab,       setTab]       = useState("browse"); // "browse" | "ai"
     const [category,  setCategory]  = useState("All");
     const [search,    setSearch]    = useState("");
     const [favs,      setFavs]      = useState(() => getFavorites());
@@ -178,6 +361,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
       setWallpaper(id);
       trackRecentWallpaper(id);
       setRecent(getRecentWallpapers());
+      setCustoms(getCustomWallpapers()); // refresh in case AI-generated
     }, [setWallpaper]);
 
     // Random wallpaper rotation
@@ -232,6 +416,50 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Tab bar: Browse / AI Generate */}
+        <div style={{ display: "flex", gap: 6, marginBottom: -4 }}>
+          <button
+            onClick={() => setTab("browse")}
+            style={{
+              padding: "6px 14px", borderRadius: 8, fontSize: 11,
+              fontFamily: "'JetBrains Mono', monospace",
+              border: tab === "browse" ? "1px solid rgba(0,240,255,0.5)" : "1px solid rgba(255,255,255,0.1)",
+              background: tab === "browse" ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.04)",
+              color: tab === "browse" ? "#00F0FF" : "rgba(255,255,255,0.45)",
+              cursor: "pointer", transition: "all 0.18s",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            <i className="fa-solid fa-image" style={{ marginRight: 5, fontSize: 9 }} />Browse
+          </button>
+          <button
+            onClick={() => setTab("ai")}
+            style={{
+              padding: "6px 14px", borderRadius: 8, fontSize: 11,
+              fontFamily: "'JetBrains Mono', monospace",
+              border: tab === "ai" ? "1px solid rgba(168,85,247,0.55)" : "1px solid rgba(255,255,255,0.1)",
+              background: tab === "ai" ? "rgba(168,85,247,0.12)" : "rgba(255,255,255,0.04)",
+              color: tab === "ai" ? "#A855F7" : "rgba(255,255,255,0.45)",
+              cursor: "pointer", transition: "all 0.18s",
+              WebkitTapHighlightColor: "transparent",
+              display: "flex", alignItems: "center", gap: 5,
+            }}
+          >
+            <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 9 }} />
+            ✦ AI Generate
+            <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 4,
+              background: "rgba(168,85,247,0.2)", color: "#A855F7", fontWeight: 700 }}>
+              NEW
+            </span>
+          </button>
+        </div>
+
+        {/* AI Generate tab */}
+        {tab === "ai" && <AIGenerateTab onApply={applyWallpaper} />}
+
+        {/* Browse tab */}
+        {tab === "browse" && (
+        <>
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {/* Search */}
@@ -397,6 +625,8 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
             </div>
           )}
         </AnimatePresence>
+        </>
+        )}
       </div>
     );
   }

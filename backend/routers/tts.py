@@ -257,3 +257,275 @@ async def ai_tts_fish(req: FishTtsReq):
         raise safe_exc
     finally:
         _tts_inflight.pop(cache_key, None)
+
+# ── Kokoro TTS (free, open-source, no API key) ────────────────────────────
+# Model: Kokoro-82M — Apache 2.0, runs on CPU, ~320MB download on first use.
+# kokoro-onnx lazy-loads and caches the model in memory after first synthesis.
+# Voices: af_heart, af_bella, af_nicole, af_sarah, af_sky (American F),
+#         am_michael, am_adam, am_puck (American M),
+#         bf_emma, bf_isabella (British F), bm_george, bm_lewis (British M)
+
+_kokoro_tts = None   # Lazy singleton
+_kokoro_lock = asyncio.Lock()
+
+async def _get_kokoro():
+    """Lazy-initialise and cache the Kokoro TTS engine (thread-safe)."""
+    global _kokoro_tts
+    if _kokoro_tts is not None:
+        return _kokoro_tts
+    async with _kokoro_lock:
+        if _kokoro_tts is not None:   # double-check after acquiring lock
+            return _kokoro_tts
+        try:
+            import asyncio as _asyncio
+            import functools
+            from kokoro_onnx import Kokoro
+
+            loop = _asyncio.get_running_loop()
+            # Model download + load happens once; subsequent calls are instant.
+            _kokoro_tts = await loop.run_in_executor(
+                None,
+                functools.partial(Kokoro, "kokoro-v1_0.onnx", "voices-v1_0.bin"),
+            )
+            logging.info("[KokoroTTS] Model loaded successfully.")
+        except Exception as exc:
+            logging.error("[KokoroTTS] Failed to load model: %s", exc)
+            raise HTTPException(503, f"Kokoro TTS model unavailable: {exc}")
+    return _kokoro_tts
+
+
+_KOKORO_ALLOWED_VOICES = {
+    "af_heart", "af_bella", "af_nicole", "af_sarah", "af_sky",
+    "am_michael", "am_adam", "am_puck", "am_liam", "am_eric",
+    "bf_emma", "bf_isabella", "bm_george", "bm_lewis",
+}
+_KOKORO_DEFAULT_VOICE = "af_heart"
+
+
+class KokoroTtsReq(BaseModel):
+    text:  str   = Field(..., min_length=1, max_length=5000)
+    voice: str   = Field(default=_KOKORO_DEFAULT_VOICE, max_length=40)
+    speed: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+@router.get("/ai/tts-kokoro/status")
+async def ai_tts_kokoro_status():
+    """Health-check: is kokoro-onnx installed and ready?"""
+    try:
+        import kokoro_onnx  # noqa — just verify import
+        return {"status": "available", "default_voice": _KOKORO_DEFAULT_VOICE}
+    except ImportError:
+        return {"status": "unavailable", "reason": "kokoro-onnx not installed"}
+
+
+@router.post("/ai/tts-kokoro")
+async def ai_tts_kokoro(req: KokoroTtsReq):
+    """
+    Free, keyless TTS via Kokoro-82M (Apache 2.0).
+    First call downloads ~320MB model weights to the system cache; every
+    subsequent call uses the in-memory singleton — typical latency 200-500ms.
+    Returns audio/wav bytes ready for the browser Audio API.
+    """
+    voice = req.voice if req.voice in _KOKORO_ALLOWED_VOICES else _KOKORO_DEFAULT_VOICE
+    cache_key = _tts_cache_key(req.text, f"kokoro_{voice}_{req.speed}")
+
+    cached = _tts_cache_get(cache_key)
+    if cached:
+        audio_bytes, mime_type = cached
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":   voice,
+                "X-TTS-Provider": "kokoro-cache",
+                "X-Cache":        "HIT",
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    if cache_key in _tts_inflight:
+        try:
+            audio_bytes, mime_type = await asyncio.shield(_tts_inflight[cache_key])
+        except Exception:
+            raise HTTPException(502, "Kokoro TTS request failed. Please try again.")
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":   voice,
+                "X-TTS-Provider": "kokoro-dedup",
+                "X-Cache":        "HIT",
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    inflight_fut: asyncio.Future = asyncio.get_running_loop().create_future()
+    _tts_inflight[cache_key] = inflight_fut
+
+    try:
+        import io
+        import functools
+        import soundfile as sf
+
+        kokoro = await _get_kokoro()
+        loop = asyncio.get_running_loop()
+
+        # Run blocking synthesis in a thread-pool executor so uvicorn stays async.
+        samples, sample_rate = await loop.run_in_executor(
+            None,
+            functools.partial(kokoro.create, req.text, voice=voice, speed=req.speed, lang="en-us"),
+        )
+
+        # Encode float32 PCM → WAV in-memory
+        buf = io.BytesIO()
+        await loop.run_in_executor(
+            None,
+            functools.partial(sf.write, buf, samples, sample_rate, format="WAV"),
+        )
+        audio_bytes = buf.getvalue()
+        mime_type   = "audio/wav"
+
+        _tts_cache_set(cache_key, audio_bytes, mime_type)
+        if not inflight_fut.done():
+            inflight_fut.set_result((audio_bytes, mime_type))
+
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":   voice,
+                "X-TTS-Provider": "kokoro",
+                "X-Cache":        "MISS",
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logging.error("[KokoroTTS] Synthesis error: %s", exc)
+        safe_exc = HTTPException(502, "Kokoro TTS synthesis failed")
+        if not inflight_fut.done():
+            inflight_fut.set_exception(safe_exc)
+        raise safe_exc
+    finally:
+        _tts_inflight.pop(cache_key, None)
+
+
+# ── Edge-TTS (Microsoft Edge Neural Voice, Free, Keyless) ─────────────────
+# Uses edge-tts python library to stream Microsoft Edge Neural TTS voices.
+# Voices: en-US-AvaNeural, en-US-AndrewNeural, en-US-EmmaNeural, en-US-BrianNeural,
+#         en-GB-SoniaNeural, en-GB-RyanNeural, en-AU-NatashaNeural
+
+_EDGE_ALLOWED_VOICES = {
+    "en-US-AvaNeural", "en-US-AndrewNeural", "en-US-EmmaNeural", "en-US-BrianNeural",
+    "en-GB-SoniaNeural", "en-GB-RyanNeural", "en-AU-NatashaNeural",
+}
+_EDGE_DEFAULT_VOICE = "en-US-AvaNeural"
+
+
+class EdgeTtsReq(BaseModel):
+    text:  str = Field(..., min_length=1, max_length=5000)
+    voice: str = Field(default=_EDGE_DEFAULT_VOICE, max_length=60)
+    rate:  str = Field(default="+0%", max_length=20)
+    pitch: str = Field(default="+0Hz", max_length=20)
+
+
+@router.get("/ai/tts-edge/status")
+async def ai_tts_edge_status():
+    """Health-check: is edge-tts package installed and ready?"""
+    try:
+        import edge_tts  # noqa
+        return {
+            "status": "available",
+            "default_voice": _EDGE_DEFAULT_VOICE,
+            "voices": list(_EDGE_ALLOWED_VOICES),
+        }
+    except ImportError:
+        return {"status": "unavailable", "reason": "edge-tts not installed"}
+
+
+@router.post("/ai/tts-edge")
+async def ai_tts_edge(req: EdgeTtsReq):
+    """
+    Free, keyless Microsoft Edge Neural TTS API endpoint.
+    Streams MP3 audio generated by Microsoft Edge's online neural voice engine.
+    """
+    voice = req.voice if req.voice in _EDGE_ALLOWED_VOICES else _EDGE_DEFAULT_VOICE
+    cache_key = _tts_cache_key(req.text, f"edge_{voice}_{req.rate}_{req.pitch}")
+
+    cached = _tts_cache_get(cache_key)
+    if cached:
+        audio_bytes, mime_type = cached
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":   voice,
+                "X-TTS-Provider": "edge-cache",
+                "X-Cache":        "HIT",
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    if cache_key in _tts_inflight:
+        try:
+            audio_bytes, mime_type = await asyncio.shield(_tts_inflight[cache_key])
+        except Exception:
+            raise HTTPException(502, "Edge TTS request failed. Please try again.")
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":   voice,
+                "X-TTS-Provider": "edge-dedup",
+                "X-Cache":        "HIT",
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    inflight_fut: asyncio.Future = asyncio.get_running_loop().create_future()
+    _tts_inflight[cache_key] = inflight_fut
+
+    try:
+        import edge_tts
+
+        communicate = edge_tts.Communicate(req.text, voice, rate=req.rate, pitch=req.pitch)
+        buf = bytearray()
+
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buf.extend(chunk["data"])
+
+        if not buf:
+            raise HTTPException(500, "Edge TTS returned empty audio stream")
+
+        audio_bytes = bytes(buf)
+        mime_type = "audio/mpeg"
+
+        _tts_cache_set(cache_key, audio_bytes, mime_type)
+        if not inflight_fut.done():
+            inflight_fut.set_result((audio_bytes, mime_type))
+
+        return FastAPIResponse(
+            content=audio_bytes,
+            media_type=mime_type,
+            headers={
+                "X-Voice-Used":   voice,
+                "X-TTS-Provider": "edge",
+                "X-Cache":        "MISS",
+                "Cache-Control":  "no-store",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logging.error("[EdgeTTS] Synthesis error: %s", exc)
+        safe_exc = HTTPException(502, f"Edge TTS synthesis failed: {exc}")
+        if not inflight_fut.done():
+            inflight_fut.set_exception(safe_exc)
+        raise safe_exc
+    finally:
+        _tts_inflight.pop(cache_key, None)
+
