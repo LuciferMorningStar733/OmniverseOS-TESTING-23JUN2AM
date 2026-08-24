@@ -4,6 +4,7 @@ import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useWidgetManager } from "../widgets/WidgetManagerContext";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
+import DynamicIsland from "./DynamicIsland";
 
 /* ─── Per-app context menus ─────────────────────────────────────────────────
    Each entry: { label, items: [{ label, shortcut?, action? }] }
@@ -747,36 +748,47 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         <ActiveAppMenuBar activeId={activeId} windows={windows} />
       </div>
 
-      {/* Center: Search pill */}
-      <motion.button
-        data-testid="open-command-palette"
-        onClick={() => setPaletteOpen(true)}
-        whileTap={{ scale: 0.96 }}
-        style={{
-          display: "flex", alignItems: "center", gap: 8,
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 20,
-          height: 26,
-          paddingLeft: 12,
-          paddingRight: 12,
-          cursor: "pointer",
-          flexShrink: 0,
-          minWidth: 200,
-          transition: "all var(--transition-fast) ease",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.10)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)"; }}
-      >
-        <i className="fa-solid fa-magnifying-glass" style={{ color: "#00F0FF", fontSize: 11 }} />
-        <span style={{ color: "#64748b", fontSize: 12, fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap" }}>
-          Search or ask Cortex…
-        </span>
-        <kbd style={{ marginLeft: 4, padding: "1px 5px", background: "rgba(255,255,255,0.08)", borderRadius: 4, color: "#475569", fontSize: 10, fontFamily: "monospace" }}>⌘K</kbd>
-      </motion.button>
+      {/* Center: Dynamic Island (Live Activities & Status) */}
+      <DynamicIsland />
 
       {/* Right cluster */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+
+        {/* Control Center Toggle */}
+        <motion.button
+          onClick={() => window.dispatchEvent(new CustomEvent("cortex:open-control-center"))}
+          title="Control Center"
+          whileTap={{ scale: 0.90 }}
+          style={{
+            background: "rgba(0,240,255,0.08)",
+            border: "1px solid rgba(0,240,255,0.25)",
+            borderRadius: 6, width: 26, height: 26,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            transition: "all var(--transition-fast)",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.18)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,240,255,0.08)"; }}
+        >
+          <i className="fa-solid fa-sliders" style={{ color: "#00F0FF", fontSize: 11 }} />
+        </motion.button>
+
+        {/* Spotlight Search Toggle */}
+        <motion.button
+          onClick={() => window.dispatchEvent(new CustomEvent("cortex:open-spotlight"))}
+          title="Spotlight Search (⌘K)"
+          whileTap={{ scale: 0.90 }}
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 6, width: 26, height: 26,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            transition: "all var(--transition-fast)",
+          }}
+        >
+          <i className="fa-solid fa-magnifying-glass" style={{ color: "#64748b", fontSize: 11 }} />
+        </motion.button>
 
         {/* Brightness */}
         {onOpenBrightness && (

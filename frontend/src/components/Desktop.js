@@ -29,6 +29,8 @@ import CortexInterrupts from "./CortexInterrupts";
 import FocusTunnel from "./FocusTunnel";
 import CortexLoadAdaptor from "./CortexLoadAdaptor";
 import { CognitiveLoadProvider } from "../context/CognitiveLoadContext";
+import ControlCenter from "./ControlCenter";
+import SpotlightSearch from "./SpotlightSearch";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
@@ -146,8 +148,22 @@ function Desktop() {
   const wp = getWallpaper(wallpaper);
   const [locked, setLocked] = useState(false);
   const [missionOpen, setMissionOpen] = useState(false);
+  const [controlCenterOpen, setControlCenterOpen] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
   const idleTimer = useRef(null);
   const [showWelcome, setShowWelcome] = useState(true);
+
+  // Listen for global custom events to open Control Center & Spotlight
+  useEffect(() => {
+    const handleCC = () => setControlCenterOpen((v) => !v);
+    const handleSL = () => setSpotlightOpen((v) => !v);
+    window.addEventListener("cortex:open-control-center", handleCC);
+    window.addEventListener("cortex:open-spotlight", handleSL);
+    return () => {
+      window.removeEventListener("cortex:open-control-center", handleCC);
+      window.removeEventListener("cortex:open-spotlight", handleSL);
+    };
+  }, []);
 
   // ── Boot / first-run / brightness ──────────────────────────────────────────
   const [showBoot,       setShowBoot]       = useState(() => isFirstBoot());
@@ -537,6 +553,8 @@ function Desktop() {
       <Dock />
       <CommandPalette />
       <NotificationCenter />
+      <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />
+      <SpotlightSearch isOpen={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
       {/* Mission Control: desktop only */}
       {isDesktop && (
         <MissionControl
