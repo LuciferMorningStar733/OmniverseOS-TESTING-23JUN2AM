@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ModelSelect from "./ModelSelector";
+import { PERSONAS, getActivePersona, setActivePersona } from "../../../lib/cortexPersonas";
 
 export const StatusPanel = React.memo(function StatusPanel({ status }) {
   if (!status) return null;
@@ -60,6 +61,55 @@ export const StatusPanel = React.memo(function StatusPanel({ status }) {
   );
 });
 
+function PersonaSelect() {
+  const [activeId, setActiveId] = useState(() => getActivePersona().id);
+  const activePersona = PERSONAS.find((p) => p.id === activeId) || PERSONAS[0];
+
+  return (
+    <div style={{ position: "relative" }}>
+      <select
+        value={activeId}
+        onChange={(e) => {
+          const id = e.target.value;
+          setActivePersona(id);
+          setActiveId(id);
+        }}
+        style={{
+          padding: "4px 8px 4px 24px",
+          borderRadius: 8,
+          fontSize: 11,
+          fontFamily: "'JetBrains Mono', monospace",
+          border: `1px solid ${activePersona.color}40`,
+          background: `${activePersona.color}10`,
+          color: activePersona.color,
+          cursor: "pointer",
+          outline: "none",
+          appearance: "none",
+          WebkitAppearance: "none",
+        }}
+      >
+        {PERSONAS.map((p) => (
+          <option key={p.id} value={p.id} style={{ background: "#0A0C14", color: p.color }}>
+            {p.name} Mode
+          </option>
+        ))}
+      </select>
+      <i
+        className={`fa-solid ${activePersona.icon}`}
+        style={{
+          position: "absolute",
+          left: 7,
+          top: "50%",
+          transform: "translateY(-50%)",
+          fontSize: 9,
+          color: activePersona.color,
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+}
+
 export function ChatHeader({
   sidebarOpen,
   onToggleSidebar,
@@ -82,6 +132,7 @@ export function ChatHeader({
           <i className="fa-solid fa-sidebar text-sm" />
         </button>
         <ModelSelect value={selectedModelValue} onChange={onModelChange} disabled={loading} />
+        <PersonaSelect />
       </div>
 
       <div className="flex items-center gap-2">
@@ -98,3 +149,4 @@ export function ChatHeader({
 }
 
 export default ChatHeader;
+
