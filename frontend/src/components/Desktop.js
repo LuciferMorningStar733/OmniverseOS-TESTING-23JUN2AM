@@ -31,6 +31,8 @@ import CortexLoadAdaptor from "./CortexLoadAdaptor";
 import { CognitiveLoadProvider } from "../context/CognitiveLoadContext";
 import ControlCenter from "./ControlCenter";
 import SpotlightSearch from "./SpotlightSearch";
+import DesktopContextMenu from "./DesktopContextMenu";
+import { tileLeft, tileRight, tileTopLeft, tileTopRight } from "../lib/WindowTileEngine";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
 function AmbientParticles() {
@@ -153,17 +155,35 @@ function Desktop() {
   const idleTimer = useRef(null);
   const [showWelcome, setShowWelcome] = useState(true);
 
-  // Listen for global custom events to open Control Center & Spotlight
+  // Listen for global custom events to open Control Center & Spotlight & Tiling
   useEffect(() => {
     const handleCC = () => setControlCenterOpen((v) => !v);
     const handleSL = () => setSpotlightOpen((v) => !v);
+    const handleTile = () => {
+      const openWins = windows.filter((w) => !w.minimized);
+      if (openWins.length === 0) return;
+      const updated = openWins.map((w, i) => {
+        let geo = tileLeft();
+        if (openWins.length === 2) {
+          geo = i === 0 ? tileLeft() : tileRight();
+        } else if (openWins.length >= 3) {
+          const tiles = [tileTopLeft(), tileTopRight(), tileLeft(), tileRight()];
+          geo = tiles[i % 4];
+        }
+        return { ...w, ...geo };
+      });
+      setWindows(updated);
+    };
+
     window.addEventListener("cortex:open-control-center", handleCC);
     window.addEventListener("cortex:open-spotlight", handleSL);
+    window.addEventListener("cortex:tile-windows", handleTile);
     return () => {
       window.removeEventListener("cortex:open-control-center", handleCC);
       window.removeEventListener("cortex:open-spotlight", handleSL);
+      window.removeEventListener("cortex:tile-windows", handleTile);
     };
-  }, []);
+  }, [windows, setWindows]);
 
   // ── Boot / first-run / brightness ──────────────────────────────────────────
   const [showBoot,       setShowBoot]       = useState(() => isFirstBoot());
@@ -555,6 +575,7 @@ function Desktop() {
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />
       <SpotlightSearch isOpen={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+      <DesktopContextMenu />
       {/* Mission Control: desktop only */}
       {isDesktop && (
         <MissionControl
