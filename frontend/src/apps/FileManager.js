@@ -99,9 +99,32 @@ export default function FileManager() {
             </div>
           ))}
           {here.length === 0 && (
-            <div className="col-span-3 sm:col-span-5 text-center text-slate-500 text-sm py-8">
-              <i className="fa-solid fa-folder-open text-3xl opacity-30 block mb-2"></i>
-              Empty folder
+            <div className="col-span-3 sm:col-span-5 flex flex-col items-center justify-center text-center py-12 px-4 max-w-sm mx-auto">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)" }}>
+                <i className="fa-solid fa-folder-open text-[#60A5FA]/70 text-2xl"></i>
+              </div>
+              <div className="text-white/90 font-bold text-sm mb-1">Folder is Empty</div>
+              <div className="text-slate-400 text-xs leading-relaxed mb-4">
+                Store virtual system assets, documents, and exported project files in this folder.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowNew("file")}
+                  aria-label="Create a new file"
+                  className="neon-btn primary !py-1.5 !px-3 text-xs"
+                >
+                  <i className="fa-solid fa-file-circle-plus mr-1.5" />
+                  New File
+                </button>
+                <button
+                  onClick={() => setShowNew("folder")}
+                  aria-label="Create a new folder"
+                  className="neon-btn !py-1.5 !px-3 text-xs"
+                >
+                  <i className="fa-solid fa-folder-plus mr-1.5" />
+                  New Folder
+                </button>
+              </div>
             </div>
           )}
         </div>

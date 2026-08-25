@@ -71,36 +71,39 @@ function NoteItem({ note, isSelected, onClick }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Empty state
+   Empty state with Apple-level explanatory guidance
    ───────────────────────────────────────────────────────────────────────────── */
 function EmptyState({ onNew }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center"
+      className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center max-w-sm mx-auto"
     >
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center"
         style={{
-            background: "rgba(0,240,255,0.07)",
-            border: "1px solid rgba(0,240,255,0.18)",
-            boxShadow: "0 0 20px rgba(0,240,255,0.06), inset 0 0 20px rgba(0,240,255,0.04)",
-          }}
+          background: "rgba(0,240,255,0.07)",
+          border: "1px solid rgba(0,240,255,0.18)",
+          boxShadow: "0 0 20px rgba(0,240,255,0.06), inset 0 0 20px rgba(0,240,255,0.04)",
+        }}
       >
-        <i className="fa-solid fa-note-sticky text-[#00F0FF]/60 text-2xl" />
+        <i className="fa-solid fa-note-sticky text-[#00F0FF]/70 text-2xl" />
       </div>
       <div>
-        <div className="text-white/70 font-medium mb-1">No note selected</div>
-        <div className="text-slate-500 text-sm">Create a note to get started</div>
+        <div className="text-white/90 font-bold text-base mb-1">No Note Selected</div>
+        <div className="text-slate-400 text-xs leading-relaxed">
+          Create structured notes and ideas. Saved notes automatically enrich your Cortex memory context and feed into Omniverse Mirror timeline reconstruction.
+        </div>
       </div>
       <motion.button
         whileTap={{ scale: 0.94 }}
         onClick={onNew}
+        aria-label="Create a new note"
         className="neon-btn primary"
       >
         <i className="fa-solid fa-plus text-[11px]" />
-        New Note
+        Create First Note
       </motion.button>
     </motion.div>
   );
@@ -115,15 +118,17 @@ function ColorSwatch({ color, isActive, onClick }) {
       whileTap={{ scale: 0.82 }}
       whileHover={{ scale: 1.15 }}
       onClick={onClick}
+      aria-label={`Select color accent ${color.label}`}
       title={color.label}
-      className="flex-shrink-0"
+      className="flex-shrink-0 min-w-[28px] min-h-[28px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
       style={{
-        width: 16, height: 16, borderRadius: "50%",
+        width: 24, height: 24, borderRadius: "50%",
         background: color.hex,
         outline: isActive ? `2px solid white` : "2px solid transparent",
         outlineOffset: 2,
-        boxShadow: isActive ? `0 0 10px ${color.hex}88` : "none",
+        boxShadow: isActive ? `0 0 12px ${color.hex}99` : "none",
         transition: "box-shadow 0.2s, outline-color 0.2s",
+        touchAction: "manipulation",
       }}
     />
   );

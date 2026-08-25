@@ -42,44 +42,47 @@ function TaskCard({ task, cols, onMove, onDelete }) {
       <div className="flex items-start gap-2 mb-2.5">
         <p className="text-[13px] leading-snug flex-1 break-words text-white/90">{task.title}</p>
         <motion.button
-          whileTap={{ scale: 0.8 }}
+          whileTap={{ scale: 0.85 }}
           onClick={() => onDelete(task.id)}
-          className="flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center mt-0.5"
+          aria-label={`Delete task: ${task.title}`}
+          className="flex-shrink-0 min-w-[32px] min-h-[32px] sm:w-6 sm:h-6 rounded-md flex items-center justify-center mt-0.5 focus:outline-none focus:ring-2 focus:ring-red-500/50"
           style={{
             color: "#FF003C",
-            opacity: hovering ? 1 : 0,
+            opacity: hovering ? 1 : 0.7,
             transition: "opacity 0.15s",
-            background: "rgba(255,0,60,0.08)",
+            background: "rgba(255,0,60,0.12)",
           }}
           title="Delete task"
         >
-          <i className="fa-solid fa-xmark text-[9px]" />
+          <i className="fa-solid fa-xmark text-[11px]" />
         </motion.button>
       </div>
 
       {/* Move buttons */}
       <div
-        className="flex flex-wrap gap-1"
+        className="flex flex-wrap gap-1.5"
         style={{
-          opacity: hovering ? 1 : 0,
-          transform: hovering ? "translateY(0)" : "translateY(3px)",
+          opacity: hovering ? 1 : 0.85,
+          transform: hovering ? "translateY(0)" : "translateY(1px)",
           transition: "opacity 0.18s, transform 0.18s",
         }}
       >
         {otherCols.map((col) => (
           <motion.button
             key={col.id}
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.92 }}
             onClick={() => onMove(task, col.id)}
-            className="flex items-center gap-1 text-[10px] font-mono rounded-lg px-2 py-1"
+            aria-label={`Move task to ${col.name}`}
+            className="flex items-center gap-1 text-[11px] font-mono rounded-lg px-2.5 py-1.5 min-h-[36px] sm:min-h-0 focus:outline-none focus:ring-2 focus:ring-white/20"
             style={{
               color: col.color,
-              background: `${col.color}10`,
-              border: `1px solid ${col.color}25`,
+              background: `${col.color}14`,
+              border: `1px solid ${col.color}30`,
               letterSpacing: "0.03em",
+              touchAction: "manipulation",
             }}
           >
-            <i className={`fa-solid ${col.icon} text-[8px]`} />
+            <i className={`fa-solid ${col.icon} text-[9px]`} />
             {col.name}
           </motion.button>
         ))}
@@ -123,24 +126,34 @@ function ColHeader({ col, count }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Empty column
+   Empty column with Apple-level explanatory state
    ───────────────────────────────────────────────────────────────────────────── */
 function EmptyCol({ col }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col items-center justify-center gap-2 py-8 px-4"
+      className="flex flex-col items-center justify-center gap-2.5 py-8 px-4 text-center"
     >
       <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center"
-        style={{ background: col.bg, border: `1px solid ${col.color}20` }}
+        className="w-10 h-10 rounded-2xl flex items-center justify-center"
+        style={{ background: col.bg, border: `1px solid ${col.color}25` }}
       >
-        <i className={`fa-solid ${col.icon} text-[13px]`} style={{ color: col.color, opacity: 0.5 }} />
+        <i className={`fa-solid ${col.icon} text-sm`} style={{ color: col.color, opacity: 0.7 }} />
       </div>
-      <span className="text-[11px] font-mono text-slate-600 text-center leading-relaxed">
-        {col.id === "todo" ? "Add a task above" : `Move tasks here`}
-      </span>
+      <div>
+        <div className="text-xs font-semibold text-white/80 mb-0.5">
+          {col.id === "todo" ? "No Tasks Pending" : col.id === "doing" ? "Nothing In Progress" : "No Completed Tasks"}
+        </div>
+        <div className="text-[11px] text-white/45 max-w-[200px] leading-relaxed">
+          {col.id === "todo"
+            ? "Create your first task above to start tracking workflow priorities."
+            : col.id === "doing"
+            ? "Move active tasks here to focus your daily execution."
+            : "Tasks moved here automatically feed into your Omniverse Mirror digital twin history."
+          }
+        </div>
+      </div>
     </motion.div>
   );
 }
