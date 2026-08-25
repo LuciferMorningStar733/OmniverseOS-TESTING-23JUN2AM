@@ -365,24 +365,29 @@ input, textarea, [contenteditable="true"], select {
   border-radius: 0.65rem;
   padding: 0.5rem 1rem;
   color: #fff;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
+  font-family: 'Outfit', 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
   transition:
-    transform .15s ease,
-    background-color .2s ease,
-    border-color .2s ease,
-    box-shadow .2s ease;
+    transform .15s var(--spring-snappy),
+    background-color .15s ease,
+    border-color .15s ease,
+    box-shadow .15s ease;
   cursor: pointer;
   white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 .neon-btn:hover {
-  background: rgba(0,240,255,0.06);
+  background: rgba(0,240,255,0.08);
   border-color: rgba(0,240,255,0.35);
-  box-shadow: 0 0 18px rgba(0,240,255,0.15);
+  box-shadow: 0 0 20px rgba(0,240,255,0.18);
   transform: translateY(-1px);
 }
-.neon-btn:active { transform: translateY(0) scale(0.97); }
+.neon-btn:active {
+  transform: translateY(0) scale(0.96);
+}
 
 .neon-btn.primary {
   background: rgba(0,240,255,0.10);
