@@ -15,9 +15,10 @@ describe("Omniverse Mirror Engine & Evidence Model", () => {
     expect(data.notes).toBeDefined();
   });
 
-  test("getMirrorHistoricalTimeline returns timeline array with timestamp metadata", () => {
-    const timeline = getMirrorHistoricalTimeline();
+  test("getMirrorHistoricalTimeline returns timeline array and eras metadata", () => {
+    const { timeline, eras } = getMirrorHistoricalTimeline();
     expect(Array.isArray(timeline)).toBe(true);
+    expect(Array.isArray(eras)).toBe(true);
   });
 
   test("getMirrorPresentAnalysis handles sparse data and provides evidence grounding", () => {

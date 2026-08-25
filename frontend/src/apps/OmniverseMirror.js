@@ -15,7 +15,10 @@ export default function OmniverseMirror() {
   const [chatInput, setChatInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
 
-  const timeline = useMemo(() => getMirrorHistoricalTimeline(), []);
+  const { timeline, eras } = useMemo(() => {
+    const res = getMirrorHistoricalTimeline();
+    return Array.isArray(res) ? { timeline: res, eras: [] } : res;
+  }, []);
   const presentData = useMemo(() => getMirrorPresentAnalysis(), []);
   const trajectories = useMemo(() => getMirrorFutureTrajectories(), []);
 
@@ -189,6 +192,24 @@ export default function OmniverseMirror() {
                   Chat with Past Self
                 </button>
               </div>
+
+              {/* Historical Eras */}
+              {eras && eras.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#F59E0B", fontFamily: "'JetBrains Mono', monospace" }}>
+                    HISTORICAL ERAS
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                    {eras.map((era) => (
+                      <div key={era.id} className="glass-card" style={{ padding: 14, borderLeft: "3px solid #F59E0B" }}>
+                        <div style={{ fontSize: 14, fontWeight: 700 }}>{era.name}</div>
+                        <div style={{ fontSize: 11, color: "#F59E0B", margin: "2px 0 6px", fontFamily: "monospace" }}>{era.dateRange}</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{era.summary}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Timeline Cards */}
               {timeline.length === 0 ? (

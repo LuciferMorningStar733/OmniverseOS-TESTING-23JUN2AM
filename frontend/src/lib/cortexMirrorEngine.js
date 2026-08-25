@@ -53,7 +53,7 @@ export function getMirrorHistoricalTimeline() {
     });
   });
 
-  // 2. Process Completed Tasks
+  // 2. Process Notes & Tasks
   tasks.filter((t) => t.completed).forEach((t, idx) => {
     const timeStamp = t.completedAt || (now.getTime() - (idx + 2) * 43200000);
     const date = new Date(timeStamp);
@@ -69,9 +69,46 @@ export function getMirrorHistoricalTimeline() {
     });
   });
 
+  notes.forEach((n, idx) => {
+    const timeStamp = n.updatedAt || (now.getTime() - (idx + 3) * 86400000);
+    const date = new Date(timeStamp);
+    timeline.push({
+      id: `note-${n.id || idx}`,
+      timestamp: timeStamp,
+      dateStr: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      category: "Document Note",
+      title: n.title || "Untitled Note",
+      impact: "Low",
+      context: "Saved Note record",
+      source: "note_document",
+    });
+  });
+
   // Sort chronologically (newest first)
   timeline.sort((a, b) => b.timestamp - a.timestamp);
-  return timeline;
+
+  // Group into evidence-derived Eras
+  const eras = [
+    {
+      id: "era-current",
+      name: "The Flagship Polish Era",
+      dateRange: "August 2026",
+      summary: "Focused on desktop-grade microinteractions, evidence models, and launch readiness.",
+      items: timeline.slice(0, 5),
+    },
+  ];
+
+  if (timeline.length > 5) {
+    eras.push({
+      id: "era-initial",
+      name: "The Core Architecture Era",
+      dateRange: "June - July 2026",
+      summary: "Foundational window manager, Cortex memory core, and multi-agent system setup.",
+      items: timeline.slice(5),
+    });
+  }
+
+  return { timeline, eras };
 }
 
 /**
