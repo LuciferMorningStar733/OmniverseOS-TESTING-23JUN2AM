@@ -362,12 +362,17 @@ export default function OmniverseMirror() {
                         <span style={{ fontSize: 11, fontFamily: "monospace", color: t.color }}>{t.probability}</span>
                       </div>
                       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontStyle: "italic" }}>{t.tagline}</div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 10, lineHeight: 1.5 }}>
-                        {t.summary}
-                      </div>
                       <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.4)", marginTop: 8 }}>
                         ℹ {t.simulationNotice}
                       </div>
+
+                      {t.breakdown && (
+                        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4, fontSize: 10, fontFamily: "monospace" }}>
+                          <div style={{ color: "#39FF14" }}><strong>FACT:</strong> {t.breakdown.fact}</div>
+                          <div style={{ color: "#00F0FF" }}><strong>INFERENCE:</strong> {t.breakdown.inference}</div>
+                          <div style={{ color: t.color }}><strong>SIMULATION:</strong> {t.breakdown.simulation}</div>
+                        </div>
+                      )}
                     </div>
 
                     <button
