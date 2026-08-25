@@ -533,15 +533,19 @@ const DockTooltip = memo(function DockTooltip({ name, visible }) {
   );
 });
 
-/* Magnification scale helper extracted so it's recomputed only when deps change */
+/* Cosine bell-curve proximity scale helper */
 function useScale(index, hoverIndex) {
   return useMemo(() => {
     if (hoverIndex === null) return 1;
-    const d = Math.abs(index - hoverIndex);
-    if (d === 0) return 1.42;
-    if (d === 1) return 1.22;
-    if (d === 2) return 1.08;
-    return 1;
+    // Respect prefers-reduced-motion
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      return 1;
+    }
+    const dist = Math.abs(index - hoverIndex);
+    const radius = 2.5; // continuous cosine bell radius over ~2.5 slots
+    if (dist >= radius) return 1;
+    const cosineFactor = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
+    return 1 + 0.45 * cosineFactor; // Smooth bell curve: 1.45 peak, ~1.29 neighbors, 1.0 distant
   }, [index, hoverIndex]);
 }
 
@@ -585,11 +589,13 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
     <motion.button
       ref={scope}
       data-testid={`dock-item-${app.id}`}
+      aria-label={`Open ${app.name}`}
+      aria-current={isActive ? "page" : undefined}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
       animate={{ scale }}
-      transition={{ type: "spring", stiffness: 420, damping: 18, mass: 0.28 }}
+      transition={{ type: "spring", stiffness: 420, damping: 20, mass: 0.25 }}
       className="group relative flex-shrink-0"
       style={{
         width: 44, height: 44,
@@ -627,7 +633,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         }}
       />
 
-      {/* Running indicator — pill for active, dot for background */}
+      {/* Running indicator — pill for active focused app, dot for background running app */}
       {open && (
         <motion.span
           layoutId={`running-dot-${app.id}`}
@@ -637,10 +643,10 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
             width: isActive ? 16 : 4,
             height: isActive ? 4 : 4,
             borderRadius: 2,
-            background: isActive ? app.color : "rgba(0,240,255,0.55)",
+            background: isActive ? app.color : "rgba(0,240,255,0.65)",
             boxShadow: isActive
               ? `0 0 10px ${app.color}BB, 0 0 20px ${app.color}44`
-              : "0 0 6px rgba(0,240,255,0.4)",
+              : "0 0 6px rgba(0,240,255,0.5)",
             transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
           }}
         />
