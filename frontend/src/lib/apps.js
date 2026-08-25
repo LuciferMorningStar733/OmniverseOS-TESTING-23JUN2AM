@@ -59,6 +59,7 @@ export const APPS = [
   { id: "matrix",       name: "Neural Matrix", icon: "fa-project-diagram", color: "#00F0FF", Component: lazy(() => import("../apps/NeuralMatrix")),   group: "ai" },
   { id: "mirror",       name: "Omniverse Mirror", icon: "fa-wand-magic-sparkles", color: "#A855F7", Component: lazy(() => import("../apps/OmniverseMirror")), group: "ai" },
   { id: "zero",         name: "Omniverse Zero",   icon: "fa-atom",                color: "#00F0FF", Component: lazy(() => import("../apps/OmniverseZero")),   group: "ai" },
+  { id: "blackbox",     name: "The Black Box",    icon: "fa-box-open",            color: "#00F0FF", Component: lazy(() => import("../apps/BlackBoxApp")),    group: "ai" },
 ];
 
 export const getApp = (id) => APPS.find((a) => a.id === id);
