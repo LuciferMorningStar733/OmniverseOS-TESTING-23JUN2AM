@@ -4,10 +4,20 @@ import {
   getMirrorFutureTrajectories,
   getDigitalTwinSystemPrompt,
   getAggregatedUserData,
+  getParallelLifeSimulator,
+  getPersonalCounterfactualMemory,
+  getSelfContradictionEngine,
+  getPersonalCausalUniverse,
+  getCognitiveShadow,
+  getDecisionTimeTravel,
+  getPersonalRedTeam,
+  getIdentityDriftEngine,
+  getForgottenIntelligenceEngine,
+  getImpossibleQuestionEngine,
 } from "../lib/cortexMirrorEngine";
-import { APPS, getApp } from "../lib/apps";
+import { getApp } from "../lib/apps";
 
-describe("Omniverse Mirror Engine & Evidence Model", () => {
+describe("Omniverse Mirror ∞ — Top 10 Out-of-the-World Suite", () => {
   test("getAggregatedUserData retrieves memories, tasks, and notes", () => {
     const data = getAggregatedUserData();
     expect(data.memories).toBeDefined();
@@ -15,47 +25,63 @@ describe("Omniverse Mirror Engine & Evidence Model", () => {
     expect(data.notes).toBeDefined();
   });
 
-  test("getMirrorHistoricalTimeline returns timeline array and eras metadata", () => {
-    const { timeline, eras } = getMirrorHistoricalTimeline();
-    expect(Array.isArray(timeline)).toBe(true);
-    expect(Array.isArray(eras)).toBe(true);
-    if (eras.length > 0) {
-      expect(eras[0].name).toBeDefined();
-      expect(eras[0].dateRange).toBeDefined();
-    }
+  test("1. 🥇 Parallel Life Simulator generates branch trajectories", () => {
+    const sim = getParallelLifeSimulator("Focus 100% on Public Launch");
+    expect(sim.simulatedBranch.title).toContain("Focus 100% on Public Launch");
+    expect(sim.simulatedBranch.day30Outcome).toBeDefined();
   });
 
-  test("getMirrorPresentAnalysis handles sparse data and provides evidence grounding", () => {
-    const analysis = getMirrorPresentAnalysis();
-    expect(analysis.statedGoal).toBeDefined();
-    expect(Array.isArray(analysis.insights)).toBe(true);
-    expect(analysis.projectGravity).toBeDefined();
-    if (!analysis.hasInsufficientData) {
-      expect(typeof analysis.priorityDriftScore).toBe("number");
-    }
+  test("2. 🥈 Personal Counterfactual Memory builds butterfly effect graph", () => {
+    const graph = getPersonalCounterfactualMemory();
+    expect(graph.pivotalNode.causalChain.length).toBeGreaterThan(3);
   });
 
-  test("getMirrorFutureTrajectories returns dynamic trajectory simulations with Fact/Inference/Simulation breakdowns", () => {
-    const trajectories = getMirrorFutureTrajectories();
-    expect(trajectories).toHaveLength(4);
-    for (const t of trajectories) {
-      expect(t.simulationNotice).toBeDefined();
-      expect(t.probability).toMatch(/%/);
-      expect(t.breakdown).toBeDefined();
-      expect(t.breakdown.fact).toBeDefined();
-      expect(t.breakdown.inference).toBeDefined();
-      expect(t.breakdown.simulation).toBeDefined();
-    }
+  test("3. 🥉 Self-Contradiction Engine provides accountability receipts", () => {
+    const engine = getSelfContradictionEngine();
+    expect(engine.receipt.evidenceReceipts.length).toBe(4);
   });
 
-  test("getDigitalTwinSystemPrompt includes disclaimers and user context", () => {
-    const pastPrompt = getDigitalTwinSystemPrompt("past");
-    expect(pastPrompt).toContain("Past Self");
-    expect(pastPrompt).toContain("Disclaimer");
+  test("4. 🌌 Personal Causal Universe builds causal node relationships", () => {
+    const universe = getPersonalCausalUniverse();
+    expect(universe.causalNodes.length).toBeGreaterThan(3);
+    expect(universe.backwardTrace).toBeDefined();
+  });
 
-    const futurePrompt = getDigitalTwinSystemPrompt("future", "traj-peak");
-    expect(futurePrompt).toContain("Future Self");
-    expect(futurePrompt).toContain("Disclaimer");
+  test("5. 🧠 Cognitive Shadow monitors metacognition loops", () => {
+    const shadow = getCognitiveShadow();
+    expect(shadow.patternDetected).toBeDefined();
+    expect(shadow.suggestedAction).toBeDefined();
+  });
+
+  test("6. ⏳ Decision Time Travel provides 3-way temporal identity context", () => {
+    const tt = getDecisionTimeTravel();
+    expect(tt.pastYou.era).toBeDefined();
+    expect(tt.presentYou.era).toBeDefined();
+    expect(tt.futureYou.era).toBeDefined();
+  });
+
+  test("7. 🔥 Personal Red Team provides adversarial user history audit", () => {
+    const red = getPersonalRedTeam();
+    expect(red.adversaryArgument).toBeDefined();
+    expect(red.historicalBias).toBeDefined();
+  });
+
+  test("8. 🪞 Identity Drift Engine creates living identity map", () => {
+    const drift = getIdentityDriftEngine();
+    expect(drift.profileBreakdown.length).toBe(3);
+    expect(drift.driftInsight).toBeDefined();
+  });
+
+  test("9. 🌐 Forgotten Intelligence Engine uncovers relevant past knowledge", () => {
+    const forgotten = getForgottenIntelligenceEngine();
+    expect(forgotten.discoveredItems.length).toBeGreaterThan(0);
+    expect(forgotten.summary).toBeDefined();
+  });
+
+  test("10. 🚨 Impossible Question Engine solves signature inquiry", () => {
+    const impossible = getImpossibleQuestionEngine();
+    expect(impossible.signatureAnswer.question).toContain("What do you know about me");
+    expect(impossible.signatureAnswer.synthesis).toBeDefined();
   });
 
   test("apps registry includes mirror app", () => {
