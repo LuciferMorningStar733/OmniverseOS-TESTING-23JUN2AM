@@ -32,6 +32,8 @@ import { CognitiveLoadProvider } from "../context/CognitiveLoadContext";
 import ControlCenter from "./ControlCenter";
 import SpotlightSearch from "./SpotlightSearch";
 import DesktopContextMenu from "./DesktopContextMenu";
+import QuickLookModal from "./QuickLookModal";
+import StageManager from "./StageManager";
 import { tileLeft, tileRight, tileTopLeft, tileTopRight } from "../lib/WindowTileEngine";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
@@ -152,13 +154,15 @@ function Desktop() {
   const [missionOpen, setMissionOpen] = useState(false);
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [stageManagerActive, setStageManagerActive] = useState(false);
   const idleTimer = useRef(null);
   const [showWelcome, setShowWelcome] = useState(true);
 
-  // Listen for global custom events to open Control Center & Spotlight & Tiling
+  // Listen for global custom events to open Control Center & Spotlight & Tiling & Stage Manager
   useEffect(() => {
     const handleCC = () => setControlCenterOpen((v) => !v);
     const handleSL = () => setSpotlightOpen((v) => !v);
+    const handleStage = () => setStageManagerActive((v) => !v);
     const handleTile = () => {
       const openWins = windows.filter((w) => !w.minimized);
       if (openWins.length === 0) return;
@@ -576,6 +580,8 @@ function Desktop() {
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />
       <SpotlightSearch isOpen={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
       <DesktopContextMenu />
+      <QuickLookModal />
+      <StageManager active={stageManagerActive} />
       {/* Mission Control: desktop only */}
       {isDesktop && (
         <MissionControl
