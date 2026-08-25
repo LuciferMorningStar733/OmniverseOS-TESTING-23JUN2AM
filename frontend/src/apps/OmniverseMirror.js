@@ -10,6 +10,7 @@ import {
 export default function OmniverseMirror() {
   const [activeTab, setActiveTab] = useState("future"); // "past" | "present" | "future"
   const [chatModal, setChatModal] = useState(null); // { mode: "past" | "future", trajectoryId?: string }
+  const [evidenceModal, setEvidenceModal] = useState(null); // insight evidence object
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -33,8 +34,8 @@ export default function OmniverseMirror() {
     const sysPrompt = getDigitalTwinSystemPrompt(mode, trajectoryId);
     const initialGreeting =
       mode === "past"
-        ? "Hey, I'm Past You from June 2026. I was just focused on getting the core windowing engine working. What did we end up building?"
-        : "Greetings from 6 months ahead. I've lived through the trajectory choices you're making right now. What do you want to ask me?";
+        ? "Hey, I'm Past Self reconstructed from your historical records. What do you want to reflect on?"
+        : "Greetings from a projected future trajectory. Ask me strategic questions about your current path.";
 
     setChatMessages([{ sender: "twin", text: initialGreeting }]);
     setChatModal({ mode, trajectoryId });
@@ -50,9 +51,9 @@ export default function OmniverseMirror() {
     setTimeout(() => {
       let reply = "";
       if (chatModal?.mode === "past") {
-        reply = `Looking back at when I first started, my biggest fear was that web browsers couldn't handle 60 FPS window dragging. Hearing that you built Stage Manager and Dock magnification makes total sense! Stick to reliability.`;
+        reply = `Based on your recorded memories and completed task history, your primary focus has been quality, desktop responsiveness, and shipping a clean product. Re-reading those notes confirms your execution trajectory.`;
       } else {
-        reply = `From my trajectory, focusing on reliability and public beta testing by September 1st was the single decision that made OmniverseOS go viral. Don't get distracted by adding 5 more apps right now. Polish what exists.`;
+        reply = `Looking at this trajectory simulation, maintaining a high daily task resolution rate and prioritizing system reliability by September 1st yields the highest user retention outcome.`;
       }
       setChatMessages((prev) => [...prev, { sender: "twin", text: reply }]);
       setIsThinking(false);
@@ -104,7 +105,7 @@ export default function OmniverseMirror() {
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em" }}>THE MIRROR</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Your AI-Powered Digital Twin
+              Evidence-Grounded AI Digital Twin
             </div>
           </div>
         </div>
@@ -165,7 +166,7 @@ export default function OmniverseMirror() {
                 <div>
                   <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Historical Timeline & Memory Reconstruction</h3>
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", margin: "4px 0 0" }}>
-                    Revisit past breakthroughs, key decisions, and historical context.
+                    Reconstruct your history from Cortex memory entries and task records.
                   </p>
                 </div>
                 <button
@@ -185,46 +186,54 @@ export default function OmniverseMirror() {
                   }}
                 >
                   <i className="fa-solid fa-comments" />
-                  Chat with Past You
+                  Chat with Past Self
                 </button>
               </div>
 
               {/* Timeline Cards */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {timeline.map((item) => (
-                  <div
-                    key={item.id}
-                    className="glass-card"
-                    style={{
-                      padding: 16,
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      gap: 16,
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#F59E0B", marginBottom: 4 }}>
-                        {item.dateStr} · {item.category}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{item.title}</div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{item.context}</div>
-                    </div>
-                    <span
+              {timeline.length === 0 ? (
+                <div className="glass-panel" style={{ padding: 24, textAlign: "center", color: "rgba(255,255,255,0.5)" }}>
+                  <i className="fa-solid fa-folder-open" style={{ fontSize: 28, color: "#F59E0B", marginBottom: 8 }} />
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>No Recorded Memories Yet</div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>Save notes, complete tasks, or converse with Cortex AI to build your digital twin timeline.</div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {timeline.map((item) => (
+                    <div
+                      key={item.id}
+                      className="glass-card"
                       style={{
-                        fontSize: 10,
-                        fontFamily: "monospace",
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        background: "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.5)",
+                        padding: 16,
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: 16,
                       }}
                     >
-                      Impact: {item.impact}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#F59E0B", marginBottom: 4 }}>
+                          {item.dateStr} · {item.category}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{item.title}</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{item.context}</div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontFamily: "monospace",
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          background: "rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.5)",
+                        }}
+                      >
+                        Impact: {item.impact}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -251,7 +260,7 @@ export default function OmniverseMirror() {
               >
                 <div>
                   <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#00F0FF" }}>
-                    LIVE OBSERVER DASHBOARD
+                    LIVE OBSERVER DASHBOARD · {presentData.confidenceLabel || "Moderate Confidence"}
                   </div>
                   <h3 style={{ fontSize: 18, fontWeight: 700, margin: "4px 0" }}>Stated Goal: {presentData.statedGoal}</h3>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
@@ -259,14 +268,18 @@ export default function OmniverseMirror() {
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "#00F0FF" }}>{presentData.priorityDriftScore}%</div>
-                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.4)" }}>Alignment Score</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#00F0FF" }}>
+                    {presentData.priorityDriftScore !== null ? `${presentData.priorityDriftScore}%` : "N/A"}
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.4)" }}>
+                    {presentData.priorityDriftScore !== null ? "Alignment Score" : "Insufficient Data"}
+                  </div>
                 </div>
               </div>
 
-              {/* Insights List */}
+              {/* Insights List with Evidence Buttons */}
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "rgba(255,255,255,0.8)" }}>Pattern Detections & Oracle Insights</h4>
+                <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "rgba(255,255,255,0.8)" }}>Pattern Detections & Evidence</h4>
                 {presentData.insights.map((ins) => (
                   <div
                     key={ins.id}
@@ -277,25 +290,31 @@ export default function OmniverseMirror() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
+                      gap: 16,
                     }}
                   >
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700 }}>{ins.title}</div>
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 4 }}>{ins.desc}</div>
                     </div>
-                    <button
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 8,
-                        fontSize: 11,
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        color: "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {ins.action}
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {ins.evidence && (
+                        <button
+                          onClick={() => setEvidenceModal(ins.evidence)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            fontSize: 11,
+                            background: "rgba(0,240,255,0.12)",
+                            border: "1px solid rgba(0,240,255,0.35)",
+                            color: "#00F0FF",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Why does Mirror think this?
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -313,9 +332,9 @@ export default function OmniverseMirror() {
               style={{ display: "flex", flexDirection: "column", gap: 20 }}
             >
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Trajectory Simulator & Ask Future You</h3>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Trajectory Simulator & Ask Future Self</h3>
                 <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", margin: "4px 0 0" }}>
-                  Simulated futures calculated from your real behavior and memory history.
+                  Simulated futures calculated from observed velocity and task completion history.
                 </p>
               </div>
 
@@ -346,8 +365,8 @@ export default function OmniverseMirror() {
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 10, lineHeight: 1.5 }}>
                         {t.summary}
                       </div>
-                      <div style={{ fontSize: 11, color: "rgba(255,0,60,0.8)", marginTop: 8 }}>
-                        ⚠ Risk: {t.keyRisk}
+                      <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.4)", marginTop: 8 }}>
+                        ℹ {t.simulationNotice}
                       </div>
                     </div>
 
@@ -370,7 +389,7 @@ export default function OmniverseMirror() {
                       }}
                     >
                       <i className="fa-solid fa-sparkles" />
-                      Chat with Future You
+                      Chat with Future Self
                     </button>
                   </div>
                 ))}
@@ -379,6 +398,77 @@ export default function OmniverseMirror() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Why Does Mirror Think This? Evidence Modal */}
+      {evidenceModal && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 110,
+            background: "rgba(5, 7, 15, 0.88)",
+            backdropFilter: "blur(24px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={() => setEvidenceModal(null)}
+        >
+          <div
+            className="glass-panel"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "90%",
+              maxWidth: 480,
+              padding: 24,
+              borderRadius: 20,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              border: "1px solid rgba(0, 240, 255, 0.35)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#00F0FF" }}>Why does Mirror think this?</div>
+              <button
+                onClick={() => setEvidenceModal(null)}
+                style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer" }}
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", lineHeight: 1.5 }}>
+              <strong>Conclusion:</strong> {evidenceModal.conclusion}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 11, fontFamily: "monospace" }}>
+              <div style={{ padding: 10, borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
+                <span style={{ color: "rgba(255,255,255,0.4)" }}>Confidence Level:</span>
+                <div style={{ color: "#00F0FF", fontWeight: 700, marginTop: 2 }}>{evidenceModal.confidence}</div>
+              </div>
+              <div style={{ padding: 10, borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
+                <span style={{ color: "rgba(255,255,255,0.4)" }}>Evidence Items:</span>
+                <div style={{ color: "#fff", fontWeight: 700, marginTop: 2 }}>{evidenceModal.evidence_count} records</div>
+              </div>
+            </div>
+
+            {evidenceModal.evidence_items && evidenceModal.evidence_items.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>
+                  Observed Reference Records:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.6 }}>
+                  {evidenceModal.evidence_items.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Digital Twin Chat Modal */}
       {chatModal && (
@@ -393,7 +483,6 @@ export default function OmniverseMirror() {
             flexDirection: "column",
           }}
         >
-          {/* Chat Modal Header */}
           <div
             style={{
               padding: "14px 20px",
@@ -408,28 +497,21 @@ export default function OmniverseMirror() {
               <i className="fa-solid fa-robot" style={{ color: modeAccent, fontSize: 16 }} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>
-                  {chatModal.mode === "past" ? "Chat with Past You (June 2026)" : "Chat with Future You (6 Months Ahead)"}
+                  {chatModal.mode === "past" ? "Chat with Past Self (Historically Grounded)" : "Chat with Future Self (Trajectory Simulation)"}
                 </div>
                 <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.4)" }}>
-                  Grounded in your personal Cortex memory history
+                  Grounded in Cortex memories & local task history
                 </div>
               </div>
             </div>
             <button
               onClick={() => setChatModal(null)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 18,
-                cursor: "pointer",
-              }}
+              style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer" }}
             >
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
 
-          {/* Chat Messages Body */}
           <div style={{ flex: 1, padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
             {chatMessages.map((msg, i) => (
               <div
@@ -451,12 +533,11 @@ export default function OmniverseMirror() {
             ))}
             {isThinking && (
               <div style={{ alignSelf: "flex-start", fontSize: 11, color: modeAccent, fontFamily: "monospace" }}>
-                Thinking as Digital Twin...
+                Reconstructing Digital Twin context...
               </div>
             )}
           </div>
 
-          {/* Chat Input */}
           <div style={{ padding: 16, borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 10 }}>
             <input
               type="text"
