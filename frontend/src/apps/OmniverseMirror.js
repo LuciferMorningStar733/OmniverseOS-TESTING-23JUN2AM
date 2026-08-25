@@ -133,17 +133,19 @@ export default function OmniverseMirror() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
+              aria-label={`Switch to ${t.label}`}
+              className="neon-btn"
               style={{
-                padding: "6px 14px",
+                padding: "8px 16px",
                 borderRadius: 10,
                 fontSize: 12,
                 fontWeight: 600,
                 border: "none",
-                background: activeTab === t.id ? `${t.color}20` : "transparent",
-                color: activeTab === t.id ? t.color : "rgba(255,255,255,0.5)",
-                boxShadow: activeTab === t.id ? `0 0 12px ${t.color}30` : "none",
+                background: activeTab === t.id ? `${t.color}25` : "transparent",
+                color: activeTab === t.id ? t.color : "rgba(255,255,255,0.6)",
+                boxShadow: activeTab === t.id ? `0 0 16px ${t.color}40` : "none",
                 cursor: "pointer",
-                transition: "all 0.2s ease",
+                transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
               }}
             >
               {t.label}
