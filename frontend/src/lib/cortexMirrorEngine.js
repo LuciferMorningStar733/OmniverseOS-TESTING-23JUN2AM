@@ -89,6 +89,7 @@ export function getMirrorPresentAnalysis() {
       statedGoal: "Build Digital Twin History",
       priorityDriftScore: null,
       confidenceLabel: "Emerging Pattern",
+      projectGravity: "System Setup",
       insights: [
         {
           id: "ins-init-1",
@@ -100,7 +101,7 @@ export function getMirrorPresentAnalysis() {
             conclusion: "Insufficient record history for statistical alignment scoring.",
             confidence: "Low",
             evidence_count: totalEvidenceCount,
-            evidence_items: memories.slice(0, 3).map((m) => m.text || "Memory item"),
+            evidence_items: memories.slice(0, 3).map((m) => (typeof m === "string" ? m : m.text || "Memory item")),
             data_time_range: "Recent 7 Days",
             inference_type: "Cold Start Initializer",
           },
@@ -110,65 +111,91 @@ export function getMirrorPresentAnalysis() {
     };
   }
 
-  // Calculate alignment score based on completed task ratio & memory count
+  // 1. Calculate Priority Drift & Alignment Score
   const completedTasks = tasks.filter((t) => t.completed).length;
-  const taskRatio = tasks.length > 0 ? (completedTasks / tasks.length) : 0.8;
+  const taskRatio = tasks.length > 0 ? (completedTasks / tasks.length) : 0.82;
   const alignmentScore = Math.min(98, Math.max(52, Math.round(taskRatio * 40 + 55)));
+
+  // 2. Compute Project Gravity (Density of items by category)
+  const categoryCounts = {};
+  [...tasks, ...notes].forEach((item) => {
+    const cat = item.category || "General";
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+  });
+  const sortedGravity = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
+  const primaryGravityCategory = sortedGravity.length > 0 ? sortedGravity[0][0] : "Productivity";
 
   const insights = [];
 
-  if (tasks.length > 0 && completedTasks < tasks.length / 2) {
+  // Insight 1: Task Execution Velocity
+  if (tasks.length > 0) {
     insights.push({
       id: "ins-dyn-1",
-      type: "warning",
-      title: "Task Execution Backlog",
-      desc: `You have ${tasks.length - completedTasks} open tasks pending completion across active categories.`,
-      action: "Review Pending Tasks",
+      type: completedTasks < tasks.length / 2 ? "warning" : "positive",
+      title: completedTasks < tasks.length / 2 ? "Task Backlog Warning" : "High Execution Velocity",
+      desc: completedTasks < tasks.length / 2
+        ? `You have ${tasks.length - completedTasks} open tasks pending completion.`
+        : `Execution velocity is optimal with ${completedTasks} of ${tasks.length} tasks completed.`,
+      action: "Review Tasks",
       evidence: {
-        conclusion: "Task creation velocity exceeds completion velocity.",
+        conclusion: `Task completion ratio is currently ${Math.round(taskRatio * 100)}%.`,
         confidence: "Strong Pattern",
         evidence_count: tasks.length,
-        evidence_items: tasks.filter((t) => !t.completed).slice(0, 3).map((t) => t.text || t.title),
+        evidence_items: tasks.slice(0, 3).map((t) => t.text || t.title || "Task item"),
         data_time_range: "30 Days",
         inference_type: "Execution Velocity Analysis",
       },
     });
   }
 
+  // Insight 2: Project Gravity & Focus Density
   insights.push({
     id: "ins-dyn-2",
-    type: "positive",
-    title: "Cortex Memory Accumulation",
-    desc: `Cortex has indexed ${memories.length} persistent contextual memories supporting digital twin simulations.`,
-    action: "View Cortex Memories",
+    type: "insight",
+    title: `Project Gravity: ${primaryGravityCategory}`,
+    desc: `Your primary work focus is concentrated around "${primaryGravityCategory}" across notes and active tasks.`,
+    action: "View Category Notes",
     evidence: {
-      conclusion: "Sufficient memory density for high-confidence trajectory modeling.",
-      confidence: "Strong Pattern",
-      evidence_count: memories.length,
-      evidence_items: memories.slice(0, 3).map((m) => m.text || "Memory item"),
+      conclusion: `Highest activity density detected in "${primaryGravityCategory}" (${sortedGravity[0]?.[1] || totalEvidenceCount} items).`,
+      confidence: "Moderate Confidence",
+      evidence_count: totalEvidenceCount,
+      evidence_items: notes.slice(0, 3).map((n) => n.title || "Note item"),
       data_time_range: "Full History",
-      inference_type: "Memory Density Audit",
+      inference_type: "Category Density Clustering",
     },
   });
+
+  // 3. Dynamic Decision Contracts from completed tasks or memories
+  const decisionContracts = tasks.filter((t) => t.completed).slice(0, 2).map((t, idx) => ({
+    id: `dec-task-${idx}`,
+    dateStr: new Date(t.completedAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    question: `Execute priority item: ${t.text || t.title}?`,
+    choice: `Completed (${t.category || "General"})`,
+    prediction: "Task resolution increases total OS launch alignment score.",
+    status: "Verified Completed",
+  }));
+
+  if (decisionContracts.length === 0) {
+    decisionContracts.push({
+      id: "dec-default",
+      dateStr: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      question: "Focus on flagship polish or backend refactoring?",
+      choice: "Flagship Polish Sprint",
+      prediction: "User retention will increase by 45% due to Apple-level microinteractions.",
+      status: "Active Tracking",
+    });
+  }
 
   return {
     hasInsufficientData: false,
     totalEvidenceCount,
-    recentFocus: "Flagship Polish & AI Twin Features",
+    recentFocus: `${primaryGravityCategory} & Desktop Polish`,
     statedGoal: "OmniverseOS Launch Readiness",
     priorityDriftScore: alignmentScore,
-    confidenceLabel: totalEvidenceCount > 10 ? "High Confidence" : "Moderate Confidence",
+    projectGravity: primaryGravityCategory,
+    confidenceLabel: totalEvidenceCount > 8 ? "High Confidence" : "Moderate Confidence",
     insights,
-    decisionContracts: [
-      {
-        id: "dec-1",
-        dateStr: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-        question: "Focus on flagship polish or backend refactoring?",
-        choice: "Flagship Polish & Evidence Grounding",
-        prediction: "Product quality audit score will increase to 9.7/10.",
-        status: "Active Tracking",
-      },
-    ],
+    decisionContracts,
   };
 }
 
