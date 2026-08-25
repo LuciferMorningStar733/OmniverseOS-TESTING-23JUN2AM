@@ -58,6 +58,7 @@ export const APPS = [
   { id: "deadreckoning",name: "Dead Reckoning",icon: "fa-compass-drafting",color: "#7B2FFF", Component: lazy(() => import("../apps/DeadReckoning")),   group: "ai" },
   { id: "matrix",       name: "Neural Matrix", icon: "fa-project-diagram", color: "#00F0FF", Component: lazy(() => import("../apps/NeuralMatrix")),   group: "ai" },
   { id: "mirror",       name: "Omniverse Mirror", icon: "fa-wand-magic-sparkles", color: "#A855F7", Component: lazy(() => import("../apps/OmniverseMirror")), group: "ai" },
+  { id: "zero",         name: "Omniverse Zero",   icon: "fa-atom",                color: "#00F0FF", Component: lazy(() => import("../apps/OmniverseZero")),   group: "ai" },
 ];
 
 export const getApp = (id) => APPS.find((a) => a.id === id);
