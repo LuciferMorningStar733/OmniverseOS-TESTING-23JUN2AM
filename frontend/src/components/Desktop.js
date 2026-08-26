@@ -143,7 +143,7 @@ function AmbientParticles() {
 }
 function Desktop() {
   const {
-    windows, setPaletteOpen, paletteOpen, wallpaper, setWallpaper, focusWindow, activeId,
+    windows, setWindows, setPaletteOpen, paletteOpen, wallpaper, setWallpaper, focusWindow, activeId,
     openApp, closeWindow, minimize, updateWindow, toggleMaximize,
     notifOpen, setNotifOpen, pushNotification, clearNotifications, trackUrl,
     notifications, user,

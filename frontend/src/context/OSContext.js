@@ -346,7 +346,7 @@ export const OSProvider = ({ children }) => {
       value={{
         user, loading,
         login, signup, logout,
-        windows, activeId,
+        windows, setWindows, activeId,
         openApp, closeWindow, focusWindow, updateWindow, toggleMaximize, minimize,
         paletteOpen, setPaletteOpen,
         notifOpen,   setNotifOpen,
