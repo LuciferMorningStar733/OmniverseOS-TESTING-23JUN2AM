@@ -627,16 +627,16 @@ export default function Window({ win, children }) {
         width:  animW,
         height: animH,
         willChange: isDragging ? "transform" : "opacity",
+        opacity: isActive ? 1 : 0.88,
+        transform: isActive ? "scale(1)" : "scale(0.985)",
         boxShadow: isActive ? SHADOW_ACTIVE(accentColor) : SHADOW_INACTIVE,
         backdropFilter: BLUR,
         WebkitBackdropFilter: BLUR,
         background: "rgba(8,10,18,0.52)",
-        border: `1px solid ${isActive ? `${accentColor}20` : "rgba(255,255,255,0.07)"}`,
-        /* No `transition: all` — that would cause the window to LAG behind
-           the cursor.  Only chrome (shadow, border) transitions gently. */
+        border: `1px solid ${isActive ? `${accentColor}25` : "rgba(255,255,255,0.06)"}`,
         transition: isDragging
           ? "none"
-          : "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease",
+          : "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease, opacity 0.25s ease, transform 0.25s ease",
       }}
       data-testid={`window-${win.app}`}
     >

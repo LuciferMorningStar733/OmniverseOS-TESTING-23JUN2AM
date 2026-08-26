@@ -5,6 +5,7 @@ import { useWidgetManager } from "../widgets/WidgetManagerContext";
 import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import DynamicIsland from "./DynamicIsland";
+import IntelligencePresence from "./IntelligencePresence";
 
 /* ─── Per-app context menus ─────────────────────────────────────────────────
    Each entry: { label, items: [{ label, shortcut?, action? }] }
@@ -748,8 +749,11 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         <ActiveAppMenuBar activeId={activeId} windows={windows} />
       </div>
 
-      {/* Center: Dynamic Island (Live Activities & Status) */}
-      <DynamicIsland />
+      {/* Center: Dynamic Island & Intelligence Presence */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <IntelligencePresence />
+        <DynamicIsland />
+      </div>
 
       {/* Right cluster */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>

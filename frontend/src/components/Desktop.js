@@ -4,6 +4,8 @@ import { useBreakpoint } from "../hooks/useBreakpoint";
 import { loadMobilePrefs } from "../hooks/useMobilePrefs";
 import Window from "./Window";
 import Dock from "./Dock";
+import AdaptiveDock from "./AdaptiveDock";
+import OmniverseField from "./OmniverseField";
 import TopBar from "./TopBar";
 import LockScreen from "./LockScreen";
 import CommandPalette from "./CommandPalette";
@@ -500,9 +502,8 @@ function Desktop() {
           {(wp.id === "neural-core" || wp.id === "ai-nexus") && <div className="wp-beams" />}
         </motion.div>
       </AnimatePresence>
-      {/* Ambient particles: desktop only (performance on tablets) */}
-      {isDesktop && <AmbientParticles />}
-      <div className="absolute inset-0 scanline opacity-20 pointer-events-none" style={{ zIndex: 2 }} />
+      {/* 2099 Living Omniverse Field */}
+      <OmniverseField activeAppId={windows.find((w) => w.id === activeId)?.app} />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -574,7 +575,7 @@ function Desktop() {
           ))}
         </div>
       )}
-      <Dock />
+      <AdaptiveDock />
       <CommandPalette />
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />
