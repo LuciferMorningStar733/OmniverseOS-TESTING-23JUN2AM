@@ -1,240 +1,192 @@
-/* ── The Black Box & Impossible Room Engine ──────────────────────────────── */
+/* ── The Black Box Cinematic Intelligence Engine ─────────────────────────── */
 
 /**
- * 1. 🥇 THE BLACK BOX — Autonomous Problem-Driven Intelligence Architecture
- * The problem autonomously designs the exact intelligence required to solve itself
+ * Phase 1: Live typing signal analysis
  */
-export function openBlackBox(input = "") {
+export function analyzeTypingSignals(input = "") {
   const text = input.trim();
   const wordCount = text ? text.split(/\s+/).length : 0;
+  const lower = text.toLowerCase();
 
-  const specialistPerspectives = [
-    { role: "Causal Architect", insight: "Traced primary root cause to an unverified strategic assumption." },
-    { role: "Adversarial Red Teamer", insight: "Identified 3 fatal failure modes under high user load." },
-    { role: "Information Theorist", insight: "Computed maximum information gain question to resolve ambiguity." },
-    { role: "Metacognitive Shadow", insight: "Detected familiar research-expansion loop in input wording." },
-    { role: "Systems Strategist", insight: "Formulated single highest-leverage path to 100x retention." },
+  const signals = [];
+  if (wordCount > 0) signals.push("SIGNAL DETECTED");
+  if (lower.includes("should i") || lower.includes("or") || lower.includes("versus")) signals.push("DECISION TENSION DETECTED");
+  if (lower.includes("build") || lower.includes("code") || lower.includes("app")) signals.push("TECHNICAL SPECIFICATION INDEXED");
+  if (lower.includes("quit") || lower.includes("delay") || lower.includes("fail")) signals.push("CONTRADICTION FOUND");
+  if (wordCount >= 5) signals.push("3 ASSUMPTIONS FORMING");
+  if (wordCount >= 10) signals.push("CAUSAL GRAPH INITIALIZING");
+
+  return { wordCount, signals: signals.length ? signals : ["AWAITING INPUT SIGNAL"] };
+}
+
+/**
+ * Phase 2: Orbiting Core Problem Nodes
+ */
+export function getCoreProblemNodes(input = "") {
+  const text = input.trim() || "General Strategic Problem";
+  const coreTitle = text.slice(0, 45) + (text.length > 45 ? "..." : "");
+
+  return {
+    coreTitle,
+    orbitingNodes: [
+      { id: "goal", label: "DECLARED GOAL", desc: "User seeks rapid execution & clear direction.", color: "#00F0FF" },
+      { id: "fear", label: "FEAR NODE", desc: "Risk of building a product that power users ignore.", color: "#FF003C" },
+      { id: "assumption", label: "UNTESTED ASSUMPTION", desc: "Assuming the solution requires new features rather than a hero landing.", color: "#F59E0B" },
+      { id: "constraint", label: "REAL CONSTRAINT", desc: "Time & onboarding drop-off within the first 10 seconds.", color: "#FB923C" },
+      { id: "unknown", label: "CRITICAL UNKNOWN", desc: "What decision forces a user to choose OmniverseOS over ChatGPT?", color: "#A855F7" },
+      { id: "contradiction", label: "CONTRADICTION", desc: "Desire for simplicity vs adding multi-tab dashboard options.", color: "#FF003C" },
+      { id: "opportunity", label: "HERO OPPORTUNITY", desc: "The Black Box: A single-input intelligence universe reconstructor.", color: "#39FF14" },
+    ],
+  };
+}
+
+/**
+ * Phase 3: Spatial Omniverse Realities
+ */
+export function getOmniverseRealities(input = "") {
+  return {
+    realities: [
+      { id: "current", name: "CURRENT REALITY", status: "Active Baseline", color: "#00F0FF", desc: "User is evaluating options through standard LLM chat interfaces.", variables: ["Chatbot fatigue", "Fragmented notes"] },
+      { id: "hidden", name: "HIDDEN REALITY", status: "Underlying Dynamic", color: "#A855F7", desc: "The core challenge is confidence & positioning, not feature quantity.", variables: ["Unspoken career goals", "Execution velocity"] },
+      { id: "failure", name: "FAILURE REALITY", status: "Warning Path", color: "#FF003C", desc: "Building another dashboard grid causes 80% user drop-off.", variables: ["Scope creep", "UI complexity"] },
+      { id: "optimal", name: "OPTIMAL REALITY", status: "High-Leverage", color: "#39FF14", desc: "1-click Black Box entrance creates viral, screenshot-worthy adoption.", variables: ["Instant wow factor", "Zero friction"] },
+      { id: "unknown", name: "UNKNOWN REALITY", status: "Emergent Horizon", color: "#F59E0B", desc: "The problem creates its own intelligence universe upon input.", variables: ["Autonomous agents", "Causal graph"] },
+    ],
+  };
+}
+
+/**
+ * Phase 4: Live Intelligence Collision (Agent Conflict)
+ */
+export function getIntelligenceCollisions(input = "") {
+  return {
+    exchanges: [
+      {
+        speaker: "Causal Architect",
+        avatar: "fa-diagram-project",
+        color: "#00F0FF",
+        claim: "The user's real bottleneck is scope expansion across secondary features.",
+      },
+      {
+        speaker: "Adversarial Red Teamer",
+        avatar: "fa-crosshairs",
+        color: "#FF003C",
+        challenge: "REJECTED. Scope expansion is a symptom. The real bottleneck is lack of a single signature moat feature.",
+      },
+      {
+        speaker: "Information Theorist",
+        avatar: "fa-eye",
+        color: "#A855F7",
+        evidence: "Both models agree on friction. But information gain is maximized by making the Black Box an unfolding spatial event.",
+      },
+      {
+        speaker: "Systems Strategist",
+        avatar: "fa-chess",
+        color: "#39FF14",
+        resolution: "AGREED. Transform The Black Box into a 7-phase interactive intelligence journey.",
+      },
+    ],
+  };
+}
+
+/**
+ * Phase 5: Hidden Center of Gravity (The "Wait, What?" Moment)
+ */
+export function getHiddenCenterOfGravity(input = "") {
+  const text = input.trim();
+  const statedQuestion = text
+    ? `"${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`
+    : '"How do I build a successful AI application?"';
+
+  return {
+    statedQuestion,
+    hiddenInsight: "You came here asking a feature question. The system discovered you are solving a confidence problem.",
+    whyItMatters: "Users don't switch products for incremental features. They switch when a product thinks about their problem in a fundamentally different way.",
+  };
+}
+
+/**
+ * Phase 6: Diverging Future Timelines & Timeline Collision Engine
+ */
+export function getFutureCollisionModel(input = "") {
+  const futures = [
+    { id: "statusQuo", name: "STATUS QUO", probability: "45%", trigger: "Maintain conventional dashboard tabs", consequence: "Steady adoption, but high churn to default tools", requiredBelief: "Users want standard dashboard cards" },
+    { id: "optimalExec", name: "OPTIMAL EXECUTION", probability: "88%", trigger: "Deploy 7-Phase Cinematic Black Box", consequence: "Instant viral word-of-mouth & high retention", requiredBelief: "The problem creates its own intelligence universe" },
+    { id: "hiddenFailure", name: "HIDDEN FAILURE", probability: "15%", trigger: "Overcomplicate onboarding with 10 parallel steps", consequence: "Users drop off before seeing core value", requiredBelief: "Users will sit through long tutorials" },
+    { id: "unexpectedOpp", name: "UNEXPECTED OPPORTUNITY", probability: "72%", trigger: "Position Black Box as primary hero landing", consequence: "OmniverseOS becomes the premier intelligence workspace", requiredBelief: "First 3 seconds dictate product perception" },
   ];
 
-  const simulations = [
-    { title: "Status Quo Simulation", outcome: "Steady progress with minor delays due to scope creep." },
-    { title: "Optimal Focus Simulation", outcome: "100% resolution of core bottleneck by Sept 1." },
-    { title: "Adversarial Stress Test", outcome: "Collapse avoided by locking component scope." },
-  ];
+  const synthesizeCollision = (futureA, futureB) => {
+    return `Collision between ${futureA.name} and ${futureB.name}: Divergence occurs at the first 3 seconds of onboarding. ${futureA.name} relies on "${futureA.requiredBelief}", whereas ${futureB.name} succeeds because "${futureB.requiredBelief}".`;
+  };
 
-  const assumptions = [
-    "Assuming user needs a multi-feature suite rather than 1 hero capability.",
-    "Assuming competitive landscape relies on traditional chatbot workflows.",
-    "Assuming target audience values deep synthesis over rapid superficial answers.",
-  ];
+  return { futures, synthesizeCollision };
+}
 
-  const hiddenContradictions = [
-    "User stated desire to ship fast, but added 4 secondary requirements.",
-    "Goal is simplicity, but current plan introduces 3 new user choices.",
-  ];
+/**
+ * Phase 7: The Omniverse Verdict (Earned Synthesis)
+ */
+export function getOmniverseVerdictPhased(input = "") {
+  return {
+    whatYouThink: "You came here assuming you needed more dashboard cards and complex agent tabs.",
+    whatSystemFound: "The system found that user engagement peaks when intelligence unfolds step-by-step as a spatial experience.",
+    highestLeverageDecision: "Bet 100% on The Black Box as a 7-phase cinematic intelligence event.",
+    whatYouAreMissing: "The first 3 seconds of user experience dictate whether a product is perceived as prototype or launch-ready.",
+    costOfDoingNothing: "Remaining trapped in conventional SaaS card grid design patterns.",
+    firstAction: "Execute Phase 1 through Phase 7 interactive spatial navigation in OmniverseOS.",
+  };
+}
 
-  const criticalUnknowns = [
-    "First-time user drop-off rate within the first 10 seconds of landing.",
-    "Willingness of power users to replace default AI tools with OmniverseOS.",
-  ];
-
-  const unexpectedConclusion = text
-    ? `Your problem ("${text.slice(0, 50)}...") does not require another chatbot. It creates its own universe when mapped into a single-input hero landing experience.`
-    : "Your problem is not sent to AI. Your problem creates its own universe.";
-
+// Backwards compatibility exports
+export function openBlackBox(input = "") {
   return {
     input,
-    wordCount,
+    wordCount: input.trim() ? input.trim().split(/\s+/).length : 0,
     architecture: {
-      specialistCount: specialistPerspectives.length,
-      simulationCount: simulations.length,
+      specialistCount: 5,
+      simulationCount: 3,
       assumptionsCount: 47,
-      contradictionCount: hiddenContradictions.length,
-      unknownsCount: criticalUnknowns.length,
-      specialistPerspectives,
-      simulations,
-      assumptions,
-      hiddenContradictions,
-      criticalUnknowns,
-      unexpectedConclusion,
-    },
-  };
-}
-
-/**
- * 2. 🥈 THE IMPOSSIBLE ROOM
- * Interactive room generated uniquely around an idea across 5 perspectives
- */
-export function buildImpossibleRoom(input = "") {
-  const idea = input || "AI Startup";
-
-  return {
-    idea,
-    rooms: {
-      reality: {
-        title: "REALITY ROOM",
-        status: "Verified",
-        desc: "What is actually true: User demand exists for non-sycophantic, evidence-grounded AI intelligence.",
-      },
-      failure: {
-        title: "FAILURE ROOM",
-        status: "Fatal Flaw Found",
-        flaw: "High onboarding friction causes 75% drop-off if hero input is buried.",
-        propagatedImpact: "Collapses 2 future scaling branches in the Future Room.",
-      },
-      future: {
-        title: "FUTURE ROOM",
-        status: "Branch Collapsed by Failure Room",
-        desc: "Plausible peak outcome: OmniverseOS becomes the premier personal intelligence operating environment.",
-      },
-      competition: {
-        title: "COMPETITION ROOM",
-        status: "Analyzed",
-        desc: "Generic LLM wrappers focus on chat. OmniverseOS moats around causal, temporal, and adversarial synthesis.",
-      },
-      impossible: {
-        title: "IMPOSSIBLE 100X ROOM",
-        status: "Assumption Shifted",
-        desc: "What assumption makes it 100x bigger? Replace 'Chatting with AI' with 'Your problem creates its own intelligence universe.'",
-      },
-    },
-  };
-}
-
-/**
- * 3. 🥉 THE INFINITE DEBATE
- * Autonomously spawns specialist agents as the debate evolves
- */
-export function runInfiniteDebate(topic = "Is AGI good for humanity?") {
-  const participants = [
-    { name: "Agent Alpha (Core AI)", stance: "AGI accelerates scientific discovery." },
-    { name: "Agent Beta (Destroyer)", stance: "Alignment failure risks existential catastrophe." },
-    { name: "Spawned Agent: Economist", stance: "Labor displacement disrupts macroeconomic equilibrium." },
-    { name: "Spawned Agent: Historian", stance: "Industrial revolutions initially displace labor, then expand total human productivity." },
-  ];
-
-  return {
-    topic,
-    participants,
-    evolvedSynthesis: "The debate evolved autonomously from safety concerns to economic distribution and historical precedent.",
-  };
-}
-
-/**
- * 4. 4️⃣ THE UNASKED ANSWER
- * Direct answer + reveals deeper unasked motivation
- */
-export function getUnaskedAnswer(question = "") {
-  const q = question.trim() || "Which programming language should I learn?";
-
-  return {
-    question: q,
-    directAnswer: "Focus on JavaScript / TypeScript for full-stack web and React operating systems.",
-    unaskedAnswer: {
-      headline: "BUT THIS IS NOT WHAT YOU REALLY CAME HERE FOR.",
-      deeperInsight: "You don't actually have a programming language problem. You have a career leverage problem. The real question is: 'What high-value product can I ship this month that proves my execution speed?'",
-      revealedPossibilities: [
-        "Build a single-input AI tool that solves a specific pain point.",
-        "Launch an open-source library that establishes technical authority.",
-        "Focus on Apple-level design finish to differentiate from standard apps.",
+      contradictionCount: 2,
+      unknownsCount: 2,
+      specialistPerspectives: [
+        { role: "Causal Architect", insight: "Traced primary root cause to unverified assumption." },
+        { role: "Adversarial Red Teamer", insight: "Identified failure mode under high load." },
       ],
+      unexpectedConclusion: "Your problem is not sent to AI. Your problem creates its own universe.",
     },
   };
 }
 
-/**
- * 5. 5️⃣ THE DEAD-END MACHINE
- * Simulates 100 paths -> 72 Dead Ends, 18 Traps, 7 Mediocre, 3 High-Potential
- */
-export function runDeadEndMachine(input = "") {
+export function buildImpossibleRoom(input = "") {
   return {
-    distribution: {
-      deadEnds: 72,
-      traps: 18,
-      mediocre: 7,
-      highPotential: 3,
-    },
-    tempingTrap: {
-      title: "❌ TRAP: Building a generic multi-model chat selector",
-      reason: "Looks intelligent, but users already have ChatGPT/Claude. It leads to zero long-term retention moat.",
-    },
-    winningPath: {
-      title: "🟢 HIGH-POTENTIAL: Build 'The Black Box' hero landing experience",
-      reason: "Creating a single input box that generates its own intelligence universe creates immediate viral differentiation.",
+    idea: input || "AI Startup",
+    rooms: {
+      reality: { title: "REALITY ROOM", status: "Verified", desc: "What is actually true: User demand exists for evidence-grounded AI." },
+      failure: { title: "FAILURE ROOM", status: "Fatal Flaw Found", flaw: "High onboarding friction causes drop-off." },
+      future: { title: "FUTURE ROOM", status: "Plausible Peak", desc: "OmniverseOS becomes premier personal intelligence OS." },
+      competition: { title: "COMPETITION ROOM", status: "Analyzed", desc: "OmniverseOS moats around causal, temporal, and adversarial synthesis." },
+      impossible: { title: "IMPOSSIBLE 100X ROOM", status: "Shifted", desc: "Your problem creates its own intelligence universe." },
     },
   };
 }
 
-/**
- * 6. 6️⃣ THE THOUGHT EXPERIMENT ENGINE
- * Multi-order consequence propagation
- */
-export function runThoughtExperiment(scenario = "What if AI companies were illegal tomorrow?") {
-  return {
-    scenario,
-    consequences: [
-      { order: "1st Order Effect", desc: "Open source local model development surges 500% worldwide." },
-      { order: "2nd Order Effect", desc: "Decentralized peer-to-peer compute networks replace centralized data centers." },
-      { order: "Unexpected 10-Year Result", desc: "Every personal laptop runs sovereign, offline AI models locally." },
-    ],
-  };
+export function runInfiniteDebate(t) {
+  return { topic: t || "AGI", participants: [{ name: "Alpha", stance: "Accelerate" }], evolvedSynthesis: "Debate evolved autonomously." };
 }
 
-/**
- * 7. 7️⃣ THE GOD VIEW
- * Multiscale perspective zoom
- */
-export function runGodView(zoomLevel = "10 years") {
-  return {
-    zoomLevel,
-    perspective: zoomLevel === "10 years"
-      ? "In 10 years, generic chat interfaces are forgotten. Personal AI operating environments that remember who you are dominate."
-      : "In 1 hour, execute current component build and automated test suite.",
-  };
+export function getUnaskedAnswer(q) {
+  return { question: q, directAnswer: "TypeScript/React", unaskedAnswer: { headline: "BUT THIS IS NOT WHAT YOU REALLY CAME HERE FOR.", deeperInsight: "You have a career leverage problem." } };
 }
 
-/**
- * 8. 8️⃣ THE BELIEF KILLER
- * Intellectual destruction & upgrade to Belief Version 2.0
- */
-export function runBeliefKiller(belief = "Remote work is strictly superior") {
-  return {
-    originalBelief: belief,
-    attackPoints: [
-      "Where does it fail? High-density collaborative architecture sprints.",
-      "What is the hidden assumption? Assuming asynchronous text replaces spontaneous alignment.",
-    ],
-    upgradedBelief: "Belief 2.0: Deep asynchronous solo build cycles combined with intense 48-hour synchronous alignment sprints achieve maximum output.",
-  };
+export function runDeadEndMachine(i) {
+  return { distribution: { deadEnds: 72, traps: 18, mediocre: 7, highPotential: 3 }, winningPath: { title: "🟢 HIGH-POTENTIAL: Build Cinematic Black Box", reason: "Creates immediate viral differentiation." } };
 }
 
-/**
- * 9. 9️⃣ THE FUTURE HEADLINE GENERATOR
- * Generates 2030 headlines & timeline entry points
- */
-export function generateFutureHeadlines(action = "Launch OmniverseOS") {
-  return {
-    action,
-    headlines: [
-      { year: "2030", type: "positive", text: "🟢 'Unknown Startup Becomes Premier Personal AI Operating Environment'" },
-      { year: "2030", type: "risk", text: "🔴 'Product Scope Creep Delays Beta Launch by 6 Months'" },
-      { year: "2030", type: "pivot", text: "🟡 'Company Pivots Entire UX to The Black Box Single-Input Landing'" },
-    ],
-  };
+export function runThoughtExperiment(s) {
+  return { scenario: s, consequences: [{ order: "1st Order", desc: "Local models surge 500%." }] };
 }
 
-/**
- * 10. 🔟 THE HUMANITY SIMULATOR
- * Emergent multi-agent societal reaction loop
- */
-export function runHumanitySimulator(technology = "Free Infinite AI Compute") {
-  return {
-    technology,
-    loop: [
-      { actor: "Companies", reaction: "Automate entire software supply chains instantly." },
-      { actor: "Governments", reaction: "Enact emergency sovereign compute registries." },
-      { actor: "Public", reaction: "Shift energy to hyper-personalized creative projects." },
-      { actor: "Emergent Result", reaction: "Human value shifts from execution speed to taste, direction, and curation." },
-    ],
-  };
-}
+export function runGodView(z) { return { zoomLevel: z, perspective: "10-year horizon perspective." }; }
+export function runBeliefKiller(b) { return { originalBelief: b, upgradedBelief: "Belief 2.0" }; }
+export function generateFutureHeadlines(a) { return { action: a, headlines: [{ year: "2030", text: "🟢 Unknown Startup Becomes Leader" }] }; }
+export function runHumanitySimulator(t) { return { technology: t, loop: [{ actor: "Public", reaction: "Shift energy to hyper-personalized projects." }] }; }

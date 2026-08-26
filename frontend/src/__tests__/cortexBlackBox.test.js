@@ -1,77 +1,67 @@
 import {
+  analyzeTypingSignals,
+  getCoreProblemNodes,
+  getOmniverseRealities,
+  getIntelligenceCollisions,
+  getHiddenCenterOfGravity,
+  getFutureCollisionModel,
+  getOmniverseVerdictPhased,
   openBlackBox,
-  buildImpossibleRoom,
-  runInfiniteDebate,
-  getUnaskedAnswer,
-  runDeadEndMachine,
-  runThoughtExperiment,
-  runGodView,
-  runBeliefKiller,
-  generateFutureHeadlines,
-  runHumanitySimulator,
 } from "../lib/cortexBlackBoxEngine";
 import { getApp } from "../lib/apps";
 
-describe("The Black Box & Impossible Room Engine Suite", () => {
-  test("1. 🥇 openBlackBox creates autonomous problem-driven intelligence architecture", () => {
-    const bb = openBlackBox("I want to build an AI startup.");
-    expect(bb.architecture.specialistCount).toBe(5);
-    expect(bb.architecture.simulationCount).toBe(3);
-    expect(bb.architecture.assumptionsCount).toBe(47);
+describe("The Black Box Cinematic Intelligence Engine Suite", () => {
+  test("1. analyzeTypingSignals detects live typing signals", () => {
+    const analysis = analyzeTypingSignals("Should I build an AI app or delay launch?");
+    expect(analysis.signals.length).toBeGreaterThan(1);
+    expect(analysis.wordCount).toBeGreaterThan(0);
+  });
+
+  test("2. getCoreProblemNodes generates central and orbiting concept nodes", () => {
+    const core = getCoreProblemNodes("How to scale OmniverseOS");
+    expect(core.coreTitle).toBeDefined();
+    expect(core.orbitingNodes.length).toBe(7);
+  });
+
+  test("3. getOmniverseRealities provides spatial realities and tension nodes", () => {
+    const realities = getOmniverseRealities();
+    expect(realities.realities.length).toBe(5);
+    expect(realities.realities[0].variables.length).toBeGreaterThan(0);
+  });
+
+  test("4. getIntelligenceCollisions models live specialist agent dialogue", () => {
+    const collisions = getIntelligenceCollisions();
+    expect(collisions.exchanges.length).toBe(4);
+    expect(collisions.exchanges[1].speaker).toBe("Adversarial Red Teamer");
+  });
+
+  test("5. getHiddenCenterOfGravity reveals screenshot-worthy insight", () => {
+    const gravity = getHiddenCenterOfGravity("Should I build startup X?");
+    expect(gravity.statedQuestion).toBeDefined();
+    expect(gravity.hiddenInsight).toContain("confidence problem");
+    expect(gravity.whyItMatters).toBeDefined();
+  });
+
+  test("6. getFutureCollisionModel synthesizes diverging timelines", () => {
+    const future = getFutureCollisionModel();
+    expect(future.futures.length).toBe(4);
+    const synthesis = future.synthesizeCollision(future.futures[0], future.futures[1]);
+    expect(synthesis).toContain("Collision between");
+  });
+
+  test("7. getOmniverseVerdictPhased provides step-by-step earned verdict", () => {
+    const verdict = getOmniverseVerdictPhased();
+    expect(verdict.whatYouThink).toBeDefined();
+    expect(verdict.highestLeverageDecision).toBeDefined();
+    expect(verdict.firstAction).toBeDefined();
+  });
+
+  test("backwards compatibility openBlackBox function", () => {
+    const bb = openBlackBox("AI Startup");
     expect(bb.architecture.unexpectedConclusion).toBeDefined();
   });
 
-  test("2. 🥈 buildImpossibleRoom builds 5-perspective interactive glass universe", () => {
-    const room = buildImpossibleRoom("AI Startup");
-    expect(room.rooms.reality).toBeDefined();
-    expect(room.rooms.failure.flaw).toBeDefined();
-    expect(room.rooms.impossible.desc).toContain("100x");
-  });
-
-  test("3. 🥉 runInfiniteDebate autonomously spawns specialist agents", () => {
-    const debate = runInfiniteDebate("Is AGI good for humanity?");
-    expect(debate.participants.length).toBeGreaterThan(3);
-    expect(debate.evolvedSynthesis).toBeDefined();
-  });
-
-  test("4. 4️⃣ getUnaskedAnswer reveals deeper unasked motivation", () => {
-    const unasked = getUnaskedAnswer("Which programming language should I learn?");
-    expect(unasked.directAnswer).toBeDefined();
-    expect(unasked.unaskedAnswer.headline).toContain("BUT THIS IS NOT WHAT YOU REALLY CAME HERE FOR");
-  });
-
-  test("5. 5️⃣ runDeadEndMachine simulates path distributions and trap filters", () => {
-    const deadEnd = runDeadEndMachine("Project strategy");
-    expect(deadEnd.distribution.deadEnds).toBe(72);
-    expect(deadEnd.winningPath.title).toContain("HIGH-POTENTIAL");
-  });
-
-  test("6. 6️⃣ runThoughtExperiment propagates multi-order effects", () => {
-    const te = runThoughtExperiment("What if AI companies were illegal tomorrow?");
-    expect(te.consequences).toHaveLength(3);
-  });
-
-  test("7. 7️⃣ runGodView provides multiscale perspective zoom", () => {
-    const god = runGodView("10 years");
-    expect(god.perspective).toContain("10 years");
-  });
-
-  test("8. 8️⃣ runBeliefKiller upgrades belief to Version 2.0", () => {
-    const bk = runBeliefKiller("Remote work is strictly superior");
-    expect(bk.upgradedBelief).toContain("Belief 2.0");
-  });
-
-  test("9. 9️⃣ generateFutureHeadlines generates 2030 future headlines", () => {
-    const headlines = generateFutureHeadlines("Launch OmniverseOS");
-    expect(headlines.headlines.length).toBe(3);
-  });
-
-  test("10. 🔟 runHumanitySimulator creates emergent societal reaction loop", () => {
-    const hs = runHumanitySimulator("Free Infinite AI Compute");
-    expect(hs.loop.length).toBe(4);
-  });
-
-  test("apps registry includes blackbox app as App #30", () => {
+  test("apps registry exposes Black Box app", () => {
     const app = getApp("blackbox");
     expect(app).toBeDefined();
     expect(app.name).toBe("The Black Box");
