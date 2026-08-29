@@ -18,6 +18,7 @@ import {
 import { PERSONAS, getActivePersona, setActivePersona } from "../lib/cortexPersonas";
 import { cortexScheduler } from "../lib/cortexScheduler";
 import { KOKORO_VOICES, getKokoroVoiceId, saveKokoroVoiceId } from "../lib/kokoroTTS";
+import { getDockPrefs, saveDockPrefs, resetDockPrefs, GLASS_MODES } from "../lib/dockPrefs";
 
 /* ── Toggle row ────────────────────────────────────────────────────────────── */
 function ToggleRow({ label, desc, value, onChange }) {
@@ -132,6 +133,18 @@ export default function Settings() {
   const [activePersonaId, setActivePersonaId] = useState(() => getActivePersona().id);
   const [scheduledJobs, setScheduledJobs] = useState(() => cortexScheduler.listJobs());
   const [kokoroVoice, setKokoroVoiceState] = useState(() => getKokoroVoiceId());
+  const [dockPrefs, setDockPrefsState] = useState(() => getDockPrefs());
+
+  function handleDockPrefChange(key, value) {
+    const next = saveDockPrefs({ [key]: value });
+    setDockPrefsState(next);
+  }
+
+  function handleResetDock() {
+    const next = resetDockPrefs();
+    setDockPrefsState(next);
+    toast.success("Dock glass preferences reset to defaults");
+  }
 
   function refreshJobs() {
     setScheduledJobs(cortexScheduler.listJobs());
@@ -186,6 +199,122 @@ export default function Settings() {
           <span style={{ fontFamily: "monospace", fontSize: 12, color: "#F59E0B", minWidth: 38, textAlign: "right" }}>{brightness}%</span>
         </div>
         <p className="text-xs text-slate-500 mt-2">Shortcut: Ctrl + Shift + B</p>
+      </div>
+
+      {/* ── Appearance → Dock Glass Refinement ── */}
+      <div className="glass-light rounded-xl p-4 sm:p-5 mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <div className="mono-label">// Appearance → Dock</div>
+          <button
+            onClick={handleResetDock}
+            className="text-[11px] font-mono text-slate-400 hover:text-[#00F0FF] transition-colors"
+          >
+            Reset Defaults
+          </button>
+        </div>
+        <h3 className="font-heading text-base font-bold mb-1">Adaptive Glass Dock</h3>
+        <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+          Customize glass opacity, wallpaper-adaptive color modes, continuous cursor proximity magnification, and ambient depth glow.
+        </p>
+
+        {/* 1. Glass Tint Intensity Slider */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-medium text-slate-200">Glass Tint Intensity</span>
+            <span className="font-mono text-[#00F0FF]">{dockPrefs.tint ?? 35}%</span>
+          </div>
+          <input
+            type="range" min={0} max={100} step={1}
+            value={dockPrefs.tint ?? 35}
+            onChange={(e) => handleDockPrefChange("tint", Number(e.target.value))}
+            style={{
+              width: "100%", appearance: "none", WebkitAppearance: "none",
+              height: 6, borderRadius: 3, outline: "none", cursor: "pointer",
+              background: `linear-gradient(to right, #00F0FF ${dockPrefs.tint ?? 35}%, rgba(255,255,255,0.12) ${dockPrefs.tint ?? 35}%)`,
+            }}
+          />
+          <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+            <span>0% (Transparent)</span>
+            <span>25% (Frosted)</span>
+            <span>100% (Opaque)</span>
+          </div>
+        </div>
+
+        {/* 2. Glass Mode Presets */}
+        <div className="mb-4">
+          <div className="text-xs font-medium text-slate-200 mb-2">Glass Color Mode</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {GLASS_MODES.map((mode) => {
+              const active = dockPrefs.mode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => handleDockPrefChange("mode", mode.id)}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    fontSize: 11,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    border: active ? `1px solid ${mode.color}` : "1px solid rgba(255,255,255,0.10)",
+                    background: active ? `${mode.color}18` : "rgba(255,255,255,0.03)",
+                    color: active ? mode.color : "rgba(255,255,255,0.60)",
+                    boxShadow: active ? `0 0 14px ${mode.color}40` : "none",
+                    cursor: "pointer",
+                    transition: "all 0.18s ease",
+                    textAlign: "left",
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: mode.color }} />
+                    {mode.label}
+                  </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 truncate">{mode.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Magnification Scale Intensity Slider */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-medium text-slate-200">Cursor Proximity Magnification</span>
+            <span className="font-mono text-[#00F0FF]">{(dockPrefs.magnification ?? 1.48).toFixed(2)}×</span>
+          </div>
+          <input
+            type="range" min={1.2} max={1.8} step={0.02}
+            value={dockPrefs.magnification ?? 1.48}
+            onChange={(e) => handleDockPrefChange("magnification", Number(e.target.value))}
+            style={{
+              width: "100%", appearance: "none", WebkitAppearance: "none",
+              height: 6, borderRadius: 3, outline: "none", cursor: "pointer",
+              background: `linear-gradient(to right, #00F0FF ${((((dockPrefs.magnification ?? 1.48) - 1.2) / 0.6) * 100).toFixed(0)}%, rgba(255,255,255,0.12) ${((((dockPrefs.magnification ?? 1.48) - 1.2) / 0.6) * 100).toFixed(0)}%)`,
+            }}
+          />
+          <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+            <span>1.20× (Subtle)</span>
+            <span>1.48× (Standard)</span>
+            <span>1.80× (Maximum)</span>
+          </div>
+        </div>
+
+        {/* 4. Dock Glow Intensity Slider */}
+        <div>
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-medium text-slate-200">Ambient Depth Glow</span>
+            <span className="font-mono text-[#00F0FF]">{dockPrefs.glow ?? 50}%</span>
+          </div>
+          <input
+            type="range" min={0} max={100} step={1}
+            value={dockPrefs.glow ?? 50}
+            onChange={(e) => handleDockPrefChange("glow", Number(e.target.value))}
+            style={{
+              width: "100%", appearance: "none", WebkitAppearance: "none",
+              height: 6, borderRadius: 3, outline: "none", cursor: "pointer",
+              background: `linear-gradient(to right, #00F0FF ${dockPrefs.glow ?? 50}%, rgba(255,255,255,0.12) ${dockPrefs.glow ?? 50}%)`,
+            }}
+          />
+        </div>
       </div>
 
       {/* Location */}

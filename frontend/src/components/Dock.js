@@ -4,6 +4,9 @@ import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { playClick } from "../lib/soundEngine";
+import { getDockPrefs, GLASS_MODES } from "../lib/dockPrefs";
+import { getWallpaper } from "../lib/wallpapers";
+
 // Keep in sync with PINNED_APP_IDS in MobileHomeScreen.js
 const PINNED_APP_IDS = ["voice", "browser", "files", "settings"];
 
@@ -533,24 +536,26 @@ const DockTooltip = memo(function DockTooltip({ name, visible }) {
   );
 });
 
-/* Cosine bell-curve proximity scale helper */
-function useScale(index, hoverIndex) {
-  return useMemo(() => {
-    if (hoverIndex === null) return 1;
-    // Respect prefers-reduced-motion
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      return 1;
-    }
-    const dist = Math.abs(index - hoverIndex);
-    const radius = 2.5; // continuous cosine bell radius over ~2.5 slots
-    if (dist >= radius) return 1;
-    const cosineFactor = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
-    return 1 + 0.45 * cosineFactor; // Smooth bell curve: 1.45 peak, ~1.29 neighbors, 1.0 distant
-  }, [index, hoverIndex]);
-}
+/* ── Etched Glass Separator for spatial app groups ─────────────────────────── */
+const EtchedSeparator = memo(function EtchedSeparator() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: 1,
+        height: 28,
+        margin: "0 6px",
+        alignSelf: "center",
+        background: "linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.02) 100%)",
+        boxShadow: "1px 0 0 rgba(0,0,0,0.50)",
+        flexShrink: 0,
+      }}
+    />
+  );
+});
 
 const DesktopDockIcon = memo(function DesktopDockIcon({
-  app, index, scale, isActive, open, openApp,
+  app, scale, isActive, open, openApp,
 }) {
   const [scope, animateScope] = useAnimate();
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -562,9 +567,9 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       if (e.detail?.appId === app.id || e.detail === app.id) {
         setBouncing(true);
         animateScope(scope.current, {
-          y: [0, -20, 0, -12, 0, -5, 0],
+          y: [0, -22, 0, -14, 0, -6, 0],
         }, {
-          duration: 1.2,
+          duration: 1.25,
           ease: "easeInOut",
           times: [0, 0.2, 0.4, 0.6, 0.75, 0.9, 1],
         }).then(() => setBouncing(false));
@@ -576,12 +581,12 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 
   const handleClick = useCallback(async () => {
     playClick();
-    // macOS Launchpad-matched launch sequence: compress → pulse → bounce → settle
+    // Launchpad-matched spring launch sequence: compress → pulse → bounce → settle
     await animateScope(scope.current, {
-      scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
-      y:     [0,  6,   -10,  3,   -3,   1,    0],
+      scale: [1, 0.76, 1.35, 0.92, 1.08, 0.98, 1],
+      y:     [0,  6,   -12,  4,   -3,   1,    0],
     }, {
-      duration: 0.52,
+      duration: 0.54,
       ease: "easeOut",
       times: [0, 0.12, 0.38, 0.56, 0.74, 0.88, 1],
     });
@@ -596,9 +601,15 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
     setTooltipVisible(false);
   }, []);
 
-  /* Per-app glow ring color */
+  /* Calculate Y lift based on continuous magnification scale */
+  const yLift = useMemo(() => {
+    const s = scale || 1;
+    return s > 1 ? -(s - 1) * 22 : 0;
+  }, [scale]);
+
+  /* Per-app active glow ring */
   const ringStyle = useMemo(() => ({
-    boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 18px ${app.color}28, 0 0 36px ${app.color}12`,
+    boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 20px ${app.color}35, 0 0 40px ${app.color}15`,
   }), [app.color]);
 
   return (
@@ -610,14 +621,14 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      animate={{ scale: scale || 1 }}
-      transition={{ type: "spring", stiffness: 440, damping: 22, mass: 0.22 }}
+      animate={{ scale: scale || 1, y: yLift }}
+      transition={{ type: "spring", stiffness: 460, damping: 22, mass: 0.22 }}
       className="group relative flex-shrink-0"
       style={{
-        width: 46, height: 46,
+        width: 48, height: 48,
         display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: 14,
-        background: isActive ? `${app.color}14` : "rgba(255,255,255,0.03)",
+        background: isActive ? `${app.color}18` : "rgba(255,255,255,0.04)",
         transformOrigin: "bottom center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
         transition: "background 0.22s ease",
@@ -643,8 +654,8 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         style={{
           color: app.color,
           filter: isActive
-            ? `drop-shadow(0 0 8px ${app.color}) drop-shadow(0 0 16px ${app.color}65)`
-            : `drop-shadow(0 0 3px ${app.color}30)`,
+            ? `drop-shadow(0 0 9px ${app.color}) drop-shadow(0 0 18px ${app.color}75)`
+            : `drop-shadow(0 0 4px ${app.color}35)`,
           transition: "filter 0.22s ease",
         }}
       />
@@ -655,13 +666,13 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
           layoutId={`running-dot-${app.id}`}
           className="absolute rounded-full"
           style={{
-            bottom: -5, left: "50%", x: "-50%",
+            bottom: -6, left: "50%", x: "-50%",
             width: isActive ? 16 : 4,
             height: isActive ? 4 : 4,
             borderRadius: 2,
-            background: isActive ? app.color : "rgba(0,240,255,0.65)",
+            background: isActive ? app.color : "rgba(0,240,255,0.70)",
             boxShadow: isActive
-              ? `0 0 10px ${app.color}BB, 0 0 20px ${app.color}44`
+              ? `0 0 12px ${app.color}CC, 0 0 24px ${app.color}55`
               : "0 0 6px rgba(0,240,255,0.5)",
             transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
           }}
@@ -674,19 +685,51 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 });
 
 function DesktopDock({ isTablet }) {
-  const { openApp, windows, activeId } = useOS();
+  const { openApp, windows, activeId, wallpaper } = useOS();
   const containerRef = useRef(null);
   const [mouseX, setMouseX] = useState(null);
+  const [refractionX, setRefractionX] = useState(50);
+  const [dockPrefs, setDockPrefs] = useState(() => getDockPrefs());
+
+  // Listen for preference changes from Settings UI
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail) setDockPrefs(e.detail);
+      else setDockPrefs(getDockPrefs());
+    };
+    window.addEventListener("omniverse:dock-prefs-changed", handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("omniverse:dock-prefs-changed", handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
 
   const handleMouseMove = useCallback((e) => {
-    setMouseX(e.clientX);
+    const x = e.clientX;
+    setMouseX(x);
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
+      setRefractionX(pct);
+    }
   }, []);
 
   const handleMouseLeave = useCallback(() => {
     setMouseX(null);
   }, []);
 
-  /* Pre-compute per-app state so find() isn't run on every mouse event */
+  /* Compute dynamic glass color & opacity based on settings mode & wallpaper accent */
+  const accentColor = useMemo(() => {
+    if (dockPrefs.mode === "adaptive") {
+      const wp = getWallpaper(wallpaper);
+      return wp?.accent || "#00F0FF";
+    }
+    const preset = GLASS_MODES.find((m) => m.id === dockPrefs.mode);
+    return preset?.color || "#00F0FF";
+  }, [dockPrefs.mode, wallpaper]);
+
+  /* Pre-compute per-app state so find() isn't run inside render loops */
   const appStates = useMemo(() => APPS.map((app) => {
     const win      = windows.find((w) => w.app === app.id);
     const open     = Boolean(win);
@@ -695,6 +738,7 @@ function DesktopDock({ isTablet }) {
   }), [windows, activeId]);
 
   const count = appStates.length;
+  const maxMag = dockPrefs.magnification || 1.48;
 
   /* Continuous mouse-position bell-curve magnification */
   const scales = useMemo(() => {
@@ -705,16 +749,33 @@ function DesktopDock({ isTablet }) {
     const rect = containerRef.current.getBoundingClientRect();
     const iconW = rect.width / count;
     const radius = Math.max(140, iconW * 2.8);
+    const deltaMag = maxMag - 1;
     return appStates.map((_, i) => {
       const centerX = rect.left + iconW * i + iconW / 2;
       const dist = Math.abs(mouseX - centerX);
       if (dist >= radius) return 1;
       const cosine = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
-      return 1 + 0.48 * cosine; // Smooth continuous 1.48 peak scale
+      return 1 + deltaMag * cosine;
     });
-  }, [mouseX, count, appStates]);
+  }, [mouseX, count, appStates, maxMag]);
 
   const isAwakened = mouseX !== null;
+
+  /* Layer 1 - 6 Glass Material calculation */
+  const tintPct = (dockPrefs.tint ?? 35) / 100;
+  const glowPct = (dockPrefs.glow ?? 50) / 100;
+
+  const bgAlpha      = (0.08 + tintPct * 0.78).toFixed(2);
+  const backdropBlur = Math.round(12 + tintPct * 36);
+  const saturatePct  = Math.round(140 + tintPct * 110);
+  const borderAlpha  = (0.08 + tintPct * 0.22).toFixed(2);
+  const glowAlpha    = (glowPct * 0.28).toFixed(2);
+  const glowRadius   = Math.round(12 + glowPct * 36);
+
+  // Group apps into 3 spatial categories for spatial rhythm
+  const coreApps = appStates.filter((a) => ["cortex", "settings", "files", "browser"].includes(a.app.id));
+  const aiApps   = appStates.filter((a) => ["blackbox", "mirror", "zero", "chat", "voice"].includes(a.app.id));
+  const otherApps= appStates.filter((a) => !["cortex", "settings", "files", "browser", "blackbox", "mirror", "zero", "chat", "voice"].includes(a.app.id));
 
   return (
     <motion.div
@@ -724,35 +785,93 @@ function DesktopDock({ isTablet }) {
       className="absolute left-0 right-0 bottom-4 z-40 flex justify-center pointer-events-none"
       data-testid="dock-root"
     >
-      <div
+      <motion.div
         ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-2"} px-4 py-3 rounded-2xl transition-all duration-300`}
+        animate={{ y: isAwakened ? -3 : 0 }}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className="pointer-events-auto relative flex items-end px-4 py-3 rounded-2xl transition-all duration-300"
         style={{
-          background: isAwakened ? "rgba(8,12,24,0.88)" : "rgba(6,8,15,0.65)",
-          backdropFilter: "blur(36px) saturate(210%)",
-          WebkitBackdropFilter: "blur(36px) saturate(210%)",
-          border: isAwakened ? "1px solid rgba(0,240,255,0.22)" : "1px solid rgba(255,255,255,0.09)",
+          // Layer 1: Base Glass
+          background: `rgba(6, 9, 18, ${bgAlpha})`,
+          // Layer 2: Backdrop Blur
+          backdropFilter: `blur(${backdropBlur}px) saturate(${saturatePct}%)`,
+          WebkitBackdropFilter: `blur(${backdropBlur}px) saturate(${saturatePct}%)`,
+          // Layer 3 & Border
+          border: `1px solid rgba(255, 255, 255, ${borderAlpha})`,
+          // Layer 5 & 6: Ambient Glow & Multi-Layer Depth Shadow
           boxShadow: isAwakened
-            ? "0 28px 70px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 35px rgba(0,240,255,0.12)"
-            : "0 20px 50px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.08)",
+            ? `0 28px 75px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.40), 0 0 ${glowRadius}px ${accentColor}${Math.round(glowAlpha * 255).toString(16).padStart(2, "0")}`
+            : `0 18px 45px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.10), 0 0 ${Math.round(glowRadius * 0.5)}px ${accentColor}15`,
           maxWidth: "calc(100vw - 24px)",
           overflowX: "auto",
         }}
       >
-        {appStates.map(({ app, open, isActive }, i) => (
-          <DesktopDockIcon
-            key={app.id}
-            app={app}
-            index={i}
-            scale={scales[i]}
-            isActive={isActive}
-            open={open}
-            openApp={openApp}
+        {/* Layer 4: Refraction Light Beam moving relative to mouse cursor X */}
+        {isAwakened && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "inherit",
+              pointerEvents: "none",
+              background: `radial-gradient(ellipse 180px 80px at ${refractionX}% 0%, ${accentColor}25 0%, transparent 80%)`,
+              transition: "background 0.05s linear",
+            }}
           />
-        ))}
-      </div>
+        )}
+
+        {/* Group 1: Core System Apps */}
+        {coreApps.map(({ app, open, isActive }) => {
+          const index = appStates.findIndex((item) => item.app.id === app.id);
+          return (
+            <DesktopDockIcon
+              key={app.id}
+              app={app}
+              scale={scales[index]}
+              isActive={isActive}
+              open={open}
+              openApp={openApp}
+            />
+          );
+        })}
+
+        {coreApps.length > 0 && aiApps.length > 0 && <EtchedSeparator />}
+
+        {/* Group 2: AI & Moat Tools */}
+        {aiApps.map(({ app, open, isActive }) => {
+          const index = appStates.findIndex((item) => item.app.id === app.id);
+          return (
+            <DesktopDockIcon
+              key={app.id}
+              app={app}
+              scale={scales[index]}
+              isActive={isActive}
+              open={open}
+              openApp={openApp}
+            />
+          );
+        })}
+
+        {aiApps.length > 0 && otherApps.length > 0 && <EtchedSeparator />}
+
+        {/* Group 3: Productivity, Code & Media Apps */}
+        {otherApps.map(({ app, open, isActive }) => {
+          const index = appStates.findIndex((item) => item.app.id === app.id);
+          return (
+            <DesktopDockIcon
+              key={app.id}
+              app={app}
+              scale={scales[index]}
+              isActive={isActive}
+              open={open}
+              openApp={openApp}
+            />
+          );
+        })}
+      </motion.div>
     </motion.div>
   );
 }
