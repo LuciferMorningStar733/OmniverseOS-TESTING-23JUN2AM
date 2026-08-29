@@ -4,6 +4,7 @@ import { useOS } from "../context/OSContext";
 import { analytics } from "../lib/api";
 import { APP_META } from "../lib/appMeta";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
+import { getUserNickname } from "../lib/userNickname";
 
 // ── Activity data ─────────────────────────────────────────────────────────
 const fakeActivity = Array.from({ length: 14 }, (_, i) => ({
@@ -138,7 +139,7 @@ function CortexBanner({ user, now }) {
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <h1 className="font-heading text-2xl sm:text-3xl font-black tracking-tight mb-1">
-              {greeting}, <span style={{ color: "#00F0FF" }}>{user?.name?.split(" ")[0] || "User"}</span>.
+              {greeting}, <span style={{ color: "#00F0FF" }}>{getUserNickname(user, "User")}</span>.
             </h1>
             <p className="text-sm text-slate-400 leading-relaxed max-w-md">
               <i className="fa-solid fa-wand-magic-sparkles text-[10px] mr-1.5" style={{ color: "#00F0FF" }} />

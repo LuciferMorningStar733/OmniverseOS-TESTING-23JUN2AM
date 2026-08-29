@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getStoredCity } from "./LocationSetup";
 import { speakGreeting, buildGreetingText } from "../lib/voiceGreeting";
+import { getUserNickname } from "../lib/userNickname";
 
 const AUTO_DISMISS_MS = 9000;
 
@@ -65,7 +66,7 @@ export default function WelcomePanel({ user, notifications, onDismiss }) {
 
   const now     = new Date();
   const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const firstName = user?.name?.split(" ")[0] || null;
+  const firstName = getUserNickname(user, null);
   const greetingDisplay = getGreetingText(firstName);
 
   // ── Voice greeting: fires once when panel mounts ─────────────────

@@ -1,14 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CortexPill from "./Mobile/CortexPill";
 import MobileIntelligenceStacks from "./Mobile/MobileIntelligenceStacks";
 import MobileSmartDock from "./Mobile/MobileSmartDock";
 import MobileAIChat from "./Mobile/MobileAIChat";
 import MobileAppDrawer from "./MobileAppDrawer";
+import { useOS } from "../context/OSContext";
+import { getUserNickname } from "../lib/userNickname";
 
 export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
+  const { user } = useOS();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [userName, setUserName] = useState(() => getUserNickname(user, "there"));
+
+  useEffect(() => {
+    setUserName(getUserNickname(user, "there"));
+    const handleNameChange = () => {
+      setUserName(getUserNickname(user, "there"));
+    };
+    window.addEventListener("omniverse:user-name-changed", handleNameChange);
+    window.addEventListener("storage", handleNameChange);
+    return () => {
+      window.removeEventListener("omniverse:user-name-changed", handleNameChange);
+      window.removeEventListener("storage", handleNameChange);
+    };
+  }, [user]);
 
   const hour = new Date().getHours();
   const period = hour < 5 ? "night" : hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
@@ -65,7 +82,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         {/* Hero Context Greeting */}
         <div style={{ marginTop: 16 }}>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>
-            Good {period}, Abdul.
+            Good {period}, {userName}.
           </h1>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
             3 priority items compete for your attention.
