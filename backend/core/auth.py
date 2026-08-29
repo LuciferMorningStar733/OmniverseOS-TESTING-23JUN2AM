@@ -14,11 +14,21 @@ JWT_EXP_HOURS = 24 * 30  # 30 days
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
+def normalize_email(email: str) -> str:
+    if not email:
+        return ""
+    return str(email).lower().strip()
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    if not plain or not hashed:
+        return False
+    try:
+        return pwd_context.verify(plain, hashed)
+    except Exception:
+        return False
 
 def create_token(user_id: str, email: str) -> str:
     payload = {
