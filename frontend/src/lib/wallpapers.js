@@ -43,6 +43,16 @@
     { id: "glacier",          name: "Glacier",           className: "wp-glacier",           accent: "#60A5FA", category: "Minimal",    fx: "hologram", typo: { main: "OMNIVERSE\u00A0OS", sub: "GLACIER PROTOCOL" } },
     { id: "crimson-arc",      name: "Crimson Arc",       className: "wp-crimson-arc",       accent: "#FF003C", category: "Abstract",   fx: "radar",    typo: { main: "OMNIVERSE\u00A0OS", sub: "CRIMSON ARC" } },
     { id: "solar-wind",       name: "Solar Wind",        className: "wp-solar-wind",        accent: "#FCEE09", category: "Space",      fx: "plasma",   typo: { main: "OMNIVERSE\u00A0OS", sub: "SOLAR WIND" } },
+
+    // ─── Flagship 2099 Live Collection ────────────────────────────────────
+    { id: "neural-singularity", name: "Neural Singularity", className: "wp-neural-singularity", accent: "#00F0FF", category: "Tech",       fx: "singularity", typo: { main: "OMNIVERSE\u00A0OS", sub: "NEURAL SINGULARITY" } },
+    { id: "orbital-command",   name: "Orbital Command",    className: "wp-orbital-command",   accent: "#00F0FF", category: "Sci-Fi",     fx: "orbital",     typo: { main: "OMNIVERSE", line2: "COMMAND", sub: "ORBITAL SYSTEM 2099" } },
+    { id: "liquid-aurora",     name: "Liquid Aurora",      className: "wp-liquid-aurora",     accent: "#A855F7", category: "Abstract",   fx: "aurora",      typo: { main: "OMNIVERSE\u00A0OS", sub: "LIQUID AURORA" } },
+    { id: "neural-rain",       name: "Neural Rain",        className: "wp-neural-rain",       accent: "#39FF14", category: "Tech",       fx: "rain",        typo: { main: "OMNIVERSE\u00A0OS", sub: "INTELLIGENCE TRACE" } },
+    { id: "crimson-reactor",   name: "Crimson Reactor",    className: "wp-crimson-reactor",   accent: "#FF003C", category: "Sci-Fi",     fx: "reactor",     typo: { main: "OMNIVERSE", line2: "CORE", sub: "CRIMSON REACTOR // 2099" } },
+    { id: "emerald-grid",      name: "Emerald Grid",       className: "wp-emerald-grid",      accent: "#39FF14", category: "Cyber Grid", fx: "grid",        typo: { main: "OMNIVERSE\u00A0OS", sub: "EMERALD INFRASTRUCTURE" } },
+    { id: "deep-space-cortex", name: "Deep Space Cortex",  className: "wp-deep-space-cortex", accent: "#00F0FF", category: "Space",      fx: "space",       typo: { main: "OMNIVERSE\u00A0OS", sub: "DEEP SPACE CORTEX" } },
+    { id: "chrono-field",      name: "Chrono Field",       className: "wp-chrono-field",      accent: "#60A5FA", category: "Sci-Fi",     fx: "chrono",      typo: { main: "OMNIVERSE\u00A0OS", sub: "TEMPORAL MATRIX" } },
   ];
 
   export const DEFAULT_WALLPAPER = "neural-core";

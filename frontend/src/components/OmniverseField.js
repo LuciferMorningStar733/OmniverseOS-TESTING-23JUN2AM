@@ -48,19 +48,19 @@ export default function OmniverseField({ activeAppId = null, isAIReasoning = fal
       );
 
       if (mode === "writing") {
-        gradient.addColorStop(0, "#05070D");
-        gradient.addColorStop(1, "#020305");
+        gradient.addColorStop(0, "rgba(5, 7, 13, 0.25)");
+        gradient.addColorStop(1, "rgba(2, 3, 5, 0.40)");
       } else if (mode === "blackbox") {
-        gradient.addColorStop(0, "rgba(0, 240, 255, 0.06)");
-        gradient.addColorStop(0.5, "rgba(168, 85, 247, 0.03)");
-        gradient.addColorStop(1, "#030407");
+        gradient.addColorStop(0, "rgba(0, 240, 255, 0.08)");
+        gradient.addColorStop(0.5, "rgba(168, 85, 247, 0.04)");
+        gradient.addColorStop(1, "rgba(3, 4, 7, 0.35)");
       } else if (mode === "mirror") {
-        gradient.addColorStop(0, "rgba(168, 85, 247, 0.08)");
-        gradient.addColorStop(0.6, "rgba(0, 240, 255, 0.03)");
-        gradient.addColorStop(1, "#030407");
+        gradient.addColorStop(0, "rgba(168, 85, 247, 0.09)");
+        gradient.addColorStop(0.6, "rgba(0, 240, 255, 0.04)");
+        gradient.addColorStop(1, "rgba(3, 4, 7, 0.35)");
       } else {
-        gradient.addColorStop(0, "rgba(0, 240, 255, 0.03)");
-        gradient.addColorStop(1, "#030407");
+        gradient.addColorStop(0, "rgba(0, 240, 255, 0.04)");
+        gradient.addColorStop(1, "rgba(3, 4, 7, 0.25)");
       }
 
       ctx.fillStyle = gradient;

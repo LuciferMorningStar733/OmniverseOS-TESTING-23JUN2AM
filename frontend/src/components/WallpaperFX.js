@@ -521,12 +521,20 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
 
     function build(W, H) {
       switch (fxType) {
-        case "matrix":   return new MatrixRain(W, H, accent);
-        case "circuit":  return new CircuitSparks(W, H, accent);
-        case "neural":   return new NeuralPulses(W, H, accent);
-        case "radar":    return new RadarSweep(W, H, accent);
+        case "matrix":
+        case "rain":      return new MatrixRain(W, H, accent);
+        case "circuit":
+        case "grid":     return new CircuitSparks(W, H, accent);
+        case "neural":
+        case "singularity": return new NeuralPulses(W, H, accent);
+        case "radar":
+        case "orbital":
+        case "reactor":
+        case "chrono":    return new RadarSweep(W, H, accent);
         case "hologram": return new Hologram(W, H, accent);
-        case "plasma":   return new PlasmaParticles(W, H, accent);
+        case "plasma":
+        case "aurora":
+        case "space":     return new PlasmaParticles(W, H, accent);
         default:         return null;
       }
     }

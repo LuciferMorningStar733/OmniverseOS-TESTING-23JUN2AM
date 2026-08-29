@@ -550,15 +550,33 @@ function useScale(index, hoverIndex) {
 }
 
 const DesktopDockIcon = memo(function DesktopDockIcon({
-  app, index, hoverIndex, isActive, open, onHover, onLeave, openApp,
+  app, index, scale, isActive, open, openApp,
 }) {
   const [scope, animateScope] = useAnimate();
   const [tooltipVisible, setTooltipVisible] = useState(false);
-  const scale = useScale(index, hoverIndex);
+  const [bouncing, setBouncing] = useState(false);
+
+  // App attention trigger listener (e.g. response finished, task reminder)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.appId === app.id || e.detail === app.id) {
+        setBouncing(true);
+        animateScope(scope.current, {
+          y: [0, -20, 0, -12, 0, -5, 0],
+        }, {
+          duration: 1.2,
+          ease: "easeInOut",
+          times: [0, 0.2, 0.4, 0.6, 0.75, 0.9, 1],
+        }).then(() => setBouncing(false));
+      }
+    };
+    window.addEventListener("omniverse:dock-attention", handler);
+    return () => window.removeEventListener("omniverse:dock-attention", handler);
+  }, [app.id, animateScope, scope]);
 
   const handleClick = useCallback(async () => {
     playClick();
-    // macOS Launchpad-matched bounce: compress → overshoot → settle
+    // macOS Launchpad-matched launch sequence: compress → pulse → bounce → settle
     await animateScope(scope.current, {
       scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
       y:     [0,  6,   -10,  3,   -3,   1,    0],
@@ -571,14 +589,12 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   }, [animateScope, scope, openApp, app.id]);
 
   const handleMouseEnter = useCallback(() => {
-    onHover(index);
     setTooltipVisible(true);
-  }, [onHover, index]);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
-    onLeave();
     setTooltipVisible(false);
-  }, [onLeave]);
+  }, []);
 
   /* Per-app glow ring color */
   const ringStyle = useMemo(() => ({
@@ -594,14 +610,14 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      animate={{ scale }}
-      transition={{ type: "spring", stiffness: 420, damping: 20, mass: 0.25 }}
+      animate={{ scale: scale || 1 }}
+      transition={{ type: "spring", stiffness: 440, damping: 22, mass: 0.22 }}
       className="group relative flex-shrink-0"
       style={{
-        width: 44, height: 44,
+        width: 46, height: 46,
         display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 12,
-        background: isActive ? `${app.color}12` : "transparent",
+        borderRadius: 14,
+        background: isActive ? `${app.color}14` : "rgba(255,255,255,0.03)",
         transformOrigin: "bottom center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
         transition: "background 0.22s ease",
@@ -623,17 +639,17 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       </AnimatePresence>
 
       <i
-        className={`fa-solid ${app.icon} text-base`}
+        className={`fa-solid ${app.icon} text-lg`}
         style={{
           color: app.color,
           filter: isActive
-            ? `drop-shadow(0 0 7px ${app.color}) drop-shadow(0 0 14px ${app.color}55)`
+            ? `drop-shadow(0 0 8px ${app.color}) drop-shadow(0 0 16px ${app.color}65)`
             : `drop-shadow(0 0 3px ${app.color}30)`,
           transition: "filter 0.22s ease",
         }}
       />
 
-      {/* Running indicator — pill for active focused app, dot for background running app */}
+      {/* Running indicator — illuminated LED pill for active focused app, dot for background running app */}
       {open && (
         <motion.span
           layoutId={`running-dot-${app.id}`}
@@ -659,18 +675,46 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 
 function DesktopDock({ isTablet }) {
   const { openApp, windows, activeId } = useOS();
-  const [hoverIndex, setHoverIndex] = useState(null);
+  const containerRef = useRef(null);
+  const [mouseX, setMouseX] = useState(null);
 
-  /* Stable onLeave so memo'd DesktopDockIcon only re-renders when needed */
-  const onLeave = useCallback(() => setHoverIndex(null), []);
+  const handleMouseMove = useCallback((e) => {
+    setMouseX(e.clientX);
+  }, []);
 
-  /* Pre-compute per-app state so the expensive find() isn't inside render */
+  const handleMouseLeave = useCallback(() => {
+    setMouseX(null);
+  }, []);
+
+  /* Pre-compute per-app state so find() isn't run on every mouse event */
   const appStates = useMemo(() => APPS.map((app) => {
     const win      = windows.find((w) => w.app === app.id);
     const open     = Boolean(win);
     const isActive = open && win?.id === activeId;
     return { app, open, isActive };
   }), [windows, activeId]);
+
+  const count = appStates.length;
+
+  /* Continuous mouse-position bell-curve magnification */
+  const scales = useMemo(() => {
+    if (mouseX === null || !containerRef.current) return Array(count).fill(1);
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      return Array(count).fill(1);
+    }
+    const rect = containerRef.current.getBoundingClientRect();
+    const iconW = rect.width / count;
+    const radius = Math.max(140, iconW * 2.8);
+    return appStates.map((_, i) => {
+      const centerX = rect.left + iconW * i + iconW / 2;
+      const dist = Math.abs(mouseX - centerX);
+      if (dist >= radius) return 1;
+      const cosine = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
+      return 1 + 0.48 * cosine; // Smooth continuous 1.48 peak scale
+    });
+  }, [mouseX, count, appStates]);
+
+  const isAwakened = mouseX !== null;
 
   return (
     <motion.div
@@ -681,27 +725,30 @@ function DesktopDock({ isTablet }) {
       data-testid="dock-root"
     >
       <div
-        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3 py-2.5 rounded-2xl`}
+        ref={containerRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-2"} px-4 py-3 rounded-2xl transition-all duration-300`}
         style={{
-          background: "rgba(7,9,15,0.60)",
-          backdropFilter: "blur(32px) saturate(190%)",
-          WebkitBackdropFilter: "blur(32px) saturate(190%)",
-          border: "1px solid rgba(255,255,255,0.09)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(0,240,255,0.04)",
-          maxWidth: "calc(100vw - 16px)",
+          background: isAwakened ? "rgba(8,12,24,0.88)" : "rgba(6,8,15,0.65)",
+          backdropFilter: "blur(36px) saturate(210%)",
+          WebkitBackdropFilter: "blur(36px) saturate(210%)",
+          border: isAwakened ? "1px solid rgba(0,240,255,0.22)" : "1px solid rgba(255,255,255,0.09)",
+          boxShadow: isAwakened
+            ? "0 28px 70px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 35px rgba(0,240,255,0.12)"
+            : "0 20px 50px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.08)",
+          maxWidth: "calc(100vw - 24px)",
+          overflowX: "auto",
         }}
-        onMouseLeave={onLeave}
       >
         {appStates.map(({ app, open, isActive }, i) => (
           <DesktopDockIcon
             key={app.id}
             app={app}
             index={i}
-            hoverIndex={hoverIndex}
+            scale={scales[i]}
             isActive={isActive}
             open={open}
-            onHover={setHoverIndex}
-            onLeave={onLeave}
             openApp={openApp}
           />
         ))}

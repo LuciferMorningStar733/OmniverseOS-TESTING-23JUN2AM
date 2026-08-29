@@ -575,7 +575,7 @@ function Desktop() {
           ))}
         </div>
       )}
-      <AdaptiveDock />
+      <Dock />
       <CommandPalette />
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />
