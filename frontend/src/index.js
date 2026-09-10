@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import App from "@/App";
+import './reticle-dev';
 
 // ── Global error display (dev + prod) ─────────────────────────────────────────
 // Surfaces runtime crashes visibly on mobile where no DevTools are open.

@@ -1,0 +1,59 @@
+{
+  "counts": {
+    "calls": 74,
+    "verdicts": 10,
+    "passed": 8,
+    "failed": 2,
+    "unknown": 0,
+    "refusals": 12,
+    "marks": 0,
+    "sessions": 15,
+    "tokensReturned": 19652,
+    "drivingMs": 8999
+  },
+  "days": [
+    {
+      "date": "2026-09-11",
+      "counts": {
+        "calls": 74,
+        "verdicts": 10,
+        "passed": 8,
+        "failed": 2,
+        "unknown": 0,
+        "refusals": 12,
+        "marks": 0,
+        "sessions": 15,
+        "tokensReturned": 19652,
+        "drivingMs": 8999
+      }
+    }
+  ],
+  "records": {
+    "longestRunMs": 0,
+    "bestVerdictDay": 10,
+    "bestDefectDay": 2,
+    "streakDays": 1,
+    "bestStreakDays": 1
+  },
+  "savings": {
+    "tokens": {
+      "value": 0,
+      "basis": "vs an agent reading the app through screenshots"
+    },
+    "minutes": {
+      "value": 8,
+      "basis": "vs one re-prompt cycle per defect caught"
+    }
+  },
+  "since": 1789075412156,
+  "defects": [
+    {
+      "at": 1789075515918,
+      "title": "the declared consequence did not hold"
+    },
+    {
+      "at": 1789075515916,
+      "title": "the declared consequence did not hold"
+    }
+  ]
+}

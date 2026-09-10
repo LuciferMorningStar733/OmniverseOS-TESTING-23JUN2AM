@@ -2776,6 +2776,28 @@
     redux-thunk "^3.1.0"
     reselect "^5.1.0"
 
+"@reticlehq/browser@2.13.1":
+  version "2.13.1"
+  resolved "https://registry.yarnpkg.com/@reticlehq/browser/-/browser-2.13.1.tgz#569e531a38608c115fcabf2d63591e9dc9252320"
+  integrity sha512-hYPrXkjMjV+c5sJMQa1erBPM8rzW0no8obBdrYFw8cO71xQq/gdNRGe7QshNZiGvlr1eX7dqK5FS1Phy3GtC7Q==
+  dependencies:
+    "@reticlehq/core" "2.13.1"
+
+"@reticlehq/core@2.13.1":
+  version "2.13.1"
+  resolved "https://registry.yarnpkg.com/@reticlehq/core/-/core-2.13.1.tgz#512fb6d9aa61876dc98c2f2a82d838622d63e9c8"
+  integrity sha512-fVEpaMxuBi7bR2zxtVytCYCgTYlCGlgQ8yV67tw+4oKhMtX07bZ5qB0c6UFDMUVqSC88If8UnFkk+a7VWsbdbQ==
+  dependencies:
+    zod "^3.24.1"
+
+"@reticlehq/react@2.13.1":
+  version "2.13.1"
+  resolved "https://registry.yarnpkg.com/@reticlehq/react/-/react-2.13.1.tgz#e46d1b334bb353ef0c5eb7bf368a1dc7ad15ec89"
+  integrity sha512-vh2qnGwNWgKh0cUAwB+OL38hD/oD2S4GUpsdVmr6mE94pFyZAg4RZXVv3zUeBYPI4f+TZBCChxVu+FiXDkapIQ==
+  dependencies:
+    "@reticlehq/browser" "2.13.1"
+    "@reticlehq/core" "2.13.1"
+
 "@rollup/plugin-babel@^5.2.0":
   version "5.3.1"
   resolved "https://registry.yarnpkg.com/@rollup/plugin-babel/-/plugin-babel-5.3.1.tgz#04bc0608f4aa4b2e4b1aebf284344d0f68fda283"
@@ -11895,3 +11917,8 @@ zod@3.24.4:
   version "3.24.4"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.24.4.tgz#e2e2cca5faaa012d76e527d0d36622e0a90c315f"
   integrity sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==
+
+zod@^3.24.1:
+  version "3.25.76"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-3.25.76.tgz#26841c3f6fd22a6a2760e7ccb719179768471e34"
+  integrity sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==

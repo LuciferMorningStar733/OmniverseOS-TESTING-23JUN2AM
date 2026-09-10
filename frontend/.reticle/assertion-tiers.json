@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "flows": {
+    "auth_journey": {
+      "steps": [
+        {
+          "step": 0,
+          "expect": {
+            "element": {
+              "testid": "auth-name-input"
+            }
+          }
+        },
+        {
+          "step": 1,
+          "expect": {
+            "element": {
+              "testid": "auth-email-input"
+            }
+          }
+        }
+      ],
+      "sources": []
+    }
+  }
+}

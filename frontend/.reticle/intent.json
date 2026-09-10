@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "intents": {
+    "flow:auth_journey": {
+      "id": "flow:auth_journey",
+      "statement": "User can toggle between Login and Registration modes on AuthScreen",
+      "state": "declared",
+      "declaredAt": 1789075537893,
+      "surface": {
+        "flow": "auth_journey"
+      }
+    }
+  }
+}

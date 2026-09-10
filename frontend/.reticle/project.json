@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "learned": {
+    "routes": [
+      "/"
+    ]
+  },
+  "runs": [
+    {
+      "kind": "flow_replay",
+      "name": "auth_journey",
+      "status": "pass",
+      "at": 1789075544590,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 137
+    }
+  ]
+}
