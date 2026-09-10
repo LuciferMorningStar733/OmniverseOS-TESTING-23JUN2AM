@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "name": "intelligence_suite",
+  "projectId": "frontend-4ecc9fb6",
+  "createdAt": 1789075888294,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "dock-item-chat"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "element": {
+          "testid": "window-chat"
+        }
+      }
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "dock-item-voice"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "element": {
+          "testid": "window-voice"
+        }
+      }
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "dock-item-mirror"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "element": {
+          "testid": "window-mirror"
+        }
+      }
+    }
+  ],
+  "startPath": "/",
+  "intent": "Intelligence & AI Stacks: AI Chat, Cortex Voice, Omniverse Mirror",
+  "intentId": "flow:intelligence_suite"
+}

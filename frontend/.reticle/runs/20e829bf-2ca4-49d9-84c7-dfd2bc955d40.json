@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "runId": "20e829bf-2ca4-49d9-84c7-dfd2bc955d40",
+  "createdAt": 1789076109380,
+  "durationMs": 5149,
+  "profile": "prod-preview",
+  "project": {
+    "name": "frontend",
+    "framework": "other",
+    "previewUrl": "http://localhost:3000"
+  },
+  "agent": {
+    "id": "reticle-cli",
+    "kind": "oem-pipeline"
+  },
+  "trigger": {
+    "kind": "oem"
+  },
+  "changedFiles": [],
+  "flows": [
+    {
+      "name": "auth_suite",
+      "status": "pass",
+      "steps": 2,
+      "durationMs": 386
+    },
+    {
+      "name": "core_apps_suite",
+      "status": "pass",
+      "steps": 5,
+      "durationMs": 2145
+    },
+    {
+      "name": "intelligence_suite",
+      "status": "pass",
+      "steps": 3,
+      "durationMs": 2618
+    }
+  ],
+  "checks": [],
+  "risks": [],
+  "evidence": {
+    "consoleErrors": [],
+    "networkAnomalies": [],
+    "stateAssertions": [],
+    "timeline": []
+  },
+  "verdict": {
+    "status": "pass",
+    "reasons": [],
+    "confidence": "medium",
+    "blockingRisks": 0
+  }
+}

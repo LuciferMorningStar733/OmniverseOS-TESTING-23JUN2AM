@@ -9,6 +9,69 @@
       "surface": {
         "flow": "auth_journey"
       }
+    },
+    "flow:auth_suite": {
+      "id": "flow:auth_suite",
+      "statement": "User can toggle between Login and Registration on AuthScreen",
+      "state": "declared",
+      "declaredAt": 1789075736785,
+      "surface": {
+        "flow": "auth_suite"
+      }
+    },
+    "flow:desktop_suite": {
+      "id": "flow:desktop_suite",
+      "statement": "Desktop workspace root, TopBar and Adaptive Dock navigation",
+      "state": "declared",
+      "declaredAt": 1789075850592,
+      "surface": {
+        "flow": "desktop_suite"
+      },
+      "amended": [
+        {
+          "statement": "Desktop workspace system controls and Command Palette search",
+          "at": 1789075840221
+        }
+      ]
+    },
+    "flow:core_apps_suite": {
+      "id": "flow:core_apps_suite",
+      "statement": "Core productivity apps window management: Files, Settings",
+      "state": "declared",
+      "declaredAt": 1789075888295,
+      "surface": {
+        "flow": "core_apps_suite"
+      },
+      "amended": [
+        {
+          "statement": "Core productivity apps window management: Notes, Files, Settings",
+          "at": 1789075875449
+        }
+      ]
+    },
+    "flow:intelligence_suite": {
+      "id": "flow:intelligence_suite",
+      "statement": "Intelligence & AI Stacks: AI Chat, Cortex Voice, Omniverse Mirror",
+      "state": "declared",
+      "declaredAt": 1789075901867,
+      "surface": {
+        "flow": "intelligence_suite"
+      }
+    },
+    "flow:media_utility_suite": {
+      "id": "flow:media_utility_suite",
+      "statement": "System Browser app window launcher and navigation",
+      "state": "declared",
+      "declaredAt": 1789075924699,
+      "surface": {
+        "flow": "media_utility_suite"
+      },
+      "amended": [
+        {
+          "statement": "Media & Data Apps: Dashboard, Finance, Image Generator",
+          "at": 1789075912841
+        }
+      ]
     }
   }
 }

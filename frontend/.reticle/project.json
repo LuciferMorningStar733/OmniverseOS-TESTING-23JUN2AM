@@ -15,6 +15,316 @@
         "driftSteps": 0
       },
       "durationMs": 137
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_journey",
+      "status": "pass",
+      "at": 1789075634718,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 183
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_journey",
+      "status": "pass",
+      "at": 1789075943556,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 130
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_suite",
+      "status": "pass",
+      "at": 1789075943958,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 115
+    },
+    {
+      "kind": "flow_replay",
+      "name": "core_apps_suite",
+      "status": "drift",
+      "at": 1789075945530,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1392
+    },
+    {
+      "kind": "flow_replay",
+      "name": "desktop_suite",
+      "status": "drift",
+      "at": 1789075947245,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1546
+    },
+    {
+      "kind": "flow_replay",
+      "name": "intelligence_suite",
+      "status": "drift",
+      "at": 1789075948799,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1405
+    },
+    {
+      "kind": "flow_replay",
+      "name": "media_utility_suite",
+      "status": "drift",
+      "at": 1789075950309,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1364
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_journey",
+      "status": "pass",
+      "at": 1789075986752,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 125
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_suite",
+      "status": "pass",
+      "at": 1789075987039,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 71
+    },
+    {
+      "kind": "flow_replay",
+      "name": "core_apps_suite",
+      "status": "pass",
+      "at": 1789075989078,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1836
+    },
+    {
+      "kind": "flow_replay",
+      "name": "desktop_suite",
+      "status": "drift",
+      "at": 1789075990522,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1299
+    },
+    {
+      "kind": "flow_replay",
+      "name": "intelligence_suite",
+      "status": "drift",
+      "at": 1789075991944,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1278
+    },
+    {
+      "kind": "flow_replay",
+      "name": "media_utility_suite",
+      "status": "drift",
+      "at": 1789075993310,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1226
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_journey",
+      "status": "pass",
+      "at": 1789076028048,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 179
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_suite",
+      "status": "pass",
+      "at": 1789076028355,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 78
+    },
+    {
+      "kind": "flow_replay",
+      "name": "core_apps_suite",
+      "status": "pass",
+      "at": 1789076030408,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1915
+    },
+    {
+      "kind": "flow_replay",
+      "name": "desktop_suite",
+      "status": "error",
+      "at": 1789076030557,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1
+    },
+    {
+      "kind": "flow_replay",
+      "name": "intelligence_suite",
+      "status": "error",
+      "at": 1789076030623,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1
+    },
+    {
+      "kind": "flow_replay",
+      "name": "media_utility_suite",
+      "status": "error",
+      "at": 1789076030691,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_journey",
+      "status": "pass",
+      "at": 1789076058929,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 166
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_suite",
+      "status": "pass",
+      "at": 1789076059253,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 85
+    },
+    {
+      "kind": "flow_replay",
+      "name": "core_apps_suite",
+      "status": "pass",
+      "at": 1789076061280,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1875
+    },
+    {
+      "kind": "flow_replay",
+      "name": "desktop_suite",
+      "status": "drift",
+      "at": 1789076062674,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1249
+    },
+    {
+      "kind": "flow_replay",
+      "name": "intelligence_suite",
+      "status": "drift",
+      "at": 1789076064163,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1336
+    },
+    {
+      "kind": "flow_replay",
+      "name": "media_utility_suite",
+      "status": "drift",
+      "at": 1789076065754,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1340
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_suite",
+      "status": "pass",
+      "at": 1789076083890,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 152
+    },
+    {
+      "kind": "flow_replay",
+      "name": "core_apps_suite",
+      "status": "pass",
+      "at": 1789076085940,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1776
+    },
+    {
+      "kind": "flow_replay",
+      "name": "intelligence_suite",
+      "status": "drift",
+      "at": 1789076087400,
+      "evidence": {
+        "driftSteps": 1
+      },
+      "durationMs": 1294
+    },
+    {
+      "kind": "flow_replay",
+      "name": "auth_suite",
+      "status": "pass",
+      "at": 1789076104318,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 84
+    },
+    {
+      "kind": "flow_replay",
+      "name": "core_apps_suite",
+      "status": "pass",
+      "at": 1789076106594,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 1975
+    },
+    {
+      "kind": "flow_replay",
+      "name": "intelligence_suite",
+      "status": "pass",
+      "at": 1789076109214,
+      "evidence": {
+        "driftSteps": 0
+      },
+      "durationMs": 2450
     }
   ]
 }

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "runId": "c33b70f0-a23a-4b58-aea8-0f8c2cc3903a",
+  "createdAt": 1789075993445,
+  "durationMs": 6820,
+  "profile": "prod-preview",
+  "project": {
+    "name": "frontend",
+    "framework": "other",
+    "previewUrl": "http://localhost:3000"
+  },
+  "agent": {
+    "id": "reticle-cli",
+    "kind": "oem-pipeline"
+  },
+  "trigger": {
+    "kind": "oem"
+  },
+  "changedFiles": [],
+  "flows": [
+    {
+      "name": "auth_journey",
+      "status": "pass",
+      "steps": 2,
+      "durationMs": 342
+    },
+    {
+      "name": "auth_suite",
+      "status": "pass",
+      "steps": 2,
+      "durationMs": 275
+    },
+    {
+      "name": "core_apps_suite",
+      "status": "pass",
+      "steps": 5,
+      "durationMs": 1981
+    },
+    {
+      "name": "desktop_suite",
+      "status": "fail",
+      "steps": 1,
+      "durationMs": 1443,
+      "failureReason": "testid \"auth-email-input\" not found"
+    },
+    {
+      "name": "intelligence_suite",
+      "status": "fail",
+      "steps": 1,
+      "durationMs": 1418,
+      "failureReason": "testid \"auth-email-input\" not found"
+    },
+    {
+      "name": "media_utility_suite",
+      "status": "fail",
+      "steps": 1,
+      "durationMs": 1361,
+      "failureReason": "testid \"auth-email-input\" not found"
+    }
+  ],
+  "checks": [],
+  "risks": [],
+  "evidence": {
+    "consoleErrors": [],
+    "networkAnomalies": [],
+    "stateAssertions": [],
+    "timeline": []
+  },
+  "verdict": {
+    "status": "partial",
+    "reasons": [
+      "flow desktop_suite: testid \"auth-email-input\" not found",
+      "flow intelligence_suite: testid \"auth-email-input\" not found",
+      "flow media_utility_suite: testid \"auth-email-input\" not found"
+    ],
+    "confidence": "medium",
+    "blockingRisks": 0
+  }
+}

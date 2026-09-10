@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "runId": "87e1b884-4c53-47a4-ab73-499448f44e04",
+  "createdAt": 1789075950456,
+  "durationMs": 7032,
+  "profile": "prod-preview",
+  "project": {
+    "name": "frontend",
+    "framework": "other",
+    "previewUrl": "http://localhost:3000"
+  },
+  "agent": {
+    "id": "reticle-cli",
+    "kind": "oem-pipeline"
+  },
+  "trigger": {
+    "kind": "oem"
+  },
+  "changedFiles": [],
+  "flows": [
+    {
+      "name": "auth_journey",
+      "status": "pass",
+      "steps": 2,
+      "durationMs": 419
+    },
+    {
+      "name": "auth_suite",
+      "status": "pass",
+      "steps": 2,
+      "durationMs": 294
+    },
+    {
+      "name": "core_apps_suite",
+      "status": "fail",
+      "steps": 3,
+      "durationMs": 1562,
+      "failureReason": "testid \"desktop-root\" not found"
+    },
+    {
+      "name": "desktop_suite",
+      "status": "fail",
+      "steps": 3,
+      "durationMs": 1694,
+      "failureReason": "testid \"desktop-root\" not found"
+    },
+    {
+      "name": "intelligence_suite",
+      "status": "fail",
+      "steps": 3,
+      "durationMs": 1551,
+      "failureReason": "testid \"desktop-root\" not found"
+    },
+    {
+      "name": "media_utility_suite",
+      "status": "fail",
+      "steps": 3,
+      "durationMs": 1512,
+      "failureReason": "testid \"desktop-root\" not found"
+    }
+  ],
+  "checks": [],
+  "risks": [],
+  "evidence": {
+    "consoleErrors": [],
+    "networkAnomalies": [],
+    "stateAssertions": [],
+    "timeline": []
+  },
+  "verdict": {
+    "status": "partial",
+    "reasons": [
+      "flow core_apps_suite: testid \"desktop-root\" not found",
+      "flow desktop_suite: testid \"desktop-root\" not found",
+      "flow intelligence_suite: testid \"desktop-root\" not found",
+      "flow media_utility_suite: testid \"desktop-root\" not found"
+    ],
+    "confidence": "medium",
+    "blockingRisks": 0
+  }
+}

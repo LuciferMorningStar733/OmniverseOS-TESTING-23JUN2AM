@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "runId": "0fd1259e-3f92-40e6-b4f8-c0d63190816b",
+  "createdAt": 1789076087548,
+  "durationMs": 3812,
+  "profile": "prod-preview",
+  "project": {
+    "name": "frontend",
+    "framework": "other",
+    "previewUrl": "http://localhost:3000"
+  },
+  "agent": {
+    "id": "reticle-cli",
+    "kind": "oem-pipeline"
+  },
+  "trigger": {
+    "kind": "oem"
+  },
+  "changedFiles": [],
+  "flows": [
+    {
+      "name": "auth_suite",
+      "status": "pass",
+      "steps": 2,
+      "durationMs": 427
+    },
+    {
+      "name": "core_apps_suite",
+      "status": "pass",
+      "steps": 5,
+      "durationMs": 1942
+    },
+    {
+      "name": "intelligence_suite",
+      "status": "fail",
+      "steps": 1,
+      "durationMs": 1443,
+      "failureReason": "testid \"auth-email-input\" not found"
+    }
+  ],
+  "checks": [],
+  "risks": [],
+  "evidence": {
+    "consoleErrors": [],
+    "networkAnomalies": [],
+    "stateAssertions": [],
+    "timeline": []
+  },
+  "verdict": {
+    "status": "partial",
+    "reasons": [
+      "flow intelligence_suite: testid \"auth-email-input\" not found"
+    ],
+    "confidence": "medium",
+    "blockingRisks": 0
+  }
+}

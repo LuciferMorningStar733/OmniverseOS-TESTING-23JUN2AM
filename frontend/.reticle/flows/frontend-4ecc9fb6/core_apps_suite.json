@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "name": "core_apps_suite",
+  "projectId": "frontend-4ecc9fb6",
+  "createdAt": 1789075888294,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "auth-email-input"
+      },
+      "args": {
+        "value": "demo@omniverse.io"
+      },
+      "action": "fill"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "auth-password-input"
+      },
+      "args": {
+        "value": "demo123"
+      },
+      "action": "fill"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "auth-submit-button"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "element": {
+          "testid": "desktop-root"
+        }
+      }
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "dock-item-files"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "element": {
+          "testid": "window-files"
+        }
+      }
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "dock-item-settings"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "element": {
+          "testid": "window-settings"
+        }
+      }
+    }
+  ],
+  "startPath": "/",
+  "intent": "Core productivity apps window management: Files, Settings",
+  "intentId": "flow:core_apps_suite"
+}

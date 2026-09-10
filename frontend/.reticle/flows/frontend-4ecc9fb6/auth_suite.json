@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "name": "auth_journey",
+  "name": "auth_suite",
   "projectId": "frontend-4ecc9fb6",
-  "createdAt": 1789075537893,
+  "createdAt": 1789075736783,
   "steps": [
     {
       "tool": "reticle_act",
@@ -34,6 +34,6 @@
     }
   ],
   "startPath": "/",
-  "intent": "User can toggle between Login and Registration modes on AuthScreen",
-  "intentId": "flow:auth_journey"
+  "intent": "User can toggle between Login and Registration on AuthScreen",
+  "intentId": "flow:auth_suite"
 }
