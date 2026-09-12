@@ -36,6 +36,7 @@ import SpotlightSearch from "./SpotlightSearch";
 import DesktopContextMenu from "./DesktopContextMenu";
 import QuickLookModal from "./QuickLookModal";
 import StageManager from "./StageManager";
+import DesktopIcons from "./DesktopIcons";
 import { tileLeft, tileRight, tileTopLeft, tileTopRight } from "../lib/WindowTileEngine";
 // rememberActiveApp + trackEvent("app_open") are handled inside OSContext.openApp.
 // trackEvent("url_visit") + rememberLastUrl are handled inside OSContext.trackUrl.
@@ -504,6 +505,8 @@ function Desktop() {
       </AnimatePresence>
       {/* 2099 Living Omniverse Field */}
       <OmniverseField activeAppId={windows.find((w) => w.id === activeId)?.app} />
+      {/* Desktop Icon Grid */}
+      {isDesktop && <DesktopIcons />}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -573,7 +576,7 @@ function Desktop() {
           ))}
         </div>
       )}
-      <AdaptiveDock />
+      <Dock />
       <CommandPalette />
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />

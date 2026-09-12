@@ -28,9 +28,21 @@ const LS_WINDOWS  = "omniverse_windows";
 const LS_NOTIFS   = "omniverse_notifs";
 const LS_WALLPAPER = "omniverse_wallpaper";
 
+// ─── initial default windows (spatial desktop cascade) ───────────────────────
+const INITIAL_DEFAULT_WINDOWS = [
+  { id: "files-init", app: "files", x: 70, y: 70, w: 780, h: 510, z: 101, minimized: false, maximized: false },
+  { id: "chat-init", app: "chat", x: 260, y: 100, w: 680, h: 560, z: 102, minimized: false, maximized: false },
+  { id: "dashboard-init", app: "dashboard", x: 480, y: 80, w: 740, h: 480, z: 100, minimized: false, maximized: false },
+];
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const safeJSON = (key, fallback) => {
-  try { return JSON.parse(localStorage.getItem(key) || "null") ?? fallback; }
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
+  }
   catch { return fallback; }
 };
 
@@ -40,9 +52,9 @@ export const OSProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // ── window manager ──────────────────────────────────────────────────────────
-  const [windows,  setWindows]  = useState(() => safeJSON(LS_WINDOWS, []));
-  const [activeId, setActiveId] = useState(null);
-  const [zCounter, setZCounter] = useState(100);
+  const [windows,  setWindows]  = useState(() => safeJSON(LS_WINDOWS, INITIAL_DEFAULT_WINDOWS));
+  const [activeId, setActiveId] = useState("chat-init");
+  const [zCounter, setZCounter] = useState(105);
 
   // ── UI overlays ─────────────────────────────────────────────────────────────
   const [paletteOpen, setPaletteOpen] = useState(false);

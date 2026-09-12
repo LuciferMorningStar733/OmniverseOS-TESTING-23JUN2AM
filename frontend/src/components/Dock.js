@@ -549,13 +549,34 @@ function useScale(index, hoverIndex) {
   }, [index, hoverIndex]);
 }
 
+const getAppGradient = (app) => {
+  switch (app.group) {
+    case "ai":
+      return "linear-gradient(135deg, #00F0FF 0%, #0077FF 100%)";
+    case "productivity":
+      return "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)";
+    case "system":
+      return app.id === "code"
+        ? "linear-gradient(135deg, #39FF14 0%, #059669 100%)"
+        : "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)";
+    case "media":
+      return "linear-gradient(135deg, #EC4899 0%, #BE185D 100%)";
+    case "data":
+      return "linear-gradient(135deg, #10B981 0%, #047857 100%)";
+    case "social":
+      return "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)";
+    default:
+      return `linear-gradient(135deg, ${app.color} 0%, #0F172A 100%)`;
+  }
+};
+
 const DesktopDockIcon = memo(function DesktopDockIcon({
   app, index, hoverIndex, isActive, open, onHover, onLeave, openApp,
 }) {
   const [scope, animateScope] = useAnimate();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const scale = useScale(index, hoverIndex);
-  const translateY = scale > 1 ? -(scale - 1) * 18 : 0;
+  const translateY = scale > 1 ? -(scale - 1) * 20 : 0;
 
   const handleClick = useCallback(async () => {
     playClick();
@@ -572,18 +593,16 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   }, [animateScope, scope, openApp, app.id]);
 
   const handleMouseEnter = useCallback(() => {
-    onHover(index);
     setTooltipVisible(true);
-  }, [onHover, index]);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
-    onLeave();
     setTooltipVisible(false);
-  }, [onLeave]);
+  }, []);
 
   /* Per-app glow ring color */
   const ringStyle = useMemo(() => ({
-    boxShadow: `0 0 0 1.5px ${app.color}55, 0 0 20px ${app.color}35, 0 0 40px ${app.color}15`,
+    boxShadow: `0 0 0 1.5px ${app.color}77, 0 0 20px ${app.color}45, 0 0 40px ${app.color}20`,
   }), [app.color]);
 
   return (
@@ -603,10 +622,9 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         width: 44, height: 44,
         display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: 12,
-        background: isActive ? `${app.color}18` : "transparent",
+        background: "transparent",
         transformOrigin: "bottom center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
-        transition: "background 0.22s ease",
         willChange: "transform",
       }}
     >
@@ -618,22 +636,29 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 rounded-xl"
+            className="absolute inset-0 rounded-[12px]"
             style={ringStyle}
           />
         )}
       </AnimatePresence>
 
-      <i
-        className={`fa-solid ${app.icon} text-base`}
+      {/* Squircle Badge Container */}
+      <div
+        className="w-10 h-10 rounded-[11px] flex items-center justify-center relative shadow-md"
         style={{
-          color: app.color,
-          filter: isActive
-            ? `drop-shadow(0 0 8px ${app.color}) drop-shadow(0 0 16px ${app.color}65)`
-            : `drop-shadow(0 0 3px ${app.color}30)`,
-          transition: "filter 0.22s ease",
+          background: getAppGradient(app),
+          boxShadow: isActive
+            ? `0 0 16px ${app.color}90, inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.4)`
+            : "inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.3), 0 4px 10px rgba(0,0,0,0.45)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          transition: "box-shadow 0.22s ease",
         }}
-      />
+      >
+        <i
+          className={`fa-solid ${app.icon} text-lg text-white`}
+          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
+        />
+      </div>
 
       {/* Running indicator — pill for active focused app, dot for background running app */}
       {open && (
@@ -662,11 +687,20 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 function DesktopDock({ isTablet }) {
   const { openApp, windows, activeId } = useOS();
   const [hoverIndex, setHoverIndex] = useState(null);
+  const dockRef = useRef(null);
 
-  /* Stable onLeave so memo'd DesktopDockIcon only re-renders when needed */
+  const handleMouseMove = useCallback((e) => {
+    if (!dockRef.current) return;
+    const rect = dockRef.current.getBoundingClientRect();
+    const paddingLeft = 14;
+    const itemWidth = 44 + (isTablet ? 4 : 6);
+    const relativeX = e.clientX - rect.left - paddingLeft;
+    const floatIdx = relativeX / itemWidth;
+    setHoverIndex(floatIdx);
+  }, [isTablet]);
+
   const onLeave = useCallback(() => setHoverIndex(null), []);
 
-  /* Pre-compute per-app state so the expensive find() isn't inside render */
   const appStates = useMemo(() => APPS.map((app) => {
     const win      = windows.find((w) => w.app === app.id);
     const open     = Boolean(win);
@@ -683,6 +717,7 @@ function DesktopDock({ isTablet }) {
       data-testid="dock-root"
     >
       <div
+        ref={dockRef}
         className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl`}
         style={{
           background: "rgba(7, 9, 18, 0.72)",
@@ -692,6 +727,7 @@ function DesktopDock({ isTablet }) {
           boxShadow: "0 28px 72px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px rgba(0,240,255,0.06)",
           maxWidth: "calc(100vw - 16px)",
         }}
+        onMouseMove={handleMouseMove}
         onMouseLeave={onLeave}
       >
         {appStates.map(({ app, open, isActive }, i) => (

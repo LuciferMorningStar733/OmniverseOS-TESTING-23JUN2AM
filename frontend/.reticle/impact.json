@@ -1,6 +1,6 @@
 {
   "counts": {
-    "calls": 189,
+    "calls": 194,
     "verdicts": 48,
     "passed": 35,
     "failed": 13,
@@ -8,8 +8,8 @@
     "refusals": 12,
     "marks": 0,
     "sessions": 35,
-    "tokensReturned": 61511,
-    "drivingMs": 49937
+    "tokensReturned": 65186,
+    "drivingMs": 55242
   },
   "days": [
     {
@@ -30,7 +30,7 @@
     {
       "date": "2026-09-13",
       "counts": {
-        "calls": 37,
+        "calls": 42,
         "verdicts": 5,
         "passed": 4,
         "failed": 1,
@@ -38,8 +38,8 @@
         "refusals": 0,
         "marks": 0,
         "sessions": 3,
-        "tokensReturned": 18700,
-        "drivingMs": 19355
+        "tokensReturned": 22375,
+        "drivingMs": 24660
       }
     }
   ],
@@ -52,7 +52,7 @@
   },
   "savings": {
     "tokens": {
-      "value": 15289,
+      "value": 11614,
       "basis": "vs an agent reading the app through screenshots"
     },
     "minutes": {

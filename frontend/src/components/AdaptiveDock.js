@@ -37,8 +37,8 @@ const DockItem = React.memo(function DockItem({
   if (!isTouch && !prefersReducedMotion && distance < RADIUS) {
     const factor = Math.cos((distance / RADIUS) * (Math.PI / 2));
     const power = factor * factor;
-    scale = 1 + power * 0.22;
-    translateY = -7 * power;
+    scale = 1 + power * 0.42;
+    translateY = -14 * power;
   }
 
   return (
@@ -56,6 +56,7 @@ const DockItem = React.memo(function DockItem({
         padding: "0 2px",
       }}
       data-testid={`dock-icon-${app.id}`}
+      data-dock-icon={app.id}
     >
       {/* Floating Tooltip */}
       <AnimatePresence>
@@ -71,14 +72,14 @@ const DockItem = React.memo(function DockItem({
               marginBottom: 10,
               padding: "4px 10px",
               borderRadius: 8,
-              background: "rgba(10, 14, 26, 0.92)",
+              background: "rgba(8, 10, 18, 0.94)",
               border: "1px solid rgba(255, 255, 255, 0.15)",
-              backdropFilter: "blur(12px)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               color: "#ffffff",
               fontSize: 11,
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'Outfit', 'JetBrains Mono', sans-serif",
               fontWeight: 600,
-              letterSpacing: "0.04em",
               whiteSpace: "nowrap",
               pointerEvents: "none",
               zIndex: 100,
@@ -93,27 +94,27 @@ const DockItem = React.memo(function DockItem({
       <motion.div
         animate={
           isBouncing && !prefersReducedMotion
-            ? { y: [0, -12, 0, -5, 0], scale: [1, 1.14, 0.96, 1.04, 1] }
+            ? { y: [0, -14, 0, -6, 0], scale: [1, 1.18, 0.94, 1.05, 1] }
             : { scale, y: translateY }
         }
         transition={{
           type: "spring",
-          stiffness: 420,
-          damping: 26,
-          mass: 0.5,
+          stiffness: 440,
+          damping: 22,
+          mass: 0.35,
         }}
         style={{
           width: 44,
           height: 44,
-          borderRadius: 14,
+          borderRadius: 13,
           background: isActive
-            ? `radial-gradient(circle at 35% 35%, ${app.color}, #05070D)`
+            ? `${app.color}18`
             : isHovered
             ? "rgba(255, 255, 255, 0.10)"
-            : "rgba(255, 255, 255, 0.05)",
-          border: `1px solid ${isActive ? app.color : isHovered ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)"}`,
+            : "rgba(255, 255, 255, 0.04)",
+          border: `1.5px solid ${isActive ? app.color : isHovered ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.08)"}`,
           boxShadow: isActive
-            ? `0 0 18px ${app.color}60`
+            ? `0 0 0 1.5px ${app.color}55, 0 0 20px ${app.color}35`
             : isHovered
             ? `0 0 14px rgba(255,255,255,0.15)`
             : "none",
@@ -127,10 +128,12 @@ const DockItem = React.memo(function DockItem({
         <i
           className={`fa-solid ${app.icon}`}
           style={{
-            color: isActive ? "#fff" : app.color,
+            color: app.color,
             fontSize: 18,
-            filter: isActive ? `drop-shadow(0 0 6px ${app.color})` : "none",
-            transition: "filter 0.2s ease, color 0.2s ease",
+            filter: isActive
+              ? `drop-shadow(0 0 8px ${app.color}) drop-shadow(0 0 16px ${app.color}65)`
+              : `drop-shadow(0 0 3px ${app.color}30)`,
+            transition: "filter 0.22s ease, color 0.22s ease",
           }}
         />
       </motion.div>
@@ -144,9 +147,9 @@ const DockItem = React.memo(function DockItem({
             width: isActive ? 16 : 4,
             height: 4,
             borderRadius: 2,
-            background: isActive ? "#00F0FF" : "rgba(255,255,255,0.45)",
-            boxShadow: isActive ? "0 0 10px #00F0FF" : "none",
-            transition: "all 0.25s ease",
+            background: isActive ? app.color : "rgba(0, 240, 255, 0.75)",
+            boxShadow: isActive ? `0 0 10px ${app.color}FF` : "0 0 6px rgba(0,240,255,0.6)",
+            transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
           }}
         />
       )}
