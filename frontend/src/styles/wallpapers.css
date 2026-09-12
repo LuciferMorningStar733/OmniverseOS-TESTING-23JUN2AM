@@ -1342,3 +1342,231 @@
 }
 
 /* v3 mobile handled by the unified @media (max-width: 640px) block above */
+
+/* ================================================================ */
+/* 3036 MASTERPIECE COLLECTION (4K FUTURISTIC LIVE WALLPAPERS)       */
+/* ================================================================ */
+
+/* 1. OMNI GENESIS — Living cosmic intelligence field */
+.wp-omni-genesis {
+  background: radial-gradient(ellipse at 50% 45%, #05192d 0%, #030a16 55%, #01040a 100%);
+}
+.wp-omni-genesis::before {
+  content: "";
+  position: absolute; inset: -10%;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.18) 0%, rgba(0, 100, 200, 0.08) 35%, transparent 65%);
+  filter: blur(25px);
+  animation: wpBreathe 8s ease-in-out infinite alternate;
+}
+.wp-omni-genesis .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(60px, 9.5vw, 160px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(0, 240, 255, 0.45);
+  text-shadow: 0 0 35px rgba(0, 240, 255, 0.25);
+  mix-blend-mode: screen;
+}
+.wp-omni-genesis .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(0, 240, 255, 0.6);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+/* 2. CORTEX NEURAL OCEAN — Deep dimensional neural structures */
+.wp-cortex-neural-ocean {
+  background: radial-gradient(ellipse at 50% 60%, #17072b 0%, #090314 60%, #04010a 100%);
+}
+.wp-cortex-neural-ocean::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 70%, rgba(168, 85, 247, 0.22) 0%, rgba(168, 85, 247, 0.05) 45%, transparent 65%);
+  animation: wpBreathe 7s ease-in-out infinite alternate;
+}
+.wp-cortex-neural-ocean .wp-typo {
+  position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(60px, 9vw, 150px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(168, 85, 247, 0.5);
+  text-shadow: 0 0 35px rgba(168, 85, 247, 0.25);
+}
+.wp-cortex-neural-ocean .wp-typo-sub {
+  position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.5em; color: rgba(168, 85, 247, 0.65);
+}
+
+/* 4. DIGITAL AURORA — Intelligent volumetric atmospheric field */
+.wp-digital-aurora {
+  background: radial-gradient(ellipse at 50% 25%, #022018 0%, #020c09 55%, #010504 100%);
+}
+.wp-digital-aurora::before {
+  content: "";
+  position: absolute; inset: -15%;
+  background: radial-gradient(ellipse at 50% 20%, rgba(57, 255, 20, 0.2) 0%, rgba(0, 240, 255, 0.1) 35%, transparent 60%);
+  filter: blur(35px);
+  animation: wpBreathe 9s ease-in-out infinite alternate;
+}
+.wp-digital-aurora .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(56px, 8.5vw, 145px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(57, 255, 20, 0.45);
+  text-shadow: 0 0 35px rgba(57, 255, 20, 0.2);
+}
+.wp-digital-aurora .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(57, 255, 20, 0.6);
+}
+
+/* 5. SENTIENT CITY 3036 — Autonomous megacity with light networks */
+.wp-sentient-city {
+  background: radial-gradient(ellipse at 50% 80%, #201700 0%, #0b0800 55%, #030200 100%);
+}
+.wp-sentient-city::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 90%, rgba(252, 238, 9, 0.22) 0%, rgba(245, 158, 11, 0.08) 35%, transparent 60%);
+  animation: wpBreathe 6s ease-in-out infinite alternate;
+}
+.wp-sentient-city .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(56px, 8.5vw, 145px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(252, 238, 9, 0.48);
+  text-shadow: 0 0 35px rgba(252, 238, 9, 0.22);
+}
+.wp-sentient-city .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(252, 238, 9, 0.65);
+}
+
+/* 6. EVENT HORIZON — Gravitational visual effects & geometry */
+.wp-event-horizon {
+  background: radial-gradient(circle at 50% 50%, #1e0009 0%, #0a0104 55%, #020002 100%);
+}
+.wp-event-horizon::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 0, 85, 0.25) 0%, rgba(255, 0, 85, 0.06) 40%, transparent 65%);
+  filter: blur(20px);
+  animation: wpBreathe 6s ease-in-out infinite alternate;
+}
+.wp-event-horizon .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(56px, 8.5vw, 145px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(255, 0, 85, 0.48);
+  text-shadow: 0 0 35px rgba(255, 0, 85, 0.25);
+}
+.wp-event-horizon .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(255, 0, 85, 0.65);
+}
+
+/* 7. NEURAL BLOOM — Organic computational morphogenesis */
+.wp-neural-bloom {
+  background: radial-gradient(circle at 50% 50%, #200427 0%, #0c0110 55%, #040006 100%);
+}
+.wp-neural-bloom::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(224, 86, 253, 0.22) 0%, rgba(224, 86, 253, 0.06) 35%, transparent 60%);
+  filter: blur(25px);
+  animation: wpBreathe 7s ease-in-out infinite alternate;
+}
+.wp-neural-bloom .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(56px, 8.5vw, 145px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(224, 86, 253, 0.5);
+  text-shadow: 0 0 35px rgba(224, 86, 253, 0.22);
+}
+.wp-neural-bloom .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(224, 86, 253, 0.65);
+}
+
+/* 8. TEMPORAL ARCHIVE — Layered timelines and memory traces */
+.wp-temporal-archive {
+  background: radial-gradient(ellipse at 50% 40%, #061833 0%, #030c1c 55%, #01050d 100%);
+}
+.wp-temporal-archive::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 35%, rgba(96, 165, 250, 0.2) 0%, rgba(96, 165, 250, 0.05) 40%, transparent 65%);
+  animation: wpBreathe 8s ease-in-out infinite alternate;
+}
+.wp-temporal-archive .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(54px, 8vw, 140px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(96, 165, 250, 0.48);
+  text-shadow: 0 0 35px rgba(96, 165, 250, 0.22);
+}
+.wp-temporal-archive .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(96, 165, 250, 0.65);
+}
+
+/* 9. OMNIVERSE VOID — Minimal OLED black with quantum fluctuations */
+.wp-omniverse-void {
+  background: #040507;
+}
+.wp-omniverse-void::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(148, 163, 184, 0.06) 0%, transparent 60%);
+  animation: wpBreathe 10s ease-in-out infinite alternate;
+}
+.wp-omniverse-void .wp-typo {
+  position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(56px, 8.5vw, 145px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.2px rgba(148, 163, 184, 0.4);
+  text-shadow: 0 0 25px rgba(148, 163, 184, 0.15);
+}
+.wp-omniverse-void .wp-typo-sub {
+  position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.6em; color: rgba(148, 163, 184, 0.5);
+}
+
+/* 10. CORTEX SINGULARITY — Intelligence core with tensor rings */
+.wp-cortex-singularity {
+  background: radial-gradient(circle at 50% 50%, #041f33 0%, #020e18 55%, #01060c 100%);
+}
+.wp-cortex-singularity::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.22) 0%, rgba(0, 240, 255, 0.06) 35%, transparent 65%);
+  filter: blur(20px);
+  animation: wpBreathe 5s ease-in-out infinite alternate;
+}
+.wp-cortex-singularity .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(54px, 8vw, 140px); letter-spacing: -0.04em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.5px rgba(0, 240, 255, 0.48);
+  text-shadow: 0 0 35px rgba(0, 240, 255, 0.25);
+}
+.wp-cortex-singularity .wp-typo-sub {
+  position: absolute; top: 29%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.55em; color: rgba(0, 240, 255, 0.65);
+}
+

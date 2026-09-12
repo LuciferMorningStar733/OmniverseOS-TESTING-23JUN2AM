@@ -49,11 +49,12 @@ export function useVoiceSynthesis({ onSpeechStart, onSpeechEnd, onError }) {
     (text, settings = {}) => {
       if (!text || !text.trim()) return;
 
-      // Increment generation ID to invalidate previous speech requests
+      // Invalidate any ongoing speech and cancel active playback first
+      stopSpeaking();
+
+      // Establish new generation ID for this speech request
       speechGenerationRef.current += 1;
       const currentGen = speechGenerationRef.current;
-
-      stopSpeaking();
 
       const {
         voiceEngine = "stream",

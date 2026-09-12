@@ -32,8 +32,7 @@ from core.vector_service import generate_embedding_async, cosine_similarity
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
+from core.database import client, db, MONGO_URL, DB_NAME
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
 JWT_SECRET = os.environ.get("JWT_SECRET") or "omniverseos-dev-do-not-use-in-prod"
 JWT_ALG = "HS256"
@@ -41,8 +40,6 @@ JWT_EXP_HOURS = 24 * 7
 MAX_PROMPT_LEN = 4000
 MAX_MESSAGE_LEN = 8000
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
 
 def _sse_event(data: str) -> str:
     """Encode one SSE event without losing embedded newlines."""
@@ -75,7 +72,18 @@ async def lifespan(_app: FastAPI):
     await db.decisions.create_index("id", unique=True)
     await db.timeline_events.create_index([("user_id", 1), ("created_at", -1)])
     await db.timeline_events.create_index([("user_id", 1), ("project_id", 1)])
-    await db.timeline_events.create_index("id", unique=True)
+    # Seed default demo credentials if not present
+    demo_email = "demo@omniverse.io"
+    if not await db.users.find_one({"email": demo_email}):
+        demo_hashed = bcrypt.hashpw(b"omniverse123", bcrypt.gensalt()).decode()
+        await db.users.insert_one({
+            "id": "demo-user-default-id",
+            "email": demo_email,
+            "name": "Demo User",
+            "password": demo_hashed,
+            "created_at": now_iso(),
+            "avatar": f"https://api.dicebear.com/7.x/bottts-neutral/svg?seed={demo_email}",
+        })
     yield
     # shutdown
     client.close()

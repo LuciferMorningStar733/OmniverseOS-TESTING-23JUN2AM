@@ -6,6 +6,8 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
     WALLPAPERS, WALLPAPER_CATEGORIES,
     getCustomWallpapers, addCustomWallpaper, deleteCustomWallpaper, addAIWallpaper,
     getFavorites, toggleFavorite, getRecentWallpapers, trackRecentWallpaper,
+    getWallpaperQuality, setWallpaperQuality, getWallpaperMotion, setWallpaperMotion,
+    getAdjacentWallpaperId,
   } from "../lib/wallpapers";
 
   /* ── Category pill ───────────────────────────────────────────────────────── */
@@ -355,6 +357,8 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
     const [recent,    setRecent]    = useState(() => getRecentWallpapers());
     const [customs,   setCustoms]   = useState(() => getCustomWallpapers());
     const [random,    setRandom]    = useState(false);
+    const [motion,    setMotion]    = useState(() => getWallpaperMotion());
+    const [quality,   setQuality]   = useState(() => getWallpaperQuality());
     const fileRef = useRef(null);
 
     const applyWallpaper = useCallback((id) => {
@@ -363,6 +367,31 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
       setRecent(getRecentWallpapers());
       setCustoms(getCustomWallpapers()); // refresh in case AI-generated
     }, [setWallpaper]);
+
+    const handlePrev = useCallback(() => {
+      applyWallpaper(getAdjacentWallpaperId(wallpaper, -1));
+    }, [wallpaper, applyWallpaper]);
+
+    const handleNext = useCallback(() => {
+      applyWallpaper(getAdjacentWallpaperId(wallpaper, 1));
+    }, [wallpaper, applyWallpaper]);
+
+    const handleRandom = useCallback(() => {
+      const all = [...WALLPAPERS, ...customs];
+      const next = all[Math.floor(Math.random() * all.length)];
+      if (next) applyWallpaper(next.id);
+    }, [customs, applyWallpaper]);
+
+    const handleToggleMotion = useCallback(() => {
+      const next = motion === "playing" ? "paused" : "playing";
+      setMotion(next);
+      setWallpaperMotion(next);
+    }, [motion]);
+
+    const handleQualityChange = useCallback((q) => {
+      setQuality(q);
+      setWallpaperQuality(q);
+    }, []);
 
     // Random wallpaper rotation
     useEffect(() => {
@@ -460,6 +489,92 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
         {/* Browse tab */}
         {tab === "browse" && (
         <>
+        {/* Quick controls toolbar: Prev, Next, Random, Motion, Quality */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 8, padding: "8px 12px",
+          background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 10,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button
+              onClick={handlePrev}
+              title="Previous Wallpaper"
+              style={{
+                height: 28, padding: "0 10px", borderRadius: 6,
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              <i className="fa-solid fa-chevron-left" style={{ fontSize: 9 }} /> Prev
+            </button>
+            <button
+              onClick={handleNext}
+              title="Next Wallpaper"
+              style={{
+                height: 28, padding: "0 10px", borderRadius: 6,
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              Next <i className="fa-solid fa-chevron-right" style={{ fontSize: 9 }} />
+            </button>
+            <button
+              onClick={handleRandom}
+              title="Random Wallpaper"
+              style={{
+                height: 28, padding: "0 10px", borderRadius: 6,
+                background: "rgba(0,240,255,0.08)", border: "1px solid rgba(0,240,255,0.25)",
+                color: "#00F0FF", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              <i className="fa-solid fa-shuffle" style={{ fontSize: 10 }} /> Random
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* Motion toggle */}
+            <button
+              onClick={handleToggleMotion}
+              title={motion === "playing" ? "Pause wallpaper animation" : "Resume wallpaper animation"}
+              style={{
+                height: 28, padding: "0 10px", borderRadius: 6,
+                background: motion === "playing" ? "rgba(57,255,20,0.12)" : "rgba(255,0,85,0.12)",
+                border: motion === "playing" ? "1px solid rgba(57,255,20,0.4)" : "1px solid rgba(255,0,85,0.4)",
+                color: motion === "playing" ? "#39FF14" : "#FF0055",
+                fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              <i className={motion === "playing" ? "fa-solid fa-pause" : "fa-solid fa-play"} style={{ fontSize: 9 }} />
+              {motion === "playing" ? "Motion Active" : "Motion Paused"}
+            </button>
+
+            {/* Quality mode */}
+            <div style={{ display: "flex", gap: 2, background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: 2 }}>
+              {["auto", "high", "medium", "low"].map((q) => (
+                <button
+                  key={q}
+                  onClick={() => handleQualityChange(q)}
+                  style={{
+                    height: 24, padding: "0 7px", borderRadius: 4,
+                    border: "none",
+                    background: quality === q ? "rgba(0,240,255,0.22)" : "transparent",
+                    color: quality === q ? "#00F0FF" : "rgba(255,255,255,0.45)",
+                    fontSize: 9, cursor: "pointer", textTransform: "uppercase",
+                    fontFamily: "'JetBrains Mono', monospace", fontWeight: quality === q ? 700 : 400,
+                  }}
+                >
+                  {q === "high" ? "4K" : q === "low" ? "Eco" : q}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {/* Search */}

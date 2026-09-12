@@ -1478,3 +1478,97 @@ button, a, [role="button"] {
     overflow-x: hidden !important;
   }
 }
+
+/* ============================================================
+   ULTRA-COMPACT MOBILE (280px — Foldable Cover Displays)
+   Zero horizontal overflow, micro-dock, 2-column app grid
+============================================================ */
+@media (max-width: 319px) {
+  html, body, #root, [data-testid="desktop-root"] {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  /* TopBar: extreme compact mode */
+  [data-testid="topbar"] {
+    height: 38px !important;
+    padding: 0 4px !important;
+    font-size: 10px !important;
+  }
+  [data-testid="topbar"] .status-pill,
+  [data-testid="topbar"] .optional-badge {
+    display: none !important;
+  }
+
+  /* Dock: ultra-compact row */
+  [data-testid="dock-root"] {
+    min-height: 44px !important;
+    padding: 2px 4px !important;
+  }
+  [data-testid="dock-root"] i {
+    font-size: 14px !important;
+  }
+  [data-testid="dock-root"] > div > div {
+    gap: 4px !important;
+    padding: 2px 4px !important;
+  }
+
+  /* App Launcher: 2 columns max */
+  [data-testid="app-launcher"] .grid,
+  .app-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 6px !important;
+  }
+
+  /* Windows and modals: fill screen */
+  [data-testid^="window-"],
+  .modal-container,
+  .dialog-content {
+    width: 98vw !important;
+    max-width: 98vw !important;
+    left: 1vw !important;
+    margin: 0 auto !important;
+  }
+
+  /* Text & inputs: prevent truncation blowout */
+  h1, h2, h3, .app-title {
+    font-size: 12px !important;
+    word-break: break-word !important;
+  }
+  button {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+}
+
+/* ============================================================
+   ULTRA-WIDE & 4K CINEMATIC (2560px → 3840px)
+   Optimal scale, readability bounds, crisp UI depth
+============================================================ */
+@media (min-width: 2560px) {
+  html {
+    font-size: 18px;
+  }
+
+  [data-testid="topbar"] {
+    height: 52px !important;
+    font-size: 15px !important;
+  }
+
+  [data-testid="dock-root"] {
+    min-height: 72px !important;
+  }
+  [data-testid="dock-root"] i {
+    font-size: 26px !important;
+  }
+
+  /* Windows have generous maximum reading widths to prevent line stretch */
+  [data-testid="notes-app"],
+  [data-testid="chat-app"],
+  [data-testid="ai-chat-app"] {
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+}
+

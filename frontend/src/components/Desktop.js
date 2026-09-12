@@ -490,7 +490,7 @@ function Desktop() {
             } : {}),
           }}
         >
-          {wp.fx && !wp.dataURL && isDesktop && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
+          {wp.fx && !wp.dataURL && <WallpaperFX fxType={wp.fx} accent={wp.accent} isMobile={!isDesktop} />}
           {wp.typo?.main && (
             <div className="wp-typo">
               {wp.typo.main}
