@@ -913,6 +913,8 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF", isMobile = fal
   return (
     <canvas
       ref={canvasRef}
+      id="wallpaper-fx-canvas"
+      data-testid="wallpaper-fx-canvas"
       style={{
         position: "absolute",
         inset: 0,
