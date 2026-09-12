@@ -721,19 +721,123 @@ class NeuralPulses {
 }
 
 class RadarSweep {
-  constructor(W, H, accent) {
+  constructor(W, H, accent, isMobile = false) {
     this.accent = accent;
+    this.isMobile = isMobile;
     this.angle = 0;
+    this.init(W, H);
   }
+
+  init(W, H) {
+    const count = this.isMobile ? 6 : 10;
+    const maxR = Math.min(W, H) * (this.isMobile ? 0.30 : 0.36);
+    this.signals = Array.from({ length: count }, () => ({
+      angle: Math.random() * Math.PI * 2,
+      radius: maxR * (0.22 + Math.random() * 0.72),
+      intensity: 0,
+      pulseR: 0,
+    }));
+  }
+
   draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-    this.angle += 0.015;
-    const cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.38;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = this.accent + "33"; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(this.angle) * r, cy + Math.sin(this.angle) * r);
-    ctx.strokeStyle = this.accent; ctx.lineWidth = 1.6; ctx.stroke();
+    this.angle = (this.angle + (this.isMobile ? 0.012 : 0.016)) % (Math.PI * 2);
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const r = Math.min(W, H) * (this.isMobile ? 0.30 : 0.36);
+
+    // 1. Dark Precision Outer Rings
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = this.accent + "33";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.70, 0, Math.PI * 2);
+    ctx.strokeStyle = this.accent + "1D";
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([4, 8]);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);
+    ctx.strokeStyle = this.accent + "18";
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Crosshairs
+    ctx.strokeStyle = this.accent + "1A";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 1.08, cy); ctx.lineTo(cx + r * 1.08, cy);
+    ctx.moveTo(cx, cy - r * 1.08); ctx.lineTo(cx, cy + r * 1.08);
+    ctx.stroke();
+
+    // 2. Rotating Scan Cone Gradient
+    const coneGrad = ctx.createConicGradient(this.angle - Math.PI / 3, cx, cy);
+    coneGrad.addColorStop(0, "transparent");
+    coneGrad.addColorStop(0.75, this.accent + "04");
+    coneGrad.addColorStop(0.92, this.accent + "18");
+    coneGrad.addColorStop(1, this.accent + "40");
+
+    ctx.fillStyle = coneGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Rotating Sweep Arm Line
+    const sweepX = cx + Math.cos(this.angle) * r;
+    const sweepY = cy + Math.sin(this.angle) * r;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(sweepX, sweepY);
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = this.accent;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 4. Signal Detections
+    for (const sig of this.signals) {
+      const sigX = cx + Math.cos(sig.angle) * sig.radius;
+      const sigY = cy + Math.sin(sig.angle) * sig.radius;
+
+      let angleDiff = this.angle - sig.angle;
+      if (angleDiff < 0) angleDiff += Math.PI * 2;
+
+      if (angleDiff < 0.12) {
+        sig.intensity = 1.0;
+        sig.pulseR = 3;
+      } else {
+        sig.intensity = Math.max(0, sig.intensity - 0.014);
+        sig.pulseR += 0.35;
+      }
+
+      if (sig.intensity > 0.04) {
+        ctx.beginPath();
+        ctx.arc(sigX, sigY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "#FF003C";
+        ctx.shadowColor = "#FF003C";
+        ctx.shadowBlur = 12 * sig.intensity;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(sigX, sigY, sig.pulseR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 0, 60, ${(sig.intensity * 0.65).toFixed(2)})`;
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.beginPath();
+        ctx.arc(sigX, sigY, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = this.accent + "28";
+        ctx.fill();
+      }
+    }
   }
 }
 
@@ -815,7 +919,7 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF", isMobile = fal
         case "matrix":           return new MatrixRain(W, H, accent);
         case "circuit":          return new CircuitSparks(W, H, accent);
         case "neural":           return new NeuralPulses(W, H, accent);
-        case "radar":            return new RadarSweep(W, H, accent);
+        case "radar":            return new RadarSweep(W, H, accent, isMobile);
         case "hologram":         return new Hologram(W, H, accent);
         case "plasma":           return new PlasmaParticles(W, H, accent);
         default:                 return new GenesisFX(W, H, accent, isMobile);

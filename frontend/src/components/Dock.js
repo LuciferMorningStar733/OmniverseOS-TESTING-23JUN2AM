@@ -718,18 +718,33 @@ function DesktopDock({ isTablet }) {
     >
       <div
         ref={dockRef}
-        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl`}
+        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl relative overflow-hidden`}
         style={{
-          background: "rgba(7, 9, 18, 0.72)",
-          backdropFilter: "blur(36px) saturate(200%)",
-          WebkitBackdropFilter: "blur(36px) saturate(200%)",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          boxShadow: "0 28px 72px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px rgba(0,240,255,0.06)",
+          background: "rgba(7, 9, 18, 0.68)",
+          backdropFilter: "blur(48px) saturate(220%)",
+          WebkitBackdropFilter: "blur(48px) saturate(220%)",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(0,240,255,0.08)",
           maxWidth: "calc(100vw - 16px)",
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={onLeave}
       >
+        {/* Optical Liquid Glass Reflective Sheen Layer */}
+        {hoverIndex !== null && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0, bottom: 0,
+              left: `${Math.max(0, Math.min(100, (hoverIndex / APPS.length) * 100))}%`,
+              width: 120,
+              transform: "translateX(-50%)",
+              background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, rgba(0,240,255,0.05) 45%, transparent 70%)",
+              pointerEvents: "none",
+              transition: "left 0.1s ease-out",
+            }}
+          />
+        )}
         {appStates.map(({ app, open, isActive }, i) => (
           <DesktopDockIcon
             key={app.id}

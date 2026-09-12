@@ -46,16 +46,16 @@
 /* Glowing AI core with radial neural pathways and crimson pulses.   */
 /* ================================================================ */
 .wp-neural-core {
-  background: radial-gradient(ellipse at center, #062030 0%, #060812 60%, #05050A 100%);
+  background: radial-gradient(ellipse at center, #040914 0%, #03050B 60%, #020306 100%);
 }
 .wp-neural-core::before {
   content: "";
   position: absolute; inset: 0;
   /* Pulsing core */
   background:
-    radial-gradient(circle at 50% 55%, rgba(0,240,255,0.55) 0%, rgba(0,240,255,0.18) 10%, transparent 30%),
-    radial-gradient(circle at 50% 55%, rgba(0,240,255,0.25) 0%, transparent 50%),
-    radial-gradient(circle at 50% 55%, rgba(255,0,60,0.10) 0%, transparent 40%);
+    radial-gradient(circle at 50% 55%, rgba(0,240,255,0.32) 0%, rgba(0,240,255,0.10) 10%, transparent 30%),
+    radial-gradient(circle at 50% 55%, rgba(0,240,255,0.15) 0%, transparent 50%),
+    radial-gradient(circle at 50% 55%, rgba(255,0,60,0.06) 0%, transparent 40%);
   filter: blur(0.5px);
   animation: wpBreathe 6s ease-in-out infinite alternate;
 }
@@ -63,7 +63,7 @@
   content: "";
   position: absolute; inset: 0;
   /* Concentric rings + radial pathways via inline SVG */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'><defs><radialGradient id='r' cx='50%25' cy='61%25' r='50%25'><stop offset='0%25' stop-color='%2300F0FF' stop-opacity='0.0'/><stop offset='100%25' stop-color='%2300F0FF' stop-opacity='0.35'/></radialGradient></defs><g fill='none' stroke='url(%23r)' stroke-width='0.8'><circle cx='800' cy='550' r='120'/><circle cx='800' cy='550' r='200'/><circle cx='800' cy='550' r='300'/><circle cx='800' cy='550' r='420'/><circle cx='800' cy='550' r='560'/></g><g stroke='%2300F0FF' stroke-width='0.4' stroke-opacity='0.18'><line x1='800' y1='550' x2='200' y2='150'/><line x1='800' y1='550' x2='1400' y2='150'/><line x1='800' y1='550' x2='100' y2='550'/><line x1='800' y1='550' x2='1500' y2='550'/><line x1='800' y1='550' x2='300' y2='850'/><line x1='800' y1='550' x2='1300' y2='850'/><line x1='800' y1='550' x2='500' y2='100'/><line x1='800' y1='550' x2='1100' y2='100'/></g><g fill='%2300F0FF'><circle cx='200' cy='150' r='2.5' opacity='0.7'/><circle cx='1400' cy='150' r='2.5' opacity='0.7'/><circle cx='300' cy='850' r='2.5' opacity='0.6'/><circle cx='1300' cy='850' r='2.5' opacity='0.6'/><circle cx='500' cy='100' r='2' opacity='0.5'/><circle cx='1100' cy='100' r='2' opacity='0.5'/></g><g fill='%23FF003C'><circle cx='100' cy='550' r='2' opacity='0.6'/><circle cx='1500' cy='550' r='2' opacity='0.6'/></g></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'><defs><radialGradient id='r' cx='50%25' cy='61%25' r='50%25'><stop offset='0%25' stop-color='%2300F0FF' stop-opacity='0.0'/><stop offset='100%25' stop-color='%2300F0FF' stop-opacity='0.25'/></radialGradient></defs><g fill='none' stroke='url(%23r)' stroke-width='0.8'><circle cx='800' cy='550' r='120'/><circle cx='800' cy='550' r='200'/><circle cx='800' cy='550' r='300'/><circle cx='800' cy='550' r='420'/><circle cx='800' cy='550' r='560'/></g><g stroke='%2300F0FF' stroke-width='0.4' stroke-opacity='0.15'><line x1='800' y1='550' x2='200' y2='150'/><line x1='800' y1='550' x2='1400' y2='150'/><line x1='800' y1='550' x2='100' y2='550'/><line x1='800' y1='550' x2='1500' y2='550'/><line x1='800' y1='550' x2='300' y2='850'/><line x1='800' y1='550' x2='1300' y2='850'/><line x1='800' y1='550' x2='500' y2='100'/><line x1='800' y1='550' x2='1100' y2='100'/></g><g fill='%2300F0FF'><circle cx='200' cy='150' r='2.5' opacity='0.7'/><circle cx='1400' cy='150' r='2.5' opacity='0.7'/><circle cx='300' cy='850' r='2.5' opacity='0.6'/><circle cx='1300' cy='850' r='2.5' opacity='0.6'/><circle cx='500' cy='100' r='2' opacity='0.5'/><circle cx='1100' cy='100' r='2' opacity='0.5'/></g><g fill='%23FF003C'><circle cx='100' cy='550' r='2' opacity='0.6'/><circle cx='1500' cy='550' r='2' opacity='0.6'/></g></svg>");
   background-size: cover;
   background-position: center;
   opacity: 0.9;
@@ -81,8 +81,8 @@
   font-size: clamp(72px, 11vw, 180px);
   letter-spacing: -0.05em;
   color: transparent;
-  -webkit-text-stroke: 1.5px rgba(0,240,255,0.28);
-  text-shadow: 0 0 30px rgba(0,240,255,0.18);
+  -webkit-text-stroke: 1.2px rgba(0,240,255,0.18);
+  text-shadow: 0 0 20px rgba(0,240,255,0.12);
   white-space: nowrap;
   mix-blend-mode: screen;
 }
@@ -104,16 +104,16 @@
 /* Dark engineering blueprint — fine grid + HUD circles + tech labels*/
 /* ================================================================ */
 .wp-blueprint {
-  background: linear-gradient(180deg, #050d18 0%, #061018 50%, #05080F 100%);
+  background: linear-gradient(180deg, #03070E 0%, #040812 50%, #020408 100%);
 }
 .wp-blueprint::before {
   content: "";
   position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(rgba(0, 240, 255, 0.10) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.10) 1px, transparent 1px);
+    linear-gradient(rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(rgba(0, 240, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.08) 1px, transparent 1px);
   background-size: 30px 30px, 30px 30px, 150px 150px, 150px 150px;
   mask-image: radial-gradient(ellipse at center, black 35%, transparent 95%);
 }
@@ -135,14 +135,14 @@
   line-height: 0.9;
   letter-spacing: -0.04em;
   color: transparent;
-  -webkit-text-stroke: 1.2px rgba(0,240,255,0.4);
-  text-shadow: 0 0 18px rgba(0,240,255,0.15);
+  -webkit-text-stroke: 1px rgba(0,240,255,0.25);
+  text-shadow: 0 0 14px rgba(0,240,255,0.12);
 }
 .wp-blueprint .wp-typo span {
   display: block;
   color: transparent;
-  -webkit-text-stroke: 1.2px rgba(255,0,60,0.5);
-  text-shadow: 0 0 14px rgba(255,0,60,0.18);
+  -webkit-text-stroke: 1px rgba(255,0,60,0.35);
+  text-shadow: 0 0 10px rgba(255,0,60,0.15);
 }
 .wp-blueprint .wp-typo-sub {
   position: absolute;
@@ -151,7 +151,7 @@
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   letter-spacing: 0.5em;
-  color: rgba(0,240,255,0.55);
+  color: rgba(0,240,255,0.45);
 }
 
 /* ================================================================ */
@@ -159,15 +159,15 @@
 /* Futuristic skyline silhouette + atmospheric fog + warning lights. */
 /* ================================================================ */
 .wp-quantum-horizon {
-  background: linear-gradient(180deg, #05050A 0%, #050e18 50%, #062028 100%);
+  background: linear-gradient(180deg, #030408 0%, #040710 50%, #020408 100%);
 }
 .wp-quantum-horizon::before {
   content: "";
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 50% 100%, rgba(0,240,255,0.45) 0%, rgba(0,240,255,0.12) 25%, transparent 60%),
-    radial-gradient(ellipse at 85% 80%, rgba(255,0,60,0.10) 0%, transparent 30%),
-    radial-gradient(ellipse at 15% 70%, rgba(255,0,60,0.06) 0%, transparent 30%);
+    radial-gradient(ellipse at 50% 100%, rgba(0,240,255,0.28) 0%, rgba(0,240,255,0.08) 25%, transparent 60%),
+    radial-gradient(ellipse at 85% 80%, rgba(255,0,60,0.06) 0%, transparent 30%),
+    radial-gradient(ellipse at 15% 70%, rgba(255,0,60,0.04) 0%, transparent 30%);
   animation: wpBreathe 12s ease-in-out infinite alternate;
 }
 .wp-quantum-horizon::after {
@@ -189,8 +189,8 @@
   letter-spacing: -0.05em;
   white-space: nowrap;
   color: transparent;
-  -webkit-text-stroke: 1.5px rgba(0,240,255,0.35);
-  text-shadow: 0 0 40px rgba(0,240,255,0.25);
+  -webkit-text-stroke: 1.2px rgba(0,240,255,0.22);
+  text-shadow: 0 0 20px rgba(0,240,255,0.15);
   mix-blend-mode: screen;
 }
 .wp-quantum-horizon .wp-typo-sub {
@@ -208,7 +208,7 @@
   position: absolute;
   bottom: 0; left: 0; right: 0; height: 40%;
   background:
-    radial-gradient(ellipse at 50% 100%, rgba(0,240,255,0.18) 0%, transparent 60%);
+    radial-gradient(ellipse at 50% 100%, rgba(0,240,255,0.10) 0%, transparent 60%);
   filter: blur(20px);
   animation: wpFog 18s ease-in-out infinite alternate;
 }
@@ -218,7 +218,7 @@
 /* Massive neural network with floating particles + ambient light.   */
 /* ================================================================ */
 .wp-ai-nexus {
-  background: radial-gradient(ellipse at 30% 30%, #051820 0%, #05050A 70%);
+  background: radial-gradient(ellipse at 30% 30%, #040912 0%, #020306 70%);
 }
 .wp-ai-nexus::before {
   content: "";
