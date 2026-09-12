@@ -274,35 +274,6 @@ export const OSProvider = ({ children }) => {
     rememberActiveApp(appId);
   }, []);
 
-  useEffect(() => {
-    const handleOpenApp = (e) => {
-      const appId = e.detail?.appId || e.detail;
-      if (appId) openApp(appId);
-    };
-    const handleCloseApp = (e) => {
-      const appId = e.detail?.appId || e.detail;
-      if (appId) {
-        setWindows((prev) => {
-          const win = prev.find((w) => w.app === appId);
-          if (win) {
-            playWindowClose();
-            trackEvent("app_close", { appId });
-            return prev.filter((w) => w.id !== win.id);
-          }
-          return prev;
-        });
-      }
-    };
-    window.addEventListener("omniverse:open-app", handleOpenApp);
-    window.addEventListener("omniverse:close-app", handleCloseApp);
-    window.__omniverse_openApp = openApp;
-    return () => {
-      window.removeEventListener("omniverse:open-app", handleOpenApp);
-      window.removeEventListener("omniverse:close-app", handleCloseApp);
-      delete window.__omniverse_openApp;
-    };
-  }, [openApp]);
-
   const closeWindow = useCallback((id) => {
     playWindowClose();
     setWindows((prev) => {
@@ -337,7 +308,57 @@ export const OSProvider = ({ children }) => {
     setWindows((prev) =>
       prev.map((w) => w.id === id ? { ...w, minimized: true } : w)
     );
+    setActiveId((cur) => (cur === id ? null : cur));
   }, []);
+
+  const restoreApp = useCallback((appId) => {
+    setWindows((prev) =>
+      prev.map((w) => w.app === appId ? { ...w, minimized: false } : w)
+    );
+  }, []);
+
+  useEffect(() => {
+    const handleOpenApp = (e) => {
+      const appId = e.detail?.appId || e.detail;
+      if (appId) openApp(appId);
+    };
+    const handleCloseApp = (e) => {
+      const appId = e.detail?.appId || e.detail;
+      if (appId) {
+        setWindows((prev) => {
+          const win = prev.find((w) => w.app === appId);
+          if (win) {
+            playWindowClose();
+            trackEvent("app_close", { appId });
+            return prev.filter((w) => w.id !== win.id);
+          }
+          return prev;
+        });
+      }
+    };
+    const handleRestoreApp = (e) => {
+      const appId = e.detail?.appId || e.detail;
+      if (appId) restoreApp(appId);
+    };
+    window.addEventListener("omniverse:open-app", handleOpenApp);
+    window.addEventListener("omniverse:close-app", handleCloseApp);
+    window.addEventListener("omniverse:restore-app", handleRestoreApp);
+    window.__omniverse_openApp = openApp;
+    window.__omniverse_closeApp = (appId) => handleCloseApp({ detail: { appId } });
+    window.__omniverse_restoreApp = restoreApp;
+    return () => {
+      window.removeEventListener("omniverse:open-app", handleOpenApp);
+      window.removeEventListener("omniverse:close-app", handleCloseApp);
+      window.removeEventListener("omniverse:restore-app", handleRestoreApp);
+      delete window.__omniverse_openApp;
+      delete window.__omniverse_closeApp;
+      delete window.__omniverse_restoreApp;
+    };
+  }, [openApp, restoreApp]);
+
+  useEffect(() => {
+    window.__omniverse_windows = windows;
+  }, [windows]);
 
   // ── Cortex: URL tracking helper (call this from the Browser app) ─────────────
   const trackUrl = useCallback((url) => {

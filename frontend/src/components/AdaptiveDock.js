@@ -160,6 +160,7 @@ export default function AdaptiveDock() {
   const [hoveredAppId, setHoveredAppId] = useState(null);
   const [bouncingAppId, setBouncingAppId] = useState(null);
   const [mouseX, setMouseX] = useState(null);
+  const lastClickRef = useRef(0);
 
   const { isTouch } = useBreakpoint();
   const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -172,6 +173,10 @@ export default function AdaptiveDock() {
   );
 
   const handleIconClick = useCallback((appId) => {
+    const now = Date.now();
+    if (now - lastClickRef.current < 400) return;
+    lastClickRef.current = now;
+
     setBouncingAppId(appId);
     setTimeout(() => setBouncingAppId(null), 600);
 

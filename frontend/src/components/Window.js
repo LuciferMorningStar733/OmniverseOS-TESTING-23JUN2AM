@@ -600,13 +600,13 @@ export default function Window({ win, children }) {
           y: 0,
           rotateX: 0,
           filter: "blur(0px)",
+          pointerEvents: "auto",
           transition: { duration: 0.15 },
-          transitionEnd: { display: "flex" },
         },
         minimized: {
           opacity: 0,
+          pointerEvents: "none",
           transition: { duration: 0.15 },
-          transitionEnd: { display: "none" },
         },
       }
     : {
@@ -617,6 +617,7 @@ export default function Window({ win, children }) {
           y: 0,
           rotateX: 0,
           filter: "blur(0px)",
+          pointerEvents: "auto",
           transition: {
             type: "spring",
             stiffness: 350,
@@ -624,7 +625,6 @@ export default function Window({ win, children }) {
             mass: 0.7,
             filter: { duration: 0.18, ease: "easeOut" },
           },
-          transitionEnd: { display: "flex" },
         },
         minimized: {
           opacity: 0,
@@ -634,13 +634,13 @@ export default function Window({ win, children }) {
           y: initOffsetY,
           rotateX: 25,
           filter: "blur(6px)",
+          pointerEvents: "none",
           transition: {
             type: "spring",
             stiffness: 380,
             damping: 32,
             mass: 0.6,
           },
-          transitionEnd: { display: "none" },
         },
       };
 
@@ -655,7 +655,7 @@ export default function Window({ win, children }) {
       };
 
   const desktopExit = prefersReducedMotion
-    ? { opacity: 0 }
+    ? { opacity: 0, transitionEnd: { display: "none" } }
     : {
         opacity: 0,
         scale: 0.22,
@@ -668,6 +668,7 @@ export default function Window({ win, children }) {
           damping: 34,
           mass: 0.55,
         },
+        transitionEnd: { display: "none" },
       };
 
   return (
@@ -702,7 +703,7 @@ export default function Window({ win, children }) {
         exit={desktopExit}
         onMouseDown={handleFocus}
         onTouchStart={handleFocus}
-        className="absolute overflow-hidden rounded-2xl pointer-events-auto"
+        className={`absolute overflow-hidden rounded-2xl ${win.minimized ? "pointer-events-none" : "pointer-events-auto"}`}
         style={{
           zIndex: win.z,
           top:    animY,
@@ -712,6 +713,7 @@ export default function Window({ win, children }) {
           perspective: 1000,
           transformOrigin: `${Math.max(10, Math.min(90, 50 + (initOffsetX / animW) * 35))}% 100%`,
           willChange: isDragging ? "transform" : "opacity, transform",
+          pointerEvents: win.minimized ? "none" : "auto",
           opacity: isActive ? 1 : 0.88,
           boxShadow: isActive ? SHADOW_ACTIVE(accentColor) : SHADOW_INACTIVE,
           backdropFilter: BLUR,
