@@ -477,6 +477,11 @@ function MobileDock() {
                 }
               /* Exit: ease-in with right-to-left (reverse) stagger */
               : {
+                  duration: 0.18,
+                  ease: [0.4, 0, 1, 1],
+                  delay: (pinnedApps.length - 1 - i) * 0.048,
+                }
+            }
             style={{ transformOrigin: "bottom center", willChange: "transform, opacity, filter" }}
           >
             <MobileDockIcon
