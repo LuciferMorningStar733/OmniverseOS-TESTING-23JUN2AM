@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "1789239288598-e9",
+  "createdAt": 1789239288598,
+  "origin": "failed-assert",
+  "expected": "declared consequence",
+  "observed": "no element matched {\"text\":\"Dashboard\"}",
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "auth-submit-button"
+      },
+      "action": "click"
+    }
+  ]
+}

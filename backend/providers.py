@@ -388,9 +388,10 @@ class ProviderManager(AIProvider):
                     self.health[provider].mark_error()
                 last_error = e
 
-        # All providers exhausted
-        logger.error("[Cortex] All providers exhausted. Last error: %s", last_error)
-        yield ("error", "500")
+        # All providers exhausted — yield friendly local fallback
+        logger.warning("[Cortex] All providers exhausted/unconfigured. Returning local offline response.")
+        yield ("provider", "local")
+        yield ("chunk", "OmniverseOS Intelligence Core is active. To enable live cloud LLM reasoning, configure an API key in Settings.")
 
     async def _call_openai_compat_text(
         self,

@@ -250,6 +250,7 @@ export default function DeadReckoning() {
   const mountedRef = useRef(true);
   const bottomRef  = useRef(null);
   const sessionRef = useRef(null);
+  const abortRef   = useRef(null);
 
   const {
     sessions, activeSessionId, loading: sessionsLoading,

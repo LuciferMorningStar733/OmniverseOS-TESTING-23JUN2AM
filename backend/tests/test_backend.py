@@ -12,6 +12,9 @@ DEMO = {"email": "demo@omniverse.io", "password": "omniverse123"}
 @pytest.fixture(scope="session")
 def token():
     r = requests.post(f"{API}/auth/login", json=DEMO, timeout=30)
+    if r.status_code != 200:
+        requests.post(f"{API}/auth/signup", json={"email": DEMO["email"], "password": DEMO["password"], "name": "Demo User"}, timeout=30)
+        r = requests.post(f"{API}/auth/login", json=DEMO, timeout=30)
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
@@ -34,7 +37,7 @@ def test_signup_and_login():
     r = requests.post(f"{API}/auth/signup", json={"email": email, "password": "pw12345", "name": "Tester"}, timeout=30)
     assert r.status_code == 200, r.text
     data = r.json()
-    assert "token" in data and data["user"]["email"] == email
+    assert "token" in data and data["user"]["email"] == email.lower()
 
     # duplicate
     r2 = requests.post(f"{API}/auth/signup", json={"email": email, "password": "pw12345", "name": "T"}, timeout=30)

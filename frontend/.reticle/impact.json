@@ -1,15 +1,15 @@
 {
   "counts": {
-    "calls": 152,
-    "verdicts": 43,
-    "passed": 31,
-    "failed": 12,
+    "calls": 181,
+    "verdicts": 48,
+    "passed": 35,
+    "failed": 13,
     "unknown": 0,
     "refusals": 12,
     "marks": 0,
-    "sessions": 32,
-    "tokensReturned": 42811,
-    "drivingMs": 30582
+    "sessions": 34,
+    "tokensReturned": 56038,
+    "drivingMs": 43194
   },
   "days": [
     {
@@ -26,6 +26,21 @@
         "tokensReturned": 42811,
         "drivingMs": 30582
       }
+    },
+    {
+      "date": "2026-09-13",
+      "counts": {
+        "calls": 29,
+        "verdicts": 5,
+        "passed": 4,
+        "failed": 1,
+        "unknown": 0,
+        "refusals": 0,
+        "marks": 0,
+        "sessions": 2,
+        "tokensReturned": 13227,
+        "drivingMs": 12612
+      }
     }
   ],
   "records": {
@@ -37,16 +52,21 @@
   },
   "savings": {
     "tokens": {
-      "value": 25989,
+      "value": 20762,
       "basis": "vs an agent reading the app through screenshots"
     },
     "minutes": {
-      "value": 48,
-      "basis": "vs one re-prompt cycle per defect caught"
+      "value": 76,
+      "basis": "vs checking each consequence by hand, plus one re-prompt cycle per defect caught"
     }
   },
   "since": 1789075412156,
   "defects": [
+    {
+      "at": 1789239288640,
+      "title": "INITIALIZE OMNIVERSE",
+      "detail": "no element matched {\"text\":\"Dashboard\"}"
+    },
     {
       "at": 1789075912831,
       "title": "the declared consequence did not hold"
@@ -82,11 +102,6 @@
     },
     {
       "at": 1789075803158,
-      "title": "INITIALIZE OMNIVERSE",
-      "detail": "channels disagree about this action (ui-advanced-request-failed) even though the assertion passed"
-    },
-    {
-      "at": 1789075748607,
       "title": "INITIALIZE OMNIVERSE",
       "detail": "channels disagree about this action (ui-advanced-request-failed) even though the assertion passed"
     }

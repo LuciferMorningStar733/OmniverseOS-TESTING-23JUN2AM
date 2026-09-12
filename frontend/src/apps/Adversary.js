@@ -90,6 +90,7 @@ export default function Adversary() {
   const attackRef  = useRef("");
   const mountedRef = useRef(true);
   const sessionRef = useRef(null); // current run's sessionId
+  const abortRef   = useRef(null);
 
   const {
     sessions, activeSessionId, loading: sessionsLoading,

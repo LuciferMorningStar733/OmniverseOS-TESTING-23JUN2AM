@@ -1599,6 +1599,8 @@ async def auto_title_session(session_id: str, user=Depends(get_current_user)):
 @api.post("/ai/image")
 async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
     await rate_limit(user["id"])
+    if not gemini_client:
+        raise HTTPException(status_code=503, detail="Image generation engine not initialized. Please configure API key in Settings.")
     try:
         import asyncio as _asyncio
         response = await _asyncio.to_thread(
