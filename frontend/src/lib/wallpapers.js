@@ -8,6 +8,16 @@
   export const WALLPAPERS = [
     // ─── 3036 Masterpiece Collection (4K Futuristic Live Wallpapers) ────────
     {
+      id: "golden-gate-sunset",
+      name: "Golden Gate Sunset",
+      className: "wp-golden-gate-sunset",
+      accent: "#FB923C",
+      category: "3036 Masterpieces",
+      fx: "aurora",
+      typo: { main: "OMNIVERSE OS", sub: "SAN FRANCISCO // GOLDEN HOUR" },
+      description: "Iconic Golden Gate bridge coastal sunset wallpaper."
+    },
+    {
       id: "omni-genesis",
       name: "Omni Genesis",
       className: "wp-omni-genesis",
@@ -142,7 +152,7 @@
     { id: "solar-wind",       name: "Solar Wind",        className: "wp-solar-wind",        accent: "#FCEE09", category: "Space",      fx: "plasma",   typo: { main: "OMNIVERSE\u00A0OS", sub: "SOLAR WIND" } },
   ];
 
-  export const DEFAULT_WALLPAPER = "omni-genesis";
+  export const DEFAULT_WALLPAPER = "golden-gate-sunset";
 
   // ─── Hooks: localStorage persistence ─────────────────────────────────────────
   const LS_FAVORITES  = "omni_wp_favorites";

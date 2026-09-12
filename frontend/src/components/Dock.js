@@ -477,11 +477,6 @@ function MobileDock() {
                 }
               /* Exit: ease-in with right-to-left (reverse) stagger */
               : {
-                  duration: 0.18,
-                  ease: [0.4, 0, 1, 1],
-                  delay: (n - 1 - i) * 0.048,
-                }
-            }
             style={{ transformOrigin: "bottom center", willChange: "transform, opacity, filter" }}
           >
             <MobileDockIcon
@@ -502,14 +497,14 @@ const DockTooltip = memo(function DockTooltip({ name, visible }) {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 6, scale: 0.80 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 6, scale: 0.80 }}
+          initial={{ opacity: 0, x: -6, scale: 0.80 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: -6, scale: 0.80 }}
           transition={{ type: "spring", stiffness: 480, damping: 24, mass: 0.2 }}
           style={{
             position: "absolute",
-            bottom: "calc(100% + 10px)",
-            left: "50%", x: "-50%",
+            right: "calc(100% + 12px)",
+            top: "50%", y: "-50%",
             background: "rgba(8,10,18,0.92)",
             border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 8,
@@ -576,14 +571,14 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   const [scope, animateScope] = useAnimate();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const scale = useScale(index, hoverIndex);
-  const translateY = scale > 1 ? -(scale - 1) * 20 : 0;
+  const translateX = scale > 1 ? -(scale - 1) * 16 : 0;
 
   const handleClick = useCallback(async () => {
     playClick();
     // macOS Launchpad-matched bounce: compress → overshoot → settle
     await animateScope(scope.current, {
       scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
-      y:     [0,  6,   -10,  3,   -3,   1,    0],
+      x:     [0, -4,    8,   -2,    2,   -1,   0],
     }, {
       duration: 0.52,
       ease: "easeOut",
@@ -615,7 +610,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      animate={{ scale, y: translateY }}
+      animate={{ scale, x: translateX }}
       transition={{ type: "spring", stiffness: 440, damping: 22, mass: 0.22 }}
       className="group relative flex-shrink-0"
       style={{
@@ -623,7 +618,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: 12,
         background: "transparent",
-        transformOrigin: "bottom center",
+        transformOrigin: "right center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
         willChange: "transform",
       }}
@@ -660,26 +655,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         />
       </div>
 
-      {/* Running indicator — pill for active focused app, dot for background running app */}
-      {open && (
-        <motion.span
-          layoutId={`running-dot-${app.id}`}
-          className="absolute rounded-full"
-          style={{
-            bottom: -5, left: "50%", x: "-50%",
-            width: isActive ? 16 : 4,
-            height: isActive ? 4 : 4,
-            borderRadius: 2,
-            background: isActive ? app.color : "rgba(0,240,255,0.75)",
-            boxShadow: isActive
-              ? `0 0 10px ${app.color}FF, 0 0 20px ${app.color}66`
-              : "0 0 6px rgba(0,240,255,0.6)",
-            transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
-          }}
-        />
-      )}
-
-      <DockTooltip name={app.name} visible={tooltipVisible} />
+      {DockTooltip({ name: app.name, visible: tooltipVisible })}
     </motion.button>
   );
 });
@@ -692,10 +668,10 @@ function DesktopDock({ isTablet }) {
   const handleMouseMove = useCallback((e) => {
     if (!dockRef.current) return;
     const rect = dockRef.current.getBoundingClientRect();
-    const paddingLeft = 14;
-    const itemWidth = 44 + (isTablet ? 4 : 6);
-    const relativeX = e.clientX - rect.left - paddingLeft;
-    const floatIdx = relativeX / itemWidth;
+    const paddingTop = 12;
+    const itemHeight = 44 + (isTablet ? 4 : 6);
+    const relativeY = e.clientY - rect.top - paddingTop;
+    const floatIdx = relativeY / itemHeight;
     setHoverIndex(floatIdx);
   }, [isTablet]);
 
@@ -710,22 +686,22 @@ function DesktopDock({ isTablet }) {
 
   return (
     <motion.div
-      initial={{ y: 120, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      initial={{ x: 120, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
       transition={{ delay: 0.25, type: "spring", damping: 24, stiffness: 240 }}
-      className="absolute left-0 right-0 bottom-4 z-40 flex justify-center pointer-events-none"
+      className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex items-center pointer-events-none"
       data-testid="dock-root"
     >
       <div
         ref={dockRef}
-        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl relative overflow-hidden`}
+        className={`pointer-events-auto flex flex-col items-center ${isTablet ? "gap-1" : "gap-1.5"} px-2 py-3 rounded-2xl relative overflow-hidden`}
         style={{
           background: "rgba(7, 9, 18, 0.68)",
           backdropFilter: "blur(48px) saturate(220%)",
           WebkitBackdropFilter: "blur(48px) saturate(220%)",
           border: "1px solid rgba(255, 255, 255, 0.15)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(0,240,255,0.08)",
-          maxWidth: "calc(100vw - 16px)",
+          boxShadow: "-12px 0 48px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(0,240,255,0.08)",
+          maxHeight: "calc(100vh - 80px)",
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={onLeave}
@@ -735,13 +711,13 @@ function DesktopDock({ isTablet }) {
           <div
             style={{
               position: "absolute",
-              top: 0, bottom: 0,
-              left: `${Math.max(0, Math.min(100, (hoverIndex / APPS.length) * 100))}%`,
-              width: 120,
-              transform: "translateX(-50%)",
-              background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, rgba(0,240,255,0.05) 45%, transparent 70%)",
+              left: 0, right: 0,
+              top: `${Math.max(0, Math.min(100, (hoverIndex / APPS.length) * 100))}%`,
+              height: 60,
+              transform: "translateY(-50%)",
+              background: "radial-gradient(ellipse at 0% 50%, rgba(255,255,255,0.15) 0%, rgba(0,240,255,0.05) 45%, transparent 70%)",
               pointerEvents: "none",
-              transition: "left 0.1s ease-out",
+              transition: "top 0.1s ease-out",
             }}
           />
         )}
@@ -758,6 +734,15 @@ function DesktopDock({ isTablet }) {
             openApp={openApp}
           />
         ))}
+
+        {/* Separator Line & Trash Icon matching reference Dock */}
+        <div className="w-6 h-px bg-white/20 my-1" />
+        <button
+          className="w-10 h-10 rounded-[11px] flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+          title="Trash"
+        >
+          <i className="fa-solid fa-trash-can text-lg" />
+        </button>
       </div>
     </motion.div>
   );

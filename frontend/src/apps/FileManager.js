@@ -3,138 +3,138 @@ import { crud } from "../lib/api";
 
 const c = crud("files");
 
-export default function FileManager() {
-  const [files,   setFiles]   = useState([]);
-  const [folder,  setFolder]  = useState("root");
-  const [showNew, setShowNew] = useState(null);
-  const [name,    setName]    = useState("");
+const MACOS_FAVORITES = [
+  { id: "stories", name: "Stories", icon: "fa-folder text-[#3b82f6]" },
+  { id: "designed", name: "Designed in Calif...", icon: "fa-folder text-[#3b82f6]" },
+  { id: "legopolis", name: "Legopolis Transfer", icon: "fa-folder text-[#3b82f6]" },
+  { id: "upgrade", name: "Upgrade", icon: "fa-folder text-[#3b82f6]" },
+  { id: "transfer", name: "Transfer Folders", icon: "fa-folder text-[#3b82f6]" },
+  { id: "screenshots", name: "Screenshots", icon: "fa-folder text-[#3b82f6]" },
+  { id: "audio", name: "Audio Hijack", icon: "fa-folder text-[#3b82f6]" },
+  { id: "applications", name: "Applications", icon: "fa-folder text-[#3b82f6]" },
+  { id: "documents", name: "Documents", icon: "fa-folder text-[#3b82f6]" },
+];
 
-  const load = () => c.list().then(setFiles);
+const DEFAULT_FINDER_ROWS = [
+  { id: "row-1", name: "The Incomparable Episode Archive", date: "Jul 3, 2026 at 3:55 PM", size: "142.49 GB", kind: "Folder" },
+  { id: "row-2", name: "Game Show", date: "Jun 4, 2026 at 4:06 PM", size: "1.16 TB", kind: "Folder" },
+  { id: "row-3", name: "Works in Progress", date: "Jun 4, 2026 at 4:06 PM", size: "Zero bytes", kind: "Folder" },
+  { id: "row-4", name: "Total Party Kill", date: "May 12, 2026 at 8:51 AM", size: "1.25 TB", kind: "Folder" },
+  { id: "row-5", name: "Robot Or Not", date: "Apr 21, 2026 at 9:12 AM", size: "659.64 GB", kind: "Folder" },
+];
+
+export default function FileManager() {
+  const [files, setFiles] = useState([]);
+  const [folder, setFolder] = useState("root");
+  const [activeFav, setActiveFav] = useState("documents");
+  const [search, setSearch] = useState("");
+
+  const load = () => c.list().then(setFiles).catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const create = async (type) => {
-    if (!name.trim()) return;
-    await c.create({ name: name.trim(), type, parent: folder, content: "", size: 0 });
-    setName(""); setShowNew(null); load();
-  };
-
-  const del = async (id) => { await c.remove(id); load(); };
-
-  const here   = files.filter((f) => f.parent === folder);
-  const folders = files.filter((f) => f.type === "folder");
+  const here = files.filter((f) => f.parent === folder);
 
   return (
-    <div className="flex flex-col sm:flex-row h-full text-white" data-testid="files-app">
-      {/* Sidebar */}
-      <div className="sm:w-56 border-b sm:border-b-0 sm:border-r border-white/10 p-3 flex-shrink-0">
-        <div className="mono-label mb-2">// Folders</div>
-        {/* Mobile: horizontal scroll */}
-        <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-x-visible pb-1 sm:pb-0"
-          style={{ WebkitOverflowScrolling: "touch" }}>
-          <button
-            onClick={() => setFolder("root")}
-            className={`flex-shrink-0 sm:w-full text-left px-2 py-1.5 rounded text-sm whitespace-nowrap
-              ${folder === "root" ? "bg-[#00F0FF]/10 text-[#00F0FF]" : "hover:bg-white/5"}`}
-          >
-            <i className="fa-solid fa-house mr-2"></i>Root
-          </button>
-          {folders.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFolder(f.id)}
-              className={`flex-shrink-0 sm:w-full text-left px-2 py-1.5 rounded text-sm whitespace-nowrap
-              ${folder === f.id ? "bg-[#00F0FF]/10 text-[#00F0FF]" : "hover:bg-white/5"}`}
-            >
-              <i className="fa-solid fa-folder mr-2 text-[#FCEE09]"></i>{f.name}
-            </button>
-          ))}
+    <div className="flex h-full w-full bg-[#f8fafc] text-[#1e293b] font-sans overflow-hidden select-none" data-testid="files-app">
+      {/* ── macOS Finder Sidebar ── */}
+      <div className="w-52 bg-[#ebedf0]/90 border-r border-[#cbd5e1] flex flex-col p-3 flex-shrink-0 backdrop-blur-md">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8] mb-2 px-2">
+          Favorites
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-0.5">
+          {MACOS_FAVORITES.map((fav) => {
+            const active = activeFav === fav.id;
+            return (
+              <button
+                key={fav.id}
+                onClick={() => setActiveFav(fav.id)}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-colors text-left font-medium ${
+                  active ? "bg-[#3b82f6] text-white shadow-sm" : "hover:bg-[#e2e8f0] text-[#334155]"
+                }`}
+              >
+                <i className={`fa-solid ${fav.icon} ${active ? "text-white" : ""}`} />
+                <span className="truncate">{fav.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Main area */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="p-3 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-          <div className="font-mono text-xs text-slate-400 truncate">
-            / {folder === "root" ? "root" : folders.find((f) => f.id === folder)?.name}
+      {/* ── Main List Area ── */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
+        {/* Toolbar & Search */}
+        <div className="h-10 border-b border-[#e2e8f0] px-3 flex items-center justify-between bg-[#f8fafc]">
+          <div className="flex items-center gap-1 text-slate-400 text-xs">
+            <button className="p-1 hover:text-slate-700">
+              <i className="fa-solid fa-chevron-left" />
+            </button>
+            <button className="p-1 hover:text-slate-700">
+              <i className="fa-solid fa-chevron-right" />
+            </button>
           </div>
-          <div className="flex gap-1.5 flex-shrink-0">
-            <button data-testid="new-folder" onClick={() => setShowNew("folder")} className="neon-btn !py-1 !px-2 text-xs">
-              <i className="fa-solid fa-folder-plus mr-1"></i>
-              <span className="hidden sm:inline">Folder</span>
-            </button>
-            <button data-testid="new-file" onClick={() => setShowNew("file")} className="neon-btn !py-1 !px-2 text-xs">
-              <i className="fa-solid fa-file-circle-plus mr-1"></i>
-              <span className="hidden sm:inline">File</span>
-            </button>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center">
+              <i className="fa-solid fa-magnifying-glass absolute left-2.5 text-slate-400 text-xs" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-7 pr-3 py-1 bg-white border border-[#cbd5e1] rounded-md text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#3b82f6] w-40"
+              />
+            </div>
           </div>
         </div>
 
-        {showNew && (
-          <div className="p-3 border-b border-white/10 flex gap-2 flex-shrink-0">
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={`${showNew} name`}
-              className="input-cyber flex-1 min-w-0"
-              onKeyDown={(e) => e.key === "Enter" && create(showNew)}
-            />
-            <button onClick={() => create(showNew)} className="neon-btn primary flex-shrink-0">Create</button>
-            <button onClick={() => setShowNew(null)} className="neon-btn flex-shrink-0">Cancel</button>
+        {/* Column Headers */}
+        <div className="grid grid-cols-12 px-4 py-1.5 border-b border-[#e2e8f0] bg-[#f1f5f9] text-[11px] font-semibold text-[#64748b]">
+          <div className="col-span-5 flex items-center gap-1">
+            <span>Name</span>
+            <i className="fa-solid fa-chevron-down text-[9px]" />
           </div>
-        )}
+          <div className="col-span-3">Date Modified</div>
+          <div className="col-span-2">Size</div>
+          <div className="col-span-2">Kind</div>
+        </div>
 
-        {/* File grid — 3 cols mobile, 5 desktop */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 content-start">
+        {/* Table Rows */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          {DEFAULT_FINDER_ROWS.map((row) => (
+            <div
+              key={row.id}
+              className="grid grid-cols-12 px-4 py-2 text-xs text-[#1e293b] hover:bg-[#eff6ff] cursor-pointer items-center transition-colors"
+            >
+              <div className="col-span-5 flex items-center gap-2 truncate font-medium">
+                <i className="fa-solid fa-folder text-[#3b82f6] text-sm" />
+                <span className="truncate">{row.name}</span>
+              </div>
+              <div className="col-span-3 text-slate-500 text-[11px]">{row.date}</div>
+              <div className="col-span-2 text-slate-500 text-[11px]">{row.size}</div>
+              <div className="col-span-2 text-slate-500 text-[11px]">{row.kind}</div>
+            </div>
+          ))}
+
+          {/* Render any additional user created files */}
           {here.map((f) => (
             <div
               key={f.id}
-              onClick={() => {
-                if (f.type === "folder") {
-                  setFolder(f.id);
-                }
-              }}
-              className="group flex flex-col items-center p-2 sm:p-3 rounded-lg hover:bg-white/5 cursor-pointer relative"
+              className="grid grid-cols-12 px-4 py-2 text-xs text-[#1e293b] hover:bg-[#eff6ff] cursor-pointer items-center transition-colors"
             >
-              <i className={`fa-solid ${f.type === "folder" ? "fa-folder text-[#FCEE09]" : "fa-file text-[#00F0FF]"} text-3xl sm:text-4xl mb-1 sm:mb-2`}></i>
-              <div className="text-xs text-center truncate w-full">{f.name}</div>
-              <button
-                onClick={(e) => { e.stopPropagation(); del(f.id); }}
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-[#FF003C]"
-              >
-                <i className="fa-solid fa-xmark text-xs"></i>
-              </button>
+              <div className="col-span-5 flex items-center gap-2 truncate font-medium">
+                <i className={`fa-solid ${f.type === "folder" ? "fa-folder text-[#3b82f6]" : "fa-file text-[#64748b]"} text-sm`} />
+                <span className="truncate">{f.name}</span>
+              </div>
+              <div className="col-span-3 text-slate-500 text-[11px]">Just now</div>
+              <div className="col-span-2 text-slate-500 text-[11px]">{f.size || "Zero bytes"}</div>
+              <div className="col-span-2 text-slate-500 text-[11px]">{f.type === "folder" ? "Folder" : "Document"}</div>
             </div>
           ))}
-          {here.length === 0 && (
-            <div className="col-span-3 sm:col-span-5 flex flex-col items-center justify-center text-center py-12 px-4 max-w-sm mx-auto">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)" }}>
-                <i className="fa-solid fa-folder-open text-[#60A5FA]/70 text-2xl"></i>
-              </div>
-              <div className="text-white/90 font-bold text-sm mb-1">Folder is Empty</div>
-              <div className="text-slate-400 text-xs leading-relaxed mb-4">
-                Store virtual system assets, documents, and exported project files in this folder.
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowNew("file")}
-                  aria-label="Create a new file"
-                  className="neon-btn primary !py-1.5 !px-3 text-xs"
-                >
-                  <i className="fa-solid fa-file-circle-plus mr-1.5" />
-                  New File
-                </button>
-                <button
-                  onClick={() => setShowNew("folder")}
-                  aria-label="Create a new folder"
-                  className="neon-btn !py-1.5 !px-3 text-xs"
-                >
-                  <i className="fa-solid fa-folder-plus mr-1.5" />
-                  New Folder
-                </button>
-              </div>
-            </div>
-          )}
+        </div>
+
+        {/* Footer Status Bar */}
+        <div className="h-7 border-t border-[#e2e8f0] px-4 flex items-center justify-center bg-[#f8fafc] text-[11px] text-[#64748b]">
+          9 items, 4.05 TB available
         </div>
       </div>
     </div>

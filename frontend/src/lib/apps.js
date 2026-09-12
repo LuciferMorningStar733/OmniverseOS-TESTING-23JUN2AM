@@ -32,6 +32,7 @@ export const APPS = [
 
   // ─── Media ─────────────────────────────────────────────────────────────
   { id: "music",      name: "Music",        icon: "fa-music",          color: "#F472B6", Component: lazy(() => import("../apps/Music")),         group: "media" },
+  { id: "photos",     name: "Photos",       icon: "fa-photo-film",     color: "#EC4899", Component: lazy(() => import("../apps/PhotosApp")),     group: "media" },
   { id: "videos",     name: "Videos",       icon: "fa-video",          color: "#F472B6", Component: lazy(() => import("../apps/Videos")),        group: "media" },
   { id: "watchlist",  name: "Watchlist",    icon: "fa-film",           color: "#F472B6", Component: lazy(() => import("../apps/Watchlist")),     group: "media" },
 

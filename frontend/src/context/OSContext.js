@@ -30,9 +30,9 @@ const LS_WALLPAPER = "omniverse_wallpaper";
 
 // ─── initial default windows (spatial desktop cascade) ───────────────────────
 const INITIAL_DEFAULT_WINDOWS = [
-  { id: "files-init", app: "files", x: 70, y: 70, w: 780, h: 510, z: 101, minimized: false, maximized: false },
-  { id: "chat-init", app: "chat", x: 260, y: 100, w: 680, h: 560, z: 102, minimized: false, maximized: false },
-  { id: "dashboard-init", app: "dashboard", x: 480, y: 80, w: 740, h: 480, z: 100, minimized: false, maximized: false },
+  { id: "photos-init", app: "photos", x: 60, y: 35, w: 760, h: 540, z: 100, minimized: false, maximized: false },
+  { id: "files-init", app: "files", x: 220, y: 270, w: 720, h: 420, z: 101, minimized: false, maximized: false },
+  { id: "chat-init", app: "chat", x: 310, y: 130, w: 400, h: 520, z: 102, minimized: false, maximized: false },
 ];
 
 // ─── helpers ──────────────────────────────────────────────────────────────────

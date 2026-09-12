@@ -42,6 +42,43 @@
 }
 
 /* ================================================================ */
+/* 0. GOLDEN GATE SUNSET                                             */
+/* Iconic coastal San Francisco sunset wallpaper matching macOS ref. */
+/* ================================================================ */
+.wp-golden-gate-sunset {
+  background: radial-gradient(ellipse at 78% 35%, #9A3412 0%, #431407 35%, #1C1917 75%, #0C0A09 100%);
+}
+.wp-golden-gate-sunset::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 80% 40%, rgba(251, 146, 60, 0.40) 0%, transparent 50%),
+    radial-gradient(circle at 20% 85%, rgba(15, 23, 42, 0.85) 0%, transparent 65%);
+  animation: wpBreathe 12s ease-in-out infinite alternate;
+}
+.wp-golden-gate-sunset::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900' preserveAspectRatio='none'><path d='M0 900 L0 760 Q200 700 400 780 T800 720 Q1200 800 1600 740 L1600 900 Z' fill='%230C0A09' opacity='0.95'/><path d='M1000 720 L1040 450 L1080 450 L1120 740 M1040 520 L1080 520 M1040 580 L1080 580 M1040 640 L1080 640 M800 680 L1400 750' stroke='%23C2410C' stroke-width='2.5' fill='none' opacity='0.7'/></svg>");
+  background-size: cover;
+  background-position: bottom;
+}
+.wp-golden-gate-sunset .wp-typo {
+  position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
+  font-family: 'Unbounded', sans-serif; font-weight: 900;
+  font-size: clamp(70px, 10vw, 170px); letter-spacing: -0.05em;
+  color: transparent; white-space: nowrap;
+  -webkit-text-stroke: 1.2px rgba(251, 146, 60, 0.22);
+  text-shadow: 0 0 24px rgba(251, 146, 60, 0.15);
+  mix-blend-mode: screen;
+}
+.wp-golden-gate-sunset .wp-typo-sub {
+  position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(10px, 0.9vw, 14px);
+  letter-spacing: 0.5em; color: rgba(251, 146, 60, 0.55);
+}
+
+/* ================================================================ */
 /* 1. NEURAL CORE                                                    */
 /* Glowing AI core with radial neural pathways and crimson pulses.   */
 /* ================================================================ */
