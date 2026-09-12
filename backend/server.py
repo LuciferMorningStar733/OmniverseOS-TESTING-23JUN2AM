@@ -28,11 +28,11 @@ from ai_service import ai_service
 from web_service import web_service, needs_web_search, compute_confidence
 from structured_ai import extract_structured
 from schemas import ExtractedMemoryList, SearchRerankResult
+from core.vector_service import generate_embedding_async, cosine_similarity
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
+from core.database import client, db, MONGO_URL, DB_NAME
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
 JWT_SECRET = os.environ.get("JWT_SECRET") or "omniverseos-dev-do-not-use-in-prod"
 JWT_ALG = "HS256"
@@ -40,8 +40,6 @@ JWT_EXP_HOURS = 24 * 7
 MAX_PROMPT_LEN = 4000
 MAX_MESSAGE_LEN = 8000
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
 
 def _sse_event(data: str) -> str:
     """Encode one SSE event without losing embedded newlines."""
@@ -74,7 +72,18 @@ async def lifespan(_app: FastAPI):
     await db.decisions.create_index("id", unique=True)
     await db.timeline_events.create_index([("user_id", 1), ("created_at", -1)])
     await db.timeline_events.create_index([("user_id", 1), ("project_id", 1)])
-    await db.timeline_events.create_index("id", unique=True)
+    # Seed default demo credentials if not present
+    demo_email = "demo@omniverse.io"
+    if not await db.users.find_one({"email": demo_email}):
+        demo_hashed = bcrypt.hashpw(b"omniverse123", bcrypt.gensalt()).decode()
+        await db.users.insert_one({
+            "id": "demo-user-default-id",
+            "email": demo_email,
+            "name": "Demo User",
+            "password": demo_hashed,
+            "created_at": now_iso(),
+            "avatar": f"https://api.dicebear.com/7.x/bottts-neutral/svg?seed={demo_email}",
+        })
     yield
     # shutdown
     client.close()
@@ -657,7 +666,109 @@ async def health():
     except Exception as e:
         raise HTTPException(503, f"DB unhealthy: {e}")
 
-# Note: Auth endpoints (/api/auth/signup, /api/auth/login, /api/auth/me, etc.) are handled by routers/auth.py
+@api.post("/auth/signup")
+async def signup(req: SignupReq):
+    email = req.email.lower().strip()
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(400, "Email already registered")
+    user_id = str(uuid.uuid4())
+    hashed = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
+    user = {
+        "id": user_id,
+        "email": email,
+        "name": req.name.strip(),
+        "password": hashed,
+        "created_at": now_iso(),
+        "avatar": f"https://api.dicebear.com/7.x/bottts-neutral/svg?seed={email}",
+    }
+    try:
+        await db.users.insert_one(user)
+    except Exception:
+        raise HTTPException(400, "Email already registered")
+    token = make_token(user_id, email)
+    user.pop("password")
+    user.pop("_id", None)
+    return {"token": token, "user": user}
+
+@api.post("/auth/login")
+async def login(req: LoginReq):
+    email = req.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(401, "Invalid credentials")
+    if not bcrypt.checkpw(req.password.encode(), user["password"].encode()):
+        raise HTTPException(401, "Invalid credentials")
+    token = make_token(user["id"], user["email"])
+    user.pop("password")
+    user.pop("_id", None)
+    return {"token": token, "user": user}
+
+@api.get("/auth/me")
+async def me(user=Depends(get_current_user)):
+    return user
+
+class ForgotPasswordReq(BaseModel):
+    email: EmailStr
+
+class ResetPasswordReq(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=4)
+
+class ChangePasswordReq(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=4)
+
+@api.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordReq):
+    email = req.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "If that email is registered, a password reset link has been processed."}
+    reset_token = str(uuid.uuid4())
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"reset_token": reset_token, "reset_token_expires": expires_at}}
+    )
+    logging.info("[Auth] Password reset token generated for user %s", email)
+    return {
+        "message": "If that email is registered, a password reset link has been processed.",
+    }
+
+@api.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordReq):
+    user = await db.users.find_one({"reset_token": req.token})
+    if not user:
+        raise HTTPException(400, "Invalid or expired reset token")
+    expires_at = user.get("reset_token_expires", "")
+    if expires_at:
+        try:
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            if exp_dt < datetime.now(timezone.utc):
+                raise HTTPException(400, "Reset token has expired")
+        except ValueError:
+            raise HTTPException(400, "Invalid reset token expiry format")
+    hashed = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one(
+        {"reset_token": req.token},
+        {"$set": {"password": hashed}, "$unset": {"reset_token": "", "reset_token_expires": ""}}
+    )
+    return {"message": "Password reset successfully. You can now log in."}
+
+@api.put("/auth/change-password")
+async def change_password(req: ChangePasswordReq, user=Depends(get_current_user)):
+    db_user = await db.users.find_one({"id": user["id"]})
+    if not db_user:
+        raise HTTPException(404, "User not found")
+    if not bcrypt.checkpw(req.current_password.encode(), db_user["password"].encode()):
+        raise HTTPException(400, "Current password is incorrect")
+    hashed = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"password": hashed}})
+    return {"message": "Password changed successfully"}
 
 # ---------- Routes: AI Chat (Streaming SSE) ----------
 ALLOWED_GEMINI_MODELS = {
@@ -974,9 +1085,18 @@ async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
 async def ai_chat(req: ChatReq, user=Depends(get_current_user)):
     _validate_chat_req(req)
     system_msg = req.system or "You are OmniverseOS Assistant. Be concise and helpful."
-    text = await ai_service.generate_once(req.model, req.message, system_msg)
-    if not text:
-        raise HTTPException(500, "LLM key not configured")
+    try:
+        text = await ai_service.generate_once(req.model, req.message, system_msg)
+    except Exception as exc:
+        logging.error("[ai_chat] Error generating non-streaming response: %s", exc)
+        text = ""
+
+    if not text or not text.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is currently unavailable. No configured AI providers succeeded. Please verify your API keys in Settings or environment."
+        )
+
     await db.chat_messages.insert_many([
         {"id": str(uuid.uuid4()), "user_id": user["id"], "session_id": req.session_id,
          "role": "user", "content": req.message, "created_at": now_iso()},
@@ -1764,16 +1884,21 @@ async def list_memories(user=Depends(get_current_user)):
 @api.post("/memories")
 async def create_cortex_memory(req: CortexMemoryReq, user=Depends(get_current_user)):
     category = req.category if req.category in CORTEX_MEMORY_CATEGORIES else "Other"
+    title_val = req.title or req.content[:60]
+    full_text = f"{title_val} {req.content} {category}"
+    vec = await generate_embedding_async(full_text)
+
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
-        "title": req.title or req.content[:60],
+        "title": title_val,
         "content": req.content,
         "category": category,
         "importance_score": req.importance_score,
         "pinned": req.pinned,
         "never_forget": req.never_forget,
         "source_message": req.source_message,
+        "embedding": vec,
         "use_count": 0,
         "created_at": now_iso(),
         "updated_at": now_iso(),
@@ -1786,13 +1911,18 @@ async def create_cortex_memory(req: CortexMemoryReq, user=Depends(get_current_us
 @api.put("/memories/{mid}")
 async def update_cortex_memory(mid: str, req: CortexMemoryUpdateReq, user=Depends(get_current_user)):
     category = req.category if req.category in CORTEX_MEMORY_CATEGORIES else "Other"
+    title_val = req.title or req.content[:60]
+    full_text = f"{title_val} {req.content} {category}"
+    vec = await generate_embedding_async(full_text)
+
     update_data = {
-        "title": req.title or req.content[:60],
+        "title": title_val,
         "content": req.content,
         "category": category,
         "importance_score": req.importance_score,
         "pinned": req.pinned,
         "never_forget": req.never_forget,
+        "embedding": vec,
         "updated_at": now_iso(),
     }
     res = await db.cortex_memories.update_one(
@@ -1812,12 +1942,14 @@ async def delete_cortex_memory(mid: str, user=Depends(get_current_user)):
 
 @api.post("/memories/relevant")
 async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current_user)):
-    """Hybrid scoring memory retrieval (Semantic/Keyword similarity + Recency + Importance + Relevance reason)."""
+    """Hybrid scoring memory retrieval (Semantic Vector Similarity + Recency + Importance + Relevance reason)."""
     all_mems = await db.cortex_memories.find(
         {"user_id": user["id"]}, {"_id": 0}
     ).sort("importance_score", -1).to_list(500)
     if not all_mems:
         return []
+
+    q_vec = await generate_embedding_async(req.query)
     stop = {"i","a","an","the","is","it","my","me","you","do","did",
             "what","which","who","how","when","where","was","are","be",
             "have","has","can","could","would","should","will","and","or",
@@ -1825,11 +1957,15 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
     qwords = set(req.query.lower().split()) - stop
     now_dt = datetime.now(timezone.utc)
 
-    def hybrid_score(m):
-        text = (m.get("title","") + " " + m.get("content","") + " " + m.get("category","")).lower()
-        words = set(text.split()) - stop
-        overlap = len(qwords & words) if qwords else 0
-        similarity = (overlap * 2.5)
+    def hybrid_vector_score(m):
+        m_vec = m.get("embedding")
+        if m_vec and isinstance(m_vec, list):
+            cos_sim = cosine_similarity(q_vec, m_vec)
+        else:
+            text = (m.get("title","") + " " + m.get("content","") + " " + m.get("category","")).lower()
+            words = set(text.split()) - stop
+            overlap = len(qwords & words) if qwords else 0
+            cos_sim = min(1.0, overlap * 0.25)
 
         # Recency score (decay over time)
         created_str = m.get("created_at") or m.get("updated_at")
@@ -1846,23 +1982,25 @@ async def get_relevant_memories(req: MemoryRelevantReq, user=Depends(get_current
         nf_mult = 3.0 if m.get("never_forget") else 1.0
         pin_mult = 1.5 if m.get("pinned") else 1.0
 
-        final_score = (similarity + recency + importance) * nf_mult * pin_mult
-        
-        # Build explainable relevance reason
+        final_score = (cos_sim * 4.0 + recency + importance) * nf_mult * pin_mult
+
         reasons = []
-        if overlap > 0:
-            reasons.append(f"Matches {overlap} key term(s)")
+        if cos_sim > 0.05:
+            pct = int(round(cos_sim * 100))
+            reasons.append(f"{pct}% Vector Similarity")
         if m.get("never_forget"):
             reasons.append("Never Forget flag")
         if m.get("pinned"):
             reasons.append("Pinned")
         if recency > 0.8:
             reasons.append("Recent memory")
+
         m["relevance_reason"] = " · ".join(reasons) if reasons else "High importance score"
         m["hybrid_score"] = round(final_score, 2)
+        m["vector_similarity"] = round(cos_sim, 3)
         return final_score
 
-    scored = sorted(all_mems, key=hybrid_score, reverse=True)
+    scored = sorted(all_mems, key=hybrid_vector_score, reverse=True)
     nf_mems = [m for m in all_mems if m.get("never_forget")]
     top = scored[:req.limit]
     seen = {m["id"] for m in top}
@@ -2694,18 +2832,10 @@ Rules:
 
 
 
-from routers.tts import router as tts_router
-from routers.auth import router as auth_router
-from routers.productivity import router as productivity_router
-from routers.memory import router as memory_router
 from routers.agents import router as agents_router
 from routers.system import router as system_router
 
 app.include_router(api)
-app.include_router(tts_router, prefix="/api")
-app.include_router(auth_router, prefix="/api")
-app.include_router(productivity_router, prefix="/api")
-app.include_router(memory_router, prefix="/api")
 app.include_router(agents_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
 

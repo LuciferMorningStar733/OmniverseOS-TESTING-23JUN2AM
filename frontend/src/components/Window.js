@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, memo } from "react";
+import { createPortal } from "react-dom";
 import { motion, useMotionValue, animate, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { getApp } from "../lib/apps";
@@ -479,8 +480,6 @@ export default function Window({ win, children }) {
     commitDragEnd(nx, ny);
   }, [commitDragEnd, viewport.w, viewport.h, topPad, bottomPad, win.id, win.w, win.h, updateWindow]);
 
-  if (win.minimized) return null;
-
   /* ── Geometry ────────────────────────────────────────────────────────── */
   const availH    = viewport.h - topPad - bottomPad;
 
@@ -516,6 +515,7 @@ export default function Window({ win, children }) {
 
   /* ══ TOUCH (MOBILE + TABLET) — fullscreen window ══════════════════════════ */
   if (isTouch) {
+    if (win.minimized) return null;
     return (
       <motion.div
         key={win.id}
@@ -536,7 +536,7 @@ export default function Window({ win, children }) {
         onDragEnd={handleSwipeEnd}
         onTouchStart={handleFocus}
         data-testid={`window-${win.app}`}
-        className="glass overflow-hidden"
+        className="glass overflow-hidden pointer-events-auto"
         style={{
           position: "absolute",
           top: 0, left: 0,
@@ -570,16 +570,111 @@ export default function Window({ win, children }) {
     );
   }
 
-  /* ══ DESKTOP / TABLET ════════════════════════════════════════════════════ */
-  /* Liquid drag pipeline hooks are declared at the top of the component
-     (above win.minimized / isTouch early returns).  See the block just
-     before `if (win.minimized) return null;` for the pointer handlers. */
+  /* ══ DESKTOP / TABLET SPATIAL PHYSICS & GENIE MINIMIZE ═════════════════════ */
+  const getDockOrigin = () => {
+    if (typeof document === "undefined") return { x: viewport.w / 2, y: viewport.h - 40 };
+    const dockIcon = document.querySelector(`[data-testid="dock-icon-${win.app}"]`);
+    if (dockIcon) {
+      const r = dockIcon.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    return { x: viewport.w / 2, y: viewport.h - 40 };
+  };
+
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+  const dockOrigin = getDockOrigin();
+  const winCenterX = animX + animW / 2;
+  const winCenterY = animY + animH / 2;
+  const initOffsetX = dockOrigin.x - winCenterX;
+  const initOffsetY = dockOrigin.y - winCenterY;
+
+  const desktopVariants = prefersReducedMotion
+    ? {
+        visible: {
+          opacity: 1,
+          scale: isActive ? 1 : 0.985,
+          x: 0,
+          y: 0,
+          rotateX: 0,
+          filter: "blur(0px)",
+          pointerEvents: "auto",
+          transition: { duration: 0.15 },
+        },
+        minimized: {
+          opacity: 0,
+          pointerEvents: "none",
+          transition: { duration: 0.15 },
+        },
+      }
+    : {
+        visible: {
+          opacity: 1,
+          scale: isActive ? 1 : 0.985,
+          x: 0,
+          y: 0,
+          rotateX: 0,
+          filter: "blur(0px)",
+          pointerEvents: "auto",
+          transition: {
+            type: "spring",
+            stiffness: 350,
+            damping: 28,
+            mass: 0.7,
+            filter: { duration: 0.18, ease: "easeOut" },
+          },
+        },
+        minimized: {
+          opacity: 0,
+          scaleX: 0.08,
+          scaleY: 0.04,
+          x: initOffsetX,
+          y: initOffsetY,
+          rotateX: 25,
+          filter: "blur(6px)",
+          pointerEvents: "none",
+          transition: {
+            type: "spring",
+            stiffness: 380,
+            damping: 32,
+            mass: 0.6,
+          },
+        },
+      };
+
+  const desktopInitial = prefersReducedMotion
+    ? { opacity: 0 }
+    : {
+        opacity: 0,
+        scale: 0.18,
+        x: initOffsetX * 0.85,
+        y: initOffsetY * 0.85,
+        filter: "blur(8px)",
+      };
+
+  const desktopExit = prefersReducedMotion
+    ? { opacity: 0, transitionEnd: { display: "none" } }
+    : {
+        opacity: 0,
+        scale: 0.22,
+        x: initOffsetX * 0.6,
+        y: initOffsetY * 0.6,
+        filter: "blur(6px)",
+        transition: {
+          type: "spring",
+          stiffness: 420,
+          damping: 34,
+          mass: 0.55,
+        },
+        transitionEnd: { display: "none" },
+      };
 
   return (
     <>
-      {/* Snap preview ghost overlay — rendered outside the window so it never
-         participates in the window's transform.  Rendered only while dragging. */}
-      {isDragging && snapTarget && (
+      {/* Snap preview ghost overlay — rendered outside window transform via Portal */}
+      {isDragging && snapTarget && typeof document !== "undefined" && createPortal(
         <div
           aria-hidden
           style={{
@@ -595,51 +690,42 @@ export default function Window({ win, children }) {
             transition: "top 120ms ease, left 120ms ease, width 120ms ease, height 120ms ease, opacity 120ms ease",
             backdropFilter: "blur(6px)",
           }}
-        />
+        />,
+        document.body
       )}
 
-    <motion.div
-      key={win.id}
-      ref={nodeRef}
-      initial={{ opacity: 0, scale: 0.87, y: 20, filter: "blur(4px)" }}
-      animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-      exit={{
-        opacity: 0, scale: 0.93, y: 6, filter: "blur(3px)",
-        transition: { type: "spring", stiffness: 520, damping: 38, mass: 0.6 },
-      }}
-      transition={{
-        type: "spring",
-        stiffness: 340,
-        damping: 28,
-        mass: 0.75,
-        filter: { duration: 0.18, ease: "easeOut" },
-      }}
-      onMouseDown={handleFocus}
-      onTouchStart={handleFocus}
-      className="absolute overflow-hidden rounded-2xl"
-      style={{
-        zIndex: win.z,
-        /* CSS positioning — the source of truth for window x/y.  During
-           active dragging, an additional translate3d() is applied directly
-           to the DOM node via ref, bypassing React entirely. */
-        top:    animY,
-        left:   animX,
-        width:  animW,
-        height: animH,
-        willChange: isDragging ? "transform" : "opacity",
-        opacity: isActive ? 1 : 0.88,
-        transform: isActive ? "scale(1)" : "scale(0.985)",
-        boxShadow: isActive ? SHADOW_ACTIVE(accentColor) : SHADOW_INACTIVE,
-        backdropFilter: BLUR,
-        WebkitBackdropFilter: BLUR,
-        background: "rgba(8,10,18,0.52)",
-        border: `1px solid ${isActive ? `${accentColor}25` : "rgba(255,255,255,0.06)"}`,
-        transition: isDragging
-          ? "none"
-          : "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease, opacity 0.25s ease, transform 0.25s ease",
-      }}
-      data-testid={`window-${win.app}`}
-    >
+      <motion.div
+        key={win.id}
+        ref={nodeRef}
+        initial={desktopInitial}
+        animate={win.minimized ? "minimized" : "visible"}
+        variants={desktopVariants}
+        exit={desktopExit}
+        onMouseDown={handleFocus}
+        onTouchStart={handleFocus}
+        className={`absolute overflow-hidden rounded-2xl ${win.minimized ? "pointer-events-none" : "pointer-events-auto"}`}
+        style={{
+          zIndex: win.z,
+          top:    animY,
+          left:   animX,
+          width:  animW,
+          height: animH,
+          perspective: 1000,
+          transformOrigin: `${Math.max(10, Math.min(90, 50 + (initOffsetX / animW) * 35))}% 100%`,
+          willChange: isDragging ? "transform" : "opacity, transform",
+          pointerEvents: win.minimized ? "none" : "auto",
+          opacity: isActive ? 1 : 0.88,
+          boxShadow: isActive ? SHADOW_ACTIVE(accentColor) : SHADOW_INACTIVE,
+          backdropFilter: BLUR,
+          WebkitBackdropFilter: BLUR,
+          background: "rgba(8,10,18,0.52)",
+          border: `1px solid ${isActive ? `${accentColor}25` : "rgba(255,255,255,0.06)"}`,
+          transition: isDragging
+            ? "none"
+            : "box-shadow var(--transition-base) ease, border-color var(--transition-base) ease, opacity 0.25s ease",
+        }}
+        data-testid={`window-${win.app}`}
+      >
       {/* Glass noise texture layer */}
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
@@ -753,7 +839,7 @@ export default function Window({ win, children }) {
 
       {/* Window content */}
       <div
-        className="w-full overflow-hidden"
+        className="window-content w-full overflow-hidden"
         style={{ height: "calc(100% - 44px)", position: "relative", zIndex: 1 }}
       >
         <ErrorBoundary>

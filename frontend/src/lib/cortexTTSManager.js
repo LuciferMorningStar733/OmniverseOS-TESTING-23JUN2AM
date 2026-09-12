@@ -65,10 +65,10 @@ function _onSuccess(provider) {
   c.openUntil = 0;
 }
 
-// ── Text preprocessing ──────────────────────────────────────────────────────
+// ── Text preprocessing & Humanization ───────────────────────────────────────
 /**
- * Strip speech-hostile syntax from a Cortex response before sending to TTS.
- * Returns a new string — never mutates the original (visible chat text must be unaffected).
+ * Strip speech-hostile syntax and normalize text for natural, human-like Cortex TTS.
+ * Returns a new string — never mutates the original.
  */
 export function preprocessForTTS(rawText) {
   if (!rawText) return "";
@@ -78,41 +78,119 @@ export function preprocessForTTS(rawText) {
   // 1. Remove internal OS action tags — these are never spoken
   text = text.replace(/\[CMD:[^\]]*\]/gi, "");
 
-  // 2. Collapse large code blocks to a brief spoken summary
-  //    (prevents Cortex reading 200 lines of code aloud character by character)
-  text = text.replace(/```[\s\S]*?```/g, " I've added the code in chat. ");
+  // 2. Collapse code blocks to a natural conversational phrase
+  text = text.replace(/```[\s\S]*?```/g, " I have provided the code in chat. ");
 
-  // 3. Strip inline code ticks — speak the content, not the backticks
+  // 3. Strip inline code ticks — speak the content naturally
   text = text.replace(/`([^`]+)`/g, "$1");
 
-  // 4. Strip Markdown bold / italic / underline
+  // 4. Markdown tables: remove table formatting grids and headers
+  text = text.replace(/\|[\s-:]+\|[\s-:|]*/g, " ");
+  text = text.replace(/\|/g, ", ");
+
+  // 5. Blockquotes and horizontal rules
+  text = text.replace(/^>\s*/gm, "");
+  text = text.replace(/^[-*_]{3,}\s*$/gm, " ");
+
+  // 6. Headings & List items: convert to clean sentence pauses before stripping inline markers
+  text = text.replace(/^#{1,6}\s+(.+)$/gm, "$1. ");
+  text = text.replace(/^[\s]*[-*+]\s+(.+)$/gm, "$1. ");
+  text = text.replace(/^[\s]*\d+\.\s+(.+)$/gm, "$1. ");
+
+  // 7. Strip Markdown bold / italic / strikethrough
   text = text
     .replace(/\*\*(.+?)\*\*/gs, "$1")
     .replace(/__(.+?)__/gs, "$1")
     .replace(/\*(.+?)\*/gs, "$1")
-    .replace(/_(.+?)_/gs, "$1");
+    .replace(/_(.+?)_/gs, "$1")
+    .replace(/~~(.+?)~~/gs, "$1");
 
-  // 5. Strip Markdown headers
-  text = text.replace(/^#{1,6}\s+/gm, "");
-
-  // 6. Strip list markers
-  text = text.replace(/^[\s]*[-*+]\s+/gm, "");
-  text = text.replace(/^[\s]*\d+\.\s+/gm, "");
-
-  // 7. Strip Markdown links — speak the link text, not the URL
+  // 8. Markdown links: speak only link label, omit raw URLs
   text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   text = text.replace(/\[([^\]]+)\]/g, "$1");
 
-  // 8. Strip HTML tags
-  text = text.replace(/<[^>]+>/g, "");
+  // 9. Strip HTML tags
+  text = text.replace(/<[^>]+>/g, " ");
 
-  // 9. Shorten very long bare URLs (>40 chars) to "the link"
-  text = text.replace(/https?:\/\/\S{40,}/g, "the link");
+  // 10. Shorten URLs to conversational phrases
+  text = text.replace(/https?:\/\/\S+/g, "the referenced link");
 
-  // 10. Normalize whitespace
+  // 11. Strip unicode emojis so TTS engine doesn't read symbol names aloud
+  // eslint-disable-next-line no-misleading-character-class
+  text = text.replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, "");
+
+  // 12. Humanized pronunciation for common technical acronyms and units
+  text = text.replace(/\bv(\d+)\.(\d+)\b/gi, "version $1 point $2");
+  text = text.replace(/\bAI\b/g, "A.I.");
+  text = text.replace(/\bOS\b/g, "O.S.");
+  text = text.replace(/\bAPI\b/g, "A.P.I.");
+  text = text.replace(/\bAPIs\b/g, "A.P.I.s");
+  text = text.replace(/\bUI\b/g, "U.I.");
+  text = text.replace(/\bUX\b/g, "U.X.");
+  text = text.replace(/\bTTS\b/g, "T.T.S.");
+  text = text.replace(/\bURL\b/g, "U.R.L.");
+  text = text.replace(/\bURLs\b/g, "U.R.L.s");
+  text = text.replace(/\bSDK\b/g, "S.D.K.");
+  text = text.replace(/\bCLI\b/g, "C.L.I.");
+  text = text.replace(/\bCPU\b/g, "C.P.U.");
+  text = text.replace(/\bGPU\b/g, "G.P.U.");
+  text = text.replace(/\bHTML\b/g, "H.T.M.L.");
+  text = text.replace(/\bCSS\b/g, "C.S.S.");
+  text = text.replace(/\b(\d+)\s*ms\b/gi, "$1 milliseconds");
+  text = text.replace(/\b(\d+)\s*px\b/gi, "$1 pixels");
+  text = text.replace(/\$(\d+(?:\.\d+)?)\b/g, "$1 dollars");
+  text = text.replace(/(\d+)%/g, "$1 percent");
+  text = text.replace(/&/g, " and ");
+
+  // 13. Normalize consecutive punctuation & whitespace
+  text = text.replace(/\.{2,}/g, ".");
+  text = text.replace(/\s*([,;?!])\s*/g, "$1 ");
   text = text.replace(/\n{2,}/g, ". ").replace(/\n/g, " ").replace(/\s{2,}/g, " ").trim();
 
   return text;
+}
+
+/**
+ * Split long responses into natural speech cadence chunks at sentence or clause boundaries.
+ * Enables low-latency streaming speech without mid-word or mid-sentence cuts.
+ */
+export function splitIntoSpeechChunks(text, maxChunkLen = 200) {
+  if (!text) return [];
+  if (text.length <= maxChunkLen) return [text];
+
+  const sentences = text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [text];
+  const chunks = [];
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) continue;
+
+    if (currentChunk.length + trimmed.length + 1 <= maxChunkLen) {
+      currentChunk = currentChunk ? `${currentChunk} ${trimmed}` : trimmed;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      if (trimmed.length > maxChunkLen) {
+        // If a single sentence exceeds maxChunkLen, split on commas or clauses
+        const subParts = trimmed.split(/,\s+/);
+        let subChunk = "";
+        for (const part of subParts) {
+          if (subChunk.length + part.length + 2 <= maxChunkLen) {
+            subChunk = subChunk ? `${subChunk}, ${part}` : part;
+          } else {
+            if (subChunk) chunks.push(subChunk);
+            subChunk = part;
+          }
+        }
+        if (subChunk) currentChunk = subChunk;
+      } else {
+        currentChunk = trimmed;
+      }
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks;
 }
 
 // ── Internal diagnostics logger ─────────────────────────────────────────────

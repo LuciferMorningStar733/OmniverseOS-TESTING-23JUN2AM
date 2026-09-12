@@ -1,5 +1,6 @@
-// WallpaperFX.js — Living canvas wallpaper visual engines for OmniverseOS
-// Multi-layered GPU-accelerated canvas physics with interactive cursor proximity
+// WallpaperFX.js — High-performance 4K & adaptive Canvas wallpaper animations for OmniverseOS
+// Supports 10 3036-era Masterpiece themes + 6 legacy procedural effects.
+// Features adaptive DPR (4K -> mobile eco), tab visibility pausing, and prefers-reduced-motion.
 
 import React, { useEffect, useRef } from "react";
 
@@ -11,72 +12,626 @@ function hex2(n) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 1. MATRIX RAIN ENGINE
+// 1. OMNI GENESIS — Living cosmic intelligence field with evolving structures
 // ═══════════════════════════════════════════════════════════════════════════════
-class MatrixRain {
-  constructor(W, H, accent) {
+class GenesisFX {
+  constructor(W, H, accent, isMobile) {
     this.accent = accent;
-    this.fs = 14;
-    this.reset(W, H);
+    this.isMobile = isMobile;
+    this.t = 0;
+    this.init(W, H);
   }
-  reset(W, H) {
-    this.cols = Math.ceil(W / this.fs);
-    this.drops  = Array.from({ length: this.cols }, () => -(Math.random() * 40));
-    this.speeds = Array.from({ length: this.cols }, () => 0.45 + Math.random() * 0.85);
-    this.chars  = Array.from({ length: this.cols }, () => CHARS[Math.floor(Math.random() * CHARS.length)]);
-    this.bright = Array.from({ length: this.cols }, () => Math.random() < 0.2);
+  init(W, H) {
+    this.cx = W / 2;
+    this.cy = H / 2;
+    const count = this.isMobile ? 24 : 56;
+    this.nodes = Array.from({ length: count }, (_, i) => ({
+      angle: (i / count) * Math.PI * 2,
+      radius: Math.min(W, H) * (0.12 + Math.random() * 0.38),
+      orbitSpeed: (Math.random() - 0.5) * 0.0035,
+      size: 1.8 + Math.random() * 2.8,
+      phase: Math.random() * Math.PI * 2,
+      depth: 0.3 + Math.random() * 0.7,
+    }));
+    this.stardust = Array.from({ length: this.isMobile ? 35 : 90 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.25,
+      r: 0.8 + Math.random() * 1.5,
+      alpha: 0.2 + Math.random() * 0.6,
+    }));
   }
-  draw(ctx, W, H, t, mouse) {
-    ctx.fillStyle = "rgba(4, 6, 12, 0.08)";
-    ctx.fillRect(0, 0, W, H);
-    ctx.font = `bold ${this.fs}px 'JetBrains Mono', monospace`;
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.012;
 
-    for (let i = 0; i < this.cols; i++) {
-      if (Math.random() < 0.03) this.chars[i] = CHARS[Math.floor(Math.random() * CHARS.length)];
-      const x = i * this.fs;
-      let y = this.drops[i] * this.fs;
+    const cx = W / 2;
+    const cy = H / 2;
 
-      // Mouse proximity repulsion
-      if (mouse.x > 0) {
-        const dx = x - mouse.x;
-        const dy = y - mouse.y;
+    // Harmonic cosmic radial rings
+    const ringCount = this.isMobile ? 3 : 5;
+    for (let i = 1; i <= ringCount; i++) {
+      const ringR = Math.min(W, H) * (0.08 * i) + Math.sin(this.t * 0.7 + i) * 6;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = this.accent + hex2(Math.max(12, 45 - i * 8));
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([6, 14]);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Stardust drift
+    ctx.fillStyle = this.accent;
+    for (const p of this.stardust) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.globalAlpha = p.alpha * (0.6 + Math.sin(this.t + p.x) * 0.4);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+
+    // Evolving intelligence nodes & filaments
+    const activeNodes = [];
+    for (const n of this.nodes) {
+      n.angle += n.orbitSpeed;
+      n.phase += 0.02;
+      const wobble = Math.sin(n.phase) * 18;
+      const r = n.radius + wobble;
+      const x = cx + Math.cos(n.angle) * r;
+      const y = cy + Math.sin(n.angle) * r;
+      activeNodes.push({ x, y, size: n.size, depth: n.depth });
+    }
+
+    // Inter-node filaments
+    const maxDist = this.isMobile ? 95 : 140;
+    for (let i = 0; i < activeNodes.length; i++) {
+      for (let j = i + 1; j < activeNodes.length; j++) {
+        const a = activeNodes[i];
+        const b = activeNodes[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
-          const force = (1 - dist / 120) * 15;
-          y += (dy / (dist || 1)) * force;
+        if (dist < maxDist) {
+          const alpha = (1 - dist / maxDist) * 0.35 * a.depth * b.depth;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = this.accent + hex2(alpha * 255);
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
         }
       }
+    }
 
-      // Leading glyph — pure white with intense glow
-      if (y >= 0 && y < H) {
-        ctx.shadowColor  = this.accent;
-        ctx.shadowBlur   = this.bright[i] ? 16 : 8;
-        ctx.fillStyle    = this.bright[i] ? "#FFFFFF" : this.accent;
-        ctx.fillText(this.chars[i], x, y);
-        ctx.shadowBlur   = 0;
+    // Node glow
+    for (const an of activeNodes) {
+      ctx.beginPath();
+      ctx.arc(an.x, an.y, an.size * 2.8, 0, Math.PI * 2);
+      ctx.fillStyle = this.accent + "33";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(an.x, an.y, an.size, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fill();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 2. CORTEX NEURAL OCEAN — Deep dimensional neural structures forming & reorganizing
+// ═══════════════════════════════════════════════════════════════════════════════
+class NeuralOceanFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+    this.waveLayers = this.isMobile ? 3 : 5;
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.014;
+
+    const baseH = H * 0.65;
+    const step = this.isMobile ? 40 : 25;
+
+    for (let l = 0; l < this.waveLayers; l++) {
+      const layerOffset = l * 40;
+      const speedMult = 0.8 + l * 0.3;
+      const amp = 28 + l * 12;
+      const freq = 0.003 + l * 0.001;
+      const alpha = 0.12 + l * 0.08;
+
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let x = 0; x <= W + step; x += step) {
+        const y = baseH + layerOffset + Math.sin(x * freq + this.t * speedMult) * amp + Math.cos(x * 0.002 - this.t * 0.5) * (amp * 0.5);
+        ctx.lineTo(x, y);
       }
+      ctx.lineTo(W, H);
+      ctx.closePath();
 
-      // Fading tail
-      const trailLen = 16 + Math.floor(Math.random() * 8);
-      for (let j = 1; j < trailLen; j++) {
-        const ty = y - j * this.fs;
-        if (ty < -this.fs || ty > H) continue;
-        const alpha = 1 - j / trailLen;
-        ctx.fillStyle = this.accent + hex2(alpha * 200);
-        ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], x, ty);
-      }
+      const grad = ctx.createLinearGradient(0, baseH - 50, 0, H);
+      grad.addColorStop(0, this.accent + hex2(alpha * 255));
+      grad.addColorStop(1, "transparent");
+      ctx.fillStyle = grad;
+      ctx.fill();
 
-      this.drops[i] += this.speeds[i];
-      if (this.drops[i] * this.fs > H + 20 && Math.random() > 0.975) {
-        this.drops[i] = -(5 + Math.random() * 25);
+      // Synapse points on the crest
+      if (l >= 1) {
+        for (let x = 30; x < W; x += (this.isMobile ? 120 : 70)) {
+          const y = baseH + layerOffset + Math.sin(x * freq + this.t * speedMult) * amp + Math.cos(x * 0.002 - this.t * 0.5) * (amp * 0.5);
+          ctx.beginPath();
+          ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = "#FFFFFF";
+          ctx.shadowColor = this.accent;
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
       }
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. CIRCUIT SPARKS ENGINE
+// 3. QUANTUM HORIZON — Spacetime curvature with dimensional distortion
 // ═══════════════════════════════════════════════════════════════════════════════
+class QuantumHorizonFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.01;
+
+    const cx = W / 2;
+    const cy = H * 0.58;
+    const gridCols = this.isMobile ? 12 : 22;
+
+    // Perspective spacetime grid
+    ctx.lineWidth = 0.7;
+    for (let i = -gridCols; i <= gridCols; i++) {
+      const xTop = cx + i * (W / (gridCols * 3.5));
+      const xBottom = cx + i * (W / gridCols) * 2.2;
+      const alpha = Math.max(0.04, 0.28 - Math.abs(i) / gridCols * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(xTop, cy);
+      ctx.lineTo(xBottom, H);
+      ctx.strokeStyle = this.accent + hex2(alpha * 255);
+      ctx.stroke();
+    }
+
+    // Horizontal spacetime contours with gravitational warp
+    const rings = this.isMobile ? 7 : 14;
+    for (let r = 1; r <= rings; r++) {
+      const p = r / rings;
+      const y = cy + Math.pow(p, 1.8) * (H - cy);
+      const curve = Math.sin(this.t * 1.2 + r * 0.4) * 8;
+      ctx.beginPath();
+      ctx.moveTo(0, y + curve);
+      ctx.quadraticCurveTo(cx, y - 16 * (1 - p), W, y + curve);
+      ctx.strokeStyle = this.accent + hex2((0.15 + p * 0.25) * 255);
+      ctx.stroke();
+    }
+
+    // Central horizon glow
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(W, H) * 0.4);
+    g.addColorStop(0, this.accent + "40");
+    g.addColorStop(0.3, this.accent + "12");
+    g.addColorStop(1, "transparent");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 4. DIGITAL AURORA — Volumetric atmospheric ribbons with glowing depth
+// ═══════════════════════════════════════════════════════════════════════════════
+class DigitalAuroraFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.008;
+
+    const bands = this.isMobile ? 3 : 5;
+    const step = this.isMobile ? 35 : 20;
+
+    for (let b = 0; b < bands; b++) {
+      const baseY = H * (0.18 + b * 0.08);
+      const amp = 45 + b * 15;
+      const speed = 0.5 + b * 0.25;
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let x = 0; x <= W + step; x += step) {
+        const y = baseY + Math.sin(x * 0.0022 + this.t * speed) * amp + Math.cos(x * 0.0015 - this.t * 0.4) * 25;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, 0);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, 0, 0, baseY + amp);
+      grad.addColorStop(0, "transparent");
+      grad.addColorStop(0.7, this.accent + (b % 2 === 0 ? "25" : "15"));
+      grad.addColorStop(1, "transparent");
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5. SENTIENT CITY 3036 — Autonomous megacity skyline with intelligent light networks
+// ═══════════════════════════════════════════════════════════════════════════════
+class SentientCityFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+    this.init(W, H);
+  }
+  init(W, H) {
+    const buildingCount = this.isMobile ? 14 : 28;
+    const bw = W / buildingCount;
+    this.buildings = Array.from({ length: buildingCount }, (_, i) => ({
+      x: i * bw,
+      w: bw + 2,
+      h: H * (0.25 + Math.random() * 0.35),
+      windows: Math.random() > 0.3,
+    }));
+    this.pulses = Array.from({ length: this.isMobile ? 12 : 26 }, () => ({
+      x: Math.random() * W,
+      y: H * (0.55 + Math.random() * 0.4),
+      speed: 1.5 + Math.random() * 3.5,
+      len: 12 + Math.random() * 25,
+      color: Math.random() > 0.4 ? this.accent : "#00F0FF",
+    }));
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.015;
+
+    // Skyline silhouettes
+    ctx.fillStyle = "rgba(4, 8, 16, 0.72)";
+    for (const b of this.buildings) {
+      ctx.fillRect(b.x, H - b.h, b.w, b.h);
+      ctx.strokeStyle = this.accent + "18";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(b.x, H - b.h, b.w, b.h);
+    }
+
+    // Skyway transit bridges
+    const bridges = [H * 0.72, H * 0.84];
+    for (const by of bridges) {
+      ctx.beginPath();
+      ctx.moveTo(0, by);
+      ctx.lineTo(W, by);
+      ctx.strokeStyle = this.accent + "22";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    // Traffic light pulses
+    for (const p of this.pulses) {
+      p.x += p.speed;
+      if (p.x > W + p.len) p.x = -p.len;
+
+      ctx.beginPath();
+      ctx.moveTo(p.x - p.len, p.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fill();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 6. EVENT HORIZON — Gravitational singularity & relativistic accretion disk
+// ═══════════════════════════════════════════════════════════════════════════════
+class EventHorizonFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.angle = 0;
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.angle += 0.018;
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const r = Math.min(W, H) * (this.isMobile ? 0.22 : 0.28);
+
+    // Accretion disk rings
+    const ringCount = this.isMobile ? 12 : 24;
+    for (let i = 0; i < ringCount; i++) {
+      const rad = r * (1.1 + i * 0.045);
+      const alpha = Math.sin((i / ringCount) * Math.PI) * 0.45;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(1.0, 0.38);
+      ctx.rotate(this.angle * 0.3 + i * 0.05);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, rad, 0, Math.PI * 2);
+      ctx.strokeStyle = this.accent + hex2(alpha * 255);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Photon sphere
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.05, 0, Math.PI * 2);
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = this.accent;
+    ctx.shadowBlur = 18;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Black hole shadow
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#010103";
+    ctx.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 7. NEURAL BLOOM — Organic computational morphogenesis
+// ═══════════════════════════════════════════════════════════════════════════════
+class NeuralBloomFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+    this.petals = this.isMobile ? 6 : 10;
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.012;
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const maxR = Math.min(W, H) * 0.35;
+
+    for (let i = 0; i < this.petals; i++) {
+      const baseAngle = (i / this.petals) * Math.PI * 2 + this.t * 0.2;
+      const breathe = Math.sin(this.t * 1.5 + i) * 20;
+      const r = maxR + breathe;
+
+      const xEnd = cx + Math.cos(baseAngle) * r;
+      const yEnd = cy + Math.sin(baseAngle) * r;
+      const cAngle = baseAngle + 0.35;
+      const cR = r * 0.6;
+      const cx1 = cx + Math.cos(cAngle) * cR;
+      const cy1 = cy + Math.sin(cAngle) * cR;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.quadraticCurveTo(cx1, cy1, xEnd, yEnd);
+      ctx.strokeStyle = this.accent + "55";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(xEnd, yEnd, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.shadowColor = this.accent;
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 8. TEMPORAL ARCHIVE — Layered timelines and chronological memory traces
+// ═══════════════════════════════════════════════════════════════════════════════
+class TemporalArchiveFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+    this.traces = Array.from({ length: this.isMobile ? 12 : 24 }, () => ({
+      y: Math.random() * H,
+      x: Math.random() * W,
+      speed: 0.8 + Math.random() * 2.0,
+      code: "T-" + Math.floor(1000 + Math.random() * 9000),
+    }));
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.01;
+
+    // Vertical chronological grid lines
+    const vCols = this.isMobile ? 6 : 12;
+    ctx.lineWidth = 0.6;
+    for (let c = 1; c < vCols; c++) {
+      const x = (c / vCols) * W;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.strokeStyle = this.accent + "12";
+      ctx.stroke();
+    }
+
+    // Drifting chronological traces
+    ctx.font = "9px 'JetBrains Mono', monospace";
+    for (const tr of this.traces) {
+      tr.x += tr.speed;
+      if (tr.x > W + 80) tr.x = -80;
+
+      ctx.fillStyle = this.accent + "50";
+      ctx.fillText(tr.code, tr.x, tr.y);
+
+      ctx.beginPath();
+      ctx.moveTo(tr.x - 30, tr.y - 3);
+      ctx.lineTo(tr.x - 5, tr.y - 3);
+      ctx.strokeStyle = this.accent + "30";
+      ctx.stroke();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 9. OMNIVERSE VOID — Minimal OLED black with subtle quantum fluctuations
+// ═══════════════════════════════════════════════════════════════════════════════
+class OmniverseVoidFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.t = 0;
+    this.sparks = Array.from({ length: this.isMobile ? 18 : 40 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.01 + Math.random() * 0.02,
+      r: 1.0 + Math.random() * 1.5,
+    }));
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.t += 0.008;
+
+    for (const sp of this.sparks) {
+      sp.phase += sp.speed;
+      const alpha = Math.max(0, Math.sin(sp.phase)) * 0.65;
+      if (alpha > 0.02) {
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+        ctx.fillStyle = this.accent + hex2(alpha * 255);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 10. CORTEX SINGULARITY — Rotating dual-axis tensor rings & intelligence core
+// ═══════════════════════════════════════════════════════════════════════════════
+class CortexSingularityFX {
+  constructor(W, H, accent, isMobile) {
+    this.accent = accent;
+    this.isMobile = isMobile;
+    this.angle = 0;
+  }
+  draw(ctx, W, H) {
+    ctx.clearRect(0, 0, W, H);
+    this.angle += 0.016;
+
+    const cx = W / 2;
+    const cy = H / 2;
+    const r = Math.min(W, H) * (this.isMobile ? 0.20 : 0.25);
+
+    // Axis 1 Ring
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(this.angle);
+    ctx.scale(1.0, 0.45);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2);
+    ctx.strokeStyle = this.accent + "88";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.restore();
+
+    // Axis 2 Ring
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-this.angle * 1.3);
+    ctx.scale(0.45, 1.0);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2);
+    ctx.strokeStyle = "#FFFFFF88";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Central Core Pulse
+    const pulse = 1 + Math.sin(this.angle * 3) * 0.08;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * pulse);
+    g.addColorStop(0, "#FFFFFF");
+    g.addColorStop(0.35, this.accent + "AA");
+    g.addColorStop(1, "transparent");
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY COMPATIBILITY EFFECTS (Matrix, Circuit, Neural, Radar, Hologram, Plasma)
+// ═══════════════════════════════════════════════════════════════════════════════
+class MatrixRain {
+  constructor(W, H, accent) {
+    this.accent = accent;
+    this.fs = 13;
+    this.reset(W, H);
+  }
+  reset(W, H) {
+    this.cols = Math.ceil(W / this.fs);
+    this.drops  = Array.from({ length: this.cols }, () => -(Math.random() * 40));
+    this.speeds = Array.from({ length: this.cols }, () => 0.35 + Math.random() * 0.75);
+    this.chars  = Array.from({ length: this.cols }, () => CHARS[Math.floor(Math.random() * CHARS.length)]);
+    this.bright = Array.from({ length: this.cols }, () => Math.random() < 0.15);
+  }
+  draw(ctx, W, H) {
+    ctx.fillStyle = "rgba(0,0,0,0.055)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = `bold ${this.fs}px 'JetBrains Mono', monospace`;
+
+    for (let i = 0; i < this.cols; i++) {
+      if (Math.random() < 0.025) this.chars[i] = CHARS[Math.floor(Math.random() * CHARS.length)];
+      const x = i * this.fs;
+      const y = this.drops[i] * this.fs;
+
+      if (y >= 0 && y < H) {
+        ctx.shadowColor  = this.accent;
+        ctx.shadowBlur   = this.bright[i] ? 14 : 6;
+        ctx.fillStyle    = this.bright[i] ? "#FFFFFF" : this.accent + "EE";
+        ctx.fillText(this.chars[i], x, y);
+        ctx.shadowBlur   = 0;
+      }
+
+      const trailLen = 14 + Math.floor(Math.random() * 6);
+      for (let j = 1; j < trailLen; j++) {
+        const ty = y - j * this.fs;
+        if (ty < -this.fs || ty > H) continue;
+        const alpha = 1 - j / trailLen;
+        ctx.fillStyle = this.accent + hex2(alpha * 180);
+        ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], x, ty);
+      }
+
+      this.drops[i] += this.speeds[i];
+      if (this.drops[i] * this.fs > H + 20 && Math.random() > 0.975)
+        this.drops[i] = -(5 + Math.random() * 25);
+    }
+  }
+}
+
 class CircuitSparks {
   constructor(W, H, accent) {
     this.accent = accent;
@@ -84,7 +639,7 @@ class CircuitSparks {
     this.init(W, H);
   }
   init(W, H) {
-    const GX = 16, GY = 10;
+    const GX = 14, GY = 8;
     const px = W * 0.04, py = H * 0.08;
     const sx = (W - px * 2) / (GX - 1);
     const sy = (H - py * 2) / (GY - 1);
@@ -93,8 +648,8 @@ class CircuitSparks {
     for (let gy = 0; gy < GY; gy++) {
       for (let gx = 0; gx < GX; gx++) {
         this.nodes.push({
-          x: px + gx * sx + (Math.random() - 0.5) * sx * 0.3,
-          y: py + gy * sy + (Math.random() - 0.5) * sy * 0.3,
+          x: px + gx * sx + (Math.random() - 0.5) * sx * 0.28,
+          y: py + gy * sy + (Math.random() - 0.5) * sy * 0.28,
           pulse: Math.random() * Math.PI * 2,
           litTimer: 0,
         });
@@ -102,459 +657,204 @@ class CircuitSparks {
     }
     this.edges = [];
     for (let i = 0; i < this.nodes.length; i++) {
-      if (i % GX < GX - 1 && Math.random() < 0.75) this.edges.push([i, i + 1]);
-      if (i + GX < this.nodes.length && Math.random() < 0.65) this.edges.push([i, i + GX]);
+      if (i % GX < GX - 1 && Math.random() < 0.72) this.edges.push([i, i + 1]);
+      if (i + GX < this.nodes.length && Math.random() < 0.62) this.edges.push([i, i + GX]);
     }
   }
   spawnSpark() {
-    if (this.sparks.length >= 45 || !this.edges.length) return;
+    if (this.sparks.length >= 30 || !this.edges.length) return;
     const e = this.edges[Math.floor(Math.random() * this.edges.length)];
-    this.sparks.push({ e, p: 0, spd: 0.01 + Math.random() * 0.02, trail: [] });
+    this.sparks.push({ e, p: 0, spd: 0.01 + Math.random() * 0.018 });
   }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-
-    // Dim circuit lines
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = 0.7;
     for (const [a, b] of this.edges) {
       const na = this.nodes[a], nb = this.nodes[b];
       ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
-      ctx.strokeStyle = this.accent + "1C"; ctx.stroke();
+      ctx.strokeStyle = this.accent + "16"; ctx.stroke();
     }
-
-    // Nodes
-    for (const n of this.nodes) {
-      n.pulse += 0.03;
-      if (n.litTimer > 0) n.litTimer -= 0.03;
-      let r = 2.5 + Math.sin(n.pulse) * 0.9;
-
-      // Mouse proximity interaction
-      if (mouse.x > 0) {
-        const d = Math.hypot(n.x - mouse.x, n.y - mouse.y);
-        if (d < 140) {
-          n.litTimer = Math.max(n.litTimer, (1 - d / 140));
-          r += (1 - d / 140) * 3;
-        }
-      }
-
-      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      const alpha = n.litTimer > 0 ? 0.95 : 0.25;
-      ctx.fillStyle = this.accent + hex2(alpha * 255);
-      if (n.litTimer > 0) {
-        ctx.shadowColor = this.accent;
-        ctx.shadowBlur = 12 * n.litTimer;
-      }
-      ctx.fill(); ctx.shadowBlur = 0;
-    }
-
-    if (Math.random() < 0.16) this.spawnSpark();
-
+    if (Math.random() < 0.15) this.spawnSpark();
     this.sparks = this.sparks.filter((s) => {
       const na = this.nodes[s.e[0]], nb = this.nodes[s.e[1]];
       const cx = na.x + (nb.x - na.x) * s.p;
       const cy = na.y + (nb.y - na.y) * s.p;
-
-      s.trail.push({ x: cx, y: cy });
-      if (s.trail.length > 14) s.trail.shift();
-
-      ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(cx, cy);
-      ctx.strokeStyle = this.accent + "AA"; ctx.lineWidth = 1.6; ctx.stroke();
-
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
-      g.addColorStop(0, "#FFFFFF");
-      g.addColorStop(0.4, this.accent + "FF");
-      g.addColorStop(1, "transparent");
-      ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF"; ctx.fill();
       s.p += s.spd;
-      if (s.p >= 1) { this.nodes[s.e[1]].litTimer = 1.0; return false; }
-      return true;
+      return s.p < 1;
     });
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 3. NEURAL PULSES ENGINE
-// ═══════════════════════════════════════════════════════════════════════════════
 class NeuralPulses {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.pulses = [];
-    this.t = 0;
     this.init(W, H);
   }
   init(W, H) {
-    const N = 32;
-    this.nodes = Array.from({ length: N }, () => ({
-      x: W * 0.05 + Math.random() * W * 0.9,
-      y: H * 0.06 + Math.random() * H * 0.88,
-      r: 3.5 + Math.random() * 4,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.02 + Math.random() * 0.03,
-      firing: false, fire: 0,
+    this.nodes = Array.from({ length: 22 }, () => ({
+      x: W * 0.08 + Math.random() * W * 0.84,
+      y: H * 0.08 + Math.random() * H * 0.84,
+      r: 3 + Math.random() * 4,
     }));
-    this.links = [];
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        const d = Math.hypot(this.nodes[i].x - this.nodes[j].x, this.nodes[i].y - this.nodes[j].y);
-        if (d < W * 0.28 && Math.random() < 0.55) this.links.push([i, j, d]);
-      }
-    }
   }
-  fire(i) {
-    const n = this.nodes[i]; if (!n || n.firing) return;
-    n.firing = true; n.fire = 1.0;
-    for (const [a, b] of this.links) {
-      if (a === i || b === i) {
-        const tgt = a === i ? b : a;
-        setTimeout(() => { if (this.nodes[tgt]) this.fire(tgt); }, 200 + Math.random() * 350);
-        this.pulses.push({ from: i, to: tgt, p: 0, spd: 0.006 + Math.random() * 0.01 });
-      }
-    }
-  }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-    this.t += 0.016;
-    if (Math.random() < 0.01) this.fire(Math.floor(Math.random() * this.nodes.length));
-
-    // Links
-    for (const [a, b, d] of this.links) {
-      const na = this.nodes[a], nb = this.nodes[b];
-      let alpha = Math.max(0.05, 0.24 - d / (W * 1.5));
-      ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
-      ctx.strokeStyle = this.accent + hex2(alpha * 255); ctx.lineWidth = 0.6; ctx.stroke();
+    for (let i = 0; i < this.nodes.length; i++) {
+      for (let j = i + 1; j < this.nodes.length; j++) {
+        const dx = this.nodes[i].x - this.nodes[j].x;
+        const dy = this.nodes[i].y - this.nodes[j].y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < W * 0.22) {
+          ctx.beginPath(); ctx.moveTo(this.nodes[i].x, this.nodes[i].y); ctx.lineTo(this.nodes[j].x, this.nodes[j].y);
+          ctx.strokeStyle = this.accent + hex2((1 - d / (W * 0.22)) * 50);
+          ctx.stroke();
+        }
+      }
     }
-
-    // Pulses
-    this.pulses = this.pulses.filter((p) => {
-      const na = this.nodes[p.from], nb = this.nodes[p.to]; if (!na || !nb) return false;
-      const px = na.x + (nb.x - na.x) * p.p;
-      const py = na.y + (nb.y - na.y) * p.p;
-      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
-      ctx.fillStyle = this.accent; ctx.shadowColor = this.accent; ctx.shadowBlur = 14;
-      ctx.fill(); ctx.shadowBlur = 0;
-      p.p += p.spd;
-      return p.p < 1;
-    });
-
-    // Nodes
     for (const n of this.nodes) {
-      n.phase += n.speed;
-      if (n.firing) { n.fire -= 0.025; if (n.fire <= 0) n.firing = false; }
-
-      // Mouse attraction & pulse trigger
-      if (mouse.x > 0) {
-        const md = Math.hypot(n.x - mouse.x, n.y - mouse.y);
-        if (md < 100 && Math.random() < 0.05) this.fire(this.nodes.indexOf(n));
-      }
-
-      const scale = n.firing ? 1 + n.fire * 2.2 : 1;
-      const r = n.r * scale;
-      const pulse = Math.sin(n.phase) * 0.5 + 0.5;
-
-      if (n.firing || pulse > 0.7) {
-        const gr = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 4);
-        gr.addColorStop(0, this.accent + hex2((n.firing ? 0.8 : 0.4) * 255));
-        gr.addColorStop(1, "transparent");
-        ctx.beginPath(); ctx.arc(n.x, n.y, r * 4, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
-      }
-      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = n.firing ? "#FFFFFF" : this.accent + hex2((0.6 + pulse * 0.4) * 255);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = this.accent; ctx.fill();
     }
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 4. NEURAL SINGULARITY ENGINE (BLACK HOLE GRAVITY WELL)
-// ═══════════════════════════════════════════════════════════════════════════════
-class SingularityFX {
+class RadarSweep {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.particles = [];
-    this.init(W, H);
+    this.angle = 0;
   }
-  init(W, H) {
-    this.cx = W / 2;
-    this.cy = H / 2;
-    const count = 180;
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 60 + Math.random() * Math.max(W, H) * 0.45;
-      this.particles.push({
-        angle,
-        dist,
-        speed: 0.005 + Math.random() * 0.015,
-        radialSpeed: 0.2 + Math.random() * 0.8,
-        size: 1 + Math.random() * 2.5,
-        alpha: 0.2 + Math.random() * 0.8,
-      });
-    }
-  }
-  draw(ctx, W, H, t, mouse) {
-    ctx.fillStyle = "rgba(3, 4, 8, 0.15)";
-    ctx.fillRect(0, 0, W, H);
-
-    let targetCx = W / 2;
-    let targetCy = H / 2;
-    if (mouse.x > 0) {
-      targetCx += (mouse.x - W / 2) * 0.12;
-      targetCy += (mouse.y - H / 2) * 0.12;
-    }
-    this.cx += (targetCx - this.cx) * 0.05;
-    this.cy += (targetCy - this.cy) * 0.05;
-
-    // Black hole core & event horizon
-    const coreR = 48 + Math.sin(t * 0.05) * 6;
-    const coreGlow = ctx.createRadialGradient(this.cx, this.cy, coreR * 0.5, this.cx, this.cy, coreR * 3.5);
-    coreGlow.addColorStop(0, "#000000");
-    coreGlow.addColorStop(0.3, "rgba(0,0,0,0.95)");
-    coreGlow.addColorStop(0.65, this.accent + "88");
-    coreGlow.addColorStop(1, "transparent");
-    ctx.beginPath(); ctx.arc(this.cx, this.cy, coreR * 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = coreGlow; ctx.fill();
-
-    // Event horizon ring
-    ctx.beginPath(); ctx.arc(this.cx, this.cy, coreR, 0, Math.PI * 2);
-    ctx.strokeStyle = this.accent; ctx.lineWidth = 3;
-    ctx.shadowColor = this.accent; ctx.shadowBlur = 24;
-    ctx.stroke(); ctx.shadowBlur = 0;
-
-    // Orbiting particles
-    for (const p of this.particles) {
-      p.angle += p.speed * (150 / Math.max(30, p.dist));
-      p.dist -= p.radialSpeed;
-      if (p.dist < coreR * 0.8) {
-        p.dist = 80 + Math.random() * Math.max(W, H) * 0.45;
-        p.angle = Math.random() * Math.PI * 2;
-      }
-
-      const px = this.cx + Math.cos(p.angle) * p.dist;
-      const py = this.cy + Math.sin(p.angle) * (p.dist * 0.55);
-
-      ctx.beginPath(); ctx.arc(px, py, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = this.accent + hex2(p.alpha * 255);
-      ctx.fill();
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 5. FLUID AURORA RIBBON ENGINE
-// ═══════════════════════════════════════════════════════════════════════════════
-class AuroraRibbonFX {
-  constructor(W, H, accent) {
-    this.accent = accent;
-    this.t = 0;
-  }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-    this.t += 0.012;
-
-    const layers = [
-      { color: this.accent, alpha: 0.15, speed: 1.0, waveHeight: 90 },
-      { color: "#A855F7", alpha: 0.12, speed: 0.8, waveHeight: 120 },
-      { color: "#39FF14", alpha: 0.10, speed: 1.3, waveHeight: 70 },
-    ];
-
-    let mouseShift = 0;
-    if (mouse.x > 0) mouseShift = (mouse.x / W - 0.5) * 60;
-
-    for (let l = 0; l < layers.length; l++) {
-      const layer = layers[l];
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-
-      for (let x = 0; x <= W; x += 25) {
-        const sin1 = Math.sin((x * 0.003) + this.t * layer.speed + l * 2 + mouseShift * 0.02);
-        const sin2 = Math.cos((x * 0.006) - this.t * 0.7 * layer.speed);
-        const y = H * 0.45 + sin1 * layer.waveHeight + sin2 * 35;
-        ctx.lineTo(x, y);
-      }
-
-      ctx.lineTo(W, H);
-      ctx.closePath();
-
-      const grad = ctx.createLinearGradient(0, H * 0.2, 0, H);
-      grad.addColorStop(0, layer.color + hex2(layer.alpha * 255));
-      grad.addColorStop(0.5, layer.color + hex2(layer.alpha * 120));
-      grad.addColorStop(1, "transparent");
-
-      ctx.fillStyle = grad;
-      ctx.fill();
-    }
+    this.angle += 0.015;
+    const cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.38;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = this.accent + "33"; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(this.angle) * r, cy + Math.sin(this.angle) * r);
+    ctx.strokeStyle = this.accent; ctx.lineWidth = 1.6; ctx.stroke();
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 6. 3D CYBER GRID ENGINE (INFINITE SCROLLING SYNTHWAVE GRID)
-// ═══════════════════════════════════════════════════════════════════════════════
-class CyberGrid3DFX {
+class Hologram {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.offsetY = 0;
+    this.scanY = 0;
   }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-    this.offsetY = (this.offsetY + 1.2) % 40;
-
-    const horizon = H * 0.52;
-    const fov = 320;
-
-    // Horizon glowing sun / aura
-    const sunGrad = ctx.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, 220);
-    sunGrad.addColorStop(0, this.accent + "55");
-    sunGrad.addColorStop(0.4, this.accent + "18");
-    sunGrad.addColorStop(1, "transparent");
-    ctx.fillStyle = sunGrad;
-    ctx.fillRect(0, horizon - 220, W, 440);
-
-    // Horizon line
-    ctx.beginPath(); ctx.moveTo(0, horizon); ctx.lineTo(W, horizon);
-    ctx.strokeStyle = this.accent; ctx.lineWidth = 2;
-    ctx.shadowColor = this.accent; ctx.shadowBlur = 14; ctx.stroke(); ctx.shadowBlur = 0;
-
-    // Perspective vertical grid lines
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = this.accent + "40";
-    const lineSpacing = 60;
-    const center = W / 2 + (mouse.x > 0 ? (mouse.x - W / 2) * 0.08 : 0);
-
-    for (let x = -W * 1.5; x <= W * 2.5; x += lineSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(center + (x - center) * 0.08, horizon);
-      ctx.lineTo(x, H);
-      ctx.stroke();
-    }
-
-    // Horizontal moving grid lines
-    for (let z = 0; z < H - horizon; z += 40) {
-      const gz = z + this.offsetY;
-      const y = horizon + (gz * gz) / (H - horizon);
-      if (y > H) continue;
-
-      const alpha = Math.min(1, (y - horizon) / 100);
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y);
-      ctx.strokeStyle = this.accent + hex2(alpha * 120);
-      ctx.stroke();
-    }
+    this.scanY = (this.scanY + 1.2) % H;
+    const g = ctx.createLinearGradient(0, this.scanY - 40, 0, this.scanY + 4);
+    g.addColorStop(0, "transparent");
+    g.addColorStop(1, this.accent + "22");
+    ctx.fillStyle = g; ctx.fillRect(0, this.scanY - 40, W, 44);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 7. PLASMA PARTICLES ENGINE (PERLIN VECTOR DRIFT)
-// ═══════════════════════════════════════════════════════════════════════════════
 class PlasmaParticles {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.t = 0;
-    const N = 140;
-    this.pts = Array.from({ length: N }, () => ({
+    this.pts = Array.from({ length: 50 }, () => ({
       x: Math.random() * W, y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: (Math.random() - 0.5) * 0.6,
-      r: 1.5 + Math.random() * 3,
-      phase: Math.random() * Math.PI * 2,
+      vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6,
+      r: 1.5 + Math.random() * 2,
     }));
   }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-    this.t += 0.012;
-
     for (const p of this.pts) {
-      const nx = Math.sin(p.x * 0.003 + this.t * 0.3) * 0.25;
-      const ny = Math.cos(p.y * 0.003 + this.t * 0.25) * 0.25;
-      p.vx = p.vx * 0.98 + nx; p.vy = p.vy * 0.98 + ny;
-
-      // Mouse repulsion
-      if (mouse.x > 0) {
-        const d = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-        if (d < 120) {
-          const force = (1 - d / 120) * 2.5;
-          p.vx += ((p.x - mouse.x) / d) * force;
-          p.vy += ((p.y - mouse.y) / d) * force;
-        }
-      }
-
       p.x += p.vx; p.y += p.vy;
-      if (p.x < -12) p.x = W + 12; if (p.x > W + 12) p.x = -12;
-      if (p.y < -12) p.y = H + 12; if (p.y > H + 12) p.y = -12;
-    }
-
-    const CONNECT = 90;
-    for (let i = 0; i < this.pts.length; i++) {
-      for (let j = i + 1; j < this.pts.length; j++) {
-        const pa = this.pts[i], pb = this.pts[j];
-        const d = Math.hypot(pa.x - pb.x, pa.y - pb.y);
-        if (d < CONNECT) {
-          ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
-          ctx.strokeStyle = this.accent + hex2((1 - d / CONNECT) * 0.4 * 255);
-          ctx.lineWidth = 0.5; ctx.stroke();
-        }
-      }
-    }
-
-    for (const p of this.pts) {
-      p.phase += 0.02;
-      const pulse = Math.sin(p.phase) * 0.5 + 0.5;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.8 + pulse * 0.5), 0, Math.PI * 2);
-      ctx.fillStyle = this.accent + hex2((0.5 + pulse * 0.5) * 180);
-      ctx.shadowColor = this.accent; ctx.shadowBlur = pulse * 8;
-      ctx.fill(); ctx.shadowBlur = 0;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = this.accent + "88"; ctx.fill();
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REACT COMPONENT WRAPPER
+// REACT COMPONENT — Adaptive Resolution, Battery/Tab Awareness, Reduced Motion
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
+export default function WallpaperFX({ fxType, accent = "#00F0FF", isMobile = false }) {
   const canvasRef = useRef(null);
   const frameRef  = useRef(null);
   const fxRef     = useRef(null);
-  const mouseRef  = useRef({ x: -1000, y: -1000 });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
-    };
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
 
   useEffect(() => {
     if (!fxType) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    // Check motion preference & user setting
+    let isMotionAllowed = true;
+    try {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        isMotionAllowed = false;
+      }
+      if (localStorage.getItem("omni_wp_motion") === "paused") {
+        isMotionAllowed = false;
+      }
+    } catch {}
 
     const ctx2d = canvas.getContext("2d");
 
     function build(W, H) {
       switch (fxType) {
-        case "matrix":
-        case "rain":        return new MatrixRain(W, H, accent);
-        case "circuit":
-        case "grid":       return new CircuitSparks(W, H, accent);
-        case "neural":     return new NeuralPulses(W, H, accent);
-        case "singularity": return new SingularityFX(W, H, accent);
-        case "aurora":     return new AuroraRibbonFX(W, H, accent);
-        case "cybergrid":
-        case "3dgrid":     return new CyberGrid3DFX(W, H, accent);
-        case "plasma":
-        case "space":
-        case "reactor":
-        case "chrono":
-        case "orbital":    return new PlasmaParticles(W, H, accent);
-        default:           return new PlasmaParticles(W, H, accent);
+        case "genesis":          return new GenesisFX(W, H, accent, isMobile);
+        case "neural-ocean":     return new NeuralOceanFX(W, H, accent, isMobile);
+        case "quantum":          return new QuantumHorizonFX(W, H, accent, isMobile);
+        case "aurora":           return new DigitalAuroraFX(W, H, accent, isMobile);
+        case "city":             return new SentientCityFX(W, H, accent, isMobile);
+        case "singularity":      return new EventHorizonFX(W, H, accent, isMobile);
+        case "bloom":            return new NeuralBloomFX(W, H, accent, isMobile);
+        case "archive":          return new TemporalArchiveFX(W, H, accent, isMobile);
+        case "void":             return new OmniverseVoidFX(W, H, accent, isMobile);
+        case "singularity-core": return new CortexSingularityFX(W, H, accent, isMobile);
+        // Legacy compatibility
+        case "matrix":           return new MatrixRain(W, H, accent);
+        case "circuit":          return new CircuitSparks(W, H, accent);
+        case "neural":           return new NeuralPulses(W, H, accent);
+        case "radar":            return new RadarSweep(W, H, accent);
+        case "hologram":         return new Hologram(W, H, accent);
+        case "plasma":           return new PlasmaParticles(W, H, accent);
+        default:                 return new GenesisFX(W, H, accent, isMobile);
       }
     }
 
     function resize() {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-      fxRef.current = build(canvas.width, canvas.height);
+      const q = (() => {
+        try { return localStorage.getItem("omni_wp_quality") || "auto"; } catch { return "auto"; }
+      })();
+
+      let dpr = 1.0;
+      if (q === "high") {
+        dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+      } else if (q === "medium") {
+        dpr = 1.0;
+      } else if (q === "low" || isMobile) {
+        dpr = 0.75;
+      } else {
+        // Auto
+        dpr = isMobile ? 0.8 : Math.min(window.devicePixelRatio || 1, 1.5);
+      }
+
+      const clientW = window.innerWidth;
+      const clientH = window.innerHeight;
+      canvas.width  = Math.floor(clientW * dpr);
+      canvas.height = Math.floor(clientH * dpr);
+
+      // Normalize coordinate system so draw calls work naturally in client dimensions
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      fxRef.current = build(clientW, clientH);
+
+      // If reduced motion, draw once immediately
+      if (!isMotionAllowed && fxRef.current) {
+        fxRef.current.draw(ctx2d, clientW, clientH);
+      }
     }
+
     resize();
 
     const ro = typeof ResizeObserver !== "undefined"
@@ -563,27 +863,58 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
     if (ro) ro.observe(document.documentElement);
     else window.addEventListener("resize", resize, { passive: true });
 
-    let tick = 0;
+    let isTabVisible = !document.hidden;
+    const handleVisibility = () => {
+      isTabVisible = !document.hidden;
+      if (isTabVisible && isMotionAllowed && !frameRef.current) {
+        loop();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    const handleSettings = (e) => {
+      if (e?.detail?.motion) {
+        isMotionAllowed = e.detail.motion !== "paused";
+        if (isMotionAllowed && !frameRef.current) {
+          loop();
+        }
+      }
+      if (e?.detail?.quality) {
+        resize();
+      }
+    };
+    window.addEventListener("omni:wallpaper-settings-changed", handleSettings);
+
     function loop() {
-      tick++;
+      if (!isTabVisible || !isMotionAllowed) {
+        frameRef.current = null;
+        return;
+      }
       if (fxRef.current && canvas.width > 0) {
-        fxRef.current.draw(ctx2d, canvas.width, canvas.height, tick, mouseRef.current);
+        fxRef.current.draw(ctx2d, window.innerWidth, window.innerHeight);
       }
       frameRef.current = requestAnimationFrame(loop);
     }
-    frameRef.current = requestAnimationFrame(loop);
+
+    if (isMotionAllowed) {
+      frameRef.current = requestAnimationFrame(loop);
+    }
 
     return () => {
-      cancelAnimationFrame(frameRef.current);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
       if (ro) ro.disconnect(); else window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("omni:wallpaper-settings-changed", handleSettings);
     };
-  }, [fxType, accent]);
+  }, [fxType, accent, isMobile]);
 
   if (!fxType) return null;
 
   return (
     <canvas
       ref={canvasRef}
+      id="wallpaper-fx-canvas"
+      data-testid="wallpaper-fx-canvas"
       style={{
         position: "absolute",
         inset: 0,
@@ -591,8 +922,7 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
         height: "100%",
         pointerEvents: "none",
         zIndex: 1,
-        opacity: 0.95,
-        mixBlendMode: "screen",
+        opacity: 0.88,
       }}
     />
   );

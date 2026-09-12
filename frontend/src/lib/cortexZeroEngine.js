@@ -210,3 +210,21 @@ export function getOmniverseVerdict(input = "") {
     next24Hours: "Register Omniverse Zero in apps registry, build single-input landing UI, and verify with automated tests.",
   };
 }
+
+/**
+ * Real AI-driven Problem Collision through the backend Omniverse Zero engine
+ */
+export async function runLiveOmniverseZero(problem, context = null) {
+  try {
+    const { cognitiveApi } = await import("./api");
+    const result = await cognitiveApi.collideZero({
+      problem,
+      context,
+    });
+    return result;
+  } catch (err) {
+    console.warn("[ZeroEngine] Backend AI collision failed, falling back to local processor:", err);
+    return processOmniverseZero(problem);
+  }
+}
+

@@ -64,8 +64,9 @@ function downloadBlob(content, filename, mime = "application/json") {
 /** Try to load JSZip dynamically — returns null if unavailable */
 async function tryLoadJSZip() {
   try {
-    const JSZip = (await import("jszip")).default;
-    return JSZip;
+    if (typeof window !== "undefined" && window.JSZip) return window.JSZip;
+    const mod = await import(/* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm");
+    return mod?.default || mod;
   } catch {
     return null;
   }

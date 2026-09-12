@@ -5,11 +5,77 @@ export const API = `${BASE}/api`;
 
 export const api = axios.create({ baseURL: API, timeout: 60_000 });
 
+let _isAuthenticating = false;
+let _isLoggingOut = false;
+
+export function setAuthenticatingState(val) {
+  _isAuthenticating = Boolean(val);
+}
+
+export function setLoggingOutState(val) {
+  _isLoggingOut = Boolean(val);
+}
+
+export function getAuthToken() {
+  try {
+    return localStorage.getItem("omniverse_token") || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem("omniverse_token", token);
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    } else {
+      localStorage.removeItem("omniverse_token");
+      delete api.defaults.headers.common["Authorization"];
+    }
+  } catch (err) {
+    console.warn("[Auth] Failed to update localStorage token:", err);
+  }
+}
+
+// Synchronously prime default authorization header on module initialization
+const initialToken = getAuthToken();
+if (initialToken) {
+  api.defaults.headers.common["Authorization"] = `Bearer ${initialToken}`;
+}
+
 api.interceptors.request.use((cfg) => {
-  const token = localStorage.getItem("omniverse_token");
-  if (token) cfg.headers.Authorization = `Bearer ${token}`;
+  const token = getAuthToken();
+  if (token) {
+    cfg.headers.Authorization = `Bearer ${token}`;
+  } else {
+    delete cfg.headers.Authorization;
+  }
   return cfg;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url = error?.config?.url || "";
+
+    // If 401 on an authenticated request
+    if (status === 401) {
+      // Do not trigger session invalidation during login/signup attempts or explicit logout
+      const isAuthEndpoint = url.includes("/auth/login") || url.includes("/auth/signup");
+      if (!isAuthEndpoint && !_isAuthenticating && !_isLoggingOut) {
+        const currentToken = getAuthToken();
+        if (currentToken) {
+          console.warn("[Auth] 401 Unauthorized detected on protected endpoint:", url);
+          // Broadcast event for OSContext to cleanly transition to login without racing
+          window.dispatchEvent(new CustomEvent("omniverse:auth-expired"));
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Incremental SSE parser.
@@ -655,3 +721,12 @@ export const memoryApi = {
       .then(r => r.data)
       .catch(() => ({ extracted: [] })),
 };
+
+// ── Omniverse Cognitive Engines API (Mirror, Zero, Black Box) ─────────────
+export const cognitiveApi = {
+  simulateMirror: (data) => api.post("/ai/mirror", data).then((r) => r.data),
+  collideZero: (data) => api.post("/ai/zero", data).then((r) => r.data),
+  analyzeBlackBox: (data) => api.post("/ai/blackbox", data).then((r) => r.data),
+  toolFollowup: (data) => api.post("/ai/tool/followup", data).then((r) => r.data),
+};
+

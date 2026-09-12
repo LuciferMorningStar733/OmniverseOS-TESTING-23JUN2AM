@@ -15,6 +15,7 @@ import {
   getIdentityDriftEngine,
   getForgottenIntelligenceEngine,
   getImpossibleQuestionEngine,
+  runLiveMirrorSimulation,
 } from "../lib/cortexMirrorEngine";
 
 export default function OmniverseMirror() {
@@ -26,6 +27,11 @@ export default function OmniverseMirror() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+
+  // Dynamic scenario simulation state
+  const [customScenarioInput, setCustomScenarioInput] = useState("");
+  const [liveSimulation, setLiveSimulation] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const { timeline, eras } = useMemo(() => {
     const res = getMirrorHistoricalTimeline();
@@ -54,6 +60,23 @@ export default function OmniverseMirror() {
 
   const modeGlow = `${modeAccent}30`;
 
+  const handleSimulateScenario = async (e) => {
+    e?.preventDefault?.();
+    const scenario = customScenarioInput.trim();
+    if (!scenario || isSimulating) return;
+    setIsSimulating(true);
+    try {
+      const res = await runLiveMirrorSimulation(scenario, "future", []);
+      if (res) {
+        setLiveSimulation(res);
+      }
+    } catch (err) {
+      console.warn("Live mirror simulation failed:", err);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   const openDigitalTwinChat = (mode, trajectoryId = "traj-peak") => {
     const initialGreeting =
       mode === "past"
@@ -66,14 +89,36 @@ export default function OmniverseMirror() {
     setChatModal({ mode, trajectoryId });
   };
 
-  const handleSendChat = () => {
+  const handleSendChat = async () => {
     if (!chatInput.trim() || isThinking) return;
     const userText = chatInput;
     setChatMessages((prev) => [...prev, { sender: "user", text: userText }]);
     setChatInput("");
     setIsThinking(true);
 
-    setTimeout(() => {
+    try {
+      const { cognitiveApi } = await import("../lib/api");
+      const systemPrompt = getDigitalTwinSystemPrompt(chatModal?.mode, chatModal?.trajectoryId);
+      const res = await cognitiveApi.toolFollowup({
+        tool: "OmniverseMirror",
+        context: systemPrompt,
+        message: userText,
+        history: chatMessages.map((m) => ({
+          role: m.sender === "user" ? "user" : "assistant",
+          content: m.text,
+        })),
+      });
+
+      let reply = "";
+      if (typeof res === "string") {
+        reply = res;
+      } else if (res?.reply) {
+        reply = res.reply;
+      } else {
+        reply = `Digital Twin: Grounding my thoughts in your actual historical records: staying focused on your active milestone yields the highest strategic clarity.`;
+      }
+      setChatMessages((prev) => [...prev, { sender: "twin", text: reply }]);
+    } catch (err) {
       let reply = "";
       if (chatModal?.mode === "past") {
         reply = `Past Self: Based on June records, we focused heavily on building core architecture. Seeing our current progress proves the effort was worth it.`;
@@ -83,9 +128,11 @@ export default function OmniverseMirror() {
         reply = `Future Self: Looking back from 6 months ahead, locking feature scope today guarantees a September 1st release.`;
       }
       setChatMessages((prev) => [...prev, { sender: "twin", text: reply }]);
+    } finally {
       setIsThinking(false);
-    }, 1200);
+    }
   };
+
 
   return (
     <div
@@ -404,14 +451,61 @@ export default function OmniverseMirror() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 {/* Parallel Life Card */}
                 <div className="glass-panel" style={{ padding: 18, borderColor: "rgba(168,85,247,0.3)" }}>
-                  <div style={{ fontSize: 11, fontFamily: "monospace", color: "#A855F7" }}>1. 🥇 PARALLEL LIFE SIMULATOR</div>
-                  <h4 style={{ fontSize: 15, fontWeight: 700, margin: "4px 0" }}>Alternate Lifeline Branch</h4>
-                  <div style={{ fontSize: 12, color: "#A855F7", fontWeight: 700 }}>{parallelData.simulatedBranch.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: "6px 0" }}>
-                    30-Day Projection: {parallelData.simulatedBranch.day30Outcome}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 11, fontFamily: "monospace", color: "#A855F7" }}>1. 🥇 PARALLEL LIFE SIMULATOR</div>
+                    <span style={{ fontSize: 10, color: "#39FF14", background: "rgba(57,255,20,0.1)", padding: "2px 6px", borderRadius: 4 }}>LIVE AI ENGINE</span>
                   </div>
-                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.4)" }}>
-                    Probability: {parallelData.simulatedBranch.projectedProbability}
+                  <h4 style={{ fontSize: 15, fontWeight: 700, margin: "4px 0" }}>
+                    {liveSimulation ? `Branch: ${liveSimulation.scenario}` : "Alternate Lifeline Branch"}
+                  </h4>
+
+                  {/* Interactive Simulation Input */}
+                  <form onSubmit={handleSimulateScenario} style={{ display: "flex", gap: 8, margin: "8px 0" }}>
+                    <input
+                      type="text"
+                      value={customScenarioInput}
+                      onChange={(e) => setCustomScenarioInput(e.target.value)}
+                      placeholder="Simulate custom counterfactual decision..."
+                      style={{
+                        flex: 1,
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(168,85,247,0.4)",
+                        borderRadius: 8,
+                        padding: "6px 10px",
+                        fontSize: 12,
+                        color: "#fff",
+                        outline: "none"
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSimulating || !customScenarioInput.trim()}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        background: isSimulating ? "rgba(168,85,247,0.2)" : "rgba(168,85,247,0.5)",
+                        border: "1px solid #A855F7",
+                        color: "#fff",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: isSimulating ? "wait" : "pointer"
+                      }}
+                    >
+                      {isSimulating ? "Simulating..." : "Simulate"}
+                    </button>
+                  </form>
+
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", margin: "6px 0" }}>
+                    30-Day Projection: {liveSimulation ? liveSimulation.day30Outcome : parallelData.simulatedBranch.day30Outcome}
+                  </div>
+                  {liveSimulation?.day90Outcome && (
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: "4px 0" }}>
+                      90-Day Projection: {liveSimulation.day90Outcome}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 12, fontSize: 10, fontFamily: "monospace", color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
+                    <span>Probability: {liveSimulation ? (liveSimulation.projectedProbability || liveSimulation.confidence) : parallelData.simulatedBranch.projectedProbability}</span>
+                    {liveSimulation?.keyDivergence && <span style={{ color: "#A855F7" }}>Inflection: {liveSimulation.keyDivergence}</span>}
                   </div>
                 </div>
 

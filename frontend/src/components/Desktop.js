@@ -490,7 +490,7 @@ function Desktop() {
             } : {}),
           }}
         >
-          {wp.fx && !wp.dataURL && isDesktop && <WallpaperFX fxType={wp.fx} accent={wp.accent} />}
+          {wp.fx && !wp.dataURL && <WallpaperFX fxType={wp.fx} accent={wp.accent} isMobile={!isDesktop} />}
           {wp.typo?.main && (
             <div className="wp-typo">
               {wp.typo.main}
@@ -504,7 +504,6 @@ function Desktop() {
       </AnimatePresence>
       {/* 2099 Living Omniverse Field */}
       <OmniverseField activeAppId={windows.find((w) => w.id === activeId)?.app} />
-      <AmbientParticles />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -549,11 +548,9 @@ function Desktop() {
             const app = getApp(w.app);
             if (!app) return null;
             return (
-              <div key={w.id} className="pointer-events-auto">
-                <Window win={w}>
-                  <app.Component />
-                </Window>
-              </div>
+              <Window key={w.id} win={w}>
+                <app.Component />
+              </Window>
             );
           })}
         </AnimatePresence>
@@ -576,7 +573,7 @@ function Desktop() {
           ))}
         </div>
       )}
-      <Dock />
+      <AdaptiveDock />
       <CommandPalette />
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />

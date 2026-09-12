@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { API } from "../lib/api";
 
 /* ── Animated counting number ─────────────────────────────── */
 function AnimatedNumber({ value, suffix = "", decimals = 0 }) {
@@ -74,7 +75,7 @@ export function SystemHealth() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/system/health");
+      const res = await fetch(`${API}/system/health`);
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const json = await res.json();
       setData(json);

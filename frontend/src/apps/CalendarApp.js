@@ -256,42 +256,58 @@ export default function CalendarApp() {
       style={{ background:"linear-gradient(135deg, rgba(251,146,60,0.02) 0%, transparent 60%)" }}>
 
       {/* Header */}
-      <div className="flex-shrink-0 px-3 sm:px-5 pt-4 pb-3" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-            <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-slate-500 mb-0.5">// Schedule</div>
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <button
-                onClick={()=>setMonth(new Date(y,m-1))}
-                aria-label="Previous month"
-                className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0"
-              >
-                <i className="fa-solid fa-chevron-left text-xs"/>
-              </button>
-              {/* C4: Month header — never truncate. Full name at ≥sm, short name on
-                  mobile so it always fits without a "J..." ellipsis regression. */}
-              <h2 className="font-heading font-black min-w-0 flex-1 text-center sm:text-left whitespace-nowrap"
-                  style={{ fontSize:"clamp(14px, 4.2vw, 24px)", lineHeight:1.15 }}>
-                <span className="sm:hidden">
-                  {month.toLocaleString("default",{month:"short",year:"numeric"})}
-                </span>
-                <span className="hidden sm:inline">
-                  {month.toLocaleString("default",{month:"long",year:"numeric"})}
-                </span>
-              </h2>
-              <button
-                onClick={()=>setMonth(new Date(y,m+1))}
-                aria-label="Next month"
-                className="neon-btn !py-1 !px-2 sm:!px-2.5 flex-shrink-0"
-              >
-                <i className="fa-solid fa-chevron-right text-xs"/>
-              </button>
-            </div>
+      <div className="flex-shrink-0 px-3 sm:px-5 pt-3 pb-2.5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {/* Month Navigation Cluster */}
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+            <button
+              onClick={()=>setMonth(new Date(y,m-1))}
+              aria-label="Previous month"
+              className="neon-btn !py-1 !px-2 flex-shrink-0 flex items-center justify-center"
+              style={{ minWidth: 32, minHeight: 32 }}
+            >
+              <i className="fa-solid fa-chevron-left text-xs"/>
+            </button>
+            <h2
+              aria-label={month.toLocaleString("default", { month: "long", year: "numeric" })}
+              className="font-heading font-black min-w-0 flex-1 text-center whitespace-nowrap overflow-hidden text-ellipsis px-1"
+              style={{ fontSize: "clamp(13px, 3.8vw, 20px)", lineHeight: 1.2 }}
+            >
+              <span className="inline md:hidden">
+                {month.toLocaleString("default", { month: "short", year: "numeric" })}
+              </span>
+              <span className="hidden md:inline">
+                {month.toLocaleString("default", { month: "long", year: "numeric" })}
+              </span>
+            </h2>
+            <button
+              onClick={()=>setMonth(new Date(y,m+1))}
+              aria-label="Next month"
+              className="neon-btn !py-1 !px-2 flex-shrink-0 flex items-center justify-center"
+              style={{ minWidth: 32, minHeight: 32 }}
+            >
+              <i className="fa-solid fa-chevron-right text-xs"/>
+            </button>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-center sm:justify-end order-3 sm:order-none">
-            <button onClick={()=>setMonth(new Date())} className="neon-btn !py-1 !px-2.5 text-xs">Today</button>
-            <button onClick={()=>{ setAddDate(new Date()); setShowAdd(true); }} className="neon-btn primary !py-1.5 !px-3 text-xs">
-              <i className="fa-solid fa-plus text-[10px]"/> Add
+
+          {/* Actions: Today & Add */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={()=>setMonth(new Date())}
+              aria-label="Today"
+              className="neon-btn !py-1 !px-2 text-xs"
+              style={{ minHeight: 32 }}
+            >
+              Today
+            </button>
+            <button
+              onClick={()=>{ setAddDate(new Date()); setShowAdd(true); }}
+              aria-label="Add Event"
+              className="neon-btn primary !py-1 !px-2.5 text-xs flex items-center gap-1"
+              style={{ minHeight: 32 }}
+            >
+              <i className="fa-solid fa-plus text-[10px]"/>
+              <span>Add</span>
             </button>
           </div>
         </div>

@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OmniverseOS — Complete Project Report (Day 1 to Present)</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 14mm 14mm 14mm 14mm;
+  }
+  
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #080a0f;
+    color: #cbd5e1;
+    margin: 0;
+    padding: 0;
+    font-size: 9pt;
+    line-height: 1.45;
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .no-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Header Banner */
+  .header-banner {
+    background: linear-gradient(135deg, #0b1120 0%, #030712 100%);
+    border: 1px solid #1e293b;
+    border-top: 3px solid #00f0ff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+  }
+
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+  }
+
+  .badge-cyan { background: rgba(0, 240, 255, 0.12); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.35); }
+  .badge-purple { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
+  .badge-green { background: rgba(57, 255, 20, 0.12); color: #4ade80; border: 1px solid rgba(57, 255, 20, 0.35); }
+  .badge-amber { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+  .badge-rose { background: rgba(244, 114, 182, 0.12); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.35); }
+
+  h1.title {
+    font-size: 18pt;
+    font-weight: 900;
+    color: #ffffff;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: 10pt;
+    color: #94a3b8;
+    margin: 0 0 10px 0;
+    font-weight: 400;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    border-top: 1px solid #1e293b;
+    padding-top: 10px;
+    margin-top: 6px;
+  }
+
+  .meta-item {
+    font-size: 7.5pt;
+  }
+
+  .meta-label {
+    color: #64748b;
+    text-transform: uppercase;
+    font-size: 6.5pt;
+    font-weight: 600;
+    margin-bottom: 1px;
+  }
+
+  .meta-val {
+    color: #f1f5f9;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+  }
+
+  /* Metric Stat Cards */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 8px 6px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 13pt;
+    font-weight: 800;
+    color: #00f0ff;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+    margin-bottom: 1px;
+  }
+
+  .stat-label {
+    font-size: 6.5pt;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* Section Headings */
+  h2.section-title {
+    font-size: 12pt;
+    font-weight: 800;
+    color: #ffffff;
+    border-left: 3px solid #00f0ff;
+    padding-left: 8px;
+    margin: 14px 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  h3.sub-section-title {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #38bdf8;
+    margin: 10px 0 4px 0;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 2px;
+  }
+
+  p {
+    margin: 0 0 6px 0;
+    color: #94a3b8;
+  }
+
+  ul, ol {
+    margin: 0 0 8px 0;
+    padding-left: 16px;
+    color: #94a3b8;
+  }
+
+  li {
+    margin-bottom: 3px;
+  }
+
+  li strong {
+    color: #f1f5f9;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 10px 0;
+    font-size: 7.5pt;
+    background: #0b1120;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #1e293b;
+  }
+
+  th {
+    background: #111c38;
+    color: #00f0ff;
+    font-weight: 700;
+    text-align: left;
+    padding: 5px 6px;
+    border-bottom: 1px solid #1e293b;
+    text-transform: uppercase;
+    font-size: 6.5pt;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    padding: 4.5px 6px;
+    border-bottom: 1px solid #172554;
+    color: #cbd5e1;
+    vertical-align: top;
+    line-height: 1.35;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.015);
+  }
+
+  /* Code & Pre */
+  code {
+    background: #172554;
+    color: #38bdf8;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+    font-size: 7.5pt;
+  }
+
+  pre {
+    background: #030712;
+    border: 1px solid #1e293b;
+    border-radius: 5px;
+    padding: 8px;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+    font-size: 6.8pt;
+    color: #a5f3fc;
+    line-height: 1.3;
+    margin: 6px 0 8px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* Architecture Boxes */
+  .arch-box {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin: 8px 0;
+  }
+
+  .callout {
+    background: rgba(0, 240, 255, 0.04);
+    border-left: 3px solid #00f0ff;
+    padding: 6px 10px;
+    border-radius: 0 5px 5px 0;
+    margin: 8px 0;
+    font-size: 8pt;
+  }
+
+  .callout-warning {
+    background: rgba(245, 158, 11, 0.05);
+    border-left: 3px solid #f59e0b;
+  }
+
+  .callout-success {
+    background: rgba(57, 255, 20, 0.05);
+    border-left: 3px solid #39ff14;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 6.5pt;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace, Consolas, sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER BANNER -->
+<div class="header-banner">
+  <div class="badge-row">
+    <span class="badge badge-cyan">OmniverseOS v1.0 RC</span>
+    <span class="badge badge-purple">Cyberpunk Web OS</span>
+    <span class="badge badge-green">Architecture & History</span>
+    <span class="badge badge-amber">Super-Detail Report</span>
+  </div>
+  <h1 class="title">OmniverseOS — Complete Engineering Report</h1>
+  <div class="subtitle">Complete Architectural Blueprint, Feature Inventory, Testing Results & Historical Chronology from Day 1 to Today</div>
+  
+  <div class="meta-grid">
+    <div class="meta-item">
+      <div class="meta-label">Report Mode</div>
+      <div class="meta-val">Verified Read-Only</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Backend Services</div>
+      <div class="meta-val">FastAPI / Motor / LiteLLM</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Frontend Stack</div>
+      <div class="meta-val">React 19 / Tailwind / Motion</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Audit Date</div>
+      <div class="meta-val">September 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- TOP STATS -->
+<div class="stats-grid no-break">
+  <div class="stat-card">
+    <div class="stat-num">29</div>
+    <div class="stat-label">Production Apps</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">19</div>
+    <div class="stat-label">Desktop Widgets</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">105+</div>
+    <div class="stat-label">Backend Functions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">16</div>
+    <div class="stat-label">Indexed Collections</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">7</div>
+    <div class="stat-label">TTS Audio Engines</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">1,481</div>
+    <div class="stat-label">Responsive Rules</div>
+  </div>
+</div>
+
+<!-- SECTION 1: SYSTEM OVERVIEW & ARCHITECTURAL IDENTITY -->
+<div class="no-break">
+  <h2 class="section-title">1. Executive Summary & Architectural Identity</h2>
+  <p><strong>OmniverseOS</strong> is a cyberpunk-themed, browser-based desktop operating system combining an expansive multi-model AI suite, autonomous multi-agent chambers, a spatial vector memory engine, real-time voice intelligence, and a rich productivity and media ecosystem within a reactive window-managed interface.</p>
+
+  <div class="callout">
+    <strong>Design Philosophy & Aesthetics:</strong> Built upon the <em>Electric & Neon</em> archetype. Deep void indigo backgrounds (<code>#05050A</code>), layered glassmorphic panels (<code>rgba(10,10,15,0.6)</code>), thin luminescent borders (<code>rgba(255,255,255,0.08)</code>), and vibrant functional semantic accents: AI Cyan (<code>#00F0FF</code>), Success Green (<code>#39FF14</code>), Danger Red (<code>#FF003C</code>), Warning Amber (<code>#F59E0B</code>), and Media Pink (<code>#F472B6</code>).
+  </div>
+</div>
+
+<div class="arch-box no-break">
+  <div style="font-size: 7.5pt; font-weight: 700; color: #38bdf8; margin-bottom: 4px; text-transform: uppercase;">High-Level System Topology</div>
+  <pre>
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                           BROWSER CLIENT                                               │
+│  React 19 Shell · Framer Motion 11 · Radix UI · Sonner Toasts · Recharts · Lucide Icons                │
+│  ├── Window Manager: Draggable / Resizable / Minimizable / Mobile Fullscreen Snap                      │
+│  ├── Cortex AI Core: Live Window Context Injection, Context Chips (D7), Session Isolation (D1)        │
+│  ├── Multi-Engine Voice: Gemini 2.5 Flash, Fish Audio, Kokoro ONNX, Edge, Puter, Browser TTS           │
+│  └── 29 Lazy-Loaded Apps + 19 Desktop Widgets + Ambient Particle Canvas Layer                          │
+└───────────────────────────────────────────────────┬────────────────────────────────────────────────────┘
+                                                    │ /api/* (REST + Server-Sent Events)
+                                                    ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                           FASTAPI BACKEND (:8001)                                      │
+│  Lifespan Context Manager · 6 Modular Routers · Redis/Memory Sliding Window Rate Limiter               │
+│  ├── Multi-Provider AI: Gemini 2.5, DeepSeek V3, Groq Llama-3.3, Cerebras, OpenRouter Fallback Chains  │
+│  ├── Live Web Intelligence: TinyFish Web Crawl & Live Search Integration (web_service.py)               │
+│  ├── Structured AI Engine: LiteLLM Router + Instructor Pydantic Validation (structured_ai.py)          │
+│  └── Hybrid Vector Service: text-embedding-004 + 128-dim Fallback Dense Vectorizer                     │
+└───────────────────────────────────────────────────┬────────────────────────────────────────────────────┘
+                                                    │ Async Motor Driver
+                                                    ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                        MONGODB PERSISTENCE LAYER                                       │
+│  16 Collections: users, notes, tasks, events, transactions, memories, files, images, clipboard,       │
+│  chat_messages, cortex_memories, memory_activity, chat_sessions, project_dna, decisions, timeline_events│
+│  Auto-Indexed on Startup: Compound indexes on (user_id, created_at), (user_id, session_id, created_at) │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  </pre>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SECTION 2: CHRONOLOGICAL EVOLUTION -->
+<h2 class="section-title">2. Detailed Chronological Evolution: Day 1 to Today</h2>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 0: Genesis & Day 1 Core OS MVP</h3>
+  <p>The project originated as an ambitious initiative to converge modern computing paradigms—ChatGPT, Notion, Trello, Discord, Spotify, Google Calendar, YouTube, Netflix watchlists, virtual files, finance tracking, and in-browser code execution—into a single web operating system.</p>
+  <ul>
+    <li><strong>Desktop Window Engine:</strong> Framer Motion draggable canvas with window minimization, cascade stacking, z-index elevation, active window focus rings, and custom desktop context menus.</li>
+    <li><strong>JWT Auth Architecture:</strong> Bcrypt hashing with salted passwords and 7-day HS256 JWT tokens.</li>
+    <li><strong>Core Suite:</strong> Initial releases of Notes, Kanban Tasks, Calendar, Finance, Files, Code Editor, Music, Videos, and Watchlist.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 1: Staff Engineer Audit & System Stabilization (June 2026)</h3>
+  <p>A rigorous engineering audit addressed critical security vulnerabilities, concurrency race conditions, and frontend memory leaks:</p>
+  <ul>
+    <li><strong>CORS & Credential Security:</strong> Fixed browser silent rejection of wildcard origins with credentials. Replaced with regex origin validation (<code>allow_origin_regex=".*"</code>) when origins are wildcarded.</li>
+    <li><strong>Unique Index & TOCTOU Fix:</strong> Eliminated signup race conditions by creating an automated unique index on <code>users.email</code> in the startup lifespan.</li>
+    <li><strong>Input Bounds & Abuse Prevention:</strong> Enforced Pydantic <code>Field(max_length=...)</code> caps across prompt inputs and model whitelisting via <code>ALLOWED_MODELS</code>.</li>
+    <li><strong>Voice.js Stale Closure Fix:</strong> Resolved an issue where initial empty string closures caused the first spoken prompt to send empty text. Added mutable <code>transcriptRef</code> and double-start guards.</li>
+    <li><strong>OSContext zCounter Functional Updates:</strong> Switched to <code>setZCounter((z) => z + 1)</code> to prevent consecutive rapid app opens from receiving duplicate z-indexes.</li>
+    <li><strong>AIChat Stream Abort Controllers:</strong> Integrated <code>AbortController</code> and mount guards to cancel SSE fetch readers when closing the chat window mid-stream.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 2: Alpha 0.9 RC & Cortex Unification Sprint (Late June 2026)</h3>
+  <p>Executed a surgical, five-priority sprint unifying the system under Cortex awareness without changing UI branding:</p>
+  <ul>
+    <li><strong>P1 — Cortex Unification:</strong> Wired <code>buildCortexSystemPrompt(osContext)</code> directly into AIChat. Cortex receives the active application, open window IDs, browser URL, and spatial memories on every LLM call. Unified browser URL tracking into <code>cortex_current_url</code> and propagated events through the activity timeline.</li>
+    <li><strong>P2 — Workspace Restore:</strong> Added <code>saveCurrentWorkspace(name)</code>, <code>restoreNamedWorkspace(name)</code>, and <code>restoreLastWorkspace()</code> to <code>OSContext</code>, clamping coordinates and restoring window hierarchies.</li>
+    <li><strong>P3 — Universal Search (Spotlight Quality):</strong> Overhauled <code>CommandPalette.js</code> (Ctrl+K) into a unified search across 9-10 distinct sources (Apps, Notes, Tasks, Memories, Timeline, Browser History, Clipboard, Snapshots, Quick Actions) with token scoring.</li>
+    <li><strong>P4 — Mission Control Upgrade:</strong> Added a 280px Cortex side rail featuring saved workspace layouts, recent 6 timeline events, clickable recent sites, and memory summaries.</li>
+    <li><strong>P5 — Browser Intelligence:</strong> Developed <code>BrowserIntelBar.js</code> to surface contextual actions for GitHub, YouTube, Stack Overflow, MDN, Reddit, Wikipedia, and Hacker News.</li>
+    <li><strong>Deployment Ownership Audit:</strong> Completed an exhaustive sweep confirming zero vendor runtime dependencies, enabling 100% self-hosted portability across Render, Vercel, and MongoDB Atlas.</li>
+  </ul>
+</div>
+
+<div class="page-break"></div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 3: Phase 1 Intelligence Layer Architecture</h3>
+  <p>Expanded the backend data model and frontend capabilities with dedicated cognitive and workflow systems:</p>
+  <ul>
+    <li><strong>Conversation Archaeology:</strong> Implemented <code>POST /api/ai/search/conversations</code> using regex search combined with Gemini reranking to surface prior discussion context.</li>
+    <li><strong>Project DNA (<code>ProjectDNA.js</code>):</strong> Created a comprehensive project workspace featuring Overview, Goals, Decisions, and Settings tabs connected to the <code>project_dna</code> collection.</li>
+    <li><strong>Decision Memory:</strong> Structured logging of architectural and strategic decisions with rationale and status tracking (<code>decisions</code> collection).</li>
+    <li><strong>Cortex Timeline (<code>TimelineApp.js</code>):</strong> Day-grouped timeline merging local browser activity with persistent server events.</li>
+    <li><strong>Cortex Interrupts (<code>CortexInterrupts.js</code>):</strong> Ambient check-in engine querying Gemini Flash Lite every 8 minutes with auto-dismissal and focus-mode muting.</li>
+    <li><strong>Focus Tunnel (<code>FocusTunnel.js</code>):</strong> Distraction-free work portal with pre-focus goal selection, countdown timer, and post-session Gemini reflection.</li>
+    <li><strong>Ghost Writer & Morning Briefing:</strong> Integrated inline ghost text autocompletion in Notes (<code>useGhostWriter.js</code>) and return catch-up briefings (<code>MorningBriefing.js</code>).</li>
+    <li><strong>Dedicated Intelligence Client:</strong> Isolated intelligence methods into <code>frontend/src/lib/intelligenceApi.js</code> to keep <code>api.js</code> focused.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 4: Destination Features & High-Level Cognitive Suite</h3>
+  <p>Engineered an advanced suite of high-impact AI analytical tools designed for strategic thinking, stress-testing, and synthesis:</p>
+  <ul>
+    <li><strong>The Adversary (<code>Adversary.js</code>):</strong> Aggressive challenge engine adopting ruthless personas (VC, Engineer, Competitor) to probe flaws in logic or product proposals.</li>
+    <li><strong>War Room (<code>WarRoom.js</code>):</strong> 5-agent strategic debate chamber with animated responses from The Investor, The Customer, The Competitor, The Internal Critic, and The Journalist.</li>
+    <li><strong>Dead Reckoning (<code>DeadReckoning.js</code>):</strong> Trajectory projection evaluating 1-year, 3-year, and 5-year outcomes against user actions and stated goals.</li>
+    <li><strong>Neural Matrix (<code>NeuralMatrix.js</code>):</strong> Real-time 3D spatial constellation HUD visualizing vector memory nodes, active AI agents, and system health metrics.</li>
+    <li><strong>Omniverse Mirror (<code>OmniverseMirror.js</code>):</strong> Digital twin simulating parallel lives, cognitive shadows, decision time travel, and personal counterfactuals.</li>
+    <li><strong>Omniverse Zero (<code>OmniverseZero.js</code>):</strong> Deep problem analysis suite with a Possibility Collider, Problem Time Machine, and Final Boss Audit.</li>
+    <li><strong>The Black Box (<code>BlackBoxApp.js</code>):</strong> Multi-phase cognitive anatomy framework diagnosing hidden centers of gravity in complex decisions.</li>
+    <li><strong>Model Face-Off & Swarm Goal:</strong> Side-by-side comparative model debate and autonomous multi-agent task breakdown.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 5: Mobile & Tablet Responsive Overhaul</h3>
+  <p>Re-architected the OS to deliver an authentic native-feeling experience across phone and tablet viewports without degrading desktop layouts:</p>
+  <ul>
+    <li><strong>Adaptive Geometry (<code>useBreakpoint.js</code>):</strong> Viewport categorization into Mobile (&lt;768px), Tablet (768–1023px), and Desktop (≥1024px).</li>
+    <li><strong>Mobile Fullscreen Snapping:</strong> Framer Motion geometry overrides window coordinates on mobile to fill the viewport between the 56px top bar and 80px dock, disabling window dragging.</li>
+    <li><strong>CSS Responsive Layer (<code>responsive.css</code> - 1,481 lines):</strong> Uses <code>data-testid</code> selectors to enforce touch targets (≥36px), scroll containment, safe-area insets, and iOS font zoom prevention (16px base font size).</li>
+    <li><strong>Mobile Shell Components:</strong> Built <code>MobileHomeScreen.js</code>, <code>MobileAppDrawer.js</code>, <code>MobileWidgetView.js</code>, and <code>AdaptiveDock.js</code>.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 6: Multi-Engine Voice & Audio Architecture</h3>
+  <ul>
+    <li><strong>7-Engine TTS Pipeline (<code>cortexTTSManager.js</code>):</strong> Synthesis through Gemini 2.5 Flash, Fish Audio, Kokoro ONNX, Edge TTS, Puter TTS, Stream TTS, and Web Speech API.</li>
+    <li><strong>TTS In-Memory Caching:</strong> SHA-256 keyed cache (<code>_tts_cache</code>) preventing redundant network requests for identical speech synthesis phrases.</li>
+    <li><strong>Interruption & Recognition:</strong> Real-time STT with regional BCP-47 language support (en-US, en-IN, en-GB, etc.), emotion prosody modulation, and instant speech interruption.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 7: Live Web Intelligence & Structured Extraction</h3>
+  <ul>
+    <li><strong>TinyFish Live Web Search (<code>web_service.py</code>):</strong> Single gateway for live web crawling with automated search intent heuristics and confidence scoring.</li>
+    <li><strong>LiteLLM + Instructor Extraction (<code>structured_ai.py</code>):</strong> Pydantic schema validation ensuring raw unvalidated LLM output is rejected before database insertion.</li>
+    <li><strong>Hybrid Vector Engine (<code>core/vector_service.py</code>):</strong> Dual-mode embeddings using Gemini <code>text-embedding-004</code> with automatic fallback to a 128-dimensional normalized deterministic vectorizer.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Phase 8: RC1 Hardening, Context Chips & Security Remediation (August 2026)</h3>
+  <ul>
+    <li><strong>D7 Context Chips (<code>ContextChips.js</code>):</strong> Pill chip row rendered above the AI Chat prompt displaying live sources (Active App, Open Apps, Browser URL, Memories) with instant click-to-exclude toggling.</li>
+    <li><strong>D1 Chat Session Isolation:</strong> Session CRUD with auto-titling, pinning, duplication, and strict per-session message isolation.</li>
+    <li><strong>Security Incident Remediation:</strong> Redacted leaked LLM key at HEAD, established <code>SECURITY_INCIDENT.md</code>, and hardened <code>.env</code> parsing.</li>
+    <li><strong>LocationSetup Modal Hardening:</strong> Corrected pointer-event interception on modal backdrop; added dedicated backdrop button, Escape key listener, and skip flow.</li>
+  </ul>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SECTION 3: APP CATALOG -->
+<h2 class="section-title">3. Complete Production Application Catalog (29 Apps)</h2>
+<p>Every application in OmniverseOS is registered in <code>frontend/src/lib/apps.js</code> and loaded via <code>React.lazy()</code> for code splitting and instant desktop initialization.</p>
+
+<table class="no-break">
+  <thead>
+    <tr>
+      <th style="width: 10%;">App ID</th>
+      <th style="width: 14%;">Name</th>
+      <th style="width: 12%;">Group</th>
+      <th style="width: 10%;">Accent</th>
+      <th>Key Features & Technical Capabilities</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>dashboard</code></td>
+      <td><strong>Dashboard</strong></td>
+      <td>Core</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>System health HUD, quick launch tiles, real-time clock, telemetry gauges, and customizable bento grid.</td>
+    </tr>
+    <tr>
+      <td><code>chat</code></td>
+      <td><strong>AI Chat</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>Multi-provider SSE streaming, Context Chips (D7), session management (D1), model debate, and command execution.</td>
+    </tr>
+    <tr>
+      <td><code>image</code></td>
+      <td><strong>Image Gen</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(168,85,247,0.15); color: #c084fc;">#A855F7</span></td>
+      <td>Prompt-driven image synthesis via Gemini Imagen / OpenAI gateway with history gallery and aspect ratio controls.</td>
+    </tr>
+    <tr>
+      <td><code>voice</code></td>
+      <td><strong>Cortex Voice</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(74,158,255,0.15); color: #60a5fa;">#4A9EFF</span></td>
+      <td>Hands-free voice assistant with 7 TTS engines, real-time STT, speech interruption, and CyberOrb visualizer.</td>
+    </tr>
+    <tr>
+      <td><code>memory</code></td>
+      <td><strong>Memory</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(45,212,191,0.15); color: #2dd4bf;">#2DD4BF</span></td>
+      <td>Spatial vector memory explorer with category categorization, importance scoring, and never-forget toggles.</td>
+    </tr>
+    <tr>
+      <td><code>projects</code></td>
+      <td><strong>Project DNA</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>Project architecture tracker with Overview, Goals, Decisions, Settings, and AI context extraction.</td>
+    </tr>
+    <tr>
+      <td><code>timeline</code></td>
+      <td><strong>Timeline</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(123,47,255,0.15); color: #a855f7;">#7B2FFF</span></td>
+      <td>Chronological event stream capturing navigation, app launches, voice commands, and system mutations.</td>
+    </tr>
+    <tr>
+      <td><code>notes</code></td>
+      <td><strong>Notes</strong></td>
+      <td>Productivity</td>
+      <td><span class="tag" style="background: rgba(245,158,11,0.15); color: #fbbf24;">#F59E0B</span></td>
+      <td>Rich-text markdown note-taking with color coding, search filtering, and Ghost Writer autocompletion.</td>
+    </tr>
+    <tr>
+      <td><code>tasks</code></td>
+      <td><strong>Tasks</strong></td>
+      <td>Productivity</td>
+      <td><span class="tag" style="background: rgba(57,255,20,0.15); color: #4ade80;">#39FF14</span></td>
+      <td>Drag-and-drop Kanban task board with Todo, In Progress, and Done lanes plus priority tags.</td>
+    </tr>
+    <tr>
+      <td><code>calendar</code></td>
+      <td><strong>Calendar</strong></td>
+      <td>Productivity</td>
+      <td><span class="tag" style="background: rgba(251,146,60,0.15); color: #fb923c;">#FB923C</span></td>
+      <td>Month/Week/Agenda scheduler with responsive header formatting and compact event indicators on mobile.</td>
+    </tr>
+    <tr>
+      <td><code>clipboard</code></td>
+      <td><strong>Clipboard</strong></td>
+      <td>Productivity</td>
+      <td><span class="tag" style="background: rgba(129,140,248,0.15); color: #818cf8;">#818CF8</span></td>
+      <td>Persistent clipboard history manager with quick copy-to-clipboard actions, search, and item pinning.</td>
+    </tr>
+    <tr>
+      <td><code>music</code></td>
+      <td><strong>Music</strong></td>
+      <td>Media</td>
+      <td><span class="tag" style="background: rgba(244,114,182,0.15); color: #f472b6;">#F472B6</span></td>
+      <td>Cyberpunk music player with ambient playlist streaming, track visualizer, and desktop mini-widget sync.</td>
+    </tr>
+    <tr>
+      <td><code>videos</code></td>
+      <td><strong>Videos</strong></td>
+      <td>Media</td>
+      <td><span class="tag" style="background: rgba(244,114,182,0.15); color: #f472b6;">#F472B6</span></td>
+      <td>Curated video player supporting categorized YouTube content and embedded theater-mode playback.</td>
+    </tr>
+    <tr>
+      <td><code>watchlist</code></td>
+      <td><strong>Watchlist</strong></td>
+      <td>Media</td>
+      <td><span class="tag" style="background: rgba(244,114,182,0.15); color: #f472b6;">#F472B6</span></td>
+      <td>Personal media tracking watchlist for films, documentaries, and series with rating tags.</td>
+    </tr>
+    <tr>
+      <td><code>files</code></td>
+      <td><strong>Files</strong></td>
+      <td>System</td>
+      <td><span class="tag" style="background: rgba(96,165,250,0.15); color: #60a5fa;">#60A5FA</span></td>
+      <td>Virtual filesystem explorer managing folders, uploaded assets, code snippets, and storage telemetry.</td>
+    </tr>
+    <tr>
+      <td><code>code</code></td>
+      <td><strong>Code Editor</strong></td>
+      <td>System</td>
+      <td><span class="tag" style="background: rgba(57,255,20,0.15); color: #4ade80;">#39FF14</span></td>
+      <td>Syntax-highlighted JavaScript editor with console output and isolated <code>new Function()</code> execution.</td>
+    </tr>
+    <tr>
+      <td><code>browser</code></td>
+      <td><strong>Browser</strong></td>
+      <td>System</td>
+      <td><span class="tag" style="background: rgba(96,165,250,0.15); color: #60a5fa;">#60A5FA</span></td>
+      <td>Iframe web browser with bookmark shortcuts, history logging, and contextual BrowserIntelBar AI prompts.</td>
+    </tr>
+    <tr>
+      <td><code>settings</code></td>
+      <td><strong>Settings</strong></td>
+      <td>System</td>
+      <td><span class="tag" style="background: rgba(148,163,184,0.15); color: #94a3b8;">#94A3B8</span></td>
+      <td>OS personalization: dynamic wallpapers, sound FX volumes, API key entry, location preferences.</td>
+    </tr>
+    <tr>
+      <td><code>finance</code></td>
+      <td><strong>Finance</strong></td>
+      <td>Data</td>
+      <td><span class="tag" style="background: rgba(57,255,20,0.15); color: #4ade80;">#39FF14</span></td>
+      <td>Financial tracker with monthly expense breakdowns, balance trends, Recharts graphs, and transaction logging.</td>
+    </tr>
+    <tr>
+      <td><code>analytics</code></td>
+      <td><strong>Analytics</strong></td>
+      <td>Data</td>
+      <td><span class="tag" style="background: rgba(57,255,20,0.15); color: #4ade80;">#39FF14</span></td>
+      <td>System metrics dashboard visualizing app usage frequency, activity heatmaps, and productivity scores.</td>
+    </tr>
+    <tr>
+      <td><code>nebula</code></td>
+      <td><strong>Nebula Chat</strong></td>
+      <td>Social</td>
+      <td><span class="tag" style="background: rgba(168,85,247,0.15); color: #c084fc;">#A855F7</span></td>
+      <td>Cyberpunk Discord-style communications terminal with simulated team channels and active user statuses.</td>
+    </tr>
+    <tr>
+      <td><code>swarm</code></td>
+      <td><strong>Swarm Goal</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>Multi-agent goal execution suite decomposing high-level targets into parallel sub-agent workflows.</td>
+    </tr>
+    <tr>
+      <td><code>faceoff</code></td>
+      <td><strong>Model Face-Off</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>Side-by-side model debate comparing Gemini, DeepSeek, Llama, and Cerebras outputs simultaneously.</td>
+    </tr>
+    <tr>
+      <td><code>adversary</code></td>
+      <td><strong>The Adversary</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(255,0,60,0.15); color: #ff003c;">#FF003C</span></td>
+      <td>Adversarial challenge chamber stress-testing ideas with relentless critique from customized personas.</td>
+    </tr>
+    <tr>
+      <td><code>warroom</code></td>
+      <td><strong>War Room</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(245,158,11,0.15); color: #fbbf24;">#F59E0B</span></td>
+      <td>Strategic multi-persona council (Investor, Customer, Competitor, Critic, Journalist) with animated text.</td>
+    </tr>
+    <tr>
+      <td><code>deadreckoning</code></td>
+      <td><strong>Dead Reckoning</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(123,47,255,0.15); color: #a855f7;">#7B2FFF</span></td>
+      <td>Long-term behavioral trajectory projector analyzing 1/3/5-year horizons and critical leverage points.</td>
+    </tr>
+    <tr>
+      <td><code>matrix</code></td>
+      <td><strong>Neural Matrix</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>Spatial 3D interactive constellation HUD linking vector memories, active agents, and system nodes.</td>
+    </tr>
+    <tr>
+      <td><code>mirror</code></td>
+      <td><strong>Omniverse Mirror</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(168,85,247,0.15); color: #c084fc;">#A855F7</span></td>
+      <td>Digital twin simulator featuring cognitive shadow analysis, parallel timelines, and counterfactual memory.</td>
+    </tr>
+    <tr>
+      <td><code>zero</code></td>
+      <td><strong>Omniverse Zero</strong></td>
+      <td>AI</td>
+      <td><span class="tag" style="background: rgba(0,240,255,0.15); color: #00f0ff;">#00F0FF</span></td>
+      <td>Cognitive problem collider, timeline rewind engine, and final boss audit for high-stakes problem spaces.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 4: WIDGET SYSTEM -->
+<h2 class="section-title">4. Desktop Widget System (19 Production Widgets)</h2>
+<p>OmniverseOS features an extensible widget canvas (<code>WidgetCanvas.js</code>) rendered on the desktop beneath floating windows. Users can add, reposition, and configure widgets from the integrated Widget Store.</p>
+
+<table class="no-break">
+  <thead>
+    <tr>
+      <th style="width: 22%;">Widget Name</th>
+      <th style="width: 28%;">Component File</th>
+      <th>Operational Role & Capabilities</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>AI Command Center</strong></td>
+      <td><code>widgets/AICommandCenter.js</code></td>
+      <td>Desktop natural language input bar triggering immediate Cortex actions, queries, or app launches.</td>
+    </tr>
+    <tr>
+      <td><strong>Calendar Widget</strong></td>
+      <td><code>widgets/CalendarWidget.js</code></td>
+      <td>Compact month calendar showing today's date and upcoming scheduled events with status indicators.</td>
+    </tr>
+    <tr>
+      <td><strong>Chrono Widget</strong></td>
+      <td><code>widgets/ChronoWidget.js</code></td>
+      <td>Multi-mode precision stopwatch, lap timer, countdown clock, and international timezone tracker.</td>
+    </tr>
+    <tr>
+      <td><strong>Clock Widget</strong></td>
+      <td><code>widgets/ClockWidget.js</code></td>
+      <td>Minimalist neon digital desktop clock with dynamic second ticks and locale-formatted date string.</td>
+    </tr>
+    <tr>
+      <td><strong>Cortex Living Widget</strong></td>
+      <td><code>widgets/CortexLivingWidget.js</code></td>
+      <td>Animated reactive AI avatar displaying Cortex's thinking, listening, or idle status in real time.</td>
+    </tr>
+    <tr>
+      <td><strong>Cortex Smart Widget</strong></td>
+      <td><code>widgets/CortexSmartWidget.js</code></td>
+      <td>Contextual intelligence card suggesting next actions based on currently open windows and recent URLs.</td>
+    </tr>
+    <tr>
+      <td><strong>Cortex Mini Widget</strong></td>
+      <td><code>widgets/CortexWidget.js</code></td>
+      <td>One-click audio activation pill providing instant voice input from the desktop background.</td>
+    </tr>
+    <tr>
+      <td><strong>Focus Timer Widget</strong></td>
+      <td><code>widgets/FocusTimerWidget.js</code></td>
+      <td>Pomodoro timer with radial progress bar, interval presets, and notification integration.</td>
+    </tr>
+    <tr>
+      <td><strong>Music Mini Widget</strong></td>
+      <td><code>widgets/MusicWidget.js</code></td>
+      <td>Desktop audio controls displaying track title, artist, audio scrub bar, and play/pause/skip triggers.</td>
+    </tr>
+    <tr>
+      <td><strong>Neural Wallpaper</strong></td>
+      <td><code>widgets/NeuralWallpaper.js</code></td>
+      <td>Interactive canvas wallpaper generating reactive particle constellations following cursor movement.</td>
+    </tr>
+    <tr>
+      <td><strong>News Feed Widget</strong></td>
+      <td><code>widgets/NewsWidget.js</code></td>
+      <td>Live scrolling headline ticker streaming tech news, AI developments, and global updates.</td>
+    </tr>
+    <tr>
+      <td><strong>Plasma Widget</strong></td>
+      <td><code>widgets/PlasmaWidget.js</code></td>
+      <td>Generative WebGL/canvas shader rendering soothing cyberpunk plasma fluid animations.</td>
+    </tr>
+    <tr>
+      <td><strong>Quick Notes Widget</strong></td>
+      <td><code>widgets/QuickNotesWidget.js</code></td>
+      <td>Zero-latency desktop scratchpad automatically syncing quick memos to the main Notes database.</td>
+    </tr>
+    <tr>
+      <td><strong>Recent Activity</strong></td>
+      <td><code>widgets/RecentActivityWidget.js</code></td>
+      <td>Live timeline card listing the last 5 operating system actions, app navigations, or voice commands.</td>
+    </tr>
+    <tr>
+      <td><strong>System Monitor</strong></td>
+      <td><code>widgets/SystemMonitorWidget.js</code></td>
+      <td>Visual resource telemetry displaying simulated CPU, memory pressure, and network throughput graphs.</td>
+    </tr>
+    <tr>
+      <td><strong>System Status</strong></td>
+      <td><code>widgets/SystemStatusWidget.js</code></td>
+      <td>Real-time backend API connection status, MongoDB ping latency, and rate-limiter capacity meter.</td>
+    </tr>
+    <tr>
+      <td><strong>Todo Widget</strong></td>
+      <td><code>widgets/TodoWidget.js</code></td>
+      <td>Quick-access checklist allowing users to check off tasks directly from the desktop canvas.</td>
+    </tr>
+    <tr>
+      <td><strong>Weather Widget</strong></td>
+      <td><code>widgets/WeatherWidget.js</code></td>
+      <td>Current weather conditions, temperature, humidity, and forecasts based on stored location settings.</td>
+    </tr>
+    <tr>
+      <td><strong>World Clock</strong></td>
+      <td><code>widgets/WorldClockWidget.js</code></td>
+      <td>Multi-city international clock grid displaying UTC, Tokyo, London, New York, and San Francisco.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 5: BACKEND SUBSYSTEMS & DATABASE SCHEMA -->
+<h2 class="section-title">5. Backend Architecture & Database Engine</h2>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Core Router Architecture</h3>
+  <p>The backend is engineered around a central FastAPI service in <code>backend/server.py</code> (122 KB, 2,863 lines, 105+ functions) combined with 6 specialized sub-routers in <code>backend/routers/</code>:</p>
+
+  <div class="grid-2">
+    <div class="arch-box">
+      <strong style="color: #00f0ff;">routers/tts.py</strong>
+      <p style="font-size: 7.5pt; margin-top: 3px;">Handles Gemini 2.5 Flash and Fish Audio TTS synthesis with an in-memory SHA-256 LRU cache (<code>_tts_cache</code>), concurrency locks, and audio format streaming.</p>
+    </div>
+    <div class="arch-box">
+      <strong style="color: #00f0ff;">routers/auth.py</strong>
+      <p style="font-size: 7.5pt; margin-top: 3px;">User registration, credential login, profile retrieval, and password updates with bcrypt hashing and JWT token issuance.</p>
+    </div>
+    <div class="arch-box">
+      <strong style="color: #00f0ff;">routers/productivity.py</strong>
+      <p style="font-size: 7.5pt; margin-top: 3px;">Full CRUD operations for notes, tasks, events, transactions, virtual files, and multi-entry clipboard history.</p>
+    </div>
+    <div class="arch-box">
+      <strong style="color: #00f0ff;">routers/memory.py</strong>
+      <p style="font-size: 7.5pt; margin-top: 3px;">Spatial memory engine handling vector storage, category filtering, importance ranking, and cosine similarity queries.</p>
+    </div>
+    <div class="arch-box">
+      <strong style="color: #00f0ff;">routers/agents.py</strong>
+      <p style="font-size: 7.5pt; margin-top: 3px;">Dedicated SSE streaming endpoints for The Adversary, War Room debate council, Dead Reckoning, and Model Face-Off.</p>
+    </div>
+    <div class="arch-box">
+      <strong style="color: #00f0ff;">routers/system.py</strong>
+      <p style="font-size: 7.5pt; margin-top: 3px;">System telemetry endpoint reporting MongoDB latency, collection document counts, and rate limiter status.</p>
+    </div>
+  </div>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">MongoDB Schema & Startup Index Automation</h3>
+  <p>During the FastAPI <code>lifespan</code> startup hook, the system automatically verifies and creates compound and unique indexes across all 16 database collections:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Collection Name</th>
+        <th style="width: 45%;">Indexes Enforced on Startup</th>
+        <th>Purpose / Access Pattern</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users</code></td>
+        <td><code>email</code> (unique)</td>
+        <td>Prevents duplicate account registrations and TOCTOU races.</td>
+      </tr>
+      <tr>
+        <td><code>notes, tasks, events, transactions, memories, files, images, clipboard</code></td>
+        <td>Compound: <code>(user_id, 1), (created_at, -1)</code></td>
+        <td>Eliminates full collection scans on per-user reverse-chronological list queries.</td>
+      </tr>
+      <tr>
+        <td><code>chat_messages</code></td>
+        <td>Compound: <code>(user_id, 1), (session_id, 1), (created_at, 1)</code></td>
+        <td>High-speed session conversation history retrieval and message ordering.</td>
+      </tr>
+      <tr>
+        <td><code>cortex_memories</code></td>
+        <td>
+          <code>(user_id, 1), (importance_score, -1)</code><br>
+          <code>(user_id, 1), (category, 1)</code><br>
+          <code>(user_id, 1), (never_forget, 1)</code>
+        </td>
+        <td>Fast retrieval of high-priority memories for live Cortex system prompt injection.</td>
+      </tr>
+      <tr>
+        <td><code>chat_sessions</code></td>
+        <td>
+          <code>id</code> (unique)<br>
+          Compound: <code>(user_id, 1), (pinned, -1), (updated_at, -1)</code>
+        </td>
+        <td>Ensures pinned sessions appear first in the sidebar followed by recent activity.</td>
+      </tr>
+      <tr>
+        <td><code>project_dna</code></td>
+        <td><code>id</code> (unique), Compound: <code>(user_id, 1), (updated_at, -1)</code></td>
+        <td>Project architecture retrieval and updates.</td>
+      </tr>
+      <tr>
+        <td><code>decisions</code></td>
+        <td><code>id</code> (unique), Compound: <code>(user_id, 1), (project_id, 1)</code></td>
+        <td>Decision memory tracking per project.</td>
+      </tr>
+      <tr>
+        <td><code>timeline_events</code></td>
+        <td><code>id</code> (unique), Compound: <code>(user_id, 1), (created_at, -1)</code></td>
+        <td>Activity timeline stream queries.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Rate Limiter Architecture (<code>rate_limiter.py</code>)</h3>
+  <p>Enforces sliding-window rate limits across AI endpoints (30/min/user for chat, 8/min/user for images, 10/min/user for agent tools). Employs an abstract base class supporting:</p>
+  <ul>
+    <li><strong>Production Redis Pipeline:</strong> Atomic sliding-window enforcement using Redis sorted sets (<code>zremrangebyscore</code>, <code>zcard</code>, <code>zadd</code>, <code>expire</code>).</li>
+    <li><strong>Development Memory Fallback:</strong> Sliding-window queue with monotonic clock timestamps and an <code>asyncio.Lock</code> mutex for single-worker or local dev environments.</li>
+  </ul>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SECTION 6: TESTING, QA & SECURITY -->
+<h2 class="section-title">6. Testing Results, QA Sweeps & Security Posture</h2>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Quality Verification & Regression Test Suite</h3>
+  <p>OmniverseOS maintains rigorous testing procedures documented in <code>test_reports/</code> and <code>test_result.md</code>:</p>
+  <ul>
+    <li><strong>Backend Pytest Suite (<code>backend/tests/test_backend.py</code>):</strong> 13 automated tests verifying health checks, auth signup/login/profile, full CRUD across notes, tasks, events, transactions, memories, clipboard, and files, plus analytics summaries. Executes in ~1.5 seconds.</li>
+    <li><strong>E2E Regression Runner (<code>backend_test.py</code>):</strong> Comprehensive automated probe testing live session creation, auto-titling, SSE streaming, memory relevance searches, and error handling.</li>
+    <li><strong>Iteration 1 & 2 Results:</strong> Confirmed 100% pass rates on backend functional tests and verified end-to-end user journeys from auth to desktop, Command Palette, and Mission Control.</li>
+  </ul>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Security Incident & Historical Remediation</h3>
+  <div class="callout callout-warning">
+    <strong>Security Audit (August 2026):</strong> An automated test run had inadvertently logged a legacy universal LLM proxy key into <code>test_result.md</code>. Upon identification:
+    <ol style="margin: 3px 0 0 0; padding-left: 14px;">
+      <li>The credential was immediately redacted from HEAD in commit <code>4d9b631</code>.</li>
+      <li>A comprehensive incident report was authored and committed in <code>SECURITY_INCIDENT.md</code> detailing the scope and providing key rotation instructions.</li>
+      <li>Preventive controls were established to ensure test logging scripts record environment variable names only, never literal secret values.</li>
+      <li>A repository-wide scan confirmed no other credentials, private keys, or tokens exist in current files.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="no-break">
+  <h3 class="sub-section-title">Self-Hosted Deployment Readiness</h3>
+  <p>The codebase is 100% portable and free of vendor lock-in:</p>
+  <ul>
+    <li><strong>Docker Compose:</strong> Single command deployment (<code>docker compose up -d</code>) provisioning MongoDB 7, FastAPI backend on <code>:8001</code>, and React frontend on <code>:3000</code>.</li>
+    <li><strong>Render & Vercel:</strong> Production ready by deploying the <code>backend/</code> folder to Render Web Services and <code>frontend/</code> to Vercel with <code>REACT_APP_BACKEND_URL</code> pointing to the Render endpoint.</li>
+    <li><strong>Graceful Degradation:</strong> If external AI provider keys are omitted, the operating system boots normally and all OS features (window manager, notes, tasks, calendar, files, finance, settings) remain fully functional.</li>
+  </ul>
+</div>
+
+<!-- SECTION 7: CURRENT STATUS & ROADMAP -->
+<div class="no-break">
+  <h2 class="section-title">7. Current Status & Future Roadmap</h2>
+  <div class="callout callout-success">
+    <strong>Current Status:</strong> The operating system is fully built, highly feature-rich, and architecturally stabilized. All 29 applications and 19 widgets are functional. The codebase represents a complete, cohesive vision of an AI-first operating system.
+  </div>
+
+  <h3 class="sub-section-title">Future Roadmap (Post-RC1)</h3>
+  <ul>
+    <li><strong>Electron Desktop Migration:</strong> Full blueprint documented in <code>memory/ELECTRON_MIGRATION_BLUEPRINT.md</code>. Packaging OmniverseOS as a native macOS/Windows desktop application using Chrome DevTools Protocol (CDP), Playwright automation, and native OS notifications.</li>
+    <li><strong>Frontend RTL/Jest Test Suite:</strong> Expand automated unit test coverage to achieve ≥90% branch coverage across frontend components.</li>
+    <li><strong>Collaborative Workspaces:</strong> Real-time CRDT synchronization for multi-user editing in Notes, Tasks, and War Room debate sessions.</li>
+  </ul>
+</div>
+
+<div style="margin-top: 18px; padding-top: 8px; border-top: 1px solid #1e293b; font-size: 7pt; color: #64748b; display: flex; justify-content: space-between;">
+  <span>OmniverseOS Engineering Report · Confidential & Proprietary</span>
+  <span>Generated via Antigravity AI Engine · September 2026</span>
+</div>
+
+</body>
+</html>

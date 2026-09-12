@@ -229,7 +229,7 @@ export function useVoiceRecognition({
       setVoiceState("ERROR");
       return false;
     }
-  }, [continuousConversation, onFinalTranscript, onInterimTranscript, onSpeechEnd, resetSilenceTimer]);
+  }, [continuousConversation, onFinalTranscript, onInterimTranscript, resetSilenceTimer]);
 
   const clearTranscript = useCallback(() => {
     setTranscript("");

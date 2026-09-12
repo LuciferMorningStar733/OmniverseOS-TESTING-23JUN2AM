@@ -29,7 +29,17 @@ export default function AuthScreen() {
   // Reaction feedback states
   const [focusedField, setFocusedField] = useState(null);
 
+  // Mounted guard to prevent unmounted state updates during fast login handshakes
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Mouse Parallax Position
+  const mousePosRef = useRef({ x: 0.5, y: 0.5 });
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
 
   // Remembered Identity
@@ -174,23 +184,30 @@ export default function AuthScreen() {
   };
 
   const triggerSuccessHandshake = (msg) => {
+    toast.success(msg);
+    if (!isMountedRef.current) return;
     setAuthSuccessSequence(true);
     setAuthStepText("✓ IDENTITY VERIFIED");
     playSound(800, 0.15);
 
     setTimeout(() => {
-      setAuthStepText("✓ CORTEX MEMORY LINKED");
-      playSound(1000, 0.15);
+      if (isMountedRef.current) {
+        setAuthStepText("✓ CORTEX MEMORY LINKED");
+        playSound(1000, 0.15);
+      }
     }, 250);
 
     setTimeout(() => {
-      setAuthStepText("✓ PERSONAL ENVIRONMENT RESTORED");
-      playSound(1200, 0.2);
+      if (isMountedRef.current) {
+        setAuthStepText("✓ PERSONAL ENVIRONMENT RESTORED");
+        playSound(1200, 0.2);
+      }
     }, 500);
 
     setTimeout(() => {
-      setAuthStepText("WELCOME BACK.");
-      toast.success(msg);
+      if (isMountedRef.current) {
+        setAuthStepText("WELCOME BACK.");
+      }
     }, 750);
   };
 
@@ -201,7 +218,7 @@ export default function AuthScreen() {
     if (cmdId === "forgot") setMode("forgot");
     if (cmdId === "guest") {
       setEmail("demo@omniverse.io");
-      setPassword("demo123");
+      setPassword("omniverse123");
       setMode("login");
       toast.info("Guest credentials loaded. Press Initialize to enter.");
     }

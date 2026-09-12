@@ -67,7 +67,7 @@ function getFaviconUrl(url) {
 }
 
 // ── Blocked state panel ────────────────────────────────────────────────────
-function BlockedPanel({ currentUrl, hostname, onNavigateHome }) {
+function BlockedPanel({ currentUrl, hostname, onNavigateHome, onAnalyzeUrl }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -109,33 +109,45 @@ function BlockedPanel({ currentUrl, hostname, onNavigateHome }) {
 
       {/* Text */}
       <div>
-        <div className="mono-label text-[#FCEE09] mb-2">// IFRAME RESTRICTED</div>
+        <div className="mono-label text-[#FCEE09] mb-2">// IFRAME SANDBOX NOTICE</div>
         <h3 className="font-heading text-xl font-bold mb-2">{hostname}</h3>
-        <p className="text-xs text-slate-500 font-mono max-w-xs leading-relaxed">
+        <p className="text-xs text-slate-400 font-mono max-w-sm leading-relaxed">
           {isKnown
-            ? <>This site blocks embedding via <span className="text-[#FCEE09]/80">X-Frame-Options: DENY</span> — a deliberate security policy by {hostname}.</>
-            : <>This site did not respond to the embed request. It may block iframes or require authentication.</>
+            ? <>This site enforces browser security policies (<span className="text-[#FCEE09]/80">X-Frame-Options: DENY</span>). OmniverseOS Cortex can still analyze and extract intelligence from this URL directly via our backend web layer.</>
+            : <>This site did not respond to in-frame embedding. You can open it in a new tab or use Cortex Web Intelligence to analyze it.</>
           }
         </p>
 
         {/* Cortex hint */}
         <div
-          className="mt-3 text-[10px] font-mono text-[#00F0FF]/30 flex items-center justify-center gap-1.5"
-          style={{ animation: "pulse 2.5s ease-in-out infinite" }}
+          className="mt-3 text-[10px] font-mono text-[#00F0FF]/60 flex items-center justify-center gap-1.5"
         >
           <i className="fa-solid fa-wand-magic-sparkles text-[9px]" />
-          Try asking Cortex: "Open {hostname} in a new tab"
+          Backend Web Intelligence Available for {hostname}
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-col sm:flex-row gap-2 w-full max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-2 w-full max-w-md">
         <button
           onClick={() => window.open(currentUrl, "_blank", "noopener,noreferrer")}
           className="neon-btn primary flex items-center gap-2 justify-center flex-1"
         >
           <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
           Open in New Tab
+        </button>
+
+        <button
+          onClick={() => onAnalyzeUrl?.(currentUrl)}
+          className="neon-btn flex items-center gap-2 justify-center"
+          style={{
+            background: "rgba(0,240,255,0.12)",
+            borderColor: "rgba(0,240,255,0.4)",
+            color: "#00F0FF",
+          }}
+        >
+          <i className="fa-solid fa-wand-magic-sparkles text-xs" />
+          Analyze URL
         </button>
 
         <button
@@ -149,7 +161,7 @@ function BlockedPanel({ currentUrl, hostname, onNavigateHome }) {
           }}
         >
           <i className={`fa-solid ${copied ? "fa-check" : "fa-copy"} text-xs`} />
-          {copied ? "Copied!" : "Copy URL"}
+          {copied ? "Copied!" : "Copy"}
         </button>
 
         <button
@@ -479,6 +491,14 @@ export default function Browser() {
               currentUrl={currentUrl}
               hostname={hostname}
               onNavigateHome={() => navigate(HOME_URL)}
+              onAnalyzeUrl={(url) => {
+                openApp("chat");
+                window.dispatchEvent(
+                  new CustomEvent("cortex:prompt", {
+                    detail: { text: `Analyze this web URL using Omniverse Web Intelligence: ${url}` },
+                  })
+                );
+              }}
             />
           )}
         </AnimatePresence>

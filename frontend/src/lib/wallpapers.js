@@ -2,17 +2,116 @@
   // id used in localStorage; className applied to wp-base layer.
 
   export const WALLPAPER_CATEGORIES = [
-    "All", "Tech", "Minimal", "Sci-Fi", "Space", "Cyber Grid", "Abstract", "Night", "Favorites", "Custom"
+    "All", "3036 Masterpieces", "Tech", "Minimal", "Sci-Fi", "Space", "Cyber Grid", "Abstract", "Night", "Favorites", "Custom"
   ];
 
   export const WALLPAPERS = [
-    // ─── Original 4 ──────────────────────────────────────────────────────────
+    // ─── 3036 Masterpiece Collection (4K Futuristic Live Wallpapers) ────────
+    {
+      id: "omni-genesis",
+      name: "Omni Genesis",
+      className: "wp-omni-genesis",
+      accent: "#00F0FF",
+      category: "3036 Masterpieces",
+      fx: "genesis",
+      typo: { main: "OMNI GENESIS", sub: "COSMIC INTELLIGENCE FIELD // 3036" },
+      description: "A living cosmic intelligence field with evolving structures."
+    },
+    {
+      id: "cortex-neural-ocean",
+      name: "Cortex Neural Ocean",
+      className: "wp-cortex-neural-ocean",
+      accent: "#A855F7",
+      category: "3036 Masterpieces",
+      fx: "neural-ocean",
+      typo: { main: "CORTEX", line2: "OCEAN", sub: "DEEP DIMENSIONAL NEURAL FIELD" },
+      description: "Deep dimensional neural structures continuously forming and reorganizing."
+    },
+    {
+      id: "quantum-horizon",
+      name: "Quantum Horizon",
+      className: "wp-quantum-horizon",
+      accent: "#00F0FF",
+      category: "3036 Masterpieces",
+      fx: "quantum",
+      typo: { main: "OMNIVERSE\u00A0OS", sub: "QUANTUM HORIZON // D-7 SPACETIME" },
+      description: "A futuristic spacetime environment with subtle dimensional distortion."
+    },
+    {
+      id: "digital-aurora",
+      name: "Digital Aurora",
+      className: "wp-digital-aurora",
+      accent: "#39FF14",
+      category: "3036 Masterpieces",
+      fx: "aurora",
+      typo: { main: "DIGITAL AURORA", sub: "VOLUMETRIC ATMOSPHERE // 3036" },
+      description: "A slow-moving intelligent atmospheric field with volumetric depth."
+    },
+    {
+      id: "sentient-city",
+      name: "Sentient City 3036",
+      className: "wp-sentient-city",
+      accent: "#FCEE09",
+      category: "3036 Masterpieces",
+      fx: "city",
+      typo: { main: "SENTIENT CITY", sub: "AUTONOMOUS LIGHT NETWORKS // 3036" },
+      description: "A distant autonomous megacity with intelligent light networks."
+    },
+    {
+      id: "event-horizon",
+      name: "Event Horizon",
+      className: "wp-event-horizon",
+      accent: "#FF0055",
+      category: "3036 Masterpieces",
+      fx: "singularity",
+      typo: { main: "EVENT HORIZON", sub: "GRAVITATIONAL SINGULARITY" },
+      description: "Elegant gravitational visual effects and deep-space geometry."
+    },
+    {
+      id: "neural-bloom",
+      name: "Neural Bloom",
+      className: "wp-neural-bloom",
+      accent: "#E056FD",
+      category: "3036 Masterpieces",
+      fx: "bloom",
+      typo: { main: "NEURAL BLOOM", sub: "ORGANIC SYNAPSE MORPHOGENESIS" },
+      description: "Organic computational structures growing and reorganizing."
+    },
+    {
+      id: "temporal-archive",
+      name: "Temporal Archive",
+      className: "wp-temporal-archive",
+      accent: "#60A5FA",
+      category: "3036 Masterpieces",
+      fx: "archive",
+      typo: { main: "TEMPORAL ARCHIVE", sub: "LAYERED MEMORY TRACES // T-CHRONO" },
+      description: "Layered timelines and memory traces moving through dimensional space."
+    },
+    {
+      id: "omniverse-void",
+      name: "Omniverse Void",
+      className: "wp-omniverse-void",
+      accent: "#94A3B8",
+      category: "3036 Masterpieces",
+      fx: "void",
+      typo: { main: "OMNIVERSE VOID", sub: "ZERO-POINT INTELLIGENCE" },
+      description: "Minimal premium black-space environment with extremely subtle intelligent motion."
+    },
+    {
+      id: "cortex-singularity",
+      name: "Cortex Singularity",
+      className: "wp-cortex-singularity",
+      accent: "#00F0FF",
+      category: "3036 Masterpieces",
+      fx: "singularity-core",
+      typo: { main: "CORTEX SINGULARITY", sub: "INTELLIGENCE CORE // 1.0 THz" },
+      description: "A central intelligence core with controlled gravitational/neural dynamics."
+    },
+
+    // ─── Legacy Iconic Collection ───────────────────────────────────────────
     { id: "neural-core",      name: "Neural Core",       className: "wp-neural-core",      accent: "#00F0FF", category: "Tech",       fx: "neural",   typo: { main: "OMNIVERSE\u00A0OS", sub: "AI CORE • v.2.6" } },
     { id: "blueprint",        name: "Blueprint Matrix",  className: "wp-blueprint",         accent: "#00F0FF", category: "Tech",       fx: "circuit",  typo: { main: "OMNIVERSE", line2: "OS", sub: "SYSTEM SCHEMATIC // 2026" } },
-    { id: "quantum-horizon",  name: "Quantum Horizon",   className: "wp-quantum-horizon",   accent: "#00F0FF", category: "Sci-Fi",     fx: "radar",    typo: { main: "OMNIVERSE\u00A0OS", sub: "QUANTUM HORIZON" } },
     { id: "ai-nexus",         name: "AI Nexus",          className: "wp-ai-nexus",          accent: "#00F0FF", category: "Tech",       fx: "neural",   typo: { main: "OMNIVERSE", line2: "OS", sub: "NEURAL NEXUS" } },
-
-    // ─── New Collection ───────────────────────────────────────────────────────
     { id: "void-matrix",      name: "Void Matrix",       className: "wp-void-matrix",       accent: "#39FF14", category: "Cyber Grid", fx: "matrix",   typo: { main: "OMNIVERSE\u00A0OS", sub: "VOID PROTOCOL" } },
     { id: "neon-grid",        name: "Neon Grid",         className: "wp-neon-grid",         accent: "#C778DD", category: "Cyber Grid", fx: "hologram", typo: { main: "OMNIVERSE", line2: "OS", sub: "NEON GRID // 2026" } },
     { id: "dark-matter",      name: "Dark Matter",       className: "wp-dark-matter",       accent: "#C778DD", category: "Space",      fx: "plasma",   typo: { main: "OMNIVERSE\u00A0OS", sub: "DARK MATTER" } },
@@ -33,8 +132,6 @@
     { id: "vector-space",     name: "Vector Space",      className: "wp-vector-space",      accent: "#00F0FF", category: "Minimal",    fx: "hologram", typo: { main: "OMNIVERSE\u00A0OS", sub: "VECTOR" } },
     { id: "grid-zero",        name: "Grid Zero",         className: "wp-grid-zero",         accent: "#39FF14", category: "Minimal",    fx: "circuit",  typo: { main: "OMNIVERSE\u00A0OS", sub: "GRID ZERO" } },
     { id: "abyss",            name: "Abyss",             className: "wp-abyss",             accent: "#C778DD", category: "Night",      fx: "plasma",   typo: { main: "OMNIVERSE\u00A0OS", sub: "ABYSS" } },
-
-    // ─── Premium v3 Collection ────────────────────────────────────────────
     { id: "oled-void",        name: "OLED Void",         className: "wp-oled-void",         accent: "#00F0FF", category: "Minimal",    fx: "hologram", typo: { main: "OMNIVERSE\u00A0OS", sub: "VOID // 2038" } },
     { id: "aurora-boreal",    name: "Aurora Borealis",   className: "wp-aurora-boreal",     accent: "#39FF14", category: "Sci-Fi",     fx: "plasma",   typo: { main: "OMNIVERSE\u00A0OS", sub: "AURORA SECTOR" } },
     { id: "cyber-rain",       name: "Cyber Rain",        className: "wp-cyber-rain",        accent: "#00F0FF", category: "Cyber Grid", fx: "matrix",   typo: { main: "OMNIVERSE\u00A0OS", sub: "RAIN PROTOCOL" } },
@@ -43,19 +140,9 @@
     { id: "glacier",          name: "Glacier",           className: "wp-glacier",           accent: "#60A5FA", category: "Minimal",    fx: "hologram", typo: { main: "OMNIVERSE\u00A0OS", sub: "GLACIER PROTOCOL" } },
     { id: "crimson-arc",      name: "Crimson Arc",       className: "wp-crimson-arc",       accent: "#FF003C", category: "Abstract",   fx: "radar",    typo: { main: "OMNIVERSE\u00A0OS", sub: "CRIMSON ARC" } },
     { id: "solar-wind",       name: "Solar Wind",        className: "wp-solar-wind",        accent: "#FCEE09", category: "Space",      fx: "plasma",   typo: { main: "OMNIVERSE\u00A0OS", sub: "SOLAR WIND" } },
-
-    // ─── Flagship 2099 Live Collection ────────────────────────────────────
-    { id: "neural-singularity", name: "Neural Singularity", className: "wp-neural-singularity", accent: "#00F0FF", category: "Tech",       fx: "singularity", typo: { main: "OMNIVERSE\u00A0OS", sub: "NEURAL SINGULARITY" } },
-    { id: "orbital-command",   name: "Orbital Command",    className: "wp-orbital-command",   accent: "#00F0FF", category: "Sci-Fi",     fx: "orbital",     typo: { main: "OMNIVERSE", line2: "COMMAND", sub: "ORBITAL SYSTEM 2099" } },
-    { id: "liquid-aurora",     name: "Liquid Aurora",      className: "wp-liquid-aurora",     accent: "#A855F7", category: "Abstract",   fx: "aurora",      typo: { main: "OMNIVERSE\u00A0OS", sub: "LIQUID AURORA" } },
-    { id: "neural-rain",       name: "Neural Rain",        className: "wp-neural-rain",       accent: "#39FF14", category: "Tech",       fx: "rain",        typo: { main: "OMNIVERSE\u00A0OS", sub: "INTELLIGENCE TRACE" } },
-    { id: "crimson-reactor",   name: "Crimson Reactor",    className: "wp-crimson-reactor",   accent: "#FF003C", category: "Sci-Fi",     fx: "reactor",     typo: { main: "OMNIVERSE", line2: "CORE", sub: "CRIMSON REACTOR // 2099" } },
-    { id: "emerald-grid",      name: "Emerald Grid",       className: "wp-emerald-grid",      accent: "#39FF14", category: "Cyber Grid", fx: "grid",        typo: { main: "OMNIVERSE\u00A0OS", sub: "EMERALD INFRASTRUCTURE" } },
-    { id: "deep-space-cortex", name: "Deep Space Cortex",  className: "wp-deep-space-cortex", accent: "#00F0FF", category: "Space",      fx: "space",       typo: { main: "OMNIVERSE\u00A0OS", sub: "DEEP SPACE CORTEX" } },
-    { id: "chrono-field",      name: "Chrono Field",       className: "wp-chrono-field",      accent: "#60A5FA", category: "Sci-Fi",     fx: "chrono",      typo: { main: "OMNIVERSE\u00A0OS", sub: "TEMPORAL MATRIX" } },
   ];
 
-  export const DEFAULT_WALLPAPER = "neural-core";
+  export const DEFAULT_WALLPAPER = "omni-genesis";
 
   // ─── Hooks: localStorage persistence ─────────────────────────────────────────
   const LS_FAVORITES  = "omni_wp_favorites";
@@ -148,9 +235,48 @@
 
   // Built-in time-of-day resolver (disabled by default — call registerDynamicResolver to enable)
   export const timeOfDayResolver = ({ hour }) => {
-    if (hour >= 5 && hour < 9)  return "aurora-code";
-    if (hour >= 9 && hour < 17) return "blueprint";
-    if (hour >= 17 && hour < 20) return "cyber-pulse";
-    return "abyss";
+    if (hour >= 5 && hour < 9)  return "digital-aurora";
+    if (hour >= 9 && hour < 17) return "omni-genesis";
+    if (hour >= 17 && hour < 20) return "sentient-city";
+    return "omniverse-void";
   };
+
+  // ─── Quality & Motion Controls ────────────────────────────────────────────────
+  const LS_QUALITY = "omni_wp_quality"; // "auto" | "high" | "medium" | "low"
+  const LS_MOTION  = "omni_wp_motion";  // "playing" | "paused"
+
+  export const getWallpaperQuality = () => {
+    try { return localStorage.getItem(LS_QUALITY) || "auto"; } catch { return "auto"; }
+  };
+
+  export const setWallpaperQuality = (quality) => {
+    try {
+      localStorage.setItem(LS_QUALITY, quality);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("omni:wallpaper-settings-changed", { detail: { quality } }));
+      }
+    } catch {}
+  };
+
+  export const getWallpaperMotion = () => {
+    try { return localStorage.getItem(LS_MOTION) || "playing"; } catch { return "playing"; }
+  };
+
+  export const setWallpaperMotion = (motion) => {
+    try {
+      localStorage.setItem(LS_MOTION, motion);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("omni:wallpaper-settings-changed", { detail: { motion } }));
+      }
+    } catch {}
+  };
+
+  export const getAdjacentWallpaperId = (currentId, direction = 1) => {
+    const list = WALLPAPERS;
+    const currentIndex = list.findIndex((w) => w.id === currentId);
+    if (currentIndex === -1) return list[0]?.id || "omni-genesis";
+    const nextIndex = (currentIndex + direction + list.length) % list.length;
+    return list[nextIndex]?.id || list[0]?.id;
+  };
+
   

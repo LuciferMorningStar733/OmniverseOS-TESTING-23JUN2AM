@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { memoryApi, aiApi } from "../lib/api";
+import { memoryApi, aiApi, API } from "../lib/api";
 import { toast } from "sonner";
 
 /**
@@ -26,7 +26,7 @@ export default function NeuralMatrix() {
     try {
       const [memoriesRes, healthRes] = await Promise.allSettled([
         memoryApi.getRelevant("cortex system agent memory", 12),
-        fetch("/api/system/health").then((r) => r.json()),
+        fetch(`${API}/system/health`).then((r) => r.json()),
       ]);
 
       const initialNodes = [

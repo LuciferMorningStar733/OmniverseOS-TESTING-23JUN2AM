@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { consumeSSE } from "../../../lib/api";
+import { consumeSSE, API } from "../../../lib/api";
 
 /**
  * Custom Hook: useChatStream
@@ -17,7 +17,7 @@ export function useChatStream({ onChunk, onSources, onConfidence, onProvider, on
 
       try {
         const token = localStorage.getItem("omniverse_token");
-        const resp = await fetch("/api/ai/chat/stream", {
+        const resp = await fetch(`${API}/ai/chat/stream`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -4,9 +4,6 @@ import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { playClick } from "../lib/soundEngine";
-import { getDockPrefs, GLASS_MODES } from "../lib/dockPrefs";
-import { getWallpaper } from "../lib/wallpapers";
-
 // Keep in sync with PINNED_APP_IDS in MobileHomeScreen.js
 const PINNED_APP_IDS = ["voice", "browser", "files", "settings"];
 
@@ -536,57 +533,37 @@ const DockTooltip = memo(function DockTooltip({ name, visible }) {
   );
 });
 
-/* ── Etched Glass Separator for spatial app groups ─────────────────────────── */
-const EtchedSeparator = memo(function EtchedSeparator() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: 1,
-        height: 28,
-        margin: "0 6px",
-        alignSelf: "center",
-        background: "linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.02) 100%)",
-        boxShadow: "1px 0 0 rgba(0,0,0,0.50)",
-        flexShrink: 0,
-      }}
-    />
-  );
-});
+/* Cosine bell-curve proximity scale helper */
+function useScale(index, hoverIndex) {
+  return useMemo(() => {
+    if (hoverIndex === null) return 1;
+    // Respect prefers-reduced-motion
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      return 1;
+    }
+    const dist = Math.abs(index - hoverIndex);
+    const radius = 2.5; // continuous cosine bell radius over ~2.5 slots
+    if (dist >= radius) return 1;
+    const cosineFactor = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
+    return 1 + 0.45 * cosineFactor; // Smooth bell curve: 1.45 peak, ~1.29 neighbors, 1.0 distant
+  }, [index, hoverIndex]);
+}
 
 const DesktopDockIcon = memo(function DesktopDockIcon({
-  app, scale, isActive, open, openApp,
+  app, index, hoverIndex, isActive, open, onHover, onLeave, openApp,
 }) {
   const [scope, animateScope] = useAnimate();
   const [tooltipVisible, setTooltipVisible] = useState(false);
-  const [bouncing, setBouncing] = useState(false);
-
-  // App attention trigger listener (e.g. response finished, task reminder)
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail?.appId === app.id || e.detail === app.id) {
-        setBouncing(true);
-        animateScope(scope.current, {
-          y: [0, -22, 0, -14, 0, -6, 0],
-        }, {
-          duration: 1.25,
-          ease: "easeInOut",
-          times: [0, 0.2, 0.4, 0.6, 0.75, 0.9, 1],
-        }).then(() => setBouncing(false));
-      }
-    };
-    window.addEventListener("omniverse:dock-attention", handler);
-    return () => window.removeEventListener("omniverse:dock-attention", handler);
-  }, [app.id, animateScope, scope]);
+  const scale = useScale(index, hoverIndex);
 
   const handleClick = useCallback(async () => {
     playClick();
-    // Launchpad-matched spring launch sequence: compress → pulse → bounce → settle
+    // macOS Launchpad-matched bounce: compress → overshoot → settle
     await animateScope(scope.current, {
-      scale: [1, 0.76, 1.35, 0.92, 1.08, 0.98, 1],
-      y:     [0,  6,   -12,  4,   -3,   1,    0],
+      scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
+      y:     [0,  6,   -10,  3,   -3,   1,    0],
     }, {
-      duration: 0.54,
+      duration: 0.52,
       ease: "easeOut",
       times: [0, 0.12, 0.38, 0.56, 0.74, 0.88, 1],
     });
@@ -594,22 +571,18 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   }, [animateScope, scope, openApp, app.id]);
 
   const handleMouseEnter = useCallback(() => {
+    onHover(index);
     setTooltipVisible(true);
-  }, []);
+  }, [onHover, index]);
 
   const handleMouseLeave = useCallback(() => {
+    onLeave();
     setTooltipVisible(false);
-  }, []);
+  }, [onLeave]);
 
-  /* Calculate Y lift based on continuous magnification scale */
-  const yLift = useMemo(() => {
-    const s = scale || 1;
-    return s > 1 ? -(s - 1) * 22 : 0;
-  }, [scale]);
-
-  /* Per-app active glow ring */
+  /* Per-app glow ring color */
   const ringStyle = useMemo(() => ({
-    boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 20px ${app.color}35, 0 0 40px ${app.color}15`,
+    boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 18px ${app.color}28, 0 0 36px ${app.color}12`,
   }), [app.color]);
 
   return (
@@ -621,14 +594,14 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      animate={{ scale: scale || 1, y: yLift }}
-      transition={{ type: "spring", stiffness: 460, damping: 22, mass: 0.22 }}
+      animate={{ scale }}
+      transition={{ type: "spring", stiffness: 420, damping: 20, mass: 0.25 }}
       className="group relative flex-shrink-0"
       style={{
-        width: 48, height: 48,
+        width: 44, height: 44,
         display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 14,
-        background: isActive ? `${app.color}18` : "rgba(255,255,255,0.04)",
+        borderRadius: 12,
+        background: isActive ? `${app.color}12` : "transparent",
         transformOrigin: "bottom center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
         transition: "background 0.22s ease",
@@ -650,29 +623,29 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       </AnimatePresence>
 
       <i
-        className={`fa-solid ${app.icon} text-lg`}
+        className={`fa-solid ${app.icon} text-base`}
         style={{
           color: app.color,
           filter: isActive
-            ? `drop-shadow(0 0 9px ${app.color}) drop-shadow(0 0 18px ${app.color}75)`
-            : `drop-shadow(0 0 4px ${app.color}35)`,
+            ? `drop-shadow(0 0 7px ${app.color}) drop-shadow(0 0 14px ${app.color}55)`
+            : `drop-shadow(0 0 3px ${app.color}30)`,
           transition: "filter 0.22s ease",
         }}
       />
 
-      {/* Running indicator — illuminated LED pill for active focused app, dot for background running app */}
+      {/* Running indicator — pill for active focused app, dot for background running app */}
       {open && (
         <motion.span
           layoutId={`running-dot-${app.id}`}
           className="absolute rounded-full"
           style={{
-            bottom: -6, left: "50%", x: "-50%",
+            bottom: -5, left: "50%", x: "-50%",
             width: isActive ? 16 : 4,
             height: isActive ? 4 : 4,
             borderRadius: 2,
-            background: isActive ? app.color : "rgba(0,240,255,0.70)",
+            background: isActive ? app.color : "rgba(0,240,255,0.65)",
             boxShadow: isActive
-              ? `0 0 12px ${app.color}CC, 0 0 24px ${app.color}55`
+              ? `0 0 10px ${app.color}BB, 0 0 20px ${app.color}44`
               : "0 0 6px rgba(0,240,255,0.5)",
             transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
           }}
@@ -685,97 +658,19 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 });
 
 function DesktopDock({ isTablet }) {
-  const { openApp, windows, activeId, wallpaper } = useOS();
-  const containerRef = useRef(null);
-  const [mouseX, setMouseX] = useState(null);
-  const [refractionX, setRefractionX] = useState(50);
-  const [dockPrefs, setDockPrefs] = useState(() => getDockPrefs());
+  const { openApp, windows, activeId } = useOS();
+  const [hoverIndex, setHoverIndex] = useState(null);
 
-  // Listen for preference changes from Settings UI
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail) setDockPrefs(e.detail);
-      else setDockPrefs(getDockPrefs());
-    };
-    window.addEventListener("omniverse:dock-prefs-changed", handler);
-    window.addEventListener("storage", handler);
-    return () => {
-      window.removeEventListener("omniverse:dock-prefs-changed", handler);
-      window.removeEventListener("storage", handler);
-    };
-  }, []);
+  /* Stable onLeave so memo'd DesktopDockIcon only re-renders when needed */
+  const onLeave = useCallback(() => setHoverIndex(null), []);
 
-  const handleMouseMove = useCallback((e) => {
-    const x = e.clientX;
-    setMouseX(x);
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100));
-      setRefractionX(pct);
-    }
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setMouseX(null);
-  }, []);
-
-  /* Compute dynamic glass color & opacity based on settings mode & wallpaper accent */
-  const accentColor = useMemo(() => {
-    if (dockPrefs.mode === "adaptive") {
-      const wp = getWallpaper(wallpaper);
-      return wp?.accent || "#00F0FF";
-    }
-    const preset = GLASS_MODES.find((m) => m.id === dockPrefs.mode);
-    return preset?.color || "#00F0FF";
-  }, [dockPrefs.mode, wallpaper]);
-
-  /* Pre-compute per-app state so find() isn't run inside render loops */
+  /* Pre-compute per-app state so the expensive find() isn't inside render */
   const appStates = useMemo(() => APPS.map((app) => {
     const win      = windows.find((w) => w.app === app.id);
     const open     = Boolean(win);
     const isActive = open && win?.id === activeId;
     return { app, open, isActive };
   }), [windows, activeId]);
-
-  const count = appStates.length;
-  const maxMag = dockPrefs.magnification || 1.48;
-
-  /* Continuous mouse-position bell-curve magnification */
-  const scales = useMemo(() => {
-    if (mouseX === null || !containerRef.current) return Array(count).fill(1);
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      return Array(count).fill(1);
-    }
-    const rect = containerRef.current.getBoundingClientRect();
-    const iconW = rect.width / count;
-    const radius = Math.max(140, iconW * 2.8);
-    const deltaMag = maxMag - 1;
-    return appStates.map((_, i) => {
-      const centerX = rect.left + iconW * i + iconW / 2;
-      const dist = Math.abs(mouseX - centerX);
-      if (dist >= radius) return 1;
-      const cosine = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
-      return 1 + deltaMag * cosine;
-    });
-  }, [mouseX, count, appStates, maxMag]);
-
-  const isAwakened = mouseX !== null;
-
-  /* Layer 1 - 6 Glass Material calculation */
-  const tintPct = (dockPrefs.tint ?? 35) / 100;
-  const glowPct = (dockPrefs.glow ?? 50) / 100;
-
-  const bgAlpha      = (0.08 + tintPct * 0.78).toFixed(2);
-  const backdropBlur = Math.round(12 + tintPct * 36);
-  const saturatePct  = Math.round(140 + tintPct * 110);
-  const borderAlpha  = (0.08 + tintPct * 0.22).toFixed(2);
-  const glowAlpha    = (glowPct * 0.28).toFixed(2);
-  const glowRadius   = Math.round(12 + glowPct * 36);
-
-  // Group apps into 3 spatial categories for spatial rhythm
-  const coreApps = appStates.filter((a) => ["cortex", "settings", "files", "browser"].includes(a.app.id));
-  const aiApps   = appStates.filter((a) => ["blackbox", "mirror", "zero", "chat", "voice"].includes(a.app.id));
-  const otherApps= appStates.filter((a) => !["cortex", "settings", "files", "browser", "blackbox", "mirror", "zero", "chat", "voice"].includes(a.app.id));
 
   return (
     <motion.div
@@ -785,93 +680,32 @@ function DesktopDock({ isTablet }) {
       className="absolute left-0 right-0 bottom-4 z-40 flex justify-center pointer-events-none"
       data-testid="dock-root"
     >
-      <motion.div
-        ref={containerRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        animate={{ y: isAwakened ? -3 : 0 }}
-        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-        className="pointer-events-auto relative flex items-end px-4 py-3 rounded-2xl transition-all duration-300"
+      <div
+        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3 py-2.5 rounded-2xl`}
         style={{
-          // Layer 1: Base Glass
-          background: `rgba(6, 9, 18, ${bgAlpha})`,
-          // Layer 2: Backdrop Blur
-          backdropFilter: `blur(${backdropBlur}px) saturate(${saturatePct}%)`,
-          WebkitBackdropFilter: `blur(${backdropBlur}px) saturate(${saturatePct}%)`,
-          // Layer 3 & Border
-          border: `1px solid rgba(255, 255, 255, ${borderAlpha})`,
-          // Layer 5 & 6: Ambient Glow & Multi-Layer Depth Shadow
-          boxShadow: isAwakened
-            ? `0 28px 75px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.40), 0 0 ${glowRadius}px ${accentColor}${Math.round(glowAlpha * 255).toString(16).padStart(2, "0")}`
-            : `0 18px 45px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.10), 0 0 ${Math.round(glowRadius * 0.5)}px ${accentColor}15`,
-          maxWidth: "calc(100vw - 24px)",
-          overflowX: "auto",
+          background: "rgba(7,9,15,0.60)",
+          backdropFilter: "blur(32px) saturate(190%)",
+          WebkitBackdropFilter: "blur(32px) saturate(190%)",
+          border: "1px solid rgba(255,255,255,0.09)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(0,240,255,0.04)",
+          maxWidth: "calc(100vw - 16px)",
         }}
+        onMouseLeave={onLeave}
       >
-        {/* Layer 4: Refraction Light Beam moving relative to mouse cursor X */}
-        {isAwakened && (
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: "inherit",
-              pointerEvents: "none",
-              background: `radial-gradient(ellipse 180px 80px at ${refractionX}% 0%, ${accentColor}25 0%, transparent 80%)`,
-              transition: "background 0.05s linear",
-            }}
+        {appStates.map(({ app, open, isActive }, i) => (
+          <DesktopDockIcon
+            key={app.id}
+            app={app}
+            index={i}
+            hoverIndex={hoverIndex}
+            isActive={isActive}
+            open={open}
+            onHover={setHoverIndex}
+            onLeave={onLeave}
+            openApp={openApp}
           />
-        )}
-
-        {/* Group 1: Core System Apps */}
-        {coreApps.map(({ app, open, isActive }) => {
-          const index = appStates.findIndex((item) => item.app.id === app.id);
-          return (
-            <DesktopDockIcon
-              key={app.id}
-              app={app}
-              scale={scales[index]}
-              isActive={isActive}
-              open={open}
-              openApp={openApp}
-            />
-          );
-        })}
-
-        {coreApps.length > 0 && aiApps.length > 0 && <EtchedSeparator />}
-
-        {/* Group 2: AI & Moat Tools */}
-        {aiApps.map(({ app, open, isActive }) => {
-          const index = appStates.findIndex((item) => item.app.id === app.id);
-          return (
-            <DesktopDockIcon
-              key={app.id}
-              app={app}
-              scale={scales[index]}
-              isActive={isActive}
-              open={open}
-              openApp={openApp}
-            />
-          );
-        })}
-
-        {aiApps.length > 0 && otherApps.length > 0 && <EtchedSeparator />}
-
-        {/* Group 3: Productivity, Code & Media Apps */}
-        {otherApps.map(({ app, open, isActive }) => {
-          const index = appStates.findIndex((item) => item.app.id === app.id);
-          return (
-            <DesktopDockIcon
-              key={app.id}
-              app={app}
-              scale={scales[index]}
-              isActive={isActive}
-              open={open}
-              openApp={openApp}
-            />
-          );
-        })}
-      </motion.div>
+        ))}
+      </div>
     </motion.div>
   );
 }
