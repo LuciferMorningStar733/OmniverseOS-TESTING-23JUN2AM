@@ -104,8 +104,8 @@ export function ContextChips({ windows = [], activeId, relevantMemories = [], di
             layout
             initial={{ scale: 0.70, opacity: 0, y: 4 }}
             animate={{
-              scale: Boolean(disabled[c.key]) ? 0.94 : 1,
-              opacity: Boolean(disabled[c.key]) ? 0.55 : 1,
+              scale: disabled[c.key] ? 0.94 : 1,
+              opacity: disabled[c.key] ? 0.55 : 1,
               y: 0,
             }}
             exit={{ scale: 0.70, opacity: 0, y: 4 }}

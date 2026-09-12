@@ -116,6 +116,7 @@ export function preprocessForTTS(rawText) {
   text = text.replace(/https?:\/\/\S+/g, "the referenced link");
 
   // 11. Strip unicode emojis so TTS engine doesn't read symbol names aloud
+  // eslint-disable-next-line no-misleading-character-class
   text = text.replace(/[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, "");
 
   // 12. Humanized pronunciation for common technical acronyms and units

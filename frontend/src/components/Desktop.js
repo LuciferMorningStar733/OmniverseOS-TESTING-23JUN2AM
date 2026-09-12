@@ -548,11 +548,9 @@ function Desktop() {
             const app = getApp(w.app);
             if (!app) return null;
             return (
-              <div key={w.id} className="pointer-events-auto">
-                <Window win={w}>
-                  <app.Component />
-                </Window>
-              </div>
+              <Window key={w.id} win={w}>
+                <app.Component />
+              </Window>
             );
           })}
         </AnimatePresence>

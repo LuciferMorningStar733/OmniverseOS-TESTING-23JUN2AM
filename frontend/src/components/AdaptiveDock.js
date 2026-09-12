@@ -1,25 +1,180 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
+import { useBreakpoint } from "../hooks/useBreakpoint";
+
+const DockItem = React.memo(function DockItem({
+  app,
+  isOpen,
+  isActive,
+  mouseX,
+  isTouch,
+  prefersReducedMotion,
+  isBouncing,
+  isHovered,
+  onHover,
+  onLeave,
+  onClick,
+}) {
+  const itemRef = useRef(null);
+  const [distance, setDistance] = useState(Infinity);
+
+  useEffect(() => {
+    if (isTouch || prefersReducedMotion || mouseX === null || !itemRef.current) {
+      setDistance(Infinity);
+      return;
+    }
+    const rect = itemRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    setDistance(Math.abs(mouseX - centerX));
+  }, [mouseX, isTouch, prefersReducedMotion]);
+
+  const RADIUS = 110;
+  let scale = 1;
+  let translateY = 0;
+
+  if (!isTouch && !prefersReducedMotion && distance < RADIUS) {
+    const factor = Math.cos((distance / RADIUS) * (Math.PI / 2));
+    const power = factor * factor;
+    scale = 1 + power * 0.22;
+    translateY = -7 * power;
+  }
+
+  return (
+    <div
+      ref={itemRef}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      onClick={onClick}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        cursor: "pointer",
+        padding: "0 2px",
+      }}
+      data-testid={`dock-icon-${app.id}`}
+    >
+      {/* Floating Tooltip */}
+      <AnimatePresence>
+        {!isTouch && isHovered && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.92 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            style={{
+              position: "absolute",
+              bottom: "100%",
+              marginBottom: 10,
+              padding: "4px 10px",
+              borderRadius: 8,
+              background: "rgba(10, 14, 26, 0.92)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(12px)",
+              color: "#ffffff",
+              fontSize: 11,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              zIndex: 100,
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6), 0 0 10px rgba(0, 240, 255, 0.1)",
+            }}
+          >
+            {app.name}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        animate={
+          isBouncing && !prefersReducedMotion
+            ? { y: [0, -12, 0, -5, 0], scale: [1, 1.14, 0.96, 1.04, 1] }
+            : { scale, y: translateY }
+        }
+        transition={{
+          type: "spring",
+          stiffness: 420,
+          damping: 26,
+          mass: 0.5,
+        }}
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          background: isActive
+            ? `radial-gradient(circle at 35% 35%, ${app.color}, #05070D)`
+            : isHovered
+            ? "rgba(255, 255, 255, 0.10)"
+            : "rgba(255, 255, 255, 0.05)",
+          border: `1px solid ${isActive ? app.color : isHovered ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)"}`,
+          boxShadow: isActive
+            ? `0 0 18px ${app.color}60`
+            : isHovered
+            ? `0 0 14px rgba(255,255,255,0.15)`
+            : "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          willChange: "transform",
+        }}
+      >
+        <i
+          className={`fa-solid ${app.icon}`}
+          style={{
+            color: isActive ? "#fff" : app.color,
+            fontSize: 18,
+            filter: isActive ? `drop-shadow(0 0 6px ${app.color})` : "none",
+            transition: "filter 0.2s ease, color 0.2s ease",
+          }}
+        />
+      </motion.div>
+
+      {/* Indicator Dot/Pill */}
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: -6,
+            width: isActive ? 16 : 4,
+            height: 4,
+            borderRadius: 2,
+            background: isActive ? "#00F0FF" : "rgba(255,255,255,0.45)",
+            boxShadow: isActive ? "0 0 10px #00F0FF" : "none",
+            transition: "all 0.25s ease",
+          }}
+        />
+      )}
+    </div>
+  );
+});
 
 export default function AdaptiveDock() {
-  const { windows, activeId, openApp, minimize, focusWindow } = useOS();
+  const { windows, activeId, openApp, minimize, focusWindow, updateWindow } = useOS();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const [hoveredAppId, setHoveredAppId] = useState(null);
+  const [bouncingAppId, setBouncingAppId] = useState(null);
+  const [mouseX, setMouseX] = useState(null);
 
-  // Categorize apps
-  const activeWindows = windows.filter((w) => !w.minimized);
+  const { isTouch } = useBreakpoint();
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
   const openAppIds = windows.map((w) => w.app);
+  const pinnedIds = ["chat", "notes", "files", "browser", "settings", "blackbox", "mirror"];
 
-  const pinnedIds = ["cortex", "notes", "blackbox", "mirror", "files", "browser"];
-
-  // Dock items array
   const dockApps = APPS.filter(
     (app) => openAppIds.includes(app.id) || pinnedIds.includes(app.id)
   );
 
-  const handleIconClick = (appId) => {
+  const handleIconClick = useCallback((appId) => {
+    setBouncingAppId(appId);
+    setTimeout(() => setBouncingAppId(null), 600);
+
     const existing = windows.find((w) => w.app === appId);
     if (existing) {
       if (existing.minimized) {
@@ -33,7 +188,18 @@ export default function AdaptiveDock() {
     } else {
       openApp(appId);
     }
-  };
+  }, [windows, activeId, updateWindow, focusWindow, minimize, openApp]);
+
+  const onMouseMove = useCallback((e) => {
+    if (!isTouch && !prefersReducedMotion) {
+      setMouseX(e.clientX);
+    }
+  }, [isTouch, prefersReducedMotion]);
+
+  const onMouseLeave = useCallback(() => {
+    setMouseX(null);
+    setHoveredAppId(null);
+  }, []);
 
   return (
     <>
@@ -41,6 +207,8 @@ export default function AdaptiveDock() {
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
+        onMouseMove={onMouseMove}
+        onMouseLeave={onMouseLeave}
         style={{
           position: "fixed",
           bottom: 16,
@@ -59,70 +227,25 @@ export default function AdaptiveDock() {
         }}
         data-testid="adaptive-dock"
       >
-        {dockApps.map((app, idx) => {
+        {dockApps.map((app) => {
           const isOpen = openAppIds.includes(app.id);
           const isActive = windows.find((w) => w.app === app.id)?.id === activeId;
 
-          // Cosine Magnification
-          let scale = 1;
-          if (hoveredIdx !== null) {
-            const distance = Math.abs(hoveredIdx - idx);
-            if (distance === 0) scale = 1.35;
-            else if (distance === 1) scale = 1.15;
-          }
-
           return (
-            <div
+            <DockItem
               key={app.id}
-              onMouseEnter={() => setHoveredIdx(idx)}
-              onMouseLeave={() => setHoveredIdx(null)}
+              app={app}
+              isOpen={isOpen}
+              isActive={isActive}
+              mouseX={mouseX}
+              isTouch={isTouch}
+              prefersReducedMotion={prefersReducedMotion}
+              isBouncing={bouncingAppId === app.id}
+              isHovered={hoveredAppId === app.id}
+              onHover={() => setHoveredAppId(app.id)}
+              onLeave={() => hoveredAppId === app.id && setHoveredAppId(null)}
               onClick={() => handleIconClick(app.id)}
-              style={{
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                cursor: "pointer",
-              }}
-              data-testid={`dock-icon-${app.id}`}
-            >
-              <motion.div
-                animate={{ scale }}
-                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  background: isActive
-                    ? `radial-gradient(circle at 35% 35%, ${app.color}, #05070D)`
-                    : "rgba(255, 255, 255, 0.05)",
-                  border: `1px solid ${isActive ? app.color : "rgba(255,255,255,0.1)"}`,
-                  boxShadow: isActive ? `0 0 18px ${app.color}60` : "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  position: "relative",
-                }}
-              >
-                <i className={`fa-solid ${app.icon}`} style={{ color: isActive ? "#fff" : app.color, fontSize: 18 }} />
-              </motion.div>
-
-              {/* Indicator Dot/Pill */}
-              {isOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: -6,
-                    width: isActive ? 16 : 4,
-                    height: 4,
-                    borderRadius: 2,
-                    background: isActive ? "#00F0FF" : "rgba(255,255,255,0.4)",
-                    boxShadow: isActive ? "0 0 8px #00F0FF" : "none",
-                    transition: "all 0.2s ease",
-                  }}
-                />
-              )}
-            </div>
+            />
           );
         })}
 
@@ -144,6 +267,7 @@ export default function AdaptiveDock() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            transition: "all 0.2s ease",
           }}
           title="Open Intelligent App Drawer"
           data-testid="dock-app-drawer-trigger"
@@ -202,6 +326,7 @@ export default function AdaptiveDock() {
                 {APPS.map((app) => (
                   <div
                     key={app.id}
+                    data-testid={`drawer-app-${app.id}`}
                     onClick={() => {
                       openApp(app.id);
                       setDrawerOpen(false);

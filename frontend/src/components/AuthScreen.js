@@ -218,7 +218,7 @@ export default function AuthScreen() {
     if (cmdId === "forgot") setMode("forgot");
     if (cmdId === "guest") {
       setEmail("demo@omniverse.io");
-      setPassword("demo123");
+      setPassword("omniverse123");
       setMode("login");
       toast.info("Guest credentials loaded. Press Initialize to enter.");
     }

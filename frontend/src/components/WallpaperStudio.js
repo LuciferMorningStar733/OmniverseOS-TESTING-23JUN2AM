@@ -357,7 +357,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
     const [recent,    setRecent]    = useState(() => getRecentWallpapers());
     const [customs,   setCustoms]   = useState(() => getCustomWallpapers());
     const [random,    setRandom]    = useState(false);
-    const [motion,    setMotion]    = useState(() => getWallpaperMotion());
+    const [motionPref, setMotionPref] = useState(() => getWallpaperMotion());
     const [quality,   setQuality]   = useState(() => getWallpaperQuality());
     const fileRef = useRef(null);
 
@@ -383,10 +383,10 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
     }, [customs, applyWallpaper]);
 
     const handleToggleMotion = useCallback(() => {
-      const next = motion === "playing" ? "paused" : "playing";
-      setMotion(next);
+      const next = motionPref === "playing" ? "paused" : "playing";
+      setMotionPref(next);
       setWallpaperMotion(next);
-    }, [motion]);
+    }, [motionPref]);
 
     const handleQualityChange = useCallback((q) => {
       setQuality(q);
@@ -539,18 +539,18 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
             {/* Motion toggle */}
             <button
               onClick={handleToggleMotion}
-              title={motion === "playing" ? "Pause wallpaper animation" : "Resume wallpaper animation"}
+              title={motionPref === "playing" ? "Pause wallpaper animation" : "Resume wallpaper animation"}
               style={{
                 height: 28, padding: "0 10px", borderRadius: 6,
-                background: motion === "playing" ? "rgba(57,255,20,0.12)" : "rgba(255,0,85,0.12)",
-                border: motion === "playing" ? "1px solid rgba(57,255,20,0.4)" : "1px solid rgba(255,0,85,0.4)",
-                color: motion === "playing" ? "#39FF14" : "#FF0055",
+                background: motionPref === "playing" ? "rgba(57,255,20,0.12)" : "rgba(255,0,85,0.12)",
+                border: motionPref === "playing" ? "1px solid rgba(57,255,20,0.4)" : "1px solid rgba(255,0,85,0.4)",
+                color: motionPref === "playing" ? "#39FF14" : "#FF0055",
                 fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
                 fontFamily: "'JetBrains Mono', monospace",
               }}
             >
-              <i className={motion === "playing" ? "fa-solid fa-pause" : "fa-solid fa-play"} style={{ fontSize: 9 }} />
-              {motion === "playing" ? "Motion Active" : "Motion Paused"}
+              <i className={motionPref === "playing" ? "fa-solid fa-pause" : "fa-solid fa-play"} style={{ fontSize: 9 }} />
+              {motionPref === "playing" ? "Motion Active" : "Motion Paused"}
             </button>
 
             {/* Quality mode */}

@@ -274,6 +274,35 @@ export const OSProvider = ({ children }) => {
     rememberActiveApp(appId);
   }, []);
 
+  useEffect(() => {
+    const handleOpenApp = (e) => {
+      const appId = e.detail?.appId || e.detail;
+      if (appId) openApp(appId);
+    };
+    const handleCloseApp = (e) => {
+      const appId = e.detail?.appId || e.detail;
+      if (appId) {
+        setWindows((prev) => {
+          const win = prev.find((w) => w.app === appId);
+          if (win) {
+            playWindowClose();
+            trackEvent("app_close", { appId });
+            return prev.filter((w) => w.id !== win.id);
+          }
+          return prev;
+        });
+      }
+    };
+    window.addEventListener("omniverse:open-app", handleOpenApp);
+    window.addEventListener("omniverse:close-app", handleCloseApp);
+    window.__omniverse_openApp = openApp;
+    return () => {
+      window.removeEventListener("omniverse:open-app", handleOpenApp);
+      window.removeEventListener("omniverse:close-app", handleCloseApp);
+      delete window.__omniverse_openApp;
+    };
+  }, [openApp]);
+
   const closeWindow = useCallback((id) => {
     playWindowClose();
     setWindows((prev) => {
