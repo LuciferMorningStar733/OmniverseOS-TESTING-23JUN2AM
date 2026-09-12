@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Sparkles, Terminal, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 /**
- * CortexCommandSurface — Interactive Command Bar inside the 3D Omniverse environment.
- * Demonstrates real Cortex workspace intelligence activation across applications.
+ * CortexCommandSurface — Luxury Precision Command Surface for OmniverseOS 2.0.
+ * Dark optical glass panel enabling interactive workspace intelligence activation.
  */
-export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
+export function CortexCommandSurface({ onExecutePrompt }) {
   const [promptText, setPromptText] = useState('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionMessage, setExecutionMessage] = useState(null);
@@ -14,22 +14,22 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
     {
       text: "Prepare my workspace for tomorrow",
       apps: ["calendar", "tasks", "projects", "memory", "notes"],
-      msg: "WORKSPACE READY • Calendar, Tasks & Projects synchronized into memory"
+      msg: "WORKSPACE PREPARED • Calendar, Tasks & Projects synchronized into Memory"
     },
     {
       text: "Find the decision I made about this project",
       apps: ["memory", "notes", "projects", "timeline"],
-      msg: "CONTEXT RETRIEVED • Decision lattice located in Memory & Project timeline"
+      msg: "CONTEXT LOCATED • Decision lattice retrieved from Memory & Timeline"
     },
     {
       text: "Show me everything related to Project X",
       apps: ["projects", "files", "timeline", "code"],
-      msg: "CONSTELLATION ACTIVATED • 14 items across Projects, Files & Code linked"
+      msg: "CONSTELLATION ACTIVATED • 14 artifacts linked across Projects & Code"
     },
     {
       text: "Synthesize intelligence report",
       apps: ["blackbox", "warroom", "adversary", "matrix"],
-      msg: "INTELLIGENCE SYNTHESIZED • Strategic War Room analysis active"
+      msg: "INTELLIGENCE SYNTHESIZED • Strategic War Room matrix active"
     }
   ];
 
@@ -41,12 +41,11 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!promptText.trim()) return;
-    
-    // Find matching suggested prompt or default
+
     const matched = SUGGESTED_PROMPTS.find(p => p.text.toLowerCase().includes(promptText.toLowerCase())) || {
       text: promptText,
       apps: ["voice", "chat", "memory", "tasks"],
-      msg: `CORTEX REASONING • Active execution for "${promptText}"`
+      msg: `CORTEX REASONING • Execution sequence active for "${promptText}"`
     };
 
     runPrompt(matched);
@@ -63,7 +62,7 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
     setTimeout(() => {
       setIsExecuting(false);
       setExecutionMessage(promptObj.msg);
-    }, 1200);
+    }, 1100);
   };
 
   return (
@@ -80,17 +79,17 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          background: 'rgba(8, 18, 38, 0.75)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(0, 240, 255, 0.3)',
+          background: 'rgba(6, 15, 33, 0.85)',
+          backdropFilter: 'blur(24px)',
+          border: '1px solid rgba(0, 240, 255, 0.25)',
           borderRadius: '16px',
-          padding: '10px 16px',
-          boxShadow: '0 8px 32px rgba(0, 240, 255, 0.15)',
+          padding: '12px 18px',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 240, 255, 0.12)',
           transition: 'border-color 0.3s ease, box-shadow 0.3s ease'
         }}
       >
         <Sparkles className="w-5 h-5" style={{ color: '#00F0FF', flexShrink: 0 }} />
-        
+
         <input 
           type="text"
           value={promptText}
@@ -102,8 +101,9 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
             border: 'none',
             outline: 'none',
             color: '#FFFFFF',
-            fontSize: '15px',
-            fontFamily: 'Inter, system-ui, sans-serif'
+            fontSize: '14px',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            letterSpacing: '0.01em'
           }}
         />
 
@@ -114,9 +114,9 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
             background: 'linear-gradient(135deg, #00F0FF 0%, #7B2FFF 100%)',
             border: 'none',
             borderRadius: '10px',
-            padding: '8px 16px',
+            padding: '8px 18px',
             color: '#030712',
-            fontWeight: '600',
+            fontWeight: '700',
             fontSize: '13px',
             cursor: 'pointer',
             display: 'flex',
@@ -149,8 +149,8 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
             key={idx}
             onClick={() => handleSelectPrompt(p)}
             style={{
-              background: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(15, 23, 42, 0.55)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: '20px',
               padding: '6px 14px',
               color: '#94A3B8',
@@ -160,11 +160,11 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
               backdropFilter: 'blur(8px)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.5)';
+              e.currentTarget.style.borderColor = 'rgba(0, 240, 255, 0.4)';
               e.currentTarget.style.color = '#00F0FF';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
               e.currentTarget.style.color = '#94A3B8';
             }}
           >
@@ -177,10 +177,10 @@ export function CortexCommandSurface({ onExecutePrompt, activeApps = [] }) {
       {executionMessage && (
         <div style={{
           marginTop: '12px',
-          background: 'rgba(5, 46, 22, 0.85)',
-          border: '1px solid rgba(57, 255, 20, 0.4)',
+          background: 'rgba(5, 46, 22, 0.9)',
+          border: '1px solid rgba(57, 255, 20, 0.35)',
           borderRadius: '12px',
-          padding: '8px 14px',
+          padding: '8px 16px',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',

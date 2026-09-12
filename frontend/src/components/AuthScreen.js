@@ -296,7 +296,7 @@ export default function AuthScreen() {
               OmniverseOS <span style={{ fontSize: 11, color: "#00F0FF", marginLeft: 4 }}>2.0</span>
             </div>
             <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.4)" }}>
-              // IMMERSIVE 3D AI OPERATING ENVIRONMENT
+              // OPERATING ENVIRONMENT FOR INTELLIGENCE
             </div>
           </div>
         </div>

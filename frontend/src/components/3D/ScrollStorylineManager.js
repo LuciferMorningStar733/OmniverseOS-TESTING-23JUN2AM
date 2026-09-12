@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 
 /**
- * ScrollStorylineManager — Connects scroll progress to 7 cinematic 3D scenes.
- * Handles camera trajectory interpolation, scene stage transitions, and storytelling state.
+ * ScrollStorylineManager — Luxury 3D Camera Storytelling Controller for OmniverseOS 2.0.
+ * Smoothly dollies camera through 7 cinematic scene stages as visitor scrolls through space.
  */
 export const STORY_STAGES = [
-  { id: 'omniverse', title: 'THE OMNIVERSE', subtitle: 'A TRUE 3D AI Operating Environment', camZ: 28, camY: 0, camX: 0, rotY: 0 },
-  { id: 'workspace', title: 'THE WORKSPACE', subtitle: 'One unified workspace for apps, memory & context', camZ: 21, camY: 2, camX: 0, rotY: Math.PI * 0.1 },
-  { id: 'context', title: 'THE CONTEXT', subtitle: 'AI sees relationships across your entire workflow', camZ: 16, camY: -1, camX: 4, rotY: -Math.PI * 0.15 },
-  { id: 'cortex', title: 'THE CORTEX', subtitle: 'Living neural reasoning engine at the core', camZ: 11, camY: 0, camX: 0, rotY: 0 },
-  { id: 'reasoning', title: 'THE REASONING', subtitle: 'From raw context to multi-step cognitive plans', camZ: 14, camY: 3, camX: -3, rotY: Math.PI * 0.2 },
-  { id: 'action', title: 'THE ACTION', subtitle: 'Context transformed into direct workspace execution', camZ: 18, camY: -2, camX: 2, rotY: -Math.PI * 0.1 },
-  { id: 'gateway', title: 'ENTER OMNIVERSEOS', subtitle: 'Initialize your spatial operating experience', camZ: 24, camY: 0, camX: 0, rotY: 0 }
+  { id: 'omniverse', title: 'THE OMNIVERSE', subtitle: 'AN OPERATING ENVIRONMENT FOR INTELLIGENCE', camZ: 28, camY: 0, camX: 0, rotY: 0 },
+  { id: 'workspace', title: 'THE WORKSPACE', subtitle: '30 Specialized Instruments in One Spatial Orbit', camZ: 22, camY: 2, camX: 0, rotY: Math.PI * 0.08 },
+  { id: 'context', title: 'THE CONTEXT', subtitle: 'AI Sees Relationships Across Your Entire Workflow', camZ: 17, camY: -1, camX: 4, rotY: -Math.PI * 0.12 },
+  { id: 'cortex', title: 'THE CORTEX', subtitle: 'First-Principles Cognitive Synthesis Core', camZ: 12, camY: 0, camX: 0, rotY: 0 },
+  { id: 'reasoning', title: 'THE REASONING', subtitle: 'Multi-Step Cognitive Execution Pipeline', camZ: 15, camY: 3, camX: -3, rotY: Math.PI * 0.15 },
+  { id: 'action', title: 'THE ACTION', subtitle: 'Context Synthesized into Autonomous Work', camZ: 19, camY: -2, camX: 2, rotY: -Math.PI * 0.08 },
+  { id: 'gateway', title: 'ENTER OMNIVERSEOS', subtitle: 'Initialize Your Spatial Gateway', camZ: 25, camY: 0, camX: 0, rotY: 0 }
 ];
 
 export class ScrollStorylineManager {
@@ -39,7 +39,6 @@ export class ScrollStorylineManager {
 
     this.currentStageIndex = index;
 
-    // Smoothly interpolate camera target position
     this.targetPos.x = THREE.MathUtils.lerp(currentStage.camX, nextStage.camX, fraction);
     this.targetPos.y = THREE.MathUtils.lerp(currentStage.camY, nextStage.camY, fraction);
     this.targetPos.z = THREE.MathUtils.lerp(currentStage.camZ, nextStage.camZ, fraction);
@@ -49,10 +48,9 @@ export class ScrollStorylineManager {
   update(delta) {
     if (!this.camera) return;
 
-    // Eased interpolation toward target position
-    this.camera.position.x += (this.targetPos.x - this.camera.position.x) * 0.08;
-    this.camera.position.y += (this.targetPos.y - this.camera.position.y) * 0.08;
-    this.camera.position.z += (this.targetPos.z - this.camera.position.z) * 0.08;
+    this.camera.position.x += (this.targetPos.x - this.camera.position.x) * 0.06;
+    this.camera.position.y += (this.targetPos.y - this.camera.position.y) * 0.06;
+    this.camera.position.z += (this.targetPos.z - this.camera.position.z) * 0.06;
 
     this.camera.lookAt(0, 0, 0);
   }
