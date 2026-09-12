@@ -450,7 +450,7 @@ function ProjectDetail({ project, onUpdate, onDelete }) {
   useEffect(() => {
     setForm(project);
     setDirty(false);
-  }, [project.id]);
+  }, [project]);
 
   // Load decisions when tab switches
   useEffect(() => {

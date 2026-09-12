@@ -49,6 +49,14 @@ test.describe("OmniverseOS Master Runtime Certification & Click-by-Click Forensi
     await emailInput.fill("demo@omniverse.io");
     await passwordInput.fill("omniverse123");
     await submitBtn.click();
+    await page.waitForTimeout(1000);
+
+    // Dismiss LocationSetup or intro backdrop if present
+    const dismissBtn = page.locator('[data-testid="location-backdrop-btn"], button:has-text("Skip"), button:has-text("Continue")').first();
+    if (await dismissBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await dismissBtn.click({ force: true });
+      await page.waitForTimeout(500);
+    }
 
     // 4. Assert Desktop Appears
     const dock = page.locator('[data-testid="dock-root"], .dock-container, [data-testid="adaptive-dock"]').first();
@@ -60,6 +68,9 @@ test.describe("OmniverseOS Master Runtime Certification & Click-by-Click Forensi
     // 5. Assert Session Persistence on Refresh
     await page.reload();
     await page.waitForLoadState("networkidle");
+    if (await dismissBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await dismissBtn.click({ force: true });
+    }
     await expect(dock).toBeVisible({ timeout: 10000 });
   });
 

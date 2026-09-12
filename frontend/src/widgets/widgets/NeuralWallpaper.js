@@ -503,6 +503,7 @@ export default function NeuralWallpaper({ style }) {
       canvas.removeEventListener("mousemove",   onTouch);
       canvas.removeEventListener("mouseleave",  onEnd);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseColors, onTouch, onEnd]); // weatherCode/battery patched via separate effect
 
   return (

@@ -165,7 +165,7 @@ export default function WidgetShell({ item, def, canvasRef }) {
     if (!measured.width || !measured.height || !refW || !refH) return 1;
     const raw = def?.autoHeight ? (measured.width / refW) : Math.min(measured.width / refW, measured.height / refH);
     return Math.min(SCALE_MAX, Math.max(SCALE_MIN, raw));
-  }, [measured.width, measured.height, refW, refH]);
+  }, [measured.width, measured.height, refW, refH, def?.autoHeight]);
 
   return (
     <motion.div
