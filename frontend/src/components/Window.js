@@ -573,7 +573,7 @@ export default function Window({ win, children }) {
   /* ══ DESKTOP / TABLET SPATIAL PHYSICS & GENIE MINIMIZE ═════════════════════ */
   const getDockOrigin = () => {
     if (typeof document === "undefined") return { x: viewport.w / 2, y: viewport.h - 40 };
-    const dockIcon = document.querySelector(`[data-testid="dock-icon-${win.app}"]`);
+    const dockIcon = document.querySelector(`[data-dock-icon="${win.app}"], [data-testid="dock-item-${win.app}"], [data-testid="dock-icon-${win.app}"]`);
     if (dockIcon) {
       const r = dockIcon.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -620,26 +620,26 @@ export default function Window({ win, children }) {
           pointerEvents: "auto",
           transition: {
             type: "spring",
-            stiffness: 350,
-            damping: 28,
-            mass: 0.7,
+            stiffness: 380,
+            damping: 26,
+            mass: 0.6,
             filter: { duration: 0.18, ease: "easeOut" },
           },
         },
         minimized: {
           opacity: 0,
-          scaleX: 0.08,
-          scaleY: 0.04,
+          scaleX: 0.06,
+          scaleY: 0.03,
           x: initOffsetX,
           y: initOffsetY,
-          rotateX: 25,
+          rotateX: 30,
           filter: "blur(6px)",
           pointerEvents: "none",
           transition: {
             type: "spring",
-            stiffness: 380,
-            damping: 32,
-            mass: 0.6,
+            stiffness: 400,
+            damping: 30,
+            mass: 0.5,
           },
         },
       };

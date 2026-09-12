@@ -555,6 +555,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   const [scope, animateScope] = useAnimate();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const scale = useScale(index, hoverIndex);
+  const translateY = scale > 1 ? -(scale - 1) * 18 : 0;
 
   const handleClick = useCallback(async () => {
     playClick();
@@ -582,26 +583,27 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
 
   /* Per-app glow ring color */
   const ringStyle = useMemo(() => ({
-    boxShadow: `0 0 0 1.5px ${app.color}45, 0 0 18px ${app.color}28, 0 0 36px ${app.color}12`,
+    boxShadow: `0 0 0 1.5px ${app.color}55, 0 0 20px ${app.color}35, 0 0 40px ${app.color}15`,
   }), [app.color]);
 
   return (
     <motion.button
       ref={scope}
       data-testid={`dock-item-${app.id}`}
+      data-dock-icon={app.id}
       aria-label={`Open ${app.name}`}
       aria-current={isActive ? "page" : undefined}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      animate={{ scale }}
-      transition={{ type: "spring", stiffness: 420, damping: 20, mass: 0.25 }}
+      animate={{ scale, y: translateY }}
+      transition={{ type: "spring", stiffness: 440, damping: 22, mass: 0.22 }}
       className="group relative flex-shrink-0"
       style={{
         width: 44, height: 44,
         display: "flex", alignItems: "center", justifyContent: "center",
         borderRadius: 12,
-        background: isActive ? `${app.color}12` : "transparent",
+        background: isActive ? `${app.color}18` : "transparent",
         transformOrigin: "bottom center",
         cursor: "pointer", border: "none", outline: "none", padding: 0,
         transition: "background 0.22s ease",
@@ -627,7 +629,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         style={{
           color: app.color,
           filter: isActive
-            ? `drop-shadow(0 0 7px ${app.color}) drop-shadow(0 0 14px ${app.color}55)`
+            ? `drop-shadow(0 0 8px ${app.color}) drop-shadow(0 0 16px ${app.color}65)`
             : `drop-shadow(0 0 3px ${app.color}30)`,
           transition: "filter 0.22s ease",
         }}
@@ -643,10 +645,10 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
             width: isActive ? 16 : 4,
             height: isActive ? 4 : 4,
             borderRadius: 2,
-            background: isActive ? app.color : "rgba(0,240,255,0.65)",
+            background: isActive ? app.color : "rgba(0,240,255,0.75)",
             boxShadow: isActive
-              ? `0 0 10px ${app.color}BB, 0 0 20px ${app.color}44`
-              : "0 0 6px rgba(0,240,255,0.5)",
+              ? `0 0 10px ${app.color}FF, 0 0 20px ${app.color}66`
+              : "0 0 6px rgba(0,240,255,0.6)",
             transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
           }}
         />
@@ -676,18 +678,18 @@ function DesktopDock({ isTablet }) {
     <motion.div
       initial={{ y: 120, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.25, type: "spring", damping: 22, stiffness: 220 }}
+      transition={{ delay: 0.25, type: "spring", damping: 24, stiffness: 240 }}
       className="absolute left-0 right-0 bottom-4 z-40 flex justify-center pointer-events-none"
       data-testid="dock-root"
     >
       <div
-        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3 py-2.5 rounded-2xl`}
+        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl`}
         style={{
-          background: "rgba(7,9,15,0.60)",
-          backdropFilter: "blur(32px) saturate(190%)",
-          WebkitBackdropFilter: "blur(32px) saturate(190%)",
-          border: "1px solid rgba(255,255,255,0.09)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.09), 0 0 0 1px rgba(0,240,255,0.04)",
+          background: "rgba(7, 9, 18, 0.72)",
+          backdropFilter: "blur(36px) saturate(200%)",
+          WebkitBackdropFilter: "blur(36px) saturate(200%)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+          boxShadow: "0 28px 72px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 1px rgba(0,240,255,0.06)",
           maxWidth: "calc(100vw - 16px)",
         }}
         onMouseLeave={onLeave}
