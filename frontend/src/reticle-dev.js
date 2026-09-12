@@ -29,14 +29,13 @@ if (process.env.NODE_ENV === 'development') {
     }
     // Still attempt it — a bridge running without a token pairs fine.
     reticle.connect({
-      projectId: process.env.REACT_APP_RETICLE_PROJECT_ID || 'default',
-      allowNonLocalhost: true,
+      projectId: 'frontend-4ecc9fb6',
       ...(url.length > 0 ? { url } : {}),
       ...(token.length > 0 ? { token } : {}),
     });
     // What the agent can drive without guessing.
     registerCapabilities({
-      testids: ['adversary-app', 'chat-input', 'ai-chat-app', 'ai-chat-header', 'ai-chat-messages', 'ai-chat-input', 'chat-send', 'analytics-app', 'black-box-app', 'browser-app', 'browser-url-input', 'calendar-app', 'clipboard-app', 'clipboard-label', 'clipboard-input', 'clipboard-paste', 'clipboard-save', 'code-app', 'code-run', 'code-input', 'dashboard-app', 'discord-app', 'discord-input', 'files-app', 'new-folder', 'new-file', 'finance-app', 'txn-title', 'txn-amount', 'txn-add', 'imagegen-app', 'image-prompt', 'image-generate', 'memory-app', 'music-app', 'play-toggle', 'notes-app', 'notes-new', 'note-content', 'omniverse-zero-app', 'zero-input', 'settings-app', 'tasks-app', 'task-input', 'task-add', 'videos-app', 'video-player', 'voice-app', 'warroom-app', 'watchlist-app', 'context-chips', 'model-select', 'adaptive-dock', 'dock-app-drawer-trigger', 'app-drawer-backdrop', 'app-drawer', 'auth-screen', 'auth-form', 'auth-name-input', 'auth-email-input'],
+      testids: ['error-boundary', 'adaptive-dock', 'location-backdrop-btn', 'dock-root', 'topbar', 'notes-app', 'calendar-app', 'cortex-trigger', 'chat-input', 'ai-chat-input', 'ai-chat-messages', 'chat-messages', 'desktop-wallpaper', 'dock', 'settings-app', 'adversary-app', 'ai-chat-app', 'ai-chat-header', 'chat-send', 'analytics-app', 'black-box-app', 'browser-app', 'browser-url-input', 'clipboard-app', 'clipboard-label', 'clipboard-input', 'clipboard-paste', 'clipboard-save', 'code-app', 'code-run', 'code-input', 'dashboard-app', 'discord-app', 'discord-input', 'files-app', 'new-folder', 'new-file', 'finance-app', 'txn-title', 'txn-amount', 'txn-add', 'imagegen-app', 'image-prompt', 'image-generate', 'memory-app', 'music-app', 'play-toggle', 'notes-new', 'note-content', 'omniverse-zero-app', 'zero-input', 'tasks-app', 'task-input', 'task-add', 'videos-app', 'video-player', 'voice-app', 'warroom-app', 'watchlist-app', 'context-chips'],
       signals: [], // names you pass to reticle.signal()
       stores: [], // register a store above, then name its key here
     });

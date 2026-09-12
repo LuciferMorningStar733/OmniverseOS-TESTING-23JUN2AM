@@ -69,58 +69,93 @@ function injectHexStyles() {
 }
 injectHexStyles();
 
-const HexBtn = memo(function HexBtn({ color, icon, label, testId, onClick }) {
-  const [hovered, setHovered] = useState(false);
-  const rgba =
-    color === "#FF003C" ? "255,0,60" :
-    color === "#FCEE09" ? "252,238,9" :
-    "0,240,255";
+const MacOSTrafficLights = memo(function MacOSTrafficLights({
+  win, handleClose, handleMinimize, handleMaximize,
+}) {
+  const [groupHovered, setGroupHovered] = useState(false);
+
   return (
-    <motion.button
-      data-testid={testId}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title={label}
-      aria-label={label}
-      style={{
-        position: "relative", width: 22, height: 22,
-        background: "transparent", border: "none", cursor: "pointer", padding: 0,
-      }}
-      whileHover={{ scale: 1.22, filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 14px ${color}66)` }}
-      whileTap={{ scale: 0.82 }}
-      transition={{ type: "spring", stiffness: 500, damping: 22, mass: 0.3 }}
+    <div
+      className="flex items-center gap-[7px] flex-shrink-0"
+      onMouseEnter={() => setGroupHovered(true)}
+      onMouseLeave={() => setGroupHovered(false)}
+      style={{ paddingLeft: 4 }}
     >
-      <div style={{
-        position: "absolute", inset: 0, clipPath: HEX_CLIP,
-        background: hovered ? color : `rgba(${rgba},0.18)`,
-        transition: "background var(--transition-fast) ease",
-      }} />
-      <div style={{
-        position: "absolute", inset: 1.5, clipPath: HEX_CLIP,
-        background: hovered ? "rgba(0,0,0,0.40)" : "rgba(5,5,10,0.90)",
-        transition: "background var(--transition-fast) ease",
-      }} />
-      {hovered && (
-        <div style={{
-          position: "absolute", inset: 0, clipPath: HEX_CLIP,
-          background: "repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,0.04) 3px, rgba(255,255,255,0.04) 4px)",
-          backgroundSize: "16px 100%",
-          animation: "omni-hex-scan 0.6s linear infinite",
-        }} />
-      )}
-      <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 9, fontWeight: 700,
-        color: hovered ? "#000" : color,
-        fontFamily: "monospace", lineHeight: 1,
-        transition: "color var(--transition-fast) ease",
-        zIndex: 2, userSelect: "none",
-      }}>
-        {icon}
-      </div>
-    </motion.button>
+      {/* Close button - Red */}
+      <button
+        data-testid={`window-close-${win.app}`}
+        onClick={(e) => { e.stopPropagation(); handleClose(); }}
+        aria-label="Close window"
+        title="Close"
+        style={{
+          width: 12, height: 12, borderRadius: "50%",
+          background: "#FF5F56",
+          border: "0.5px solid rgba(224, 70, 62, 0.6)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", outline: "none", padding: 0,
+          transition: "transform 0.1s ease, filter 0.1s ease",
+        }}
+      >
+        <span style={{
+          fontSize: 8, fontWeight: 900, color: "rgba(75, 0, 0, 0.8)",
+          opacity: groupHovered ? 1 : 0, transition: "opacity 0.15s ease",
+          lineHeight: 1, userSelect: "none",
+        }}>
+          ✕
+        </span>
+      </button>
+
+      {/* Minimize button - Yellow */}
+      <button
+        data-testid={`window-min-${win.app}`}
+        onClick={(e) => { e.stopPropagation(); handleMinimize(); }}
+        aria-label="Minimize window"
+        title="Minimize"
+        style={{
+          width: 12, height: 12, borderRadius: "50%",
+          background: "#FFBD2E",
+          border: "0.5px solid rgba(222, 161, 35, 0.6)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", outline: "none", padding: 0,
+          transition: "transform 0.1s ease, filter 0.1s ease",
+        }}
+      >
+        <span style={{
+          fontSize: 10, fontWeight: 900, color: "rgba(100, 60, 0, 0.85)",
+          opacity: groupHovered ? 1 : 0, transition: "opacity 0.15s ease",
+          lineHeight: 1, userSelect: "none", marginTop: -2,
+        }}>
+          −
+        </span>
+      </button>
+
+      {/* Maximize button - Green */}
+      <button
+        data-testid={`window-max-${win.app}`}
+        onClick={(e) => { e.stopPropagation(); handleMaximize(); }}
+        aria-label="Maximize window"
+        title={win.maximized ? "Restore" : "Maximize"}
+        style={{
+          width: 12, height: 12, borderRadius: "50%",
+          background: "#27C93F",
+          border: "0.5px solid rgba(26, 171, 44, 0.6)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", outline: "none", padding: 0,
+          transition: "transform 0.1s ease, filter 0.1s ease",
+        }}
+      >
+        <span style={{
+          fontSize: 7, fontWeight: 900, color: "rgba(0, 70, 0, 0.85)",
+          opacity: groupHovered ? 1 : 0, transition: "opacity 0.15s ease",
+          lineHeight: 1, userSelect: "none",
+        }}>
+          {win.maximized ? "⤢" : "+"}
+        </span>
+      </button>
+    </div>
   );
 });
 
@@ -779,24 +814,13 @@ export default function Window({ win, children }) {
         onPointerCancel={onTitlebarPointerUp}
         onDoubleClick={handleMaximize}
       >
-        {/* Left — window controls */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <HexBtn
-            testId={`window-close-${win.app}`}
-            onClick={(e) => { e.stopPropagation(); handleClose(); }}
-            color="#FF003C" icon="✕" label="Close"
-          />
-          <HexBtn
-            testId={`window-min-${win.app}`}
-            onClick={(e) => { e.stopPropagation(); handleMinimize(); }}
-            color="#FCEE09" icon="−" label="Minimize"
-          />
-          <HexBtn
-            testId={`window-max-${win.app}`}
-            onClick={(e) => { e.stopPropagation(); handleMaximize(); }}
-            color="#39FF14" icon={win.maximized ? "⤢" : "⤡"} label={win.maximized ? "Restore" : "Maximize"}
-          />
-        </div>
+        {/* Left — macOS traffic light window controls */}
+        <MacOSTrafficLights
+          win={win}
+          handleClose={handleClose}
+          handleMinimize={handleMinimize}
+          handleMaximize={handleMaximize}
+        />
 
         {/* Center — app identity (absolutely centered) */}
         <div style={{
