@@ -1,19 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Sparkles, Layers, Info, ExternalLink, X } from 'lucide-react';
-
-let THREE;
-try {
-  THREE = require('three');
-} catch (e) {
-  THREE = null;
-}
-
-let CortexCore3D, AppConstellation3D, ScrollStorylineManager;
-if (THREE) {
-  CortexCore3D = require('./CortexCore3D').CortexCore3D;
-  AppConstellation3D = require('./AppConstellation3D').AppConstellation3D;
-  ScrollStorylineManager = require('./ScrollStorylineManager').ScrollStorylineManager;
-}
+import * as THREE from 'three';
+import { CortexCore3D } from './CortexCore3D';
+import { AppConstellation3D } from './AppConstellation3D';
+import { ScrollStorylineManager } from './ScrollStorylineManager';
 
 /**
  * Omniverse3DEngine — Master 3D Spatial Experience Engine for OmniverseOS 2.0.
@@ -28,10 +18,7 @@ export function Omniverse3DEngine({ scrollProgress = 0, onActiveAppSelect, highl
   const [currentStage, setCurrentStage] = useState({ title: 'THE OMNIVERSE', subtitle: 'A TRUE 3D AI Operating Environment' });
 
   useEffect(() => {
-    if (!canvasRef.current || !THREE) {
-      setWebGLError(true);
-      return;
-    }
+    if (!canvasRef.current) return;
 
     // WebGL Context Check
     try {

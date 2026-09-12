@@ -1,6 +1,11 @@
+import React from "react";
 import AuthScreen from "../components/AuthScreen";
 import AuthBackground from "../components/Auth/AuthBackground";
 import AuthCommandPalette from "../components/Auth/AuthCommandPalette";
+
+jest.mock("../components/3D/Omniverse3DEngine", () => ({
+  Omniverse3DEngine: () => <div data-testid="mock-3d-engine" />
+}));
 
 describe("AuthScreen Flagship Redesign Integration", () => {
   test("exports AuthScreen component function", () => {
