@@ -5,7 +5,9 @@
 // REACT_APP_RETICLE_TOKEN because REACT_APP_* is the only thing CRA inlines
 // into browser code.
 if (process.env.NODE_ENV === 'development') {
-  void import('@reticlehq/react').then(({ reticle, install }) => {
+  void import('@reticlehq/react').then((sdk) => {
+    // On its own line: CRA boilerplate prettier caps lines at 80.
+    const { reticle, install, registerCapabilities } = sdk;
     install();
     const token = process.env.REACT_APP_RETICLE_TOKEN ?? '';
     // Written by `reticle init` from the daemon that was live when it ran, and
@@ -27,9 +29,15 @@ if (process.env.NODE_ENV === 'development') {
     }
     // Still attempt it — a bridge running without a token pairs fine.
     reticle.connect({
-      projectId: 'frontend-4ecc9fb6',
+      projectId: 'frontend-f6e5d4b9',
       ...(url.length > 0 ? { url } : {}),
       ...(token.length > 0 ? { token } : {}),
+    });
+    // What the agent can drive without guessing.
+    registerCapabilities({
+      testids: ['adversary-app', 'chat-input', 'ai-chat-app', 'ai-chat-header', 'ai-chat-messages', 'ai-chat-input', 'chat-send', 'analytics-app', 'black-box-app', 'browser-app', 'browser-url-input', 'calendar-app', 'clipboard-app', 'clipboard-label', 'clipboard-input', 'clipboard-paste', 'clipboard-save', 'code-app', 'code-run', 'code-input', 'dashboard-app', 'discord-app', 'discord-input', 'files-app', 'new-folder', 'new-file', 'finance-app', 'txn-title', 'txn-amount', 'txn-add', 'imagegen-app', 'image-prompt', 'image-generate', 'memory-app', 'music-app', 'play-toggle', 'notes-app', 'notes-new', 'note-content', 'omniverse-zero-app', 'zero-input', 'settings-app', 'tasks-app', 'task-input', 'task-add', 'videos-app', 'video-player', 'voice-app', 'warroom-app', 'watchlist-app', 'context-chips', 'model-select', 'adaptive-dock', 'dock-app-drawer-trigger', 'app-drawer-backdrop', 'app-drawer', 'auth-screen', 'auth-form', 'auth-name-input', 'auth-email-input'],
+      signals: [], // names you pass to reticle.signal()
+      stores: [], // register a store above, then name its key here
     });
   });
 }

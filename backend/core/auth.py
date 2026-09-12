@@ -7,28 +7,18 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 from core.database import db
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "super-secret-key-change-me")
+JWT_SECRET = os.environ.get("JWT_SECRET") or "omniverseos-dev-do-not-use-in-prod"
 JWT_ALG = "HS256"
-JWT_EXP_HOURS = 24 * 30  # 30 days
+JWT_EXP_HOURS = 24 * 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
-
-def normalize_email(email: str) -> str:
-    if not email:
-        return ""
-    return str(email).lower().strip()
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain: str, hashed: str) -> bool:
-    if not plain or not hashed:
-        return False
-    try:
-        return pwd_context.verify(plain, hashed)
-    except Exception:
-        return False
+    return pwd_context.verify(plain, hashed)
 
 def create_token(user_id: str, email: str) -> str:
     payload = {

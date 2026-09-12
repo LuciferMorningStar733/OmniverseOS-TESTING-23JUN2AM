@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useOS } from "../../context/OSContext";
 import { getPreferredProvider, PROVIDER_LABELS } from "../../lib/api";
-import { getUserNickname } from "../../lib/userNickname";
 
 const QUICK_PROMPTS = [
   "What can you help me with?",
@@ -36,7 +35,7 @@ export default function CortexWidget() {
           className="font-heading font-bold leading-tight"
           style={{ fontSize: 18, color: "#fff" }}
         >
-          {greeting()}, {getUserNickname(user, "User")}.
+          {greeting()}, {user?.name?.split(" ")[0] || "User"}.
         </div>
         <div className="text-xs font-mono mt-0.5 flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.35)" }}>
           <span

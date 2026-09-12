@@ -98,30 +98,6 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
             )}
           </div>
 
-          {/* Live wallpaper badge */}
-          {wp.fx && (
-            <div style={{
-              position: "absolute", top: 8, left: 8,
-              padding: "2px 7px", borderRadius: 10,
-              background: "rgba(0, 240, 255, 0.16)",
-              border: "1px solid rgba(0, 240, 255, 0.4)",
-              color: "#00F0FF", fontSize: 8, fontWeight: 700,
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.08em",
-              display: "flex", alignItems: "center", gap: 4,
-              boxShadow: "0 0 10px rgba(0, 240, 255, 0.3)",
-              backdropFilter: "blur(4px)",
-            }}>
-              <span style={{
-                width: 4, height: 4, borderRadius: "50%",
-                background: "#39FF14",
-                boxShadow: "0 0 6px #39FF14",
-                animation: "pulse 1.2s ease-in-out infinite",
-              }} />
-              LIVE 60FPS
-            </div>
-          )}
-
           {/* Active checkmark */}
           <AnimatePresence>
             {active && (

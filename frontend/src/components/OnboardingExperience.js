@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { WALLPAPERS } from "../lib/wallpapers";
-import { setUserNickname } from "../lib/userNickname";
 
 export const ONBOARDING_KEY = "omniverse_onboarding_v1_done";
 
@@ -152,7 +151,7 @@ function NameInput({ accent, onNext, onNameSet }) {
   const [focused, setFocused] = useState(false);
   const handleNext = () => {
     if (name.trim()) {
-      setUserNickname(name.trim());
+      try { localStorage.setItem("omniverse_user_name", name.trim()); } catch {}
       onNameSet?.(name.trim());
       onNext();
     }

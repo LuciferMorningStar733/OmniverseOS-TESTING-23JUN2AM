@@ -555,3 +555,27 @@ ${fullContext || "New user session."}
 Disclaimer: Remind the user this is a trajectory simulation, not a guaranteed prediction.
 Respond in the first person ("Looking back from 6 months ahead..."). Provide strategic, wise advice.`;
 }
+
+/**
+ * Real AI-driven Scenario Simulation through the backend Digital Twin engine
+ */
+export async function runLiveMirrorSimulation(scenario, timeHorizon = "future", assumptions = [], context = null) {
+  const ctx = context || getAggregatedUserData();
+  try {
+    const { cognitiveApi } = await import("./api");
+    const result = await cognitiveApi.simulateMirror({
+      scenario,
+      timeHorizon,
+      assumptions,
+      context: {
+        memories: (ctx.memories || []).slice(0, 10),
+        tasks: (ctx.tasks || []).slice(0, 10),
+        notes: (ctx.notes || []).slice(0, 5),
+      },
+    });
+    return result;
+  } catch (err) {
+    console.warn("[MirrorEngine] Backend AI simulation failed, using grounded fallback:", err);
+    return getParallelLifeSimulator(scenario).simulatedBranch;
+  }
+}

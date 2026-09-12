@@ -1,8 +1,10 @@
-import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from routers.tts import router, _tts_cache_set, _tts_cache_get, _tts_cache_key
 
-client = TestClient(router)
+app = FastAPI()
+app.include_router(router)
+client = TestClient(app)
 
 def test_tts_cache_set_and_get():
     key = _tts_cache_key("hello world", "Kore")

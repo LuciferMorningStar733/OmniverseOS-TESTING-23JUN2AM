@@ -424,13 +424,12 @@ class ProviderManager(AIProvider):
 
     async def generate_text_background(self, prompt: str, system: str = "") -> str:
         """
-        Non-streaming text generation for background tasks (e.g. Cortex Interrupts).
-        Tries Cerebras → Groq → Gemini in that order to preserve Gemini quota
-        for foreground chat and Ghost Writing workflows.
+        Non-streaming text generation for background tasks and fallback single-shot generation.
+        Tries Cerebras → Groq → DeepSeek → Gemini → OpenRouter.
         """
         self.init()
         # Background-safe order: fast/generous free-tier providers first
-        bg_order = ["cerebras", "groq", "gemini"]
+        bg_order = ["cerebras", "groq", "deepseek", "gemini", "openrouter"]
         last_error = None
 
         for provider in bg_order:
@@ -456,17 +455,32 @@ class ProviderManager(AIProvider):
                         PROVIDER_DEFAULTS["groq"],
                         prompt, system,
                     )
-                else:  # gemini fallback
+                elif provider == "deepseek":
+                    text = await self._call_openai_compat_text(
+                        "https://api.deepseek.com",
+                        self._deepseek_key,
+                        PROVIDER_DEFAULTS["deepseek"],
+                        prompt, system,
+                    )
+                elif provider == "openrouter":
+                    text = await self._call_openai_compat_text(
+                        "https://openrouter.ai/api/v1",
+                        self._openrouter_key,
+                        PROVIDER_DEFAULTS["openrouter"],
+                        prompt, system,
+                    )
+                elif provider == "gemini" and self._gemini_client:
                     resp = await self._gemini_client.aio.models.generate_content(
                         model="gemini-2.0-flash-lite",
                         contents=prompt,
                     )
                     text = resp.text or ""
+                else:
+                    continue
 
                 if not text or not text.strip():
                     # Empty response — treat as failure and try next provider
                     logger.warning("[Cortex] Background provider %s returned empty output, trying next", provider)
-                    print(f"Primary engine failed. Routing prompt to fallback provider...")
                     self.health[provider].mark_error()
                     continue
 
@@ -477,12 +491,20 @@ class ProviderManager(AIProvider):
             except Exception as e:
                 err_str = str(e)
                 logger.warning("[Cortex] Background provider %s failed: %s", provider, err_str)
-                print(f"Primary engine failed. Routing prompt to fallback provider...")
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
                     self.health[provider].mark_rate_limited()
                 else:
                     self.health[provider].mark_error()
                 last_error = e
+
+        # Fallback to litellm_complete if available
+        try:
+            from litellm_router import litellm_complete
+            l_text = await litellm_complete(self.PROVIDER_ORDER, prompt, system)
+            if l_text and l_text.strip():
+                return l_text
+        except Exception as l_err:
+            logger.debug("[Cortex] LiteLLM fallback check: %s", l_err)
 
         logger.error("[Cortex] All background providers exhausted: %s", last_error)
         return ""
@@ -495,14 +517,12 @@ class ProviderManager(AIProvider):
         max_tokens: int = 512,
     ) -> str:
         """
-        Single non-streaming generation with an explicit model choice.
-
-        Tries the Gemini client first (supports arbitrary model names).
-        Falls back to generate_text_background if Gemini is unavailable or
-        returns an empty response.
+        Single non-streaming generation with an explicit model choice or multi-provider fallback.
         """
         self.init()
-        if self._gemini_client:
+
+        # If model belongs to Gemini (e.g. "gemini-2.5-flash", "gemini-2.5-pro")
+        if "gemini" in model.lower() and self._gemini_client:
             try:
                 config_kwargs: dict = {}
                 if system:
@@ -520,7 +540,44 @@ class ProviderManager(AIProvider):
                 logger.warning("[AIService] generate_once Gemini returned empty for model=%s, falling back", model)
             except Exception as exc:
                 logger.warning("[AIService] generate_once Gemini failed for model=%s: %s", model, exc)
-        # Fallback: background provider pool (Cerebras → Groq → Gemini)
+
+        # If model belongs to DeepSeek
+        elif "deepseek" in model.lower() and self._has_key("deepseek"):
+            try:
+                return await self._call_openai_compat_text(
+                    "https://api.deepseek.com",
+                    self._deepseek_key,
+                    model if model != "deepseek" else PROVIDER_DEFAULTS["deepseek"],
+                    message, system
+                )
+            except Exception as exc:
+                logger.warning("[AIService] generate_once DeepSeek failed: %s", exc)
+
+        # If model belongs to Groq
+        elif ("groq" in model.lower() or "llama" in model.lower()) and self._has_key("groq"):
+            try:
+                return await self._call_openai_compat_text(
+                    "https://api.groq.com/openai/v1",
+                    self._groq_key,
+                    model if "llama" in model else PROVIDER_DEFAULTS["groq"],
+                    message, system
+                )
+            except Exception as exc:
+                logger.warning("[AIService] generate_once Groq failed: %s", exc)
+
+        # If model belongs to Cerebras
+        elif "cerebras" in model.lower() and self._has_key("cerebras"):
+            try:
+                return await self._call_openai_compat_text(
+                    "https://api.cerebras.ai/v1",
+                    self._cerebras_key,
+                    model if "llama" in model else PROVIDER_DEFAULTS["cerebras"],
+                    message, system
+                )
+            except Exception as exc:
+                logger.warning("[AIService] generate_once Cerebras failed: %s", exc)
+
+        # Multi-provider cascade fallback (Cerebras → Groq → DeepSeek → Gemini → OpenRouter)
         return await self.generate_text_background(message, system)
 
     def provider_statuses(self) -> dict:

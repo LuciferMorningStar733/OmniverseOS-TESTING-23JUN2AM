@@ -1,90 +1,78 @@
-// WallpaperFX.js — Living canvas wallpaper visual engines for OmniverseOS
-// Multi-layered GPU-accelerated canvas physics with interactive cursor proximity
+// WallpaperFX.js — Canvas-based living wallpaper animations for OmniverseOS
+// Six distinct effects: matrix | circuit | neural | radar | hologram | plasma
 
 import React, { useEffect, useRef } from "react";
 
 const CHARS = "01アイウエオカキクケコサシスセソタチツテトナニヌネノ日ABCDEFabcdef<>{}[]!@#$%^&*";
 const HEX   = "0123456789ABCDEF";
 
-function hex2(n) {
-  return Math.floor(Math.max(0, Math.min(255, n))).toString(16).padStart(2, "0");
-}
+// ── hex() helper ──────────────────────────────────────────────────────────────
+function hex2(n) { return Math.floor(Math.max(0, Math.min(255, n))).toString(16).padStart(2, "0"); }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 1. MATRIX RAIN ENGINE
+// EFFECT: MATRIX RAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 class MatrixRain {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.fs = 14;
+    this.fs = 13;
     this.reset(W, H);
   }
   reset(W, H) {
     this.cols = Math.ceil(W / this.fs);
     this.drops  = Array.from({ length: this.cols }, () => -(Math.random() * 40));
-    this.speeds = Array.from({ length: this.cols }, () => 0.45 + Math.random() * 0.85);
+    this.speeds = Array.from({ length: this.cols }, () => 0.35 + Math.random() * 0.75);
     this.chars  = Array.from({ length: this.cols }, () => CHARS[Math.floor(Math.random() * CHARS.length)]);
-    this.bright = Array.from({ length: this.cols }, () => Math.random() < 0.2);
+    this.bright = Array.from({ length: this.cols }, () => Math.random() < 0.15);
   }
-  draw(ctx, W, H, t, mouse) {
-    ctx.fillStyle = "rgba(4, 6, 12, 0.08)";
+  draw(ctx, W, H) {
+    ctx.fillStyle = "rgba(0,0,0,0.055)";
     ctx.fillRect(0, 0, W, H);
     ctx.font = `bold ${this.fs}px 'JetBrains Mono', monospace`;
 
     for (let i = 0; i < this.cols; i++) {
-      if (Math.random() < 0.03) this.chars[i] = CHARS[Math.floor(Math.random() * CHARS.length)];
+      if (Math.random() < 0.025) this.chars[i] = CHARS[Math.floor(Math.random() * CHARS.length)];
       const x = i * this.fs;
-      let y = this.drops[i] * this.fs;
+      const y = this.drops[i] * this.fs;
 
-      // Mouse proximity repulsion
-      if (mouse.x > 0) {
-        const dx = x - mouse.x;
-        const dy = y - mouse.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
-          const force = (1 - dist / 120) * 15;
-          y += (dy / (dist || 1)) * force;
-        }
-      }
-
-      // Leading glyph — pure white with intense glow
+      // Leading glyph — pure white with accent glow
       if (y >= 0 && y < H) {
         ctx.shadowColor  = this.accent;
-        ctx.shadowBlur   = this.bright[i] ? 16 : 8;
-        ctx.fillStyle    = this.bright[i] ? "#FFFFFF" : this.accent;
+        ctx.shadowBlur   = this.bright[i] ? 14 : 6;
+        ctx.fillStyle    = this.bright[i] ? "#FFFFFF" : this.accent + "EE";
         ctx.fillText(this.chars[i], x, y);
         ctx.shadowBlur   = 0;
       }
 
-      // Fading tail
-      const trailLen = 16 + Math.floor(Math.random() * 8);
+      // Trail — fading accent color
+      const trailLen = 14 + Math.floor(Math.random() * 6);
       for (let j = 1; j < trailLen; j++) {
         const ty = y - j * this.fs;
         if (ty < -this.fs || ty > H) continue;
         const alpha = 1 - j / trailLen;
-        ctx.fillStyle = this.accent + hex2(alpha * 200);
+        ctx.fillStyle = this.accent + hex2(alpha * 180);
         ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], x, ty);
       }
 
       this.drops[i] += this.speeds[i];
-      if (this.drops[i] * this.fs > H + 20 && Math.random() > 0.975) {
+      if (this.drops[i] * this.fs > H + 20 && Math.random() > 0.975)
         this.drops[i] = -(5 + Math.random() * 25);
-      }
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. CIRCUIT SPARKS ENGINE
+// EFFECT: CIRCUIT SPARKS
 // ═══════════════════════════════════════════════════════════════════════════════
 class CircuitSparks {
   constructor(W, H, accent) {
     this.accent = accent;
     this.sparks = [];
+    this.glitch = 0;
     this.init(W, H);
   }
   init(W, H) {
-    const GX = 16, GY = 10;
+    const GX = 14, GY = 8;
     const px = W * 0.04, py = H * 0.08;
     const sx = (W - px * 2) / (GX - 1);
     const sy = (H - py * 2) / (GY - 1);
@@ -93,88 +81,95 @@ class CircuitSparks {
     for (let gy = 0; gy < GY; gy++) {
       for (let gx = 0; gx < GX; gx++) {
         this.nodes.push({
-          x: px + gx * sx + (Math.random() - 0.5) * sx * 0.3,
-          y: py + gy * sy + (Math.random() - 0.5) * sy * 0.3,
+          x: px + gx * sx + (Math.random() - 0.5) * sx * 0.28,
+          y: py + gy * sy + (Math.random() - 0.5) * sy * 0.28,
           pulse: Math.random() * Math.PI * 2,
+          lit: false,
           litTimer: 0,
         });
       }
     }
     this.edges = [];
     for (let i = 0; i < this.nodes.length; i++) {
-      if (i % GX < GX - 1 && Math.random() < 0.75) this.edges.push([i, i + 1]);
-      if (i + GX < this.nodes.length && Math.random() < 0.65) this.edges.push([i, i + GX]);
+      if (i % GX < GX - 1 && Math.random() < 0.72) this.edges.push([i, i + 1]);
+      if (i + GX < this.nodes.length && Math.random() < 0.62) this.edges.push([i, i + GX]);
+      if (i % GX < GX - 1 && i + GX + 1 < this.nodes.length && Math.random() < 0.18)
+        this.edges.push([i, i + GX + 1]);
     }
   }
   spawnSpark() {
-    if (this.sparks.length >= 45 || !this.edges.length) return;
+    if (this.sparks.length >= 40 || !this.edges.length) return;
     const e = this.edges[Math.floor(Math.random() * this.edges.length)];
-    this.sparks.push({ e, p: 0, spd: 0.01 + Math.random() * 0.02, trail: [] });
+    this.sparks.push({ e, p: 0, spd: 0.007 + Math.random() * 0.016, trail: [] });
   }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
 
-    // Dim circuit lines
-    ctx.lineWidth = 0.8;
+    // Dim base grid lines
+    ctx.lineWidth = 0.7;
     for (const [a, b] of this.edges) {
       const na = this.nodes[a], nb = this.nodes[b];
       ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
-      ctx.strokeStyle = this.accent + "1C"; ctx.stroke();
+      ctx.strokeStyle = this.accent + "14"; ctx.stroke();
     }
 
     // Nodes
     for (const n of this.nodes) {
-      n.pulse += 0.03;
+      n.pulse += 0.028;
       if (n.litTimer > 0) n.litTimer -= 0.03;
-      let r = 2.5 + Math.sin(n.pulse) * 0.9;
-
-      // Mouse proximity interaction
-      if (mouse.x > 0) {
-        const d = Math.hypot(n.x - mouse.x, n.y - mouse.y);
-        if (d < 140) {
-          n.litTimer = Math.max(n.litTimer, (1 - d / 140));
-          r += (1 - d / 140) * 3;
-        }
-      }
-
+      const r = 2.2 + Math.sin(n.pulse) * 0.8;
       ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      const alpha = n.litTimer > 0 ? 0.95 : 0.25;
+      const alpha = n.litTimer > 0 ? 0.9 : 0.22;
       ctx.fillStyle = this.accent + hex2(alpha * 255);
-      if (n.litTimer > 0) {
-        ctx.shadowColor = this.accent;
-        ctx.shadowBlur = 12 * n.litTimer;
-      }
+      if (n.litTimer > 0) { ctx.shadowColor = this.accent; ctx.shadowBlur = 10; }
       ctx.fill(); ctx.shadowBlur = 0;
     }
 
-    if (Math.random() < 0.16) this.spawnSpark();
+    // Spawn
+    if (Math.random() < 0.14) this.spawnSpark();
 
+    // Draw sparks
     this.sparks = this.sparks.filter((s) => {
       const na = this.nodes[s.e[0]], nb = this.nodes[s.e[1]];
+      s.trail.push({ x: na.x + (nb.x - na.x) * s.p, y: na.y + (nb.y - na.y) * s.p });
+      if (s.trail.length > 12) s.trail.shift();
       const cx = na.x + (nb.x - na.x) * s.p;
       const cy = na.y + (nb.y - na.y) * s.p;
 
-      s.trail.push({ x: cx, y: cy });
-      if (s.trail.length > 14) s.trail.shift();
-
+      // Lit edge behind spark
       ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(cx, cy);
-      ctx.strokeStyle = this.accent + "AA"; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.strokeStyle = this.accent + "88"; ctx.lineWidth = 1.4; ctx.stroke();
 
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
-      g.addColorStop(0, "#FFFFFF");
-      g.addColorStop(0.4, this.accent + "FF");
-      g.addColorStop(1, "transparent");
-      ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+      // Trail fade
+      for (let i = 0; i < s.trail.length - 1; i++) {
+        const alpha = (i / s.trail.length) * 0.55;
+        ctx.beginPath(); ctx.moveTo(s.trail[i].x, s.trail[i].y); ctx.lineTo(s.trail[i+1].x, s.trail[i+1].y);
+        ctx.strokeStyle = this.accent + hex2(alpha * 255); ctx.lineWidth = 1; ctx.stroke();
+      }
+
+      // Spark head glow
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 10);
+      g.addColorStop(0, this.accent + "FF"); g.addColorStop(0.5, this.accent + "60"); g.addColorStop(1, "transparent");
+      ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
 
       s.p += s.spd;
-      if (s.p >= 1) { this.nodes[s.e[1]].litTimer = 1.0; return false; }
+      if (s.p >= 1) { const n = this.nodes[s.e[1]]; n.lit = true; n.litTimer = 1.0; return false; }
       return true;
     });
+
+    // Occasional glitch bar
+    if (Math.random() < 0.018) {
+      try {
+        const gy = Math.random() * H; const gh = 2 + Math.random() * 6;
+        const d = ctx.getImageData(0, gy, W, gh);
+        ctx.putImageData(d, (Math.random() - 0.5) * 36, gy);
+      } catch {}
+    }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 3. NEURAL PULSES ENGINE
+// EFFECT: NEURAL PULSES
 // ═══════════════════════════════════════════════════════════════════════════════
 class NeuralPulses {
   constructor(W, H, accent) {
@@ -184,45 +179,49 @@ class NeuralPulses {
     this.init(W, H);
   }
   init(W, H) {
-    const N = 32;
+    const N = 26;
     this.nodes = Array.from({ length: N }, () => ({
-      x: W * 0.05 + Math.random() * W * 0.9,
-      y: H * 0.06 + Math.random() * H * 0.88,
-      r: 3.5 + Math.random() * 4,
+      x: W * 0.06 + Math.random() * W * 0.88,
+      y: H * 0.08 + Math.random() * H * 0.84,
+      r: 3.5 + Math.random() * 4.5,
       phase: Math.random() * Math.PI * 2,
-      speed: 0.02 + Math.random() * 0.03,
+      speed: 0.018 + Math.random() * 0.03,
       firing: false, fire: 0,
     }));
     this.links = [];
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        const d = Math.hypot(this.nodes[i].x - this.nodes[j].x, this.nodes[i].y - this.nodes[j].y);
-        if (d < W * 0.28 && Math.random() < 0.55) this.links.push([i, j, d]);
+    const N2 = this.nodes.length;
+    for (let i = 0; i < N2; i++) {
+      for (let j = i + 1; j < N2; j++) {
+        const dx = this.nodes[i].x - this.nodes[j].x;
+        const dy = this.nodes[i].y - this.nodes[j].y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < W * 0.30 && Math.random() < 0.52) this.links.push([i, j, d]);
       }
     }
   }
   fire(i) {
-    const n = this.nodes[i]; if (!n || n.firing) return;
+    const n = this.nodes[i]; if (n.firing) return;
     n.firing = true; n.fire = 1.0;
     for (const [a, b] of this.links) {
       if (a === i || b === i) {
         const tgt = a === i ? b : a;
-        setTimeout(() => { if (this.nodes[tgt]) this.fire(tgt); }, 200 + Math.random() * 350);
-        this.pulses.push({ from: i, to: tgt, p: 0, spd: 0.006 + Math.random() * 0.01 });
+        const delay = 250 + Math.random() * 450;
+        setTimeout(() => { if (this.nodes[tgt]) this.fire(tgt); }, delay);
+        this.pulses.push({ from: i, to: tgt, p: 0, spd: 0.004 + Math.random() * 0.009 });
       }
     }
   }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
     this.t += 0.016;
-    if (Math.random() < 0.01) this.fire(Math.floor(Math.random() * this.nodes.length));
+    if (Math.random() < 0.007) this.fire(Math.floor(Math.random() * this.nodes.length));
 
     // Links
     for (const [a, b, d] of this.links) {
       const na = this.nodes[a], nb = this.nodes[b];
-      let alpha = Math.max(0.05, 0.24 - d / (W * 1.5));
+      const alpha = Math.max(0.04, 0.22 - d / (W * 1.8));
       ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
-      ctx.strokeStyle = this.accent + hex2(alpha * 255); ctx.lineWidth = 0.6; ctx.stroke();
+      ctx.strokeStyle = this.accent + hex2(alpha * 255); ctx.lineWidth = 0.55; ctx.stroke();
     }
 
     // Pulses
@@ -230,9 +229,12 @@ class NeuralPulses {
       const na = this.nodes[p.from], nb = this.nodes[p.to]; if (!na || !nb) return false;
       const px = na.x + (nb.x - na.x) * p.p;
       const py = na.y + (nb.y - na.y) * p.p;
-      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(px, py, 4.5, 0, Math.PI * 2);
       ctx.fillStyle = this.accent; ctx.shadowColor = this.accent; ctx.shadowBlur = 14;
       ctx.fill(); ctx.shadowBlur = 0;
+      // Lit edge
+      ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(px, py);
+      ctx.strokeStyle = this.accent + "55"; ctx.lineWidth = 1; ctx.stroke();
       p.p += p.spd;
       return p.p < 1;
     });
@@ -240,287 +242,274 @@ class NeuralPulses {
     // Nodes
     for (const n of this.nodes) {
       n.phase += n.speed;
-      if (n.firing) { n.fire -= 0.025; if (n.fire <= 0) n.firing = false; }
-
-      // Mouse attraction & pulse trigger
-      if (mouse.x > 0) {
-        const md = Math.hypot(n.x - mouse.x, n.y - mouse.y);
-        if (md < 100 && Math.random() < 0.05) this.fire(this.nodes.indexOf(n));
-      }
-
+      if (n.firing) { n.fire -= 0.022; if (n.fire <= 0) n.firing = false; }
       const scale = n.firing ? 1 + n.fire * 2.2 : 1;
       const r = n.r * scale;
       const pulse = Math.sin(n.phase) * 0.5 + 0.5;
 
-      if (n.firing || pulse > 0.7) {
-        const gr = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 4);
-        gr.addColorStop(0, this.accent + hex2((n.firing ? 0.8 : 0.4) * 255));
+      if (n.firing || pulse > 0.75) {
+        const gr = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 4.5);
+        gr.addColorStop(0, this.accent + hex2((n.firing ? 0.7 : 0.35) * 255));
         gr.addColorStop(1, "transparent");
-        ctx.beginPath(); ctx.arc(n.x, n.y, r * 4, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
+        ctx.beginPath(); ctx.arc(n.x, n.y, r * 4.5, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
       }
       ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = n.firing ? "#FFFFFF" : this.accent + hex2((0.6 + pulse * 0.4) * 255);
+      ctx.fillStyle = n.firing ? "#FFFFFF" : this.accent + hex2((0.55 + pulse * 0.45) * 255);
       ctx.fill();
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 4. NEURAL SINGULARITY ENGINE (BLACK HOLE GRAVITY WELL)
+// EFFECT: RADAR SWEEP
 // ═══════════════════════════════════════════════════════════════════════════════
-class SingularityFX {
+class RadarSweep {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.particles = [];
+    this.angle = 0;
     this.init(W, H);
   }
   init(W, H) {
-    this.cx = W / 2;
-    this.cy = H / 2;
-    const count = 180;
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 60 + Math.random() * Math.max(W, H) * 0.45;
-      this.particles.push({
-        angle,
-        dist,
-        speed: 0.005 + Math.random() * 0.015,
-        radialSpeed: 0.2 + Math.random() * 0.8,
-        size: 1 + Math.random() * 2.5,
-        alpha: 0.2 + Math.random() * 0.8,
-      });
-    }
-  }
-  draw(ctx, W, H, t, mouse) {
-    ctx.fillStyle = "rgba(3, 4, 8, 0.15)";
-    ctx.fillRect(0, 0, W, H);
-
-    let targetCx = W / 2;
-    let targetCy = H / 2;
-    if (mouse.x > 0) {
-      targetCx += (mouse.x - W / 2) * 0.12;
-      targetCy += (mouse.y - H / 2) * 0.12;
-    }
-    this.cx += (targetCx - this.cx) * 0.05;
-    this.cy += (targetCy - this.cy) * 0.05;
-
-    // Black hole core & event horizon
-    const coreR = 48 + Math.sin(t * 0.05) * 6;
-    const coreGlow = ctx.createRadialGradient(this.cx, this.cy, coreR * 0.5, this.cx, this.cy, coreR * 3.5);
-    coreGlow.addColorStop(0, "#000000");
-    coreGlow.addColorStop(0.3, "rgba(0,0,0,0.95)");
-    coreGlow.addColorStop(0.65, this.accent + "88");
-    coreGlow.addColorStop(1, "transparent");
-    ctx.beginPath(); ctx.arc(this.cx, this.cy, coreR * 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = coreGlow; ctx.fill();
-
-    // Event horizon ring
-    ctx.beginPath(); ctx.arc(this.cx, this.cy, coreR, 0, Math.PI * 2);
-    ctx.strokeStyle = this.accent; ctx.lineWidth = 3;
-    ctx.shadowColor = this.accent; ctx.shadowBlur = 24;
-    ctx.stroke(); ctx.shadowBlur = 0;
-
-    // Orbiting particles
-    for (const p of this.particles) {
-      p.angle += p.speed * (150 / Math.max(30, p.dist));
-      p.dist -= p.radialSpeed;
-      if (p.dist < coreR * 0.8) {
-        p.dist = 80 + Math.random() * Math.max(W, H) * 0.45;
-        p.angle = Math.random() * Math.PI * 2;
-      }
-
-      const px = this.cx + Math.cos(p.angle) * p.dist;
-      const py = this.cy + Math.sin(p.angle) * (p.dist * 0.55);
-
-      ctx.beginPath(); ctx.arc(px, py, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = this.accent + hex2(p.alpha * 255);
-      ctx.fill();
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 5. FLUID AURORA RIBBON ENGINE
-// ═══════════════════════════════════════════════════════════════════════════════
-class AuroraRibbonFX {
-  constructor(W, H, accent) {
-    this.accent = accent;
-    this.t = 0;
-  }
-  draw(ctx, W, H, t, mouse) {
-    ctx.clearRect(0, 0, W, H);
-    this.t += 0.012;
-
-    const layers = [
-      { color: this.accent, alpha: 0.15, speed: 1.0, waveHeight: 90 },
-      { color: "#A855F7", alpha: 0.12, speed: 0.8, waveHeight: 120 },
-      { color: "#39FF14", alpha: 0.10, speed: 1.3, waveHeight: 70 },
+    const cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.38;
+    this.cx = cx; this.cy = cy; this.r = r;
+    this.blips = Array.from({ length: 9 }, () => {
+      const a = Math.random() * Math.PI * 2, d = 0.12 + Math.random() * 0.88;
+      return { x: cx + Math.cos(a) * r * d, y: cy + Math.sin(a) * r * d, life: 0, sz: 1.5 + Math.random() * 2 };
+    });
+    this.hud = [
+      { x: W * 0.03, y: H * 0.07,  lines: ["SYSTEM ONLINE", "CORTEX v3.8", "AI CORE: ACTIVE"] },
+      { x: W * 0.03, y: H * 0.86,  lines: ["SECTOR: Ω-7", "LAT 31.2°N", "LON 121.5°E"] },
+      { x: W * 0.74, y: H * 0.07,  lines: ["THREATS: 0", "UPTIME: 99.97%", "ENC: AES-4096"] },
+      { x: W * 0.74, y: H * 0.86,  lines: ["SIGNAL: ████ 100%", "FREQ: 2.4GHz", "NET: SECURE"] },
     ];
+    this.dataStream = Array.from({ length: 6 }, (_, i) => ({
+      y: H * (0.15 + i * 0.12), val: Array.from({ length: 24 }, () => HEX[Math.floor(Math.random() * 16)]).join(" "),
+      timer: Math.random() * 60,
+    }));
+  }
+  draw(ctx, W, H, t) {
+    ctx.clearRect(0, 0, W, H);
+    const { cx, cy, r } = this;
+    this.angle += 0.011;
 
-    let mouseShift = 0;
-    if (mouse.x > 0) mouseShift = (mouse.x / W - 0.5) * 60;
-
-    for (let l = 0; l < layers.length; l++) {
-      const layer = layers[l];
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-
-      for (let x = 0; x <= W; x += 25) {
-        const sin1 = Math.sin((x * 0.003) + this.t * layer.speed + l * 2 + mouseShift * 0.02);
-        const sin2 = Math.cos((x * 0.006) - this.t * 0.7 * layer.speed);
-        const y = H * 0.45 + sin1 * layer.waveHeight + sin2 * 35;
-        ctx.lineTo(x, y);
-      }
-
-      ctx.lineTo(W, H);
-      ctx.closePath();
-
-      const grad = ctx.createLinearGradient(0, H * 0.2, 0, H);
-      grad.addColorStop(0, layer.color + hex2(layer.alpha * 255));
-      grad.addColorStop(0.5, layer.color + hex2(layer.alpha * 120));
-      grad.addColorStop(1, "transparent");
-
-      ctx.fillStyle = grad;
-      ctx.fill();
+    // Range rings
+    ctx.setLineDash([4, 6]);
+    for (let i = 1; i <= 4; i++) {
+      ctx.beginPath(); ctx.arc(cx, cy, r * i / 4, 0, Math.PI * 2);
+      ctx.strokeStyle = this.accent + hex2(i === 4 ? 50 : 28); ctx.lineWidth = 0.9; ctx.stroke();
     }
+    ctx.setLineDash([]);
+
+    // Cross-hairs
+    ctx.strokeStyle = this.accent + "1A"; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+
+    // Sweep fill (cone trail)
+    const sweepLen = Math.PI / 2.2;
+    for (let step = 0; step < 64; step++) {
+      const a = this.angle - (step / 64) * sweepLen;
+      const alpha = (1 - step / 64) * 0.42;
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, a, a + 0.06); ctx.closePath();
+      ctx.fillStyle = this.accent + hex2(alpha * 255); ctx.fill();
+    }
+
+    // Sweep arm
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(this.angle) * r, cy + Math.sin(this.angle) * r);
+    ctx.strokeStyle = this.accent; ctx.lineWidth = 1.6;
+    ctx.shadowColor = this.accent; ctx.shadowBlur = 16; ctx.stroke(); ctx.shadowBlur = 0;
+
+    // Blips
+    for (const b of this.blips) {
+      const ba = Math.atan2(b.y - cy, b.x - cx);
+      const diff = ((this.angle - ba) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+      if (diff < 0.09) b.life = 1;
+      if (b.life > 0) {
+        b.life -= 0.004;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.sz + (1 - b.life) * 8, 0, Math.PI * 2);
+        ctx.fillStyle = this.accent + hex2(b.life * 180); ctx.fill();
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.sz, 0, Math.PI * 2);
+        ctx.fillStyle = "#FFFFFF"; ctx.fill();
+      }
+    }
+
+    // HUD text
+    ctx.font = "9px 'JetBrains Mono', monospace";
+    ctx.fillStyle = this.accent + "65";
+    for (const h of this.hud) h.lines.forEach((l, i) => ctx.fillText(l, h.x, h.y + i * 14));
+
+    // Data stream lines (random hex)
+    ctx.font = "8px 'JetBrains Mono', monospace";
+    for (const ds of this.dataStream) {
+      ds.timer++;
+      if (ds.timer % 18 === 0) ds.val = Array.from({ length: 24 }, () => HEX[Math.floor(Math.random() * 16)]).join(" ");
+      ctx.fillStyle = this.accent + "30";
+      ctx.fillText(ds.val, W * 0.03, ds.y);
+    }
+
+    // Full-width scan line
+    const sy = (t * 0.45 % H);
+    const sg = ctx.createLinearGradient(0, sy - 24, 0, sy + 4);
+    sg.addColorStop(0, "transparent"); sg.addColorStop(1, this.accent + "18");
+    ctx.fillStyle = sg; ctx.fillRect(0, sy - 24, W, 28);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 6. 3D CYBER GRID ENGINE (INFINITE SCROLLING SYNTHWAVE GRID)
+// EFFECT: HOLOGRAM
 // ═══════════════════════════════════════════════════════════════════════════════
-class CyberGrid3DFX {
+class Hologram {
   constructor(W, H, accent) {
     this.accent = accent;
-    this.offsetY = 0;
+    this.scanY = 0;
+    this.dataLines = Array.from({ length: 28 }, () => ({
+      x: Math.random() * W * 0.78 + W * 0.11,
+      y: Math.random() * H,
+      spd: 0.4 + Math.random() * 1.8,
+      txt: Array.from({ length: 12 }, () => HEX[Math.floor(Math.random() * 16)]).join(""),
+      life: Math.random(),
+    }));
+    this.cornerSize = 28;
+    this.init(W, H);
   }
-  draw(ctx, W, H, t, mouse) {
+  init(W, H) {
+    this.W = W; this.H = H;
+    this.corners = [[22, 22, 1, 1], [W - 22, 22, -1, 1], [22, H - 22, 1, -1], [W - 22, H - 22, -1, -1]];
+  }
+  draw(ctx, W, H, t) {
     ctx.clearRect(0, 0, W, H);
-    this.offsetY = (this.offsetY + 1.2) % 40;
 
-    const horizon = H * 0.52;
-    const fov = 320;
+    // CRT scanline overlay (every 4px)
+    for (let y = 0; y < H; y += 4) {
+      ctx.fillStyle = "rgba(0,0,0,0.028)"; ctx.fillRect(0, y, W, 2);
+    }
 
-    // Horizon glowing sun / aura
-    const sunGrad = ctx.createRadialGradient(W / 2, horizon, 0, W / 2, horizon, 220);
-    sunGrad.addColorStop(0, this.accent + "55");
-    sunGrad.addColorStop(0.4, this.accent + "18");
-    sunGrad.addColorStop(1, "transparent");
-    ctx.fillStyle = sunGrad;
-    ctx.fillRect(0, horizon - 220, W, 440);
+    // Moving horizontal scan beam
+    this.scanY = (this.scanY + 0.9) % H;
+    const sg = ctx.createLinearGradient(0, this.scanY - 50, 0, this.scanY + 6);
+    sg.addColorStop(0, "transparent");
+    sg.addColorStop(0.65, this.accent + "0E");
+    sg.addColorStop(1, this.accent + "2A");
+    ctx.fillStyle = sg; ctx.fillRect(0, this.scanY - 50, W, 56);
 
-    // Horizon line
-    ctx.beginPath(); ctx.moveTo(0, horizon); ctx.lineTo(W, horizon);
-    ctx.strokeStyle = this.accent; ctx.lineWidth = 2;
-    ctx.shadowColor = this.accent; ctx.shadowBlur = 14; ctx.stroke(); ctx.shadowBlur = 0;
+    // Floating data lines
+    ctx.font = "9px 'JetBrains Mono', monospace";
+    for (const dl of this.dataLines) {
+      dl.y -= dl.spd; dl.life += 0.006;
+      if (dl.y < -16 || dl.life > 1) {
+        dl.y = H + 16; dl.x = Math.random() * W * 0.78 + W * 0.11;
+        dl.txt = Array.from({ length: 14 }, () => HEX[Math.floor(Math.random() * 16)]).join("");
+        dl.life = 0;
+      }
+      const alpha = Math.sin(dl.life * Math.PI);
+      ctx.fillStyle = this.accent + hex2(alpha * 145);
+      ctx.fillText(dl.txt, dl.x, dl.y);
+    }
 
-    // Perspective vertical grid lines
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = this.accent + "40";
-    const lineSpacing = 60;
-    const center = W / 2 + (mouse.x > 0 ? (mouse.x - W / 2) * 0.08 : 0);
+    // Glitch bars
+    if (Math.random() < 0.022) {
+      try {
+        const gy = Math.random() * H, gh = 2 + Math.random() * 9;
+        const d = ctx.getImageData(0, gy, W, gh);
+        const shift = (Math.random() - 0.5) * 44;
+        ctx.putImageData(d, shift, gy);
+        // RGB chromatic aberration on strong glitches
+        if (Math.random() < 0.4) {
+          const d2 = ctx.getImageData(0, gy, W, gh);
+          for (let k = 0; k < d2.data.length; k += 4) {
+            d2.data[k]   = Math.min(255, d2.data[k] + 60);
+            d2.data[k+2] = Math.max(0,   d2.data[k+2] - 60);
+          }
+          ctx.putImageData(d2, shift + 5, gy);
+        }
+      } catch {}
+    }
 
-    for (let x = -W * 1.5; x <= W * 2.5; x += lineSpacing) {
+    // Corner bracket HUD frames
+    ctx.lineWidth = 2; ctx.strokeStyle = this.accent + "55";
+    for (const [x, y, sx, sy] of this.corners) {
       ctx.beginPath();
-      ctx.moveTo(center + (x - center) * 0.08, horizon);
-      ctx.lineTo(x, H);
+      ctx.moveTo(x + sx * this.cornerSize, y);
+      ctx.lineTo(x, y); ctx.lineTo(x, y + sy * this.cornerSize);
       ctx.stroke();
     }
-
-    // Horizontal moving grid lines
-    for (let z = 0; z < H - horizon; z += 40) {
-      const gz = z + this.offsetY;
-      const y = horizon + (gz * gz) / (H - horizon);
-      if (y > H) continue;
-
-      const alpha = Math.min(1, (y - horizon) / 100);
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y);
-      ctx.strokeStyle = this.accent + hex2(alpha * 120);
-      ctx.stroke();
+    // Corner dots
+    for (const [x, y] of this.corners) {
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = this.accent + "90"; ctx.fill();
     }
+
+    // Full scan line
+    const sy2 = (t * 0.38 % H);
+    const sg2 = ctx.createLinearGradient(0, sy2 - 20, 0, sy2 + 3);
+    sg2.addColorStop(0, "transparent"); sg2.addColorStop(1, this.accent + "16");
+    ctx.fillStyle = sg2; ctx.fillRect(0, sy2 - 20, W, 23);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 7. PLASMA PARTICLES ENGINE (PERLIN VECTOR DRIFT)
+// EFFECT: PLASMA PARTICLES
 // ═══════════════════════════════════════════════════════════════════════════════
 class PlasmaParticles {
   constructor(W, H, accent) {
     this.accent = accent;
     this.t = 0;
-    const N = 140;
+    const N = 130;
     this.pts = Array.from({ length: N }, () => ({
       x: Math.random() * W, y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: (Math.random() - 0.5) * 0.6,
-      r: 1.5 + Math.random() * 3,
+      vx: (Math.random() - 0.5) * 0.55,
+      vy: (Math.random() - 0.5) * 0.55,
+      r: 1.4 + Math.random() * 2.6,
       phase: Math.random() * Math.PI * 2,
     }));
   }
-  draw(ctx, W, H, t, mouse) {
+  draw(ctx, W, H) {
     ctx.clearRect(0, 0, W, H);
-    this.t += 0.012;
+    this.t += 0.011;
 
     for (const p of this.pts) {
-      const nx = Math.sin(p.x * 0.003 + this.t * 0.3) * 0.25;
-      const ny = Math.cos(p.y * 0.003 + this.t * 0.25) * 0.25;
-      p.vx = p.vx * 0.98 + nx; p.vy = p.vy * 0.98 + ny;
-
-      // Mouse repulsion
-      if (mouse.x > 0) {
-        const d = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-        if (d < 120) {
-          const force = (1 - d / 120) * 2.5;
-          p.vx += ((p.x - mouse.x) / d) * force;
-          p.vy += ((p.y - mouse.y) / d) * force;
-        }
-      }
-
+      const nx = Math.sin(p.x * 0.0035 + this.t * 0.28) * 0.22;
+      const ny = Math.cos(p.y * 0.0035 + this.t * 0.22) * 0.22;
+      p.vx = p.vx * 0.985 + nx; p.vy = p.vy * 0.985 + ny;
       p.x += p.vx; p.y += p.vy;
       if (p.x < -12) p.x = W + 12; if (p.x > W + 12) p.x = -12;
       if (p.y < -12) p.y = H + 12; if (p.y > H + 12) p.y = -12;
     }
 
-    const CONNECT = 90;
+    const CONNECT = 88;
     for (let i = 0; i < this.pts.length; i++) {
       for (let j = i + 1; j < this.pts.length; j++) {
         const pa = this.pts[i], pb = this.pts[j];
-        const d = Math.hypot(pa.x - pb.x, pa.y - pb.y);
+        const dx = pa.x - pb.x, dy = pa.y - pb.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
         if (d < CONNECT) {
           ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
-          ctx.strokeStyle = this.accent + hex2((1 - d / CONNECT) * 0.4 * 255);
-          ctx.lineWidth = 0.5; ctx.stroke();
+          ctx.strokeStyle = this.accent + hex2((1 - d / CONNECT) * 0.38 * 255);
+          ctx.lineWidth = 0.45; ctx.stroke();
         }
       }
     }
 
     for (const p of this.pts) {
-      p.phase += 0.02;
+      p.phase += 0.018;
       const pulse = Math.sin(p.phase) * 0.5 + 0.5;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.8 + pulse * 0.5), 0, Math.PI * 2);
-      ctx.fillStyle = this.accent + hex2((0.5 + pulse * 0.5) * 180);
-      ctx.shadowColor = this.accent; ctx.shadowBlur = pulse * 8;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.7 + pulse * 0.55), 0, Math.PI * 2);
+      ctx.fillStyle = this.accent + hex2((0.45 + pulse * 0.55) * 168);
+      ctx.shadowColor = this.accent; ctx.shadowBlur = pulse * 7;
       ctx.fill(); ctx.shadowBlur = 0;
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REACT COMPONENT WRAPPER
+// REACT COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
   const canvasRef = useRef(null);
   const frameRef  = useRef(null);
   const fxRef     = useRef(null);
-  const mouseRef  = useRef({ x: -1000, y: -1000 });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
-    };
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
 
   useEffect(() => {
     if (!fxType) return;
@@ -532,21 +521,13 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
 
     function build(W, H) {
       switch (fxType) {
-        case "matrix":
-        case "rain":        return new MatrixRain(W, H, accent);
-        case "circuit":
-        case "grid":       return new CircuitSparks(W, H, accent);
-        case "neural":     return new NeuralPulses(W, H, accent);
-        case "singularity": return new SingularityFX(W, H, accent);
-        case "aurora":     return new AuroraRibbonFX(W, H, accent);
-        case "cybergrid":
-        case "3dgrid":     return new CyberGrid3DFX(W, H, accent);
-        case "plasma":
-        case "space":
-        case "reactor":
-        case "chrono":
-        case "orbital":    return new PlasmaParticles(W, H, accent);
-        default:           return new PlasmaParticles(W, H, accent);
+        case "matrix":   return new MatrixRain(W, H, accent);
+        case "circuit":  return new CircuitSparks(W, H, accent);
+        case "neural":   return new NeuralPulses(W, H, accent);
+        case "radar":    return new RadarSweep(W, H, accent);
+        case "hologram": return new Hologram(W, H, accent);
+        case "plasma":   return new PlasmaParticles(W, H, accent);
+        default:         return null;
       }
     }
 
@@ -567,7 +548,7 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
     function loop() {
       tick++;
       if (fxRef.current && canvas.width > 0) {
-        fxRef.current.draw(ctx2d, canvas.width, canvas.height, tick, mouseRef.current);
+        fxRef.current.draw(ctx2d, canvas.width, canvas.height, tick);
       }
       frameRef.current = requestAnimationFrame(loop);
     }
@@ -591,8 +572,7 @@ export default function WallpaperFX({ fxType, accent = "#00F0FF" }) {
         height: "100%",
         pointerEvents: "none",
         zIndex: 1,
-        opacity: 0.95,
-        mixBlendMode: "screen",
+        opacity: 0.82,
       }}
     />
   );

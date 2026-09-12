@@ -11,12 +11,14 @@ import {
   runFinalBossAudit,
   getImpossibleSynthesis,
   getOmniverseVerdict,
+  runLiveOmniverseZero,
 } from "../lib/cortexZeroEngine";
 
 export default function OmniverseZero() {
   const [inputText, setInputText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("zero"); // "zero" | "warroom" | "collider" | "missing" | "timemachine" | "dontsolve" | "branches" | "finalboss" | "synthesis" | "verdict"
+  const [aiColliderResult, setAiColliderResult] = useState(null);
 
   // Collide inputs
   const [itemA, setItemA] = useState("OmniverseOS Web Desktop");
@@ -34,14 +36,25 @@ export default function OmniverseZero() {
   const synthesisData = useMemo(() => getImpossibleSynthesis(), []);
   const verdictData = useMemo(() => getOmniverseVerdict(inputText), [inputText]);
 
-  const handleEnterOmniverse = () => {
-    if (!inputText.trim()) return;
+  const handleEnterOmniverse = async () => {
+    if (!inputText.trim() || isProcessing) return;
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      const res = await runLiveOmniverseZero(inputText, {
+        source: "OmniverseZero",
+        app: "zero",
+      });
+      if (res) {
+        setAiColliderResult(res);
+      }
+    } catch (err) {
+      console.warn("Live Omniverse Zero AI call failed:", err);
+    } finally {
       setIsProcessing(false);
       setActiveTab("zero");
-    }, 900);
+    }
   };
+
 
   return (
     <div
@@ -225,14 +238,23 @@ export default function OmniverseZero() {
                   boxShadow: "0 0 26px rgba(0,240,255,0.15)",
                 }}
               >
-                <div style={{ fontSize: 11, fontFamily: "monospace", color: "#00F0FF", fontWeight: 700 }}>
-                  💥 THE OMNIVERSE ZERO REVEAL
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 11, fontFamily: "monospace", color: "#00F0FF", fontWeight: 700 }}>
+                    💥 THE OMNIVERSE ZERO REVEAL
+                  </div>
+                  {aiColliderResult && (
+                    <span style={{ fontSize: 10, color: "#39FF14", background: "rgba(57,255,20,0.12)", border: "1px solid rgba(57,255,20,0.3)", padding: "2px 8px", borderRadius: 6, fontFamily: "monospace" }}>
+                      AI COLLIDER VERIFIED
+                    </span>
+                  )}
                 </div>
                 <h3 style={{ fontSize: 18, fontWeight: 800, margin: "8px 0", color: "#fff" }}>
-                  {zeroData.killerOutput.realProblem}
+                  {aiColliderResult?.realProblem || zeroData.killerOutput.realProblem}
                 </h3>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                  Indexed {zeroData.wordCount} words · Mapped Facts, Assumptions & Unknowns below.
+                  {aiColliderResult?.statedProblem
+                    ? `Stated: "${aiColliderResult.statedProblem}"`
+                    : `Indexed ${zeroData.wordCount} words · Mapped Facts, Assumptions & Unknowns below.`}
                 </div>
               </div>
 
@@ -243,7 +265,7 @@ export default function OmniverseZero() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#39FF14", marginBottom: 8 }}>
                     <i className="fa-solid fa-circle-check mr-1.5" /> VERIFIED FACTS
                   </div>
-                  {zeroData.map.facts.map((f, i) => (
+                  {(aiColliderResult?.facts || zeroData.map.facts).map((f, i) => (
                     <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 6, lineHeight: 1.4 }}>
                       • {f}
                     </div>
@@ -255,7 +277,7 @@ export default function OmniverseZero() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#F59E0B", marginBottom: 8 }}>
                     <i className="fa-solid fa-triangle-exclamation mr-1.5" /> CHALLENGED ASSUMPTIONS
                   </div>
-                  {zeroData.map.assumptions.map((a, i) => (
+                  {(aiColliderResult?.assumptions || zeroData.map.assumptions).map((a, i) => (
                     <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 6, lineHeight: 1.4 }}>
                       • {a}
                     </div>
@@ -267,13 +289,52 @@ export default function OmniverseZero() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#FF003C", marginBottom: 8 }}>
                     <i className="fa-solid fa-circle-question mr-1.5" /> CRITICAL UNKNOWNS
                   </div>
-                  {zeroData.map.unknowns.map((u, i) => (
+                  {(aiColliderResult?.unknowns || zeroData.map.unknowns).map((u, i) => (
                     <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 6, lineHeight: 1.4 }}>
                       • {u}
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Solution Paths & Executable Roadmap (when AI result present) */}
+              {aiColliderResult && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div className="glass-panel" style={{ padding: 18, borderColor: "rgba(0, 240, 255, 0.3)" }}>
+                    <div style={{ fontSize: 11, fontFamily: "monospace", color: "#00F0FF", fontWeight: 700 }}>
+                      🚀 RECOMMENDED LEVERAGE PATH
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, margin: "6px 0", color: "#fff" }}>
+                      {aiColliderResult.recommended_path}
+                    </div>
+                    {aiColliderResult.solution_paths?.length > 0 && (
+                      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                        {aiColliderResult.solution_paths.map((p, idx) => (
+                          <div key={idx} style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(255,255,255,0.04)", fontSize: 11 }}>
+                            <strong>{p.title}</strong> (Score: {p.score}): {p.rationale}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: 18, borderColor: "rgba(57, 255, 20, 0.3)" }}>
+                    <div style={{ fontSize: 11, fontFamily: "monospace", color: "#39FF14", fontWeight: 700 }}>
+                      ⚡ NEXT EXECUTABLE ACTIONS
+                    </div>
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {(aiColliderResult.next_actions || []).map((action, idx) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(57,255,20,0.15)", color: "#39FF14", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>
+                            {idx + 1}
+                          </span>
+                          <span>{action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 

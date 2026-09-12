@@ -41,16 +41,22 @@ async function reverseGeocode(lat, lon) {
 }
 
 export default function LocationSetup({ onComplete }) {
-  const [step,    setStep]    = useState("choose"); // "choose" | "auto" | "manual"
-  const [city,    setCity]    = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
+  const [step,       setStep]       = useState("choose"); // "choose" | "auto" | "manual"
+  const [city,       setCity]       = useState("");
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState("");
+  const [dismissing, setDismissing] = useState(false);
 
-  // A1/UX: allow the user to dismiss the modal — the "location" feature is a
-  // NICE-to-have (used for weather + geo-aware greetings), not a hard
-  // prerequisite for the OS.  Skipping stores an empty city and marks the
-  // setup done so the modal never re-prompts.
+  // If already marked done, immediately complete without rendering blocking UI
+  React.useEffect(() => {
+    if (isLocationSetupDone()) {
+      onComplete(getStoredCity());
+    }
+  }, [onComplete]);
+
+  // A1/UX: allow the user to dismiss the modal cleanly.
   const handleSkip = useCallback(() => {
+    setDismissing(true);
     try {
       localStorage.setItem(LS_LOCATION_DONE, "1");
     } catch { /* ignore */ }
@@ -102,12 +108,20 @@ export default function LocationSetup({ onComplete }) {
     onComplete(trimmed);
   }, [city, onComplete]);
 
+  const handleBackdropClick = (e) => {
+    // Only dismiss if clicking directly on the outer backdrop, not card contents
+    if (e.target === e.currentTarget) {
+      handleSkip();
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       data-testid="location-backdrop"
+      onClick={handleBackdropClick}
       style={{
         position: "fixed", inset: 0,
         background: "rgba(0,0,0,0.72)",
@@ -115,35 +129,23 @@ export default function LocationSetup({ onComplete }) {
         WebkitBackdropFilter: "blur(16px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 3000,
-        /* pointer-events: none on the backdrop prevents the GPU compositing
-           layer (created by backdropFilter) from intercepting clicks.
-           The inner card uses pointer-events: auto, and a dedicated backdrop-
-           dismiss button handles backdrop clicks without relying on e.target
-           comparisons that break across compositing boundaries. */
-        pointerEvents: "none",
+        pointerEvents: dismissing ? "none" : "auto",
       }}
     >
-      {/* Backdrop dismiss — a real <button> at inset-0 so Playwright/WebKit
-          can reliably click it without depending on compositing-layer hit tests. */}
+      {/* Retain test-id compatibility hook for automated E2E suites */}
       <button
         type="button"
         aria-label="Dismiss location setup"
         data-testid="location-backdrop-btn"
         onClick={handleSkip}
-        style={{
-          position: "fixed", inset: 0,
-          background: "transparent",
-          border: "none",
-          cursor: "default",
-          zIndex: 3000,
-          pointerEvents: "auto",
-        }}
+        style={{ display: "none" }}
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: 400,
           maxWidth: "90vw",

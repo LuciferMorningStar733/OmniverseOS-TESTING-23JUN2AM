@@ -199,8 +199,17 @@ export default function CodeEditor() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef(null);
+  const workerRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   const activeLang = LANGS.find(l=>l.value===lang);
+
+  useEffect(() => {
+    return () => {
+      if (workerRef.current) workerRef.current.terminate();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleLangChange = useCallback((next) => {
     setLang(next);
@@ -213,26 +222,102 @@ export default function CodeEditor() {
       setOutput([{ type:"info", text:`Live execution is JS-only. Showing ${activeLang?.label||lang} syntax preview.` }]);
       return;
     }
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     setRunning(true);
     setOutput([]);
-    setTimeout(() => {
-      const logs = [];
-      const orig = { log:console.log, warn:console.warn, error:console.error };
-      console.log   = (...a) => logs.push({ type:"log",   text:a.map(x=>typeof x==="object"?JSON.stringify(x,null,2):String(x)).join(" ") });
-      console.warn  = (...a) => logs.push({ type:"warn",  text:a.map(String).join(" ") });
-      console.error = (...a) => logs.push({ type:"error", text:a.map(String).join(" ") });
-      try {
-        // eslint-disable-next-line no-new-func
-        const fn = new Function(code);
-        const result = fn();
-        if (result !== undefined) logs.push({ type:"return", text:typeof result==="object"?JSON.stringify(result,null,2):String(result) });
-      } catch(e) {
-        logs.push({ type:"error", text:e.message });
+
+    const workerScript = `
+      self.onmessage = function(e) {
+        var code = e.data;
+        var serialize = function(x) {
+          if (typeof x === "object" && x !== null) {
+            try { return JSON.stringify(x, null, 2); } catch (_) { return String(x); }
+          }
+          return String(x);
+        };
+        console.log = function() {
+          var args = Array.prototype.slice.call(arguments);
+          self.postMessage({ type: "log", text: args.map(serialize).join(" ") });
+        };
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          self.postMessage({ type: "warn", text: args.map(serialize).join(" ") });
+        };
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          self.postMessage({ type: "error", text: args.map(serialize).join(" ") });
+        };
+        console.info = function() {
+          var args = Array.prototype.slice.call(arguments);
+          self.postMessage({ type: "info", text: args.map(serialize).join(" ") });
+        };
+        try {
+          var fn = new Function(code);
+          var result = fn();
+          if (result !== undefined) {
+            self.postMessage({ type: "return", text: serialize(result) });
+          }
+          self.postMessage({ type: "_complete" });
+        } catch (err) {
+          self.postMessage({ type: "error", text: err && err.message ? err.message : String(err) });
+          self.postMessage({ type: "_complete" });
+        }
+      };
+    `;
+
+    const logs = [];
+    const blob = new Blob([workerScript], { type: "application/javascript" });
+    const blobUrl = URL.createObjectURL(blob);
+    const worker = new Worker(blobUrl);
+    workerRef.current = worker;
+
+    const cleanup = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
-      Object.assign(console, orig);
-      setOutput(logs.length?logs:[{ type:"info", text:"Executed successfully — no output." }]);
+      URL.revokeObjectURL(blobUrl);
       setRunning(false);
-    }, 80);
+    };
+
+    worker.onmessage = (e) => {
+      const data = e.data;
+      if (data.type === "_complete") {
+        cleanup();
+        if (logs.length === 0) {
+          setOutput([{ type: "info", text: "Executed successfully — no output." }]);
+        }
+        return;
+      }
+      logs.push(data);
+      setOutput([...logs]);
+    };
+
+    worker.onerror = (err) => {
+      logs.push({ type: "error", text: err.message || "Execution error in sandbox worker" });
+      setOutput([...logs]);
+      cleanup();
+    };
+
+    timeoutRef.current = setTimeout(() => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+      logs.push({ type: "error", text: "Execution timed out (5s limit exceeded)." });
+      setOutput([...logs]);
+      cleanup();
+    }, 5000);
+
+    worker.postMessage(code);
   }, [code, lang, activeLang]);
 
   const askCortex = useCallback(async () => {

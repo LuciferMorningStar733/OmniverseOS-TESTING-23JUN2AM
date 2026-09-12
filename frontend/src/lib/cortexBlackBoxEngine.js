@@ -190,3 +190,21 @@ export function runGodView(z) { return { zoomLevel: z, perspective: "10-year hor
 export function runBeliefKiller(b) { return { originalBelief: b, upgradedBelief: "Belief 2.0" }; }
 export function generateFutureHeadlines(a) { return { action: a, headlines: [{ year: "2030", text: "🟢 Unknown Startup Becomes Leader" }] }; }
 export function runHumanitySimulator(t) { return { technology: t, loop: [{ actor: "Public", reaction: "Shift energy to hyper-personalized projects." }] }; }
+
+/**
+ * Real AI-driven 7-stage cognitive analysis through the backend Black Box engine
+ */
+export async function runLiveBlackBoxAnalysis(input, context = null) {
+  try {
+    const { cognitiveApi } = await import("./api");
+    const result = await cognitiveApi.analyzeBlackBox({
+      input,
+      context,
+    });
+    return result;
+  } catch (err) {
+    console.warn("[BlackBoxEngine] Backend AI analysis failed, falling back to local processor:", err);
+    return null;
+  }
+}
+

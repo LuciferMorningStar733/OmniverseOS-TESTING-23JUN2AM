@@ -7,6 +7,7 @@ import {
   getHiddenCenterOfGravity,
   getFutureCollisionModel,
   getOmniverseVerdictPhased,
+  runLiveBlackBoxAnalysis,
 } from "../../lib/cortexBlackBoxEngine";
 
 export function useBlackBoxExperience() {
@@ -16,23 +17,64 @@ export function useBlackBoxExperience() {
   const [selectedReality, setSelectedReality] = useState("optimal");
   const [selectedFutureA, setSelectedFutureA] = useState("statusQuo");
   const [selectedFutureB, setSelectedFutureB] = useState("optimalExec");
+  const [dynamicAiData, setDynamicAiData] = useState(null);
 
   const typingAnalysis = useMemo(() => analyzeTypingSignals(inputText), [inputText]);
-  const coreNodes = useMemo(() => getCoreProblemNodes(inputText), [inputText]);
-  const realities = useMemo(() => getOmniverseRealities(inputText), [inputText]);
-  const agentCollisions = useMemo(() => getIntelligenceCollisions(inputText), [inputText]);
-  const hiddenGravity = useMemo(() => getHiddenCenterOfGravity(inputText), [inputText]);
+  const coreNodes = useMemo(() => {
+    if (dynamicAiData?.orbitingNodes?.length) {
+      return {
+        coreTitle: dynamicAiData.coreTitle || inputText.slice(0, 45),
+        orbitingNodes: dynamicAiData.orbitingNodes,
+      };
+    }
+    return getCoreProblemNodes(inputText);
+  }, [inputText, dynamicAiData]);
+
+  const realities = useMemo(() => {
+    if (dynamicAiData?.realities?.length) {
+      return { realities: dynamicAiData.realities };
+    }
+    return getOmniverseRealities(inputText);
+  }, [inputText, dynamicAiData]);
+
+  const agentCollisions = useMemo(() => {
+    if (dynamicAiData?.collisions?.length) {
+      return { exchanges: dynamicAiData.collisions };
+    }
+    return getIntelligenceCollisions(inputText);
+  }, [inputText, dynamicAiData]);
+
+  const hiddenGravity = useMemo(() => {
+    if (dynamicAiData?.hiddenCenterOfGravity) {
+      const hc = dynamicAiData.hiddenCenterOfGravity;
+      return {
+        statedQuestion: hc.statedQuestion || inputText.slice(0, 60),
+        hiddenInsight: hc.unspokenTruth || hc.actualTension,
+        whyItMatters: hc.inflectionPoint || hc.evidenceAnchor,
+      };
+    }
+    return getHiddenCenterOfGravity(inputText);
+  }, [inputText, dynamicAiData]);
+
   const futureModel = useMemo(() => getFutureCollisionModel(inputText), [inputText]);
   const verdictData = useMemo(() => getOmniverseVerdictPhased(inputText), [inputText]);
 
-  const submitConfession = () => {
-    if (!inputText.trim()) return;
+  const submitConfession = async () => {
+    if (!inputText.trim() || isTransitioning) return;
     setIsTransitioning(true);
-    setTimeout(() => {
+    try {
+      const res = await runLiveBlackBoxAnalysis(inputText, { source: "TheBlackBoxExperience" });
+      if (res) {
+        setDynamicAiData(res);
+      }
+    } catch (err) {
+      console.warn("Live Black Box AI call failed:", err);
+    } finally {
       setIsTransitioning(false);
       setPhase(1); // Advance to Core Node Emergence
-    }, 1200);
+    }
   };
+
 
   const nextPhase = () => {
     setPhase((prev) => Math.min(prev + 1, 6));

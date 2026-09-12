@@ -504,7 +504,6 @@ function Desktop() {
       </AnimatePresence>
       {/* 2099 Living Omniverse Field */}
       <OmniverseField activeAppId={windows.find((w) => w.id === activeId)?.app} />
-      <AmbientParticles />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -576,7 +575,7 @@ function Desktop() {
           ))}
         </div>
       )}
-      <Dock />
+      <AdaptiveDock />
       <CommandPalette />
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />

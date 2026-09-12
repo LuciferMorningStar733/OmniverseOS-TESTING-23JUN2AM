@@ -14,7 +14,7 @@ export default function FileManager() {
 
   const create = async (type) => {
     if (!name.trim()) return;
-    await c.create({ name, type, parent: folder, content: "", size: Math.floor(Math.random() * 5000) });
+    await c.create({ name: name.trim(), type, parent: folder, content: "", size: 0 });
     setName(""); setShowNew(null); load();
   };
 
@@ -43,7 +43,7 @@ export default function FileManager() {
               key={f.id}
               onClick={() => setFolder(f.id)}
               className={`flex-shrink-0 sm:w-full text-left px-2 py-1.5 rounded text-sm whitespace-nowrap
-                ${folder === f.id ? "bg-[#00F0FF]/10 text-[#00F0FF]" : "hover:bg-white/5"}`}
+              ${folder === f.id ? "bg-[#00F0FF]/10 text-[#00F0FF]" : "hover:bg-white/5"}`}
             >
               <i className="fa-solid fa-folder mr-2 text-[#FCEE09]"></i>{f.name}
             </button>
@@ -87,7 +87,15 @@ export default function FileManager() {
         {/* File grid — 3 cols mobile, 5 desktop */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 content-start">
           {here.map((f) => (
-            <div key={f.id} className="group flex flex-col items-center p-2 sm:p-3 rounded-lg hover:bg-white/5 cursor-pointer relative">
+            <div
+              key={f.id}
+              onClick={() => {
+                if (f.type === "folder") {
+                  setFolder(f.id);
+                }
+              }}
+              className="group flex flex-col items-center p-2 sm:p-3 rounded-lg hover:bg-white/5 cursor-pointer relative"
+            >
               <i className={`fa-solid ${f.type === "folder" ? "fa-folder text-[#FCEE09]" : "fa-file text-[#00F0FF]"} text-3xl sm:text-4xl mb-1 sm:mb-2`}></i>
               <div className="text-xs text-center truncate w-full">{f.name}</div>
               <button

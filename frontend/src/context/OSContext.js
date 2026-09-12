@@ -5,7 +5,13 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { authApi } from "../lib/api";
+import {
+  authApi,
+  getAuthToken,
+  setAuthToken,
+  setAuthenticatingState,
+  setLoggingOutState,
+} from "../lib/api";
 import { DEFAULT_WALLPAPER } from "../lib/wallpapers";
 import { trackEvent }  from "../lib/activityTimeline";
 import { autoSave }    from "../lib/workspaceSnapshot";
@@ -73,22 +79,66 @@ export const OSProvider = ({ children }) => {
     localStorage.setItem(LS_NOTIFS, JSON.stringify(notifications.slice(0, 30)));
   }, [notifications]);
 
+  // ── auth actions ─────────────────────────────────────────────────────────────
+  const logout = useCallback(() => {
+    setLoggingOutState(true);
+    try {
+      setAuthToken(null);
+      setUser(null);
+      setWindows([]);
+      // Wipe memory and user-scoped transient state on logout to prevent state leakage
+      memClear();
+      try {
+        localStorage.removeItem(LS_WINDOWS);
+        localStorage.removeItem(LS_NOTIFS);
+        localStorage.removeItem("omniverse_cortex_snapshots");
+        localStorage.removeItem("omniverse_active_session");
+        localStorage.removeItem("cortex_current_url");
+        localStorage.removeItem("cortex_activity_timeline");
+      } catch { /* ignore */ }
+    } finally {
+      setLoggingOutState(false);
+    }
+  }, []);
+
   // ── auth init ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
-      const token = localStorage.getItem(LS_TOKEN);
-      if (!token) { setLoading(false); return; }
+      const token = getAuthToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      setAuthToken(token); // Synchronize Axios headers immediately
       try {
         const me = await authApi.me();
         setUser(me);
-      } catch {
-        localStorage.removeItem(LS_TOKEN);
+      } catch (err) {
+        // ONLY invalidate session if server explicitly returns 401 Unauthorized
+        if (err?.response?.status === 401) {
+          console.warn("[Auth] Stored session invalid (401), resetting token.");
+          setAuthToken(null);
+          setUser(null);
+        } else {
+          console.warn("[Auth] Non-fatal error verifying session at startup:", err?.message || err);
+          // Retain token so network glitches or dev restarts do not drop session
+        }
       } finally {
         setLoading(false);
       }
     };
     init();
   }, []);
+
+  // ── session expiration listener ──────────────────────────────────────────
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      console.warn("[Auth] Session expired event received — resetting session.");
+      logout();
+    };
+    window.addEventListener("omniverse:auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("omniverse:auth-expired", handleAuthExpired);
+  }, [logout]);
 
   // ── Cortex Scheduler init ─────────────────────────────────────────────────
   useEffect(() => {
@@ -115,31 +165,46 @@ export const OSProvider = ({ children }) => {
     cortexScheduler.hydrate();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── auth actions ─────────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
-    const res   = await authApi.login({ email, password });
-    const token = res.token || res.access_token;
-    localStorage.setItem(LS_TOKEN, token);
-    const me = res.user ? res.user : await authApi.me();
-    setUser(me);
-    return me;
+    setAuthenticatingState(true);
+    try {
+      const res   = await authApi.login({ email, password });
+      const token = res.token || res.access_token;
+      if (!token) throw new Error("Authentication response did not contain a token");
+      
+      // Synchronously set token in storage & Axios default headers
+      setAuthToken(token);
+      
+      const me = res.user ? res.user : await authApi.me();
+      try {
+        localStorage.setItem("omniverse_last_user", me?.email || email);
+      } catch { /* ignore */ }
+      
+      setUser(me);
+      return me;
+    } finally {
+      setAuthenticatingState(false);
+    }
   }, []);
 
   const signup = useCallback(async (email, password, name) => {
-    const res   = await authApi.signup({ email, password, name });
-    const token = res.token || res.access_token;
-    localStorage.setItem(LS_TOKEN, token);
-    const me = res.user ? res.user : await authApi.me();
-    setUser(me);
-    return me;
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(LS_TOKEN);
-    setUser(null);
-    setWindows([]);
-    // Cortex: wipe memory on logout
-    memClear();
+    setAuthenticatingState(true);
+    try {
+      const res   = await authApi.signup({ email, password, name });
+      const token = res.token || res.access_token;
+      if (!token) throw new Error("Signup response did not contain a token");
+      
+      setAuthToken(token);
+      const me = res.user ? res.user : await authApi.me();
+      try {
+        localStorage.setItem("omniverse_last_user", me?.email || email);
+      } catch { /* ignore */ }
+      
+      setUser(me);
+      return me;
+    } finally {
+      setAuthenticatingState(false);
+    }
   }, []);
 
   // ── window manager ───────────────────────────────────────────────────────────
