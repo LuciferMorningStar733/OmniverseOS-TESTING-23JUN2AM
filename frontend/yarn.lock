@@ -1732,13 +1732,6 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@playwright/test@^1.63.0":
-  version "1.63.0"
-  resolved "https://registry.npmjs.org/@playwright/test/-/test-1.63.0.tgz"
-  integrity sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==
-  dependencies:
-    playwright "1.63.0"
-
 "@pmmmwh/react-refresh-webpack-plugin@^0.5.3":
   version "0.5.17"
   resolved "https://registry.npmjs.org/@pmmmwh/react-refresh-webpack-plugin/-/react-refresh-webpack-plugin-0.5.17.tgz"
@@ -2367,21 +2360,21 @@
 
 "@reticlehq/browser@2.14.0":
   version "2.14.0"
-  resolved "https://registry.yarnpkg.com/@reticlehq/browser/-/browser-2.14.0.tgz#47954dd23a0bb63250f6b312fc66ba32e3a39be4"
+  resolved "https://registry.npmjs.org/@reticlehq/browser/-/browser-2.14.0.tgz"
   integrity sha512-6qTzgbzNySsjdKGmvvbWmd5w8h7wZPLvXK5k+vtp2NVv6MkC65977MRbalhOlJqRp9FP4sPt31rsELcg6KYRHw==
   dependencies:
     "@reticlehq/core" "2.14.0"
 
 "@reticlehq/core@2.14.0":
   version "2.14.0"
-  resolved "https://registry.yarnpkg.com/@reticlehq/core/-/core-2.14.0.tgz#ce281044578175b4feb84275355205226fe3a150"
+  resolved "https://registry.npmjs.org/@reticlehq/core/-/core-2.14.0.tgz"
   integrity sha512-UZAUc9QryKKqq185N6jcD39fzn/4qQejNr6PJytXFPvdGmPYpWMfxKUM9O1o1KaY7szs5+Cv1DfY6BkD7c4I9A==
   dependencies:
     zod "^3.24.1"
 
 "@reticlehq/react@2.14.0":
   version "2.14.0"
-  resolved "https://registry.yarnpkg.com/@reticlehq/react/-/react-2.14.0.tgz#0f4dea36dd23e93c59d8e6a860cc3005fd10c71f"
+  resolved "https://registry.npmjs.org/@reticlehq/react/-/react-2.14.0.tgz"
   integrity sha512-B706E+UhdKh19esKp3NOA3KpSg0CVFd3WjY4p33AqB9fp4eoRcMJfLbBVWZ+vA/2qMShnSv+aXwfD1CjjsrVQA==
   dependencies:
     "@reticlehq/browser" "2.14.0"
@@ -6454,7 +6447,7 @@ ignore@^5.2.0:
 
 immediate@~3.0.5:
   version "3.0.6"
-  resolved "https://registry.yarnpkg.com/immediate/-/immediate-3.0.6.tgz#9db1dbd0faf8de6fbe0f5dd5e56bb606280de69b"
+  resolved "https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz"
   integrity sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==
 
 immer@^10.1.1:
@@ -7521,7 +7514,7 @@ jsonpointer@^5.0.1:
 
 jszip@^3.10.2:
   version "3.10.2"
-  resolved "https://registry.yarnpkg.com/jszip/-/jszip-3.10.2.tgz#9fee8cfaaffb601f6c8796ecc522e4f81cbe88bf"
+  resolved "https://registry.npmjs.org/jszip/-/jszip-3.10.2.tgz"
   integrity sha512-3l+rb15IOWtUhU0H5MFqES/T6Kh7abYwjosBey/vD6hDt8zoEffkSC5Ws5SGtgVw3gBx2NEbhTeSW1+kWkpyTQ==
   dependencies:
     lie "~3.3.0"
@@ -7586,7 +7579,7 @@ levn@^0.4.1:
 
 lie@~3.3.0:
   version "3.3.0"
-  resolved "https://registry.yarnpkg.com/lie/-/lie-3.3.0.tgz#dcf82dee545f46074daf200c7c1c5a08e0f40f6a"
+  resolved "https://registry.npmjs.org/lie/-/lie-3.3.0.tgz"
   integrity sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==
   dependencies:
     immediate "~3.0.5"
@@ -8218,7 +8211,7 @@ p-try@^2.0.0:
 
 pako@~1.0.2:
   version "1.0.11"
-  resolved "https://registry.yarnpkg.com/pako/-/pako-1.0.11.tgz#6c9599d340d54dfd3946380252a35705a6b992bf"
+  resolved "https://registry.npmjs.org/pako/-/pako-1.0.11.tgz"
   integrity sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==
 
 param-case@^3.0.4:
@@ -8347,18 +8340,6 @@ pkg-up@^3.1.0:
   integrity sha512-nDywThFk1i4BQK4twPQ6TA4RT8bDY96yeuCVBWL3ePARCiEKDRSrNGbFIgUJpLp+XeIR65v8ra7WuJOFUBtkMA==
   dependencies:
     find-up "^3.0.0"
-
-playwright-core@1.63.0:
-  version "1.63.0"
-  resolved "https://registry.npmjs.org/playwright-core/-/playwright-core-1.63.0.tgz"
-  integrity sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==
-
-playwright@1.63.0:
-  version "1.63.0"
-  resolved "https://registry.npmjs.org/playwright/-/playwright-1.63.0.tgz"
-  integrity sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==
-  dependencies:
-    playwright-core "1.63.0"
 
 possible-typed-array-names@^1.0.0, possible-typed-array-names@^1.1.0:
   version "1.1.0"
@@ -9283,7 +9264,7 @@ read-cache@^1.0.0:
   dependencies:
     pify "^2.3.0"
 
-readable-stream@^2.0.1, readable-stream@~2.3.6:
+readable-stream@^2.0.1:
   version "2.3.8"
   resolved "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz"
   integrity sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==
@@ -9304,6 +9285,19 @@ readable-stream@^3.0.6:
     inherits "^2.0.3"
     string_decoder "^1.1.1"
     util-deprecate "^1.0.1"
+
+readable-stream@~2.3.6:
+  version "2.3.8"
+  resolved "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz"
+  integrity sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==
+  dependencies:
+    core-util-is "~1.0.0"
+    inherits "~2.0.3"
+    isarray "~1.0.0"
+    process-nextick-args "~2.0.0"
+    safe-buffer "~5.1.1"
+    string_decoder "~1.1.1"
+    util-deprecate "~1.0.1"
 
 readdirp@~3.6.0:
   version "3.6.0"
@@ -9850,10 +9844,10 @@ set-proto@^1.0.0:
 
 setimmediate@^1.0.5:
   version "1.0.5"
-  resolved "https://registry.yarnpkg.com/setimmediate/-/setimmediate-1.0.5.tgz#290cbb232e306942d7d7ea9b83732ab7856f8285"
+  resolved "https://registry.npmjs.org/setimmediate/-/setimmediate-1.0.5.tgz"
   integrity sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA==
 
-setprototypeof@1.2.0, setprototypeof@~1.2.0:
+setprototypeof@~1.2.0, setprototypeof@1.2.0:
   version "1.2.0"
   resolved "https://registry.npmjs.org/setprototypeof/-/setprototypeof-1.2.0.tgz"
   integrity sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==
@@ -10484,6 +10478,11 @@ thenify-all@^1.0.0:
   integrity sha512-RVZSIV5IG10Hk3enotrhvz0T9em6cyHBLkH/YAZuKqd8hRkKhSfCGIcP2KUY0EPxndzANBmNllzWPwak+bheSw==
   dependencies:
     any-promise "^1.0.0"
+
+three@^0.186.0:
+  version "0.186.0"
+  resolved "https://registry.npmjs.org/three/-/three-0.186.0.tgz"
+  integrity sha512-cr/fIM2ddMSVbYVgkfD4jLJv7Fh/8ZTjvo+7gQeSVGUZHxpx9FDwoL5iC7hUz/LiRA8wMbqfnb90xKfm1/HHkQ==
 
 throat@^6.0.1:
   version "6.0.2"
