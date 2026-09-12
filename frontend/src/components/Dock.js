@@ -660,7 +660,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
         />
       </div>
 
-      {DockTooltip({ name: app.name, visible: tooltipVisible })}
+      <DockTooltip name={app.name} visible={tooltipVisible} />
     </motion.button>
   );
 });
