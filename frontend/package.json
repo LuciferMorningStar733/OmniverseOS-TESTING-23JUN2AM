@@ -91,6 +91,7 @@
     "@craco/craco": "7.1.0",
     "@emergentbase/visual-edits": "https://assets.emergent.sh/npm/emergentbase-visual-edits-1.0.12.tgz",
     "@eslint/js": "9.23.0",
+    "@playwright/test": "^1.63.0",
     "@reticlehq/react": "2.14.0",
     "@testing-library/jest-dom": "6.4.2",
     "@testing-library/react": "^16.0.1",

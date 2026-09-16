@@ -2807,18 +2807,8 @@ Rules:
 - Return ONLY the JSON object, no markdown, no explanation"""
 
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        result = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: model.generate_content(
-                judge_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1,
-                    max_output_tokens=2048,
-                )
-            )
-        )
-        raw = result.text.strip()
+        raw = await ai_service.generate_text_background(judge_prompt)
+        raw = (raw or "").strip()
         # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]

@@ -599,3 +599,9 @@ provider_manager = ProviderManager()
 
 # Register with AIService so all routes can use ai_service instead of provider_manager directly
 ai_service.register(provider_manager)
+
+
+async def generate_text_background(prompt: str, system: str = "", max_tokens: int = 1200) -> str:
+    """Convenience top-level wrapper around provider_manager.generate_text_background."""
+    return await provider_manager.generate_text_background(prompt, system)
+

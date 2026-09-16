@@ -29,7 +29,7 @@ if (process.env.NODE_ENV === 'development') {
     }
     // Still attempt it — a bridge running without a token pairs fine.
     reticle.connect({
-      projectId: 'frontend-4ecc9fb6',
+      projectId: 'frontend-f6e5d4b9',
       ...(url.length > 0 ? { url } : {}),
       ...(token.length > 0 ? { token } : {}),
     });
