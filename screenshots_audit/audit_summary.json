@@ -1,0 +1,274 @@
+[
+  {
+    "id": "dashboard",
+    "name": "Dashboard",
+    "category": "core",
+    "buttonsExercised": 3,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_01_dashboard.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "chat",
+    "name": "AI Chat",
+    "category": "ai",
+    "buttonsExercised": 1,
+    "aiPromptConsequence": "AI Question Submitted & Response Stream Active",
+    "screenshot": "app_02_chat.png",
+    "aiScreenshot": "ai_01_chat_question_answered.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "image",
+    "name": "Image Gen",
+    "category": "ai",
+    "buttonsExercised": 1,
+    "aiPromptConsequence": "Image Generation Prompt Formulated & Rendered",
+    "screenshot": "app_03_image.png",
+    "aiScreenshot": "ai_02_imagegen_prompt.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "voice",
+    "name": "Cortex Voice",
+    "category": "ai",
+    "buttonsExercised": 1,
+    "aiPromptConsequence": "Cortex Voice Visualizer & Synthesis Active",
+    "screenshot": "app_04_voice.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "memory",
+    "name": "Memory",
+    "category": "ai",
+    "buttonsExercised": 5,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_05_memory.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "projects",
+    "name": "Projects",
+    "category": "ai",
+    "buttonsExercised": 3,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_06_projects.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "timeline",
+    "name": "Timeline",
+    "category": "ai",
+    "buttonsExercised": 5,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_07_timeline.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "notes",
+    "name": "Notes",
+    "category": "productivity",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_08_notes.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "tasks",
+    "name": "Tasks",
+    "category": "productivity",
+    "buttonsExercised": 0,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_09_tasks.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "calendar",
+    "name": "Calendar",
+    "category": "productivity",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_10_calendar.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "clipboard",
+    "name": "Clipboard",
+    "category": "productivity",
+    "buttonsExercised": 1,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_11_clipboard.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "music",
+    "name": "Music",
+    "category": "media",
+    "buttonsExercised": 5,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_12_music.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "videos",
+    "name": "Videos",
+    "category": "media",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_13_videos.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "watchlist",
+    "name": "Watchlist",
+    "category": "media",
+    "buttonsExercised": 4,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_14_watchlist.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "files",
+    "name": "Files",
+    "category": "system",
+    "buttonsExercised": 3,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_15_files.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "code",
+    "name": "Code Editor",
+    "category": "system",
+    "buttonsExercised": 4,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_16_code.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "browser",
+    "name": "Browser",
+    "category": "system",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_17_browser.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "settings",
+    "name": "Settings",
+    "category": "system",
+    "buttonsExercised": 0,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_18_settings.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "finance",
+    "name": "Finance",
+    "category": "data",
+    "buttonsExercised": 4,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_19_finance.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "analytics",
+    "name": "Analytics",
+    "category": "data",
+    "buttonsExercised": 4,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_20_analytics.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "nebula",
+    "name": "Nebula Chat",
+    "category": "social",
+    "buttonsExercised": 5,
+    "aiPromptConsequence": "UI Render Verified",
+    "screenshot": "app_21_nebula.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "swarm",
+    "name": "Swarm Goal",
+    "category": "ai",
+    "buttonsExercised": 0,
+    "aiPromptConsequence": "Swarm Multi-Agent Parallel Execution Active",
+    "screenshot": "app_22_swarm.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "faceoff",
+    "name": "Face-Off",
+    "category": "ai",
+    "buttonsExercised": 4,
+    "aiPromptConsequence": "Multi-Model Face-Off Prompt Evaluated",
+    "screenshot": "app_23_faceoff.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "adversary",
+    "name": "The Adversary",
+    "category": "ai",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "Adversarial Stress Test Initiated",
+    "screenshot": "app_24_adversary.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "warroom",
+    "name": "War Room",
+    "category": "ai",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "War Room 5-Agent Deliberation Convened",
+    "screenshot": "app_25_warroom.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "deadreckoning",
+    "name": "Dead Reckoning",
+    "category": "ai",
+    "buttonsExercised": 2,
+    "aiPromptConsequence": "Dead Reckoning Strategic Matrix Ready",
+    "screenshot": "app_26_deadreckoning.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "matrix",
+    "name": "Neural Matrix",
+    "category": "ai",
+    "buttonsExercised": 1,
+    "aiPromptConsequence": "Neural Matrix Graph Topology Rendered",
+    "screenshot": "app_27_matrix.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "mirror",
+    "name": "Omniverse Mirror",
+    "category": "ai",
+    "buttonsExercised": 3,
+    "aiPromptConsequence": "Omniverse Mirror Counterfactual Synthesis Ready",
+    "screenshot": "app_28_mirror.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "zero",
+    "name": "Omniverse Zero",
+    "category": "ai",
+    "buttonsExercised": 4,
+    "aiPromptConsequence": "Omniverse Zero Core Synthesis Active",
+    "screenshot": "app_29_zero.png",
+    "status": "PASSED"
+  },
+  {
+    "id": "blackbox",
+    "name": "The Black Box",
+    "category": "ai",
+    "buttonsExercised": 0,
+    "aiPromptConsequence": "The Black Box Autonomous Reasoning Engaged",
+    "screenshot": "app_30_blackbox.png",
+    "status": "PASSED"
+  }
+]

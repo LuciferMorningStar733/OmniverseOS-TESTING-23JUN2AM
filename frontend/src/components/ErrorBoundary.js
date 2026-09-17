@@ -13,9 +13,15 @@ export default class ErrorBoundary extends React.Component {
   componentDidCatch(error, info) {
     // eslint-disable-next-line no-console
     console.error("ErrorBoundary caught:", error, info);
+    const msg = String(error?.message || error || "");
+    if ((msg.includes("Loading chunk") || msg.includes("Failed to fetch dynamically imported module")) && !this.state.retried) {
+      setTimeout(() => {
+        this.setState({ error: null, retried: true });
+      }, 400);
+    }
   }
 
-  reset = () => this.setState({ error: null });
+  reset = () => this.setState({ error: null, retried: false });
 
   render() {
     if (this.state.error) {
