@@ -718,6 +718,7 @@ function DesktopDock({ isTablet }) {
     >
       <div
         ref={dockRef}
+        data-testid="adaptive-dock"
         className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl relative overflow-hidden`}
         style={{
           background: "rgba(10, 14, 26, 0.72)",
