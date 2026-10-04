@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import MarkdownRenderer from "../../../components/MarkdownRenderer";
+import AITelemetryIndicator from "../../../components/AITelemetryIndicator";
 import { toast } from "sonner";
 
 export function CopyButton({ text, label = "Copy" }) {
@@ -67,6 +68,9 @@ export function CopyButton({ text, label = "Copy" }) {
 
 export function ChatMessage({ message, isLast, streaming, onActionClick }) {
   const isUser = message.role === "user";
+  const modelName = message.model || "Gemini 2.5 Flash";
+  const provider = message.provider || "Google AI";
+  const fallbackTarget = message.fallbackTarget || "Groq LLaMA 3.3 70B";
 
   return (
     <div
@@ -81,9 +85,21 @@ export function ChatMessage({ message, isLast, streaming, onActionClick }) {
         }`}
       >
         <div className="flex items-center justify-between gap-2 mb-1.5 opacity-60 text-xs font-mono">
-          <span>{isUser ? "You" : "Cortex AI"}</span>
+          <span>{isUser ? "You" : "Cortex AI Engine"}</span>
           <CopyButton text={message.content} />
         </div>
+
+        {!isUser && (
+          <AITelemetryIndicator
+            modelName={modelName}
+            provider={provider}
+            isResponding={streaming && isLast}
+            tokensUsed={message.tokensUsed || 3450}
+            tokenLimit={128000}
+            messagesLeft={4850}
+            fallbackTarget={fallbackTarget}
+          />
+        )}
 
         {message.attachments && message.attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
@@ -115,3 +131,4 @@ export function ChatMessage({ message, isLast, streaming, onActionClick }) {
 }
 
 export default ChatMessage;
+

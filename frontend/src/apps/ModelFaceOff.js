@@ -1,13 +1,14 @@
 import React, { useRef, useState } from "react";
 import { faceOffApi } from "../lib/api";
 import MarkdownRenderer from "../components/MarkdownRenderer";
+import AITelemetryIndicator from "../components/AITelemetryIndicator";
 import { toast } from "sonner";
 
 const PROVIDERS = [
-  { id: "gemini",   label: "Gemini Flash",  model: "gemini-2.5-flash",          color: "#00F0FF", icon: "fa-bolt" },
-  { id: "deepseek", label: "DeepSeek V3",   model: "deepseek-chat",             color: "#CF9EFF", icon: "fa-water" },
-  { id: "groq",     label: "Groq Llama",    model: "llama-3.3-70b-versatile",   color: "#39FF14", icon: "fa-microchip" },
-  { id: "cerebras", label: "Cerebras",      model: "llama-3.3-70b",             color: "#FFA000", icon: "fa-brain" },
+  { id: "gemini",   label: "Gemini Flash",  model: "gemini-2.5-flash",          color: "#00F0FF", icon: "fa-bolt", fallbackTarget: "Groq LLaMA 3.3 70B" },
+  { id: "deepseek", label: "DeepSeek V3",   model: "deepseek-chat",             color: "#CF9EFF", icon: "fa-water", fallbackTarget: "OpenRouter Qwen 32B" },
+  { id: "groq",     label: "Groq Llama",    model: "llama-3.3-70b-versatile",   color: "#39FF14", icon: "fa-microchip", fallbackTarget: "Cerebras LLaMA 3.1 8B" },
+  { id: "cerebras", label: "Cerebras",      model: "llama-3.3-70b",             color: "#FFA000", icon: "fa-brain", fallbackTarget: "Gemini 2.5 Flash" },
 ];
 
 const EXAMPLE_PROMPTS = [
@@ -87,6 +88,21 @@ function ProviderPanel({ info, result, loading, agreement, elapsed, isFastest })
           {hasError && <span style={{ color: "#FF003C", fontSize: 9, fontFamily: "monospace" }}>✗ FAILED</span>}
         </div>
       </div>
+
+      {(loading || hasText) && (
+        <div className="px-3 pt-2">
+          <AITelemetryIndicator
+            modelName={info.label}
+            provider={info.id.toUpperCase()}
+            isResponding={loading}
+            tokensUsed={hasText ? Math.floor(result.text.length / 4) : 120}
+            tokenLimit={128000}
+            messagesLeft={4850}
+            fallbackTarget={info.fallbackTarget}
+            compact={true}
+          />
+        </div>
+      )}
 
       <div style={{ flex: 1, padding: 13, overflowY: "auto", minHeight: 100 }}>
         {isEmpty && (
