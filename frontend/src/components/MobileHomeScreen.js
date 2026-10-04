@@ -1,82 +1,81 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import CortexPill from "./CortexPill";
-import MobileIntelligenceStacks from "./MobileIntelligenceStacks";
-import MobileSmartDock from "./MobileSmartDock";
-import MobileAIChat from "./MobileAIChat";
-import MobileAppDrawer from "../MobileAppDrawer";
+import MobileIntelligenceStacks from "./Mobile/MobileIntelligenceStacks";
+import MobileSmartDock from "./Mobile/MobileSmartDock";
+import CortexPill from "./Mobile/CortexPill";
+import MobileAppDrawer from "./MobileAppDrawer";
+import MobileAIChat from "./Mobile/MobileAIChat";
+import { APPS } from "../lib/apps";
 
-/**
- * OmniverseOS — Samsung One UI Mobile Home Screen
- * - Signature One UI viewing/interaction viewport split
- * - Deep rounded squircle cards (24-28px radius)
- * - Rich ambient Samsung One UI glassmorphism (#0A0B12, #121526, #3E7BFA)
- * - Thumb-friendly reachability zone
- */
-export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
+export default function MobileHomeScreen({ onOpenApp }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [initialChatPrompt, setInitialChatPrompt] = useState("");
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
-
-  // Live Clock & Date
-  const [timeStr, setTimeStr] = useState("");
-  const [dateStr, setDateStr] = useState("");
-  const [greeting, setGreeting] = useState("Good day");
-
-  // Mini Music Player State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [trackIndex, setTrackIndex] = useState(0);
-  const TRACKS = [
-    { title: "Cyber Pulse 2099", artist: "Vangelis Neural" },
-    { title: "Quantum Horizon", artist: "Cortex Core" },
-    { title: "Synthetic Rain", artist: "Neotokyo Grid" },
-  ];
-
-  // Quick Scratchpad
   const [quickNote, setQuickNote] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
-
-  // Quick Controls Toggles
   const [wifiActive, setWifiActive] = useState(true);
   const [quantumMesh, setQuantumMesh] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   const [batterySaver, setBatterySaver] = useState(false);
 
+  // Time & Weather State
+  const [timeStr, setTimeStr] = useState("");
+  const [dateStr, setDateStr] = useState("");
+  const [greeting, setGreeting] = useState("Good Day");
+  const [period, setPeriod] = useState("Morning");
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const TRACKS = [
+    { title: "Synthetic Horizons", artist: "Cortex Audio Labs" },
+    { title: "Neural Resonance", artist: "Omniverse Sub-Zero" },
+    { title: "Cybernetic Pulse", artist: "DeepSeek Ambient" },
+  ];
+
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTimeStr(
-        now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
-      );
-      setDateStr(
-        now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })
-      );
-      const hour = now.getHours();
-      setGreeting(
-        hour < 5 ? "Good night" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
-      );
+      const hrs = now.getHours();
+      const mins = now.getMinutes().toString().padStart(2, "0");
+      const secs = now.getSeconds().toString().padStart(2, "0");
+      setTimeStr(`${hrs}:${mins}:${secs}`);
+
+      const options = { weekday: "short", month: "short", day: "numeric" };
+      setDateStr(now.toLocaleDateString("en-US", options));
+
+      if (hrs < 12) {
+        setGreeting("Good Morning");
+        setPeriod("Morning");
+      } else if (hrs < 17) {
+        setGreeting("Good Afternoon");
+        setPeriod("Afternoon");
+      } else {
+        setGreeting("Good Evening");
+        setPeriod("Evening");
+      }
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const openChatWithPrompt = (promptText) => {
-    setInitialChatPrompt(promptText);
+  const openChatWithPrompt = (prompt) => {
+    setInitialChatPrompt(prompt);
     setChatOpen(true);
   };
 
   const handleSaveQuickNote = () => {
     if (!quickNote.trim()) return;
     try {
-      const existing = JSON.parse(localStorage.getItem("omniverse_notes_scratch") || "[]");
-      existing.unshift({
-        id: Date.now(),
-        text: quickNote,
-        created: new Date().toISOString(),
+      const notes = JSON.parse(localStorage.getItem("omniverse_notes") || "[]");
+      notes.unshift({
+        id: Date.now().toString(),
+        title: "Quick Note",
+        content: quickNote.trim(),
+        date: new Date().toISOString(),
       });
-      localStorage.setItem("omniverse_notes_scratch", JSON.stringify(existing));
+      localStorage.setItem("omniverse_notes", JSON.stringify(notes));
       setNoteSaved(true);
       setTimeout(() => {
         setQuickNote("");
@@ -94,20 +93,12 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         minHeight: "100%",
         position: "fixed",
         inset: 0,
-<<<<<<< HEAD
-        background: "radial-gradient(ellipse at 50% 15%, #0d1530 0%, #030408 75%)",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        padding: "12px 0 110px 0",
-=======
         background: "radial-gradient(ellipse at 50% 20%, #111424 0%, #07080E 70%, #030407 100%)",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         padding: "env(safe-area-inset-top, 12px) 0 max(80px, env(safe-area-inset-bottom, 80px)) 0",
->>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
         overflowY: "auto",
         WebkitOverflowScrolling: "touch",
         zIndex: 10,
@@ -115,41 +106,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
       }}
       data-testid="mobile-home-screen"
     >
-<<<<<<< HEAD
-      {/* ── 1. CORTEX DYNAMIC ISLAND / STATUS CAPSULE ─────────────────────── */}
-      <div style={{ padding: "0 16px", marginBottom: 16 }}>
-        <motion.div
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setControlCenterOpen(true)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 24,
-            background: "rgba(10, 16, 32, 0.85)",
-            border: "1px solid rgba(0, 240, 255, 0.25)",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.15)",
-            backdropFilter: "blur(20px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-          }}
-        >
-          {/* Left: Cortex Entity indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <motion.div
-              animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#00F0FF",
-                boxShadow: "0 0 10px #00F0FF",
-              }}
-            />
-            <span style={{ fontSize: 10, fontFamily: "monospace", color: "#00F0FF", letterSpacing: "0.12em", fontWeight: 800 }}>
-              CORTEX // 2099
-=======
       {/* ── ONE UI TOP VIEWING AREA (Reachability Header) ────────────────────── */}
       <div style={{ padding: "16px 22px 0 22px" }}>
         {/* Top Status Bar & Quick Actions */}
@@ -168,7 +124,6 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
             />
             <span style={{ fontSize: 11, fontWeight: 700, color: "#4D8DFF", letterSpacing: "0.12em", textTransform: "uppercase" }}>
               One UI · Cortex Core
->>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
             </span>
           </div>
 
@@ -187,7 +142,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
               <span style={{ fontSize: 9.5, fontFamily: "monospace" }}>94%</span>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* ── 2. CYBERPUNK CLOCK & AMBIENT WEATHER HUD ─────────────────────── */}
@@ -206,25 +161,9 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           </div>
 
           {/* Weather Glance Card */}
-          <div
+          <button
+            onClick={() => setChatOpen(true)}
             style={{
-<<<<<<< HEAD
-              padding: "8px 12px",
-              borderRadius: 16,
-              background: "rgba(255, 255, 255, 0.04)",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              textAlign: "right",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>24°C</div>
-              <div style={{ fontSize: 9.5, color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>NEOTOKYO</div>
-            </div>
-            <i className="fa-solid fa-cloud-moon" style={{ fontSize: 18, color: "#00F0FF" }} />
-=======
               padding: "7px 14px",
               borderRadius: 20,
               background: "rgba(62, 123, 250, 0.16)",
@@ -247,84 +186,14 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         {/* Big One UI Header Title */}
         <div style={{ marginTop: 22 }}>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#F8FAFC", margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
-            Good {period}, Abdul
+            Good {period}, Operator
           </h1>
           <div style={{ fontSize: 13.5, color: "#94A3B8", marginTop: 6, fontWeight: 400 }}>
             System operational · 3 Cortex insights awaiting review
->>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
           </div>
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* ── 3. CENTRAL ACTION SURFACE (DIRECT PROMPT DISPATCH) ───────────── */}
-      <div style={{ padding: "0 16px", marginBottom: 18 }}>
-        <div
-          style={{
-            padding: "16px 18px",
-            borderRadius: 22,
-            background: "radial-gradient(ellipse at 70% 0%, rgba(0, 240, 255, 0.12) 0%, rgba(10, 15, 30, 0.9) 100%)",
-            border: "1px solid rgba(0, 240, 255, 0.3)",
-            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.12)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 10, fontFamily: "monospace", color: "#00F0FF", letterSpacing: "0.12em", fontWeight: 800 }}>
-              CENTRAL NEURAL DISPATCH
-            </span>
-            <button
-              onClick={() => setChatOpen(true)}
-              style={{
-                fontSize: 10.5,
-                fontWeight: 800,
-                color: "#00F0FF",
-                background: "rgba(0, 240, 255, 0.15)",
-                border: "1px solid rgba(0, 240, 255, 0.4)",
-                padding: "3px 10px",
-                borderRadius: 12,
-                cursor: "pointer",
-              }}
-            >
-              FULL CHAT →
-            </button>
-          </div>
-
-          <div
-            onClick={() => setChatOpen(true)}
-            style={{
-              fontSize: 15,
-              fontWeight: 800,
-              color: "#fff",
-              cursor: "pointer",
-              marginBottom: 12,
-            }}
-          >
-            "What complex challenge do you need solved?"
-          </div>
-
-          {/* Complex Prompt Action Chips */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[
-              { label: "Quantum Decoherence", query: "Derive the theoretical foundations of quantum computing and decoherence." },
-              { label: "Startup Stress-Test", query: "Stress-test my startup thesis: Universal Basic Income funded by AI automation taxes." },
-              { label: "Microgrid Dispatch", query: "Develop an autonomous renewable microgrid dispatch plan with storage buffers." },
-              { label: "Superconductors", query: "Synthesize a technical research plan for ambient pressure room-temperature superconductors." },
-            ].map((chip) => (
-              <button
-                key={chip.label}
-                onClick={() => openChatWithPrompt(chip.query)}
-                style={{
-                  fontSize: 10.5,
-                  padding: "5px 10px",
-                  borderRadius: 10,
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  color: "rgba(255, 255, 255, 0.85)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-=======
       {/* ── ONE UI CENTRAL WIDGET SURFACE ───────────────────────────────────── */}
       <div style={{ padding: "0 18px", margin: "14px 0" }}>
         <motion.div
@@ -362,162 +231,16 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
                   background: "rgba(255, 255, 255, 0.07)",
                   border: "1px solid rgba(255, 255, 255, 0.12)",
                   color: "#CBD5E1",
->>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
                   fontWeight: 600,
                 }}
               >
-                <span style={{ color: "#00F0FF" }}>✦</span> {chip.label}
-              </button>
+                {chip}
+              </span>
             ))}
           </div>
         </motion.div>
       </div>
 
-<<<<<<< HEAD
-      {/* ── 4. GLANCEABLE WIDGETS SHELF (AUDIO & SCRATCHPAD) ─────────────── */}
-      <div style={{ padding: "0 16px", marginBottom: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {/* Mini Music Player Widget */}
-        <div
-          style={{
-            padding: "14px",
-            borderRadius: 18,
-            background: "rgba(8, 12, 24, 0.85)",
-            border: "1px solid rgba(244, 114, 182, 0.25)",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 9.5, fontFamily: "monospace", color: "#F472B6", fontWeight: 800 }}>AUDIO FEED</span>
-              <i className="fa-solid fa-music" style={{ fontSize: 11, color: "#F472B6" }} />
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginTop: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {TRACKS[trackIndex].title}
-            </div>
-            <div style={{ fontSize: 10, color: "rgba(255, 255, 255, 0.5)", marginTop: 1 }}>
-              {TRACKS[trackIndex].artist}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-            {/* Equalizer animation */}
-            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              {[12, 18, 8, 15, 10].map((h, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ height: isPlaying ? [4, h, 4] : 4 }}
-                  transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.12 }}
-                  style={{ width: 2.5, borderRadius: 2, background: "#F472B6" }}
-                />
-              ))}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button
-                onClick={() => setTrackIndex((trackIndex + 1) % TRACKS.length)}
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: "50%",
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "none",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                }}
-              >
-                <i className="fa-solid fa-forward-step" style={{ fontSize: 9 }} />
-              </button>
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #F472B6 0%, #7B2FFF 100%)",
-                  border: "none",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                }}
-              >
-                <i className={`fa-solid ${isPlaying ? "fa-pause" : "fa-play"}`} style={{ fontSize: 11, marginLeft: isPlaying ? 0 : 2 }} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Neural Scratchpad Widget */}
-        <div
-          style={{
-            padding: "14px",
-            borderRadius: 18,
-            background: "rgba(8, 12, 24, 0.85)",
-            border: "1px solid rgba(245, 158, 11, 0.25)",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 9.5, fontFamily: "monospace", color: "#F59E0B", fontWeight: 800 }}>SCRATCHPAD</span>
-              <i className="fa-solid fa-pen-nib" style={{ fontSize: 11, color: "#F59E0B" }} />
-            </div>
-            <input
-              type="text"
-              placeholder="Quick thought..."
-              value={quickNote}
-              onChange={(e) => setQuickNote(e.target.value)}
-              style={{
-                width: "100%",
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                color: "#fff",
-                fontSize: 12,
-                marginTop: 8,
-              }}
-            />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
-            <span style={{ fontSize: 9, color: "rgba(255, 255, 255, 0.4)", fontFamily: "monospace" }}>
-              {noteSaved ? "SAVED ✓" : "LOCAL STORE"}
-            </span>
-            <button
-              onClick={handleSaveQuickNote}
-              disabled={!quickNote.trim()}
-              style={{
-                padding: "3px 8px",
-                borderRadius: 8,
-                background: noteSaved ? "rgba(57, 255, 20, 0.2)" : "rgba(245, 158, 11, 0.2)",
-                border: `1px solid ${noteSaved ? "#39FF14" : "rgba(245, 158, 11, 0.4)"}`,
-                color: noteSaved ? "#39FF14" : "#F59E0B",
-                fontSize: 9.5,
-                fontWeight: 800,
-                cursor: quickNote.trim() ? "pointer" : "default",
-              }}
-            >
-              {noteSaved ? "Saved" : "Save"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 5. INTELLIGENCE STACKS (TOTAL REVAMP) ────────────────────────── */}
-      <div style={{ marginBottom: 18 }}>
-        <MobileIntelligenceStacks onOpenApp={onOpenApp} />
-      </div>
-=======
       {/* ── ONE UI INTELLIGENCE STACKS & CARDS ──────────────────────────────── */}
       <MobileIntelligenceStacks onOpenApp={onOpenApp} />
 
@@ -528,24 +251,8 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
 
       {/* ── ONE UI FLOATING CORTEX PILL ────────────────────────────────────── */}
       <CortexPill onOpenApp={onOpenApp} onQuerySubmit={() => setChatOpen(true)} />
->>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
 
-      {/* ── 6. SMART DOCK (PINNED APPS & CORTEX ORB) ─────────────────────── */}
-      <div style={{ padding: "0 16px", marginBottom: 20 }}>
-        <MobileSmartDock
-          onOpenApp={onOpenApp}
-          onOpenDrawer={() => setDrawerOpen(true)}
-          onOpenChat={() => setChatOpen(true)}
-        />
-      </div>
-
-      {/* ── 7. CORTEX PILL (PERSISTENT FLOATING ANCHOR) ──────────────────── */}
-      <CortexPill
-        onOpenApp={onOpenApp}
-        onQuerySubmit={(query) => openChatWithPrompt(query)}
-      />
-
-      {/* ── 8. APP DRAWER MODAL (120HZ COMPOSITOR) ───────────────────────── */}
+      {/* ── APP DRAWER MODAL (120HZ COMPOSITOR) ───────────────────────── */}
       <AnimatePresence>
         {drawerOpen && (
           <MobileAppDrawer
@@ -559,7 +266,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         )}
       </AnimatePresence>
 
-      {/* ── 9. FULL-SCREEN MOBILE AI CHAT ─────────────────────────────────── */}
+      {/* ── FULL-SCREEN MOBILE AI CHAT ─────────────────────────────────── */}
       <AnimatePresence>
         {chatOpen && (
           <MobileAIChat
@@ -572,7 +279,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         )}
       </AnimatePresence>
 
-      {/* ── 10. QUICK CONTROL CENTER OVERLAY ─────────────────────────────── */}
+      {/* ── QUICK CONTROL CENTER OVERLAY ─────────────────────────────── */}
       <AnimatePresence>
         {controlCenterOpen && (
           <motion.div
