@@ -7,7 +7,7 @@
     "unknown": 0,
     "refusals": 12,
     "marks": 0,
-    "sessions": 47,
+    "sessions": 48,
     "tokensReturned": 65927,
     "drivingMs": 55327
   },
@@ -82,7 +82,7 @@
         "unknown": 0,
         "refusals": 0,
         "marks": 0,
-        "sessions": 1,
+        "sessions": 2,
         "tokensReturned": 0,
         "drivingMs": 0
       }

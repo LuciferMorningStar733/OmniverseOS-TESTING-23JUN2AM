@@ -3,11 +3,11 @@ import { useOS } from "../context/OSContext";
 import { motion } from "framer-motion";
 
 const DESKTOP_SHORTCUTS = [
-  { id: "settings",   name: "Mandrill",          sub: "24 TB, 4.05 TB free", icon: "fa-robot",             color: "#F59E0B", bg: "linear-gradient(135deg, #F59E0B, #B45309)" },
-  { id: "tasks",      name: "To Do",             sub: "7 items",             icon: "fa-folder-closed",     color: "#60A5FA", bg: "linear-gradient(135deg, #3B82F6, #1D4ED8)" },
-  { id: "files",      name: "Omniverse Drive",   sub: "System Vault",        icon: "fa-hard-drive",        color: "#00F0FF", bg: "linear-gradient(135deg, #06B6D4, #0891B2)" },
-  { id: "chat",       name: "Cortex AI",         sub: "Active Assistant",    icon: "fa-brain",             color: "#A855F7", bg: "linear-gradient(135deg, #8B5CF6, #6D28D9)" },
-  { id: "projects",   name: "Project DNA",       sub: "Build Workspace",     icon: "fa-diagram-project", color: "#39FF14", bg: "linear-gradient(135deg, #10B981, #047857)" },
+  { id: "settings",   name: "Settings",          sub: "System Controls",     icon: "fa-gear",              color: "#F59E0B", bg: "linear-gradient(135deg, #F59E0B, #B45309)" },
+  { id: "tasks",      name: "Tasks",             sub: "Task Queue",          icon: "fa-list-check",        color: "#60A5FA", bg: "linear-gradient(135deg, #3B82F6, #1D4ED8)" },
+  { id: "files",      name: "File Manager",      sub: "Workspace Files",     icon: "fa-folder",            color: "#00F0FF", bg: "linear-gradient(135deg, #06B6D4, #0891B2)" },
+  { id: "chat",       name: "Cortex AI",         sub: "AI Assistant",        icon: "fa-brain",             color: "#A855F7", bg: "linear-gradient(135deg, #8B5CF6, #6D28D9)" },
+  { id: "projects",   name: "Project DNA",       sub: "Workspace DNA",       icon: "fa-diagram-project", color: "#39FF14", bg: "linear-gradient(135deg, #10B981, #047857)" },
 ];
 
 export default function DesktopIcons() {

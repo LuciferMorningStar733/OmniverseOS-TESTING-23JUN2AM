@@ -1735,60 +1735,20 @@ async def auto_title_session(session_id: str, user=Depends(get_current_user)):
     return {"session_id": session_id, "title": title}
 
 # ---------- Routes: AI Image Generation ----------
-def _generate_procedural_image_b64(prompt: str, width: int = 512, height: int = 512) -> str:
-    """Generate high-resolution procedural cyberpunk visual synthesis in pure Python."""
-    import zlib, struct, math, hashlib
-    h_val = int(hashlib.md5(prompt.encode()).hexdigest()[:8], 16)
-    raw_data = bytearray()
-    cx, cy = width / 2.0, height / 2.0
-    
-    for y in range(height):
-        raw_data.append(0)  # filter type 0
-        ny = (y - cy) / cy
-        for x in range(width):
-            nx = (x - cx) / cx
-            dist = math.sqrt(nx*nx + ny*ny)
-            
-            # Perspective grid & geometric matrix
-            grid_v = (int(abs(x - cx) * 16 / (y + 10)) % 16 == 0) if y > cy else False
-            grid_h = (int(300 / (height - y + 1)) % 12 == 0) if y > cy else False
-            is_grid = grid_v or grid_h or (x % 64 == 0) or (y % 64 == 0)
-            
-            # Radial glowing core
-            glow = max(0.0, 1.0 - dist)
-            core = max(0.0, 1.0 - dist * 3.0)
-            horizon = max(0.0, 1.0 - abs(ny) * 4.0)
-            
-            r = int(min(255, (14 + glow * 45 + core * 200 + (190 if is_grid else 0))))
-            g = int(min(255, (20 + glow * 85 + core * 240 + (245 if is_grid else 0))))
-            b = int(min(255, (42 + glow * 190 + core * 255 + (255 if is_grid else 0))))
-            
-            if horizon > 0.4:
-                r = min(255, r + int(horizon * 90))
-                b = min(255, b + int(horizon * 130))
-                
-            raw_data.extend((r, g, b))
-            
-    def chunk(tag, data):
-        return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff)
-
-    png = b'\x89PNG\r\n\x1a\n'
-    png += chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
-    png += chunk(b'IDAT', zlib.compress(bytes(raw_data), 6))
-    png += chunk(b'IEND', b'')
-    return base64.b64encode(png).decode('utf-8')
 
 @api.post("/ai/image")
 async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
     await rate_limit(user["id"])
     image_b64 = None
+    provider_used = None
 
+    # Provider 1: Gemini Imagen API
     if gemini_client:
         try:
             import asyncio as _asyncio
             response = await _asyncio.to_thread(
                 gemini_client.models.generate_images,
-                model="imagen-4.0-generate-001",
+                model="imagen-3.0-generate-002",
                 prompt=req.prompt,
                 config=genai_types.GenerateImagesConfig(
                     number_of_images=1,
@@ -1796,18 +1756,52 @@ async def ai_image(req: ImageGenReq, user=Depends(get_current_user)):
                 ),
             )
             image_bytes = response.generated_images[0].image.image_bytes
-            image_b64 = base64.b64encode(image_bytes).decode()
+            if len(image_bytes) > 1024:
+                image_b64 = base64.b64encode(image_bytes).decode()
+                provider_used = "Gemini Imagen-3"
         except Exception as e:
-            logging.warning("[ImageGen] Cloud Imagen-4 unavailable, using Cortex Neural Renderer: %s", e)
+            logging.warning("[ImageGen] Gemini Imagen unavailable, attempting secondary real provider: %s", e)
 
+    # Provider 2: Live Pollinations AI Image Synthesis (Real 1024x1024 AI Image Provider)
     if not image_b64:
-        image_b64 = _generate_procedural_image_b64(req.prompt)
+        try:
+            import urllib.parse
+            encoded_prompt = urllib.parse.quote(req.prompt)
+            seed = int(hashlib.md5(req.prompt.encode()).hexdigest()[:8], 16)
+            poll_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                res = await client.get(poll_url)
+                if res.status_code == 200 and len(res.content) > 2048:
+                    image_b64 = base64.b64encode(res.content).decode()
+                    provider_used = "Pollinations AI (Flux.1)"
+        except Exception as e:
+            logging.warning("[ImageGen] Secondary Pollinations provider failed: %s", e)
+
+    # Provider 3: HuggingFace Inference API (FLUX.1-schnell)
+    if not image_b64:
+        try:
+            hf_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                res = await client.post(hf_url, json={"inputs": req.prompt})
+                if res.status_code == 200 and len(res.content) > 2048:
+                    image_b64 = base64.b64encode(res.content).decode()
+                    provider_used = "HuggingFace (FLUX.1-schnell)"
+        except Exception as e:
+            logging.warning("[ImageGen] HuggingFace provider failed: %s", e)
+
+    # ABSOLUTE PRODUCT INTEGRITY RULE: Never return procedural fake images
+    if not image_b64:
+        raise HTTPException(
+            status_code=503,
+            detail="Image generation service unavailable. Unable to reach live AI image providers (Gemini / Pollinations / HuggingFace)."
+        )
 
     doc = await db.ai_images.insert_one({
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
         "prompt": req.prompt,
         "image_b64": image_b64,
+        "provider": provider_used,
         "created_at": datetime.now(timezone.utc),
     })
     result = await db.ai_images.find_one({"_id": doc.inserted_id})
