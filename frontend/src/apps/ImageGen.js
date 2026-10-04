@@ -90,7 +90,7 @@ export default function ImageGen() {
         <div className="mono-label">// Visual Synthesis</div>
         <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">Image Generation</h2>
         <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.25)", marginBottom: 16 }}>
-          Powered by Imagen-4 · Prompt forwarded verbatim · Best-effort photorealism
+          Powered by {selected?.provider || "Multi-Provider AI (Gemini / Flux.1)"} · Prompt forwarded verbatim · Best-effort photorealism
         </div>
 
         {/* Image viewport */}
@@ -134,7 +134,7 @@ export default function ImageGen() {
                 </div>
                 {selected.created_at && (
                   <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {formatTime(selected.created_at)} · Imagen-4
+                    {formatTime(selected.created_at)} · {selected.provider || "Cortex AI"}
                   </div>
                 )}
               </div>
