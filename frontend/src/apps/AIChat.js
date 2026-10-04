@@ -646,6 +646,44 @@ function formatMessageTime(ts) {
   return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
+function ActiveProviderBadge({ provider, prevProvider }) {
+  if (!provider) return null;
+  const colors = {
+    gemini: "#00F0FF",
+    groq: "#39FF14",
+    deepseek: "#CF9EFF",
+    cerebras: "#FFA000",
+    openrouter: "#A855F7",
+    local: "#FF6314"
+  };
+  const color = colors[provider] || "#00F0FF";
+  const name = provider.charAt(0).toUpperCase() + provider.slice(1);
+  return (
+    <div
+      title={prevProvider && prevProvider !== provider ? `Failed over from ${prevProvider} to ${name}` : `Routed to ${name}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "2px 7px",
+        borderRadius: 6,
+        background: `${color}14`,
+        border: `1px solid ${color}44`,
+        fontSize: 9.5,
+        fontFamily: "'JetBrains Mono', monospace",
+        color: color,
+        letterSpacing: "0.05em",
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, display: "inline-block" }} />
+      <span>{name}</span>
+      {prevProvider && prevProvider !== provider && (
+        <span style={{ opacity: 0.6, fontSize: 8 }}>({prevProvider}→)</span>
+      )}
+    </div>
+  );
+}
+
 /* ── Main component ──────────────────────────────────────────────────────────── */
 export default function AIChat() {
   const [messages, setMessages]             = useState([]);

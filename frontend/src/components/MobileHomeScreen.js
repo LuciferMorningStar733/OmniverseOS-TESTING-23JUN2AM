@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import CortexPill from "./Mobile/CortexPill";
-import MobileIntelligenceStacks from "./Mobile/MobileIntelligenceStacks";
-import MobileSmartDock from "./Mobile/MobileSmartDock";
-import MobileAIChat from "./Mobile/MobileAIChat";
-import MobileAppDrawer from "./MobileAppDrawer";
+import CortexPill from "./CortexPill";
+import MobileIntelligenceStacks from "./MobileIntelligenceStacks";
+import MobileSmartDock from "./MobileSmartDock";
+import MobileAIChat from "./MobileAIChat";
+import MobileAppDrawer from "../MobileAppDrawer";
 
+/**
+ * OmniverseOS — Samsung One UI Mobile Home Screen
+ * - Signature One UI viewing/interaction viewport split
+ * - Deep rounded squircle cards (24-28px radius)
+ * - Rich ambient Samsung One UI glassmorphism (#0A0B12, #121526, #3E7BFA)
+ * - Thumb-friendly reachability zone
+ */
 export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -87,17 +94,28 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
         minHeight: "100%",
         position: "fixed",
         inset: 0,
+<<<<<<< HEAD
         background: "radial-gradient(ellipse at 50% 15%, #0d1530 0%, #030408 75%)",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
         padding: "12px 0 110px 0",
+=======
+        background: "radial-gradient(ellipse at 50% 20%, #111424 0%, #07080E 70%, #030407 100%)",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        padding: "env(safe-area-inset-top, 12px) 0 max(80px, env(safe-area-inset-bottom, 80px)) 0",
+>>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
         overflowY: "auto",
         WebkitOverflowScrolling: "touch",
         zIndex: 10,
+        fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
       }}
       data-testid="mobile-home-screen"
     >
+<<<<<<< HEAD
       {/* ── 1. CORTEX DYNAMIC ISLAND / STATUS CAPSULE ─────────────────────── */}
       <div style={{ padding: "0 16px", marginBottom: 16 }}>
         <motion.div
@@ -131,6 +149,26 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
             />
             <span style={{ fontSize: 10, fontFamily: "monospace", color: "#00F0FF", letterSpacing: "0.12em", fontWeight: 800 }}>
               CORTEX // 2099
+=======
+      {/* ── ONE UI TOP VIEWING AREA (Reachability Header) ────────────────────── */}
+      <div style={{ padding: "16px 22px 0 22px" }}>
+        {/* Top Status Bar & Quick Actions */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <motion.div
+              animate={{ scale: [1, 1.25, 1], opacity: [0.75, 1, 0.75] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: "50%",
+                background: "#3E7BFA",
+                boxShadow: "0 0 12px #3E7BFA",
+              }}
+            />
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#4D8DFF", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              One UI · Cortex Core
+>>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
             </span>
           </div>
 
@@ -170,6 +208,7 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
           {/* Weather Glance Card */}
           <div
             style={{
+<<<<<<< HEAD
               padding: "8px 12px",
               borderRadius: 16,
               background: "rgba(255, 255, 255, 0.04)",
@@ -185,10 +224,39 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
               <div style={{ fontSize: 9.5, color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>NEOTOKYO</div>
             </div>
             <i className="fa-solid fa-cloud-moon" style={{ fontSize: 18, color: "#00F0FF" }} />
+=======
+              padding: "7px 14px",
+              borderRadius: 20,
+              background: "rgba(62, 123, 250, 0.16)",
+              border: "1px solid rgba(62, 123, 250, 0.35)",
+              color: "#60A5FA",
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 4px 14px rgba(62, 123, 250, 0.15)",
+              backdropFilter: "blur(12px)",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <i className="fa-solid fa-sparkles text-[#60A5FA]" /> AI Assistant
+          </button>
+        </div>
+
+        {/* Big One UI Header Title */}
+        <div style={{ marginTop: 22 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#F8FAFC", margin: 0, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
+            Good {period}, Abdul
+          </h1>
+          <div style={{ fontSize: 13.5, color: "#94A3B8", marginTop: 6, fontWeight: 400 }}>
+            System operational · 3 Cortex insights awaiting review
+>>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
           </div>
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* ── 3. CENTRAL ACTION SURFACE (DIRECT PROMPT DISPATCH) ───────────── */}
       <div style={{ padding: "0 16px", marginBottom: 18 }}>
         <div
@@ -256,6 +324,45 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
                   display: "flex",
                   alignItems: "center",
                   gap: 4,
+=======
+      {/* ── ONE UI CENTRAL WIDGET SURFACE ───────────────────────────────────── */}
+      <div style={{ padding: "0 18px", margin: "14px 0" }}>
+        <motion.div
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setChatOpen(true)}
+          style={{
+            padding: "20px 22px",
+            borderRadius: 28,
+            background: "linear-gradient(135deg, rgba(20, 26, 46, 0.85) 0%, rgba(12, 15, 28, 0.95) 100%)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            boxShadow: "0 16px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(62, 123, 250, 0.12)",
+            backdropFilter: "blur(24px)",
+            cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#3E7BFA", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              CORTEX INTELLIGENCE SURFACE
+            </span>
+            <span style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>Tap to invoke</span>
+          </div>
+
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#F8FAFC", lineHeight: 1.3 }}>
+            "What would you like to achieve right now?"
+          </div>
+
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 14 }}>
+            {["⚡ Optimize Schedule", "🧠 Deep Analysis", "🛡️ Adversary Spar", "📊 Market Radar"].map((chip) => (
+              <span
+                key={chip}
+                style={{
+                  fontSize: 11,
+                  padding: "5px 12px",
+                  borderRadius: 16,
+                  background: "rgba(255, 255, 255, 0.07)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  color: "#CBD5E1",
+>>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
                   fontWeight: 600,
                 }}
               >
@@ -263,9 +370,10 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
+<<<<<<< HEAD
       {/* ── 4. GLANCEABLE WIDGETS SHELF (AUDIO & SCRATCHPAD) ─────────────── */}
       <div style={{ padding: "0 16px", marginBottom: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {/* Mini Music Player Widget */}
@@ -409,6 +517,18 @@ export default function MobileHomeScreen({ onOpenApp, onOpenSearch }) {
       <div style={{ marginBottom: 18 }}>
         <MobileIntelligenceStacks onOpenApp={onOpenApp} />
       </div>
+=======
+      {/* ── ONE UI INTELLIGENCE STACKS & CARDS ──────────────────────────────── */}
+      <MobileIntelligenceStacks onOpenApp={onOpenApp} />
+
+      {/* ── ONE UI BOTTOM INTERACTION ZONE (Smart Dock & Action Surface) ─────── */}
+      <div style={{ padding: "12px 14px 0 14px" }}>
+        <MobileSmartDock onOpenApp={onOpenApp} onOpenDrawer={() => setDrawerOpen(true)} />
+      </div>
+
+      {/* ── ONE UI FLOATING CORTEX PILL ────────────────────────────────────── */}
+      <CortexPill onOpenApp={onOpenApp} onQuerySubmit={() => setChatOpen(true)} />
+>>>>>>> beba0a9 (Revamp mobile UI to Samsung One UI style and verify all AI apps click-by-click with Reticle.)
 
       {/* ── 6. SMART DOCK (PINNED APPS & CORTEX ORB) ─────────────────────── */}
       <div style={{ padding: "0 16px", marginBottom: 20 }}>

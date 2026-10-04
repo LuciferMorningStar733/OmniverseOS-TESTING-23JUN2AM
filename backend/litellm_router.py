@@ -43,7 +43,7 @@ if _emergent and not os.environ.get("GEMINI_API_KEY", ""):
 _LITELLM_MODEL = {
     "gemini":     "gemini/gemini-2.5-flash",
     "deepseek":   "deepseek/deepseek-chat",
-    "groq":       "groq/llama-3.3-70b-versatile",
+    "groq":       "groq/openai/gpt-oss-20b",
     "cerebras":   "cerebras/llama3.3-70b",
     "openrouter": "openrouter/meta-llama/llama-3.3-70b-instruct",
 }

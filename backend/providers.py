@@ -12,7 +12,11 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 from typing import AsyncGenerator, Optional
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env")
 
 import httpx
 from google import genai
@@ -34,7 +38,7 @@ CORTEX_SYSTEM = (
 PROVIDER_DEFAULTS = {
     "gemini":     "gemini-2.5-flash",
     "deepseek":   "deepseek-chat",           # DeepSeek V3
-    "groq":       "llama-3.3-70b-versatile",
+    "groq":       "openai/gpt-oss-20b",
     "cerebras":   "llama-3.3-70b",
     "openrouter": "meta-llama/llama-3.3-70b-instruct",
 }
@@ -211,15 +215,19 @@ class ProviderManager(AIProvider):
         self._initialised = False
 
     def init(self):
+        gemini_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
+        if gemini_key and not self._gemini_client:
+            self._gemini_client = genai.Client(api_key=gemini_key)
+        if not self._deepseek_key:
+            self._deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        if not self._groq_key:
+            self._groq_key = os.environ.get("GROQ_API_KEY", "")
+        if not self._cerebras_key:
+            self._cerebras_key = os.environ.get("CEREBRAS_API_KEY", "")
+        if not self._openrouter_key:
+            self._openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
         if self._initialised:
             return
-        gemini_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
-        if gemini_key:
-            self._gemini_client = genai.Client(api_key=gemini_key)
-        self._deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
-        self._groq_key = os.environ.get("GROQ_API_KEY", "")
-        self._cerebras_key = os.environ.get("CEREBRAS_API_KEY", "")
-        self._openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
         self._initialised = True
         available = [
             p for p in self.PROVIDER_ORDER
@@ -574,6 +582,7 @@ class ProviderManager(AIProvider):
         model: str,
         message: str,
         system: str,
+        max_tokens: int = 1500,
     ) -> str:
         """Non-streaming single-shot text generation via OpenAI-compatible API."""
         headers = {
@@ -587,7 +596,7 @@ class ProviderManager(AIProvider):
                 {"role": "user", "content": message},
             ],
             "stream": False,
-            "max_tokens": 512,
+            "max_tokens": max_tokens,
         }
         client = get_http()
         resp = await client.post(
@@ -597,7 +606,7 @@ class ProviderManager(AIProvider):
         data = resp.json()
         return data["choices"][0]["message"]["content"] or ""
 
-    async def generate_text_background(self, prompt: str, system: str = "") -> str:
+    async def generate_text_background(self, prompt: str, system: str = "", max_tokens: int = 1500) -> str:
         """
         Non-streaming text generation for background tasks and fallback single-shot generation.
         Tries Cerebras → Groq → DeepSeek → Gemini → OpenRouter.
@@ -622,32 +631,32 @@ class ProviderManager(AIProvider):
                         "https://api.cerebras.ai/v1",
                         self._cerebras_key,
                         PROVIDER_DEFAULTS["cerebras"],
-                        prompt, system,
+                        prompt, system, max_tokens=max_tokens,
                     )
                 elif provider == "groq":
                     text = await self._call_openai_compat_text(
                         "https://api.groq.com/openai/v1",
                         self._groq_key,
                         PROVIDER_DEFAULTS["groq"],
-                        prompt, system,
+                        prompt, system, max_tokens=max_tokens,
                     )
                 elif provider == "deepseek":
                     text = await self._call_openai_compat_text(
                         "https://api.deepseek.com",
                         self._deepseek_key,
                         PROVIDER_DEFAULTS["deepseek"],
-                        prompt, system,
+                        prompt, system, max_tokens=max_tokens,
                     )
                 elif provider == "openrouter":
                     text = await self._call_openai_compat_text(
                         "https://openrouter.ai/api/v1",
                         self._openrouter_key,
                         PROVIDER_DEFAULTS["openrouter"],
-                        prompt, system,
+                        prompt, system, max_tokens=max_tokens,
                     )
                 elif provider == "gemini" and self._gemini_client:
                     resp = await self._gemini_client.aio.models.generate_content(
-                        model="gemini-2.0-flash-lite",
+                        model=PROVIDER_DEFAULTS["gemini"],
                         contents=prompt,
                     )
                     text = resp.text or ""

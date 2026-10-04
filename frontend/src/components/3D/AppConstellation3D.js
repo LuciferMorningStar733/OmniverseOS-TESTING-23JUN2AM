@@ -64,28 +64,34 @@ export class AppConstellation3D {
         return new THREE.OctahedronGeometry(1.1, 0);
       case 'calendar':
         // Precision Orbital Mechanism Ring
-        return new THREE.TorusGeometry(0.9, 0.12, 16, 48);
+        return new THREE.TorusGeometry(0.9, 0.08, 16, 48);
       case 'files':
-        // Volumetric Archive Box
+        // Volumetric Archive Monolith
         return new THREE.BoxGeometry(1.4, 0.8, 1.1);
       case 'voice':
-        // Acoustic Waveform Deformation Sphere
-        return new THREE.IcosahedronGeometry(1.0, 2);
+        // Acoustic Crystalline Prism
+        return new THREE.OctahedronGeometry(1.1, 0);
       case 'timeline':
         // Dimensional Ribbon Segment
-        return new THREE.CylinderGeometry(0.2, 0.8, 1.4, 16);
+        return new THREE.CylinderGeometry(0.3, 0.8, 1.4, 6);
       case 'zero':
         // First-Principles Octahedron
-        return new THREE.OctahedronGeometry(1.2, 1);
+        return new THREE.OctahedronGeometry(1.2, 0);
       case 'blackbox':
-        // Mysterious Sealed Box
+        // Mysterious Sealed Monolith
         return new THREE.BoxGeometry(1.1, 1.1, 1.1);
       case 'mirror':
         // Reflective Planar Surface
         return new THREE.ConeGeometry(0.9, 1.3, 4);
+      case 'chat':
+        // Prismatic Icosahedron Core
+        return new THREE.IcosahedronGeometry(1.1, 0);
+      case 'dashboard':
+        // Orbital Gyroscopic Ring
+        return new THREE.TorusGeometry(1.1, 0.08, 16, 48);
       default:
-        // Precision Smoked Polyhedron
-        return new THREE.DodecahedronGeometry(0.9, 1);
+        // Precision Architectural Faceted Crystal
+        return new THREE.IcosahedronGeometry(0.95, 0);
     }
   }
 

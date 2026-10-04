@@ -1,15 +1,15 @@
 {
   "counts": {
-    "calls": 194,
+    "calls": 197,
     "verdicts": 48,
     "passed": 35,
     "failed": 13,
     "unknown": 0,
     "refusals": 12,
     "marks": 0,
-    "sessions": 35,
-    "tokensReturned": 65186,
-    "drivingMs": 55242
+    "sessions": 47,
+    "tokensReturned": 65927,
+    "drivingMs": 55327
   },
   "days": [
     {
@@ -41,6 +41,51 @@
         "tokensReturned": 22375,
         "drivingMs": 24660
       }
+    },
+    {
+      "date": "2026-09-16",
+      "counts": {
+        "calls": 3,
+        "verdicts": 0,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 0,
+        "refusals": 0,
+        "marks": 0,
+        "sessions": 2,
+        "tokensReturned": 741,
+        "drivingMs": 85
+      }
+    },
+    {
+      "date": "2026-09-17",
+      "counts": {
+        "calls": 0,
+        "verdicts": 0,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 0,
+        "refusals": 0,
+        "marks": 0,
+        "sessions": 9,
+        "tokensReturned": 0,
+        "drivingMs": 0
+      }
+    },
+    {
+      "date": "2026-10-05",
+      "counts": {
+        "calls": 0,
+        "verdicts": 0,
+        "passed": 0,
+        "failed": 0,
+        "unknown": 0,
+        "refusals": 0,
+        "marks": 0,
+        "sessions": 1,
+        "tokensReturned": 0,
+        "drivingMs": 0
+      }
     }
   ],
   "records": {
@@ -48,11 +93,11 @@
     "bestVerdictDay": 43,
     "bestDefectDay": 12,
     "streakDays": 1,
-    "bestStreakDays": 1
+    "bestStreakDays": 2
   },
   "savings": {
     "tokens": {
-      "value": 11614,
+      "value": 10873,
       "basis": "vs an agent reading the app through screenshots"
     },
     "minutes": {
