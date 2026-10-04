@@ -20,7 +20,7 @@ import ContextChips from "./AIChat/components/ContextChips";
 import useChatStream from "./AIChat/hooks/useChatStream";
 import ModelSelect, { MODEL_OPTIONS } from "./AIChat/components/ModelSelector";
 import ChatHeader, { StatusPanel } from "./AIChat/components/ChatHeader";
-import ChatMessage from "./AIChat/components/ChatMessage";
+import ChatMessage, { CopyButton } from "./AIChat/components/ChatMessage";
 import { getActivePersona, PERSONAS, setActivePersona, PERSONA_KEY } from "../lib/cortexPersonas";
 import { cortexScheduler } from "../lib/cortexScheduler";
 
