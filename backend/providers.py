@@ -57,19 +57,35 @@ class ProviderHealth:
         self.name = name
         self._status = "healthy"
         self._cooldown_until: float = 0.0
+        self.last_success: Optional[str] = None
+        self.last_failure: Optional[str] = None
+        self.latency_ms: int = 0
+        self.success_count: int = 0
+        self.failure_count: int = 0
 
     def mark_rate_limited(self):
+        from datetime import datetime, timezone
         self._status = "cooldown"
         self._cooldown_until = time.monotonic() + PROVIDER_COOLDOWN_RATE_LIMITED
+        self.last_failure = datetime.now(timezone.utc).isoformat()
+        self.failure_count += 1
         logger.warning("[Cortex] %s → 429 rate-limited, cooldown %.0fs", self.name, PROVIDER_COOLDOWN_RATE_LIMITED)
 
     def mark_error(self):
+        from datetime import datetime, timezone
         self._status = "unavailable"
         self._cooldown_until = time.monotonic() + PROVIDER_COOLDOWN_ERROR
+        self.last_failure = datetime.now(timezone.utc).isoformat()
+        self.failure_count += 1
 
-    def mark_healthy(self):
+    def mark_healthy(self, latency_ms: int = 0):
+        from datetime import datetime, timezone
         self._status = "healthy"
         self._cooldown_until = 0.0
+        self.last_success = datetime.now(timezone.utc).isoformat()
+        if latency_ms > 0:
+            self.latency_ms = latency_ms
+        self.success_count += 1
 
     def is_available(self) -> bool:
         if self._status == "healthy":
@@ -85,6 +101,19 @@ class ProviderHealth:
         if self._status != "healthy" and time.monotonic() > self._cooldown_until:
             return "healthy"
         return self._status
+
+    def to_dict(self) -> dict:
+        return {
+            "provider": self.name,
+            "status": self.status,
+            "is_available": self.is_available(),
+            "last_success": self.last_success,
+            "last_failure": self.last_failure,
+            "latency_ms": self.latency_ms,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "cooldown_remaining_s": max(0, int(self._cooldown_until - time.monotonic())) if self._cooldown_until > time.monotonic() else 0
+        }
 
 
 # ── Shared HTTP client ─────────────────────────────────────────────────────
@@ -198,6 +227,45 @@ async def _stream_openai_compat(
                 continue
 
 
+MODEL_CAPABILITY_REGISTRY = {
+    "gemini": {
+        "model": "gemini-2.5-flash",
+        "context_window": 1048576,
+        "provider_name": "Google AI",
+        "display_name": "Gemini 2.5 Flash",
+        "supports_web_search": True,
+    },
+    "deepseek": {
+        "model": "deepseek-chat",
+        "context_window": 64000,
+        "provider_name": "DeepSeek AI",
+        "display_name": "DeepSeek V3",
+        "supports_web_search": False,
+    },
+    "groq": {
+        "model": "openai/gpt-oss-20b",
+        "context_window": 128000,
+        "provider_name": "Groq LPU",
+        "display_name": "Groq LLaMA 3.3 70B",
+        "supports_web_search": False,
+    },
+    "cerebras": {
+        "model": "llama-3.3-70b",
+        "context_window": 128000,
+        "provider_name": "Cerebras Systems",
+        "display_name": "Cerebras LLaMA 3.3",
+        "supports_web_search": False,
+    },
+    "openrouter": {
+        "model": "meta-llama/llama-3.3-70b-instruct",
+        "context_window": 131072,
+        "provider_name": "OpenRouter AI",
+        "display_name": "OpenRouter LLaMA 3.3",
+        "supports_web_search": False,
+    },
+}
+
+
 # ── Provider Manager ───────────────────────────────────────────────────────
 
 class ProviderManager(AIProvider):
@@ -213,6 +281,50 @@ class ProviderManager(AIProvider):
         self._cerebras_key: str = ""
         self._openrouter_key: str = ""
         self._initialised = False
+        self._history_events: list = []
+
+    def get_all_status(self) -> list[dict]:
+        self.init()
+        res = []
+        for p in self.PROVIDER_ORDER:
+            d = self.health[p].to_dict()
+            d["configured"] = self._has_key(p)
+            cap = MODEL_CAPABILITY_REGISTRY.get(p, {})
+            d["model"] = cap.get("model", PROVIDER_DEFAULTS.get(p, ""))
+            d["context_window"] = cap.get("context_window", 128000)
+            d["provider_display"] = PROVIDER_DISPLAY.get(p, p.capitalize())
+            res.append(d)
+        return res
+
+    def get_history_events(self) -> list[dict]:
+        return self._history_events
+
+    def predict_fallback(self, current_provider: str = "gemini") -> dict:
+        self.init()
+        for p in self.PROVIDER_ORDER:
+            if p == current_provider:
+                continue
+            if not self._has_key(p):
+                continue
+            h = self.health.get(p)
+            if h and h.is_available():
+                cap = MODEL_CAPABILITY_REGISTRY.get(p, {})
+                return {
+                    "provider": p,
+                    "display_name": PROVIDER_DISPLAY.get(p, p.capitalize()),
+                    "model": cap.get("model", PROVIDER_DEFAULTS.get(p, "")),
+                    "context_window": cap.get("context_window", 128000),
+                    "status": "READY",
+                    "reason": f"Primary engine active; {PROVIDER_DISPLAY.get(p, p)} standing by for zero-context-loss failover"
+                }
+        return {
+            "provider": "none",
+            "display_name": "None",
+            "model": "None",
+            "context_window": 0,
+            "status": "UNAVAILABLE",
+            "reason": "No healthy compatible fallback engine currently verified"
+        }
 
     def init(self):
         gemini_key = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")

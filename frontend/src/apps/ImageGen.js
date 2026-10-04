@@ -13,14 +13,21 @@ function formatTime(ts) {
 export default function ImageGen() {
   const [prompt,       setPrompt]       = useState("");
   const [loading,      setLoading]      = useState(false);
+  const [progressMsg,  setProgressMsg]  = useState("");
   const [history,      setHistory]      = useState([]);
   const [selected,     setSelected]     = useState(null);
   const [historyLoaded,setHistoryLoaded] = useState(false);
+  const [engineStatus, setEngineStatus]  = useState(null);
+  const [selectedEngine, setSelectedEngine] = useState("local"); // "local" | "cloud"
   const [error,        setError]        = useState(null);
   const promptInputRef = useRef(null);
 
-  // ── Load persisted history from backend on mount ─────────────────────────
+  // ── Load engine status and persisted history on mount ─────────────────────
   useEffect(() => {
+    aiApi.localImageStatus()
+      .then((st) => setEngineStatus(st))
+      .catch(() => {});
+
     aiApi.imageHistory()
       .then((items) => {
         if (Array.isArray(items) && items.length > 0) {
@@ -39,23 +46,48 @@ export default function ImageGen() {
 
     setLoading(true);
     setError(null);
+    setProgressMsg("Queuing generation job...");
 
     try {
-      // POST to backend → Imagen-4 via Google's generative AI API.
-      // The EXACT prompt is forwarded unchanged — no summarisation, no rewriting.
-      const result = await aiApi.image(p);
+      // 1. Submit async generation job to backend
+      const jobRes = await aiApi.generateLocalImage({
+        prompt: p,
+        engine: selectedEngine,
+        width: 1024,
+        height: 1024,
+        steps: 4
+      });
 
-      // Backend returns { id, prompt, image_b64, created_at, ... }
-      setHistory((h) => [result, ...h]);
-      setSelected(result);
+      const jobId = jobRes.generation_id;
+
+      // 2. Poll job status until completed or failed
+      let completedJob = null;
+      for (let i = 0; i < 40; i++) {
+        await new Promise((res) => setTimeout(res, 800));
+        const st = await aiApi.getImageJobStatus(jobId);
+        if (st.status === "loading_model") setProgressMsg("Loading model into memory...");
+        else if (st.status === "generating") setProgressMsg("Synthesizing pixels (FLUX.1-schnell)...");
+        else if (st.status === "validating") setProgressMsg("Validating asset integrity...");
+        else if (st.status === "completed") {
+          completedJob = st;
+          break;
+        } else if (st.status === "failed") {
+          throw new Error(st.error || "Generation job failed.");
+        }
+      }
+
+      if (!completedJob) {
+        throw new Error("Generation timed out. Please try again.");
+      }
+
+      // Backend returns { generation_id, prompt, image_b64, created_at, ... }
+      setHistory((h) => [completedJob, ...h]);
+      setSelected(completedJob);
     } catch (err) {
       const status = err?.response?.status ?? err?.status;
       if (status === 429) {
         setError("AI quota reached — please wait a moment and try again.");
         toast.error("Image generation quota reached. Try again shortly.", { duration: 5000 });
-      } else if (status === 400) {
-        setError("Prompt blocked by safety filters. Try rephrasing.");
-        toast.error("Prompt blocked by content filters.");
       } else {
         const msg = err?.response?.data?.detail || err?.message || "Unknown error";
         setError(`Generation failed: ${msg}`);
@@ -63,8 +95,9 @@ export default function ImageGen() {
       }
     } finally {
       setLoading(false);
+      setProgressMsg("");
     }
-  }, [prompt, loading]);
+  }, [prompt, loading, selectedEngine]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generate(); }
@@ -101,9 +134,9 @@ export default function ImageGen() {
           {loading ? (
             <div className="text-center">
               <div className="inline-block w-12 h-12 rounded-full border-2 border-[#00F0FF] border-t-transparent animate-spin" />
-              <div className="mono-label mt-3 text-[#00F0FF]">// SYNTHESIZING</div>
-              <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "rgba(0,240,255,0.45)", marginTop: 4, maxWidth: 300, textAlign: "center", padding: "0 16px" }}>
-                Generating from exact prompt…
+              <div className="mono-label mt-3 text-[#00F0FF]">// SYNTHESIZING PIXELS</div>
+              <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "rgba(0,240,255,0.7)", marginTop: 4, maxWidth: 320, textAlign: "center", padding: "0 16px" }}>
+                {progressMsg || "Generating from exact prompt…"}
               </div>
             </div>
           ) : selected && imgSrc(selected) ? (
@@ -157,12 +190,29 @@ export default function ImageGen() {
                 Dismiss
               </button>
             </div>
+          ) : engineStatus && !engineStatus.installed ? (
+            <div className="text-center p-6 max-w-md">
+              <i className="fa-solid fa-download text-4xl text-purple-400/60 mb-3" />
+              <div className="font-bold text-sm text-purple-300 uppercase tracking-wider mb-1">
+                Local Image Engine Setup Required
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
+                Device: {engineStatus.hardware?.device || "CPU"} | Target: {engineStatus.selected_model}<br/>
+                Requires ~12.0 GB disk space & PyTorch diffusers packages.<br/>
+                <code className="bg-black/60 px-2 py-1 rounded text-cyan-400 mt-2 block border border-cyan-500/20">
+                  pip install torch diffusers transformers
+                </code>
+              </div>
+              <div className="mt-3 text-[10px] text-emerald-400/80 font-mono">
+                ✓ Multi-provider cloud fallback ready (Gemini / Pollinations)
+              </div>
+            </div>
           ) : (
             <div className="text-center text-slate-500">
               <i className="fa-solid fa-image text-5xl opacity-30" />
               <div className="mt-3 text-sm">Describe what you want to see</div>
               <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-                Your prompt is forwarded to Imagen-4 verbatim
+                Zero-cloud key local inference or multi-provider cloud fallback
               </div>
             </div>
           )}

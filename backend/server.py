@@ -150,8 +150,16 @@ class ChatReq(BaseModel):
     history: list[ChatHistoryMessage] = Field(default=[], max_length=50)
     mode: str = "chat"  # "chat" | "web" | "research"
 
+from local_image_engine import local_image_engine
+
 class ImageGenReq(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=MAX_PROMPT_LEN)
+    negative_prompt: Optional[str] = ""
+    width: Optional[int] = 1024
+    height: Optional[int] = 1024
+    steps: Optional[int] = 4
+    seed: Optional[int] = None
+    engine: Optional[str] = "auto"
 
 class NoteReq(BaseModel):
     title: str = "Untitled"
@@ -809,6 +817,54 @@ def _validate_chat_req(req: "ChatReq") -> None:
 async def ai_providers(_user=Depends(get_current_user)):
     """Return health/availability of all AI providers."""
     return ai_service.provider_statuses()
+
+@api.get("/ai/providers/status")
+async def ai_providers_status(_user=Depends(get_current_user)):
+    """Return live active model, provider health, capability registry, and predicted fallback target."""
+    from providers import provider_manager, MODEL_CAPABILITY_REGISTRY
+    statuses = provider_manager.get_all_status()
+    predicted_fallback = provider_manager.predict_fallback(current_provider="gemini")
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "providers": statuses,
+        "capabilities": MODEL_CAPABILITY_REGISTRY,
+        "predicted_fallback": predicted_fallback
+    }
+
+@api.get("/ai/providers/history")
+async def ai_providers_history(_user=Depends(get_current_user)):
+    """Return live provider event telemetry history."""
+    from providers import provider_manager
+    return provider_manager.get_history_events()
+
+@api.get("/ai/image/engine/status")
+async def local_image_engine_status(_user=Depends(get_current_user)):
+    """Return local image engine hardware autodetect and setup status."""
+    return local_image_engine.get_status()
+
+@api.post("/ai/image/generate")
+async def async_image_generate(req: ImageGenReq, user=Depends(get_current_user)):
+    """Enqueue non-blocking asynchronous image generation job."""
+    await rate_limit(user["id"])
+    job_id = await local_image_engine.enqueue_generation(
+        prompt=req.prompt,
+        negative_prompt=req.negative_prompt or "",
+        width=req.width or 1024,
+        height=req.height or 1024,
+        steps=req.steps or 4,
+        seed=req.seed,
+        db_instance=db,
+        user_id=user["id"]
+    )
+    return {"generation_id": job_id, "status": "queued"}
+
+@api.get("/ai/image/generation/{job_id}")
+async def get_image_generation_status(job_id: str, _user=Depends(get_current_user)):
+    """Return real-time job status for asynchronous image generation."""
+    job = local_image_engine.get_job_status(job_id)
+    if not job:
+        raise HTTPException(404, "Generation job not found")
+    return job
 
 @api.post("/ai/chat/stream")
 async def ai_chat_stream(req: ChatReq, user=Depends(get_current_user)):
