@@ -1,72 +1,198 @@
 import React, { useState } from "react";
 
-const SIDEBAR_ITEMS = {
-  pinned: [
-    { id: "favorites", label: "Favorites", icon: "fa-heart", color: "#EC4899" },
-    { id: "recently-saved", label: "Recently Saved", icon: "fa-clock", color: "#60A5FA" },
-    { id: "map", label: "Map", icon: "fa-map-location-dot", color: "#34D399" },
-    { id: "videos", label: "Videos", icon: "fa-video", color: "#F472B6" },
-    { id: "screenshots", label: "Screenshots", icon: "fa-crop-simple", color: "#A78BFA" },
-    { id: "people", label: "People & Pets", icon: "fa-user-group", color: "#FBBF24" },
-    { id: "deleted", label: "Recently Deleted", icon: "fa-lock", color: "#9CA3AF" },
-    { id: "scotland", label: "Scotland/England 2024", icon: "fa-folder", color: "#60A5FA" },
-    { id: "nz", label: "New Zealand 2023", icon: "fa-folder", color: "#60A5FA" },
-  ],
-  sharing: [
-    { id: "shared-albums", label: "Shared Albums", icon: "fa-folder-shared" },
-    { id: "shared-with-you", label: "Shared with You", icon: "fa-user-friends" },
-    { id: "shared-lib", label: "For Your Shared Lib...", badge: "9", icon: "fa-images" },
-  ]
-};
+const REAL_PHOTOS = [
+  {
+    id: "photo-01",
+    name: "Cyberpunk_Metropolis_Tokyo.jpg",
+    title: "Shibuya Neon Night",
+    category: "favorites",
+    url: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=80",
+    camera: "Sony α7R V",
+    lens: "FE 24-70mm f/2.8 GM II",
+    aperture: "f/2.8",
+    shutter: "1/160s",
+    iso: "ISO 400",
+    resolution: "3840 x 2160 (4K UHD)",
+    size: "14.8 MB",
+    date: "Oct 2, 2026",
+    location: "Shibuya City, Tokyo, Japan"
+  },
+  {
+    id: "photo-02",
+    name: "Deep_Space_Carina_Nebula.jpg",
+    title: "Carina Cosmic Pillars",
+    category: "favorites",
+    url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80",
+    camera: "James Webb Space Telescope (NIRCam)",
+    lens: "Infrared Optical Assembly",
+    aperture: "f/1.2 Equivalent",
+    shutter: "12,000s Exposure",
+    iso: "Quantum Sensor",
+    resolution: "4096 x 2304",
+    size: "22.4 MB",
+    date: "Sep 28, 2026",
+    location: "Carina Nebula (7,600 light-years)"
+  },
+  {
+    id: "photo-03",
+    name: "Nordic_Lofoten_Fjords.jpg",
+    title: "Lofoten Sunset Ridge",
+    category: "favorites",
+    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+    camera: "Fujifilm GFX 100 II",
+    lens: "GF 23mm f/4 R LM WR",
+    aperture: "f/8.0",
+    shutter: "1/4s",
+    iso: "ISO 100",
+    resolution: "3840 x 2160",
+    size: "18.2 MB",
+    date: "Sep 15, 2026",
+    location: "Reine, Lofoten, Norway"
+  },
+  {
+    id: "photo-04",
+    name: "Kyoto_Bamboo_Forest_Mist.jpg",
+    title: "Arashiyama Bamboo Grove",
+    category: "recently-saved",
+    url: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=400&q=80",
+    camera: "Leica SL2",
+    lens: "Apo-Summicron-SL 35mm f/2 ASPH",
+    aperture: "f/2.0",
+    shutter: "1/500s",
+    iso: "ISO 200",
+    resolution: "3840 x 2560",
+    size: "16.1 MB",
+    date: "Aug 20, 2026",
+    location: "Kyoto, Japan"
+  },
+  {
+    id: "photo-05",
+    name: "Swiss_Alps_Matterhorn_Dawn.jpg",
+    title: "Matterhorn Alpine Glow",
+    category: "recently-saved",
+    url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80",
+    camera: "Nikon Z9",
+    lens: "NIKKOR Z 14-24mm f/2.8 S",
+    aperture: "f/5.6",
+    shutter: "1/250s",
+    iso: "ISO 64",
+    resolution: "3840 x 2160",
+    size: "19.5 MB",
+    date: "Aug 12, 2026",
+    location: "Zermatt, Switzerland"
+  },
+  {
+    id: "photo-06",
+    name: "Big_Sur_Pacific_Coastline.jpg",
+    title: "Big Sur Coastal Ridge",
+    category: "screenshots",
+    url: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=400&q=80",
+    camera: "Canon EOS R3",
+    lens: "RF 15-35mm f/2.8L IS USM",
+    aperture: "f/11",
+    shutter: "1/60s",
+    iso: "ISO 100",
+    resolution: "3840 x 2160",
+    size: "12.7 MB",
+    date: "Jul 30, 2026",
+    location: "California Highway 1, USA"
+  },
+  {
+    id: "photo-07",
+    name: "Quantum_Laser_Optical_Lab.jpg",
+    title: "Photonics Resonator",
+    category: "screenshots",
+    url: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=400&q=80",
+    camera: "Hasselblad X2D 100C",
+    lens: "XCD 38mm f/2.5 V",
+    aperture: "f/4.0",
+    shutter: "1/1000s",
+    iso: "ISO 800",
+    resolution: "3840 x 2880",
+    size: "25.1 MB",
+    date: "Jul 18, 2026",
+    location: "MIT Quantum Optics Facility"
+  },
+  {
+    id: "photo-08",
+    name: "Icelandic_Volcanic_Basalt.jpg",
+    title: "Reynisdrangar Lava Fields",
+    category: "videos",
+    url: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80",
+    thumb: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=400&q=80",
+    camera: "DJI Mavic 3 Pro",
+    lens: "Hasselblad 24mm f/2.8",
+    aperture: "f/5.6",
+    shutter: "1/120s",
+    iso: "ISO 200",
+    resolution: "3840 x 2160",
+    size: "15.9 MB",
+    date: "Jun 14, 2026",
+    location: "Vik, Iceland"
+  }
+];
 
-const PHOTOS_GRID = [
-  {
-    id: "img-1135",
-    name: "IMG_1135.HEIC",
-    title: "Stadium Sunset Crowd",
-    bgGradient: "linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #e65c00 100%)",
-    stadiumEffect: true,
-  },
-  {
-    id: "img-1136",
-    name: "IMG_1136.HEIC",
-    title: "Arena Lights Wide",
-    bgGradient: "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
-    stadiumEffect: true,
-  },
-  {
-    id: "img-1137",
-    name: "IMG_1137.HEIC",
-    title: "Matchday Panoramic",
-    bgGradient: "linear-gradient(135deg, #232526 0%, #414345 50%, #ff8c00 100%)",
-    stadiumEffect: true,
-  },
-  {
-    id: "img-1138",
-    name: "IMG_1138.HEIC",
-    title: "Golden Hour Stadium",
-    bgGradient: "linear-gradient(135deg, #40e0d0 0%, #ff8c00 50%, #ff0080 100%)",
-    stadiumEffect: true,
-  },
-  {
-    id: "img-1139",
-    name: "IMG_1139.HEIC",
-    title: "Evening Crowd Stand",
-    bgGradient: "linear-gradient(135deg, #111827 0%, #1f2937 60%, #f59e0b 100%)",
-    stadiumEffect: true,
-  },
-  {
-    id: "img-1140",
-    name: "IMG_1140.HEIC",
-    title: "Concert Arena Overhead",
-    bgGradient: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #d97706 100%)",
-    stadiumEffect: true,
-  },
+const SIDEBAR_ITEMS = [
+  { id: "all", label: "All Photos", icon: "fa-images", count: 8 },
+  { id: "favorites", label: "Favorites", icon: "fa-heart", color: "#EC4899", count: 3 },
+  { id: "recently-saved", label: "Recently Saved", icon: "fa-clock", color: "#60A5FA", count: 2 },
+  { id: "screenshots", label: "Screenshots & Art", icon: "fa-crop-simple", color: "#A78BFA", count: 2 },
+  { id: "videos", label: "Videos & Media", icon: "fa-video", color: "#F472B6", count: 1 },
 ];
 
 export default function PhotosApp() {
-  const [selectedSidebar, setSelectedSidebar] = useState("favorites");
+  const [selectedSidebar, setSelectedSidebar] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activePhoto, setActivePhoto] = useState(null);
+  const [customPhotos, setCustomPhotos] = useState([]);
+
+  const handleUploadPhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result;
+      const newPhoto = {
+        id: `upload-${Date.now()}`,
+        name: file.name,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        category: "all",
+        url: dataUrl,
+        thumb: dataUrl,
+        camera: "User Uploaded Asset",
+        lens: "Native Local File",
+        aperture: "Custom",
+        shutter: "Local",
+        iso: "Local",
+        resolution: "Native Resolution",
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        date: "Just now",
+        location: "Local Machine Storage"
+      };
+      setCustomPhotos([newPhoto, ...customPhotos]);
+      setActivePhoto(newPhoto);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const allCombined = [...customPhotos, ...REAL_PHOTOS];
+
+  const filteredPhotos = allCombined.filter((p) => {
+    const matchesCategory = selectedSidebar === "all" || p.category === selectedSidebar;
+    const matchesSearch = !searchQuery || 
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.location.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="flex h-full w-full bg-[#f6f6f7] text-[#1c1c1e] font-sans overflow-hidden select-none" data-testid="photos-app">
@@ -74,145 +200,142 @@ export default function PhotosApp() {
       <div className="w-56 bg-[#eef0f3]/90 border-r border-[#d1d5db] flex flex-col p-3 flex-shrink-0 backdrop-blur-md">
         <div className="flex items-center justify-between mb-3 px-2">
           <div>
-            <div className="font-bold text-sm text-[#111827]">Library</div>
-            <div className="text-[11px] text-[#6b7280]">Jun 19, 2026</div>
+            <div className="font-bold text-sm text-[#111827]">Photos Library</div>
+            <div className="text-[11px] text-[#6b7280]">{allCombined.length} Real 4K Assets</div>
           </div>
-          <button className="text-slate-400 hover:text-slate-700 text-xs">
-            <i className="fa-solid fa-sidebar" />
-          </button>
+          <label className="text-[#007aff] hover:text-[#0056b3] text-xs font-semibold cursor-pointer flex items-center gap-1 bg-[#007aff]/10 px-2 py-1 rounded-md transition-colors">
+            <i className="fa-solid fa-plus text-[10px]" />
+            <span>Upload</span>
+            <input type="file" accept="image/*" onChange={handleUploadPhoto} className="hidden" />
+          </label>
         </div>
 
         {/* Navigation list */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
-          <div>
-            <div className="px-2 text-[10px] font-semibold tracking-wider text-[#9ca3af] uppercase mb-1">
-              Pinned
-            </div>
-            {SIDEBAR_ITEMS.pinned.map((item) => {
-              const active = selectedSidebar === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedSidebar(item.id)}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md transition-colors text-left ${
-                    active ? "bg-[#007aff] text-white font-medium shadow-sm" : "hover:bg-[#e2e5e9] text-[#374151]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <i className={`fa-solid ${item.icon} ${active ? "text-white" : ""}`} style={{ color: active ? "#fff" : item.color, width: 14 }} />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-                </button>
-              );
-            })}
+        <div className="flex-1 overflow-y-auto space-y-1 text-xs">
+          <div className="px-2 text-[10px] font-semibold tracking-wider text-[#9ca3af] uppercase mb-1">
+            Library Categories
           </div>
+          {SIDEBAR_ITEMS.map((item) => {
+            const active = selectedSidebar === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelectedSidebar(item.id)}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors text-left ${
+                  active ? "bg-[#007aff] text-white font-medium shadow-sm" : "hover:bg-[#e2e5e9] text-[#374151]"
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <i className={`fa-solid ${item.icon}`} style={{ color: active ? "#ffffff" : item.color }} />
+                  <span className="truncate">{item.label}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-          <div>
-            <div className="px-2 text-[10px] font-semibold tracking-wider text-[#9ca3af] uppercase mb-1">
-              Sharing
-            </div>
-            {SIDEBAR_ITEMS.sharing.map((item) => {
-              const active = selectedSidebar === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedSidebar(item.id)}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md transition-colors text-left ${
-                    active ? "bg-[#007aff] text-white font-medium" : "hover:bg-[#e2e5e9] text-[#374151]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <i className={`fa-solid ${item.icon} text-slate-400`} style={{ width: 14 }} />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-                  {item.badge && (
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${active ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <div className="pt-2 border-t border-[#d1d5db] text-[10px] text-slate-500 text-center font-mono">
+          High-Res 4K Asset Manager
         </div>
       </div>
 
-      {/* ── Main Photos Area ── */}
+      {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white">
-        {/* Toolbar Header */}
-        <div className="h-11 border-b border-[#e5e7eb] px-4 flex items-center justify-between bg-[#fcfcfd]">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-xs text-[#111827]">All Photos</span>
-            <span className="text-[11px] text-[#9ca3af]">↕</span>
-            <div className="h-4 w-px bg-slate-200" />
-            <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-              <i className="fa-solid fa-minus cursor-pointer hover:text-slate-600" />
-              <div className="w-16 h-1 bg-slate-200 rounded-full relative">
-                <div className="w-8 h-full bg-[#007aff] rounded-full" />
-              </div>
-              <i className="fa-solid fa-plus cursor-pointer hover:text-slate-600" />
-            </div>
+        {/* Top Control Bar */}
+        <div className="h-11 border-b border-[#e5e7eb] px-4 flex items-center justify-between bg-[#f9fafb]">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-800">
+              {SIDEBAR_ITEMS.find((s) => s.id === selectedSidebar)?.label || "Photos"}
+            </h2>
+            <span className="text-xs text-slate-400 font-mono">({filteredPhotos.length} items)</span>
           </div>
 
-          <div className="flex items-center gap-2 text-slate-500 text-xs">
-            <button className="p-1.5 hover:bg-slate-100 rounded-md">
-              <i className="fa-solid fa-sliders" />
-            </button>
-            <button className="p-1.5 hover:bg-slate-100 rounded-md">
-              <i className="fa-solid fa-[#007aff] fa-info-circle text-[#007aff]" />
-            </button>
-            <button className="p-1.5 hover:bg-slate-100 rounded-md">
-              <i className="fa-solid fa-arrow-up-from-bracket" />
-            </button>
-            <button className="p-1.5 hover:bg-slate-100 rounded-md">
-              <i className="fa-solid fa-heart" />
-            </button>
-            {/* Search Input */}
-            <div className="relative flex items-center ml-2">
-              <i className="fa-solid fa-magnifying-glass absolute left-2.5 text-slate-400 text-[11px]" />
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs" />
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Search location, title..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-7 pr-3 py-1 bg-[#f3f4f6] text-xs text-slate-800 rounded-lg border border-[#e5e7eb] focus:outline-none focus:ring-1 focus:ring-[#007aff] w-36"
+                className="pl-8 pr-3 py-1 bg-white border border-[#d1d5db] rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#007aff] w-48 shadow-sm"
               />
             </div>
           </div>
         </div>
 
-        {/* Gallery Grid */}
-        <div className="flex-1 overflow-y-auto p-4 bg-[#f8fafc]">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {PHOTOS_GRID.map((photo) => (
+        {/* ── Real Photo Grid ── */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {filteredPhotos.map((photo) => (
               <div
                 key={photo.id}
-                className="group relative rounded-lg overflow-hidden border border-slate-200/80 bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer aspect-video"
+                onClick={() => setActivePhoto(photo)}
+                className="group relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
               >
-                {/* Simulated High-Res Stadium Image Background */}
-                <div
-                  className="absolute inset-0 transition-transform duration-300 group-hover:scale-105"
-                  style={{ background: photo.bgGradient }}
-                >
-                  {/* Stadium Glow & Pitch Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
-                    <span className="text-[11px] font-mono font-medium drop-shadow-md">
-                      {photo.name}
-                    </span>
-                    <i className="fa-solid fa-users text-xs text-white/80 drop-shadow-md" />
-                  </div>
-                </div>
-
-                {/* Favorite badge */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <i className="fa-solid fa-heart text-white/90 drop-shadow" />
+                <img
+                  src={photo.thumb}
+                  alt={photo.title}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2.5 flex flex-col justify-end">
+                  <div className="text-white text-xs font-bold truncate">{photo.title}</div>
+                  <div className="text-white/70 text-[10px] font-mono truncate">{photo.location}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* ── High-Res Photo Lightbox Modal ── */}
+      {activePhoto && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-between p-4 text-white">
+          {/* Lightbox Header */}
+          <div className="w-full flex items-center justify-between max-w-5xl border-b border-white/10 pb-3">
+            <div>
+              <h3 className="text-base font-bold">{activePhoto.title}</h3>
+              <p className="text-xs text-white/60 font-mono">{activePhoto.name} · {activePhoto.location}</p>
+            </div>
+            <button
+              onClick={() => setActivePhoto(null)}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors"
+            >
+              <i className="fa-solid fa-xmark text-sm" />
+            </button>
+          </div>
+
+          {/* Lightbox Main Image */}
+          <div className="flex-1 flex items-center justify-center p-4 max-h-[70vh] w-full">
+            <img
+              src={activePhoto.url}
+              alt={activePhoto.title}
+              className="max-h-full max-w-full object-contain rounded-lg shadow-2xl border border-white/10"
+            />
+          </div>
+
+          {/* Lightbox EXIF Telemetry Footer */}
+          <div className="w-full max-w-5xl bg-white/5 border border-white/10 rounded-xl p-3 backdrop-blur-md grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+            <div>
+              <span className="text-white/40 block text-[10px]">CAMERA & LENS</span>
+              <span className="font-semibold text-cyan-400">{activePhoto.camera}</span>
+            </div>
+            <div>
+              <span className="text-white/40 block text-[10px]">EXIF SETTINGS</span>
+              <span className="font-semibold text-emerald-400">{activePhoto.aperture} · {activePhoto.shutter} · {activePhoto.iso}</span>
+            </div>
+            <div>
+              <span className="text-white/40 block text-[10px]">RESOLUTION & SIZE</span>
+              <span className="font-semibold text-purple-400">{activePhoto.resolution} ({activePhoto.size})</span>
+            </div>
+            <div>
+              <span className="text-white/40 block text-[10px]">DATE STAMP</span>
+              <span className="font-semibold text-amber-400">{activePhoto.date}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
