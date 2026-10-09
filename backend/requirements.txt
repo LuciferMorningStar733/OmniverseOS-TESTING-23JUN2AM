@@ -31,3 +31,5 @@ instructor>=1.7.0
 kokoro-onnx>=0.4.0
 soundfile>=0.12.1
 edge-tts>=6.1.12
+psutil>=5.9.0
+redis>=5.0.0

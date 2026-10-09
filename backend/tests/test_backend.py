@@ -197,3 +197,36 @@ def test_ai_image(h):
         pytest.skip(f"AI image unavailable (likely no GEMINI_API_KEY): {r.text[:200]}")
     assert r.status_code == 200, r.text
     assert r.json().get("image_b64") and len(r.json()["image_b64"]) > 1000
+
+
+# ---------- P0 Regression Tests: Image Engine Status, Groq Model, JWT Security ----------
+def test_image_engine_status_endpoint(h):
+    """Verify GET /api/ai/image/engine/status returns 200 and valid telemetry schema."""
+    r = requests.get(f"{API}/ai/image/engine/status", headers=h, timeout=15)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "engine" in data and "OmniLocalImageEngine" in data["engine"]
+    assert "status" in data
+    assert "hardware" in data
+    assert "device" in data["hardware"]
+    assert "ram_gb" in data["hardware"]
+
+
+def test_groq_default_model_configuration():
+    """Verify Groq default model is openai/gpt-oss-20b and not retired versatile model."""
+    from providers import PROVIDER_DEFAULTS
+    assert PROVIDER_DEFAULTS["groq"] == "openai/gpt-oss-20b"
+
+
+def test_production_jwt_fail_closed():
+    """Verify that in production mode, insecure or default JWT_SECRET is rejected."""
+    import subprocess, sys
+    code = (
+        "import os; os.environ['APP_ENV'] = 'production'; "
+        "os.environ.pop('JWT_SECRET', None); "
+        "import core.auth"
+    )
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=os.path.dirname(__file__) + "/..")
+    assert res.returncode != 0
+    assert "FATAL SECURITY ERROR" in res.stderr
+

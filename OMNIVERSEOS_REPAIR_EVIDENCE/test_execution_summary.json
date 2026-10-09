@@ -1,0 +1,60 @@
+{
+  "test_suites": {
+    "clean_venv_isolation": {
+      "command": "python scratch/test_clean_venv.py",
+      "exit_code": 0,
+      "status": "PASS",
+      "scope": "Verifies psutil, redis, and backend modules install and import cleanly in pristine virtual environment without ambient packages",
+      "details": "Module local_image_engine successfully imported and instantiated without ambient dependencies."
+    },
+    "backend_pytest": {
+      "command": "python -m pytest tests",
+      "exit_code": 0,
+      "status": "PASS",
+      "discovered": 27,
+      "executed": 27,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "AI image test skipped (no GEMINI_API_KEY for image generation path in test env)",
+      "regression_tests_added": [
+        "test_image_engine_status_endpoint",
+        "test_groq_default_model_configuration",
+        "test_production_jwt_fail_closed"
+      ]
+    },
+    "frontend_jest": {
+      "command": "npm run test:ci",
+      "exit_code": 0,
+      "status": "PASS",
+      "discovered": 82,
+      "executed": 82,
+      "passed": 82,
+      "failed": 0,
+      "test_suites_passed": 20,
+      "test_suites_failed": 0
+    },
+    "frontend_production_build": {
+      "command": "craco build",
+      "exit_code": 0,
+      "status": "PASS",
+      "output_bundle": "frontend/build",
+      "gzip_main_js": "375.82 kB",
+      "errors": 0,
+      "warnings": "fs.F_OK deprecation warning in build tooling"
+    },
+    "browser_e2e_playwright": {
+      "command": "npx playwright test e2e/capture_ai_prompts.spec.js; npx playwright test e2e/omniverseOS.spec.js",
+      "exit_code": 0,
+      "status": "PASS",
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "verified_features": [
+        "Desktop shell & Taskbar loading",
+        "Window management & container mounting",
+        "AI Chat prompt submission and stream response",
+        "Image Gen prompt submission and engine status"
+      ]
+    }
+  }
+}

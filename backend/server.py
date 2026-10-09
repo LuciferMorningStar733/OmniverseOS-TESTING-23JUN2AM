@@ -34,11 +34,16 @@ from core.vector_service import generate_embedding_async, cosine_similarity
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
-from core.database import client, db, MONGO_URL, DB_NAME
+from core.database import client, db, MONGO_URL, DB_NAME, IS_PRODUCTION, APP_ENV, IS_MOCK_DB
+from core.auth import (
+    JWT_SECRET,
+    JWT_ALG,
+    JWT_EXP_HOURS,
+    create_token as make_token,
+    get_current_user,
+    security,
+)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("EMERGENT_LLM_KEY", "")
-JWT_SECRET = os.environ.get("JWT_SECRET") or "omniverseos-dev-do-not-use-in-prod"
-JWT_ALG = "HS256"
-JWT_EXP_HOURS = 24 * 7
 MAX_PROMPT_LEN = 4000
 MAX_MESSAGE_LEN = 8000
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
@@ -51,7 +56,16 @@ def _sse_event(data: str) -> str:
 from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # startup
+    # Verify database persistence in production
+    if IS_PRODUCTION:
+        try:
+            await client.admin.command('ping')
+            logging.info("[Persistence] Verified production MongoDB connectivity.")
+        except Exception as e:
+            logging.critical("[FATAL PERSISTENCE ERROR] Production MongoDB unreachable: %s", e)
+            raise RuntimeError("Production MongoDB cluster unreachable. Startup aborted to prevent silent data loss.")
+
+    # startup indexes
     await db.users.create_index("email", unique=True)
     for coll in ("notes", "tasks", "events", "transactions", "memories", "files", "images", "clipboard"):
         await db[coll].create_index([("user_id", 1), ("created_at", -1)])
@@ -74,25 +88,29 @@ async def lifespan(_app: FastAPI):
     await db.decisions.create_index("id", unique=True)
     await db.timeline_events.create_index([("user_id", 1), ("created_at", -1)])
     await db.timeline_events.create_index([("user_id", 1), ("project_id", 1)])
-    # Seed default demo credentials if not present
-    demo_email = "demo@omniverse.io"
-    if not await db.users.find_one({"email": demo_email}):
-        demo_hashed = bcrypt.hashpw(b"omniverse123", bcrypt.gensalt()).decode()
-        await db.users.insert_one({
-            "id": "demo-user-default-id",
-            "email": demo_email,
-            "name": "Demo User",
-            "password": demo_hashed,
-            "created_at": now_iso(),
-            "avatar": f"https://api.dicebear.com/7.x/bottts-neutral/svg?seed={demo_email}",
-        })
+
+    # Demo account seeding: explicitly gated in production
+    seed_demo = os.environ.get("SEED_DEMO_ACCOUNT", "").lower() in ("true", "1", "yes") or (
+        not IS_PRODUCTION and not os.environ.get("DISABLE_DEMO_ACCOUNT")
+    )
+    if seed_demo:
+        demo_email = "demo@omniverse.io"
+        if not await db.users.find_one({"email": demo_email}):
+            demo_hashed = bcrypt.hashpw(b"omniverse123", bcrypt.gensalt()).decode()
+            await db.users.insert_one({
+                "id": "demo-user-default-id",
+                "email": demo_email,
+                "name": "Demo User",
+                "password": demo_hashed,
+                "created_at": now_iso(),
+                "avatar": f"https://api.dicebear.com/7.x/bottts-neutral/svg?seed={demo_email}",
+            })
     yield
     # shutdown
     client.close()
 
 app = FastAPI(title="OmniverseOS API", lifespan=lifespan)
 api = APIRouter(prefix="/api")
-security = HTTPBearer(auto_error=False)
 
 # ---------- Rate limiting (Pluggable Redis / Memory Fallback) ----------
 from rate_limiter import rate_limiter
@@ -104,27 +122,6 @@ async def rate_limit(key: str, max_per_min: int = 20):
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-def make_token(user_id: str, email: str) -> str:
-    payload = {
-        "sub": user_id,
-        "email": email,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXP_HOURS),
-    }
-    return pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
-
-async def get_current_user(
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> dict:
-    if not creds:
-        raise HTTPException(status_code=401, detail="Missing token")
-    try:
-        payload = pyjwt.decode(creds.credentials, JWT_SECRET, algorithms=[JWT_ALG])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password": 0})
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
 
 # ---------- Models ----------
 class SignupReq(BaseModel):
@@ -2958,23 +2955,43 @@ app.include_router(api)
 app.include_router(agents_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
 
-_cors_env = os.environ.get("CORS_ORIGINS", "*")
-if _cors_env.strip() == "*":
+_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
+if IS_PRODUCTION:
+    # Production security: explicitly disallow regex wildcard with credentials
+    if not _cors_env or _cors_env == "*":
+        prod_origins = [
+            "https://omniverse-os-testing-23-jun-2-9gsc2pgro.vercel.app",
+            "https://omniverseos.app",
+            "https://www.omniverseos.app",
+        ]
+    else:
+        prod_origins = [o.strip() for o in _cors_env.split(",") if o.strip() and o.strip() != "*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=".*",
+        allow_origins=prod_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[o.strip() for o in _cors_env.split(",") if o.strip()],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # Development mode: permit localhost and configured development origins
+    if _cors_env == "*":
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origin_regex=".*",
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[o.strip() for o in _cors_env.split(",") if o.strip()],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

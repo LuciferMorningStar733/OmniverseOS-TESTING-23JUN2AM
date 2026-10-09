@@ -1,15 +1,40 @@
 import os
+import logging
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
-from core.database import db
+from core.database import db, IS_PRODUCTION, APP_ENV
 
-JWT_SECRET = os.environ.get("JWT_SECRET") or "omniverseos-dev-do-not-use-in-prod"
+logger = logging.getLogger(__name__)
+
+KNOWN_DEV_SECRETS = {
+    "omniverseos-dev-do-not-use-in-prod",
+    "omniverseos-dev-secret-do-not-use-in-prod",
+    "dev",
+    "secret",
+    "change-me",
+    "default",
+    ""
+}
+
+raw_secret = os.environ.get("JWT_SECRET", "").strip()
+
+if IS_PRODUCTION:
+    if not raw_secret or raw_secret in KNOWN_DEV_SECRETS or len(raw_secret) < 32:
+        raise RuntimeError(
+            "[FATAL SECURITY ERROR] Production startup rejected: JWT_SECRET must be configured with a "
+            "cryptographically secure secret key (minimum 32 characters) and cannot use known development fallbacks."
+        )
+    JWT_SECRET = raw_secret
+    JWT_EXP_HOURS = int(os.environ.get("JWT_EXP_HOURS", "24"))
+else:
+    JWT_SECRET = raw_secret if (raw_secret and raw_secret not in KNOWN_DEV_SECRETS) else "omniverseos-dev-secret-do-not-use-in-prod"
+    JWT_EXP_HOURS = int(os.environ.get("JWT_EXP_HOURS", "168"))
+
 JWT_ALG = "HS256"
-JWT_EXP_HOURS = 24 * 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)

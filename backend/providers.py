@@ -379,7 +379,8 @@ class ProviderManager(AIProvider):
         history: list | None = None,
     ) -> AsyncGenerator[str, None]:
         if provider == "gemini":
-            async for chunk in _stream_gemini(self._gemini_client, gemini_model, message, system, history):
+            actual_model = gemini_model if (gemini_model and gemini_model.startswith("gemini")) else PROVIDER_DEFAULTS["gemini"]
+            async for chunk in _stream_gemini(self._gemini_client, actual_model, message, system, history):
                 yield chunk
         elif provider == "deepseek":
             async for chunk in _stream_openai_compat(

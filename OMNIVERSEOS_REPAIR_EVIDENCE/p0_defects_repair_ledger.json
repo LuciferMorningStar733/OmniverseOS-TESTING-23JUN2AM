@@ -1,0 +1,54 @@
+{
+  "audit_version": "2.0.0-final-repair",
+  "timestamp": "2026-10-10T00:50:00Z",
+  "p0_repairs": [
+    {
+      "id": "P0-1A",
+      "defect": "Missing psutil and redis runtime dependencies",
+      "root_cause": "backend/local_image_engine.py and backend/rate_limiter.py import psutil and redis respectively, but backend/requirements.txt omitted them, causing runtime ImportError on clean container environments.",
+      "remediation": "Added explicit version constraints 'psutil>=5.9.0' and 'redis>=5.0.0' to backend/requirements.txt.",
+      "verification": "Clean isolated Python venv installed backend/requirements.txt without ambient packages and successfully executed import local_image_engine; engine = local_image_engine.OmniLocalImageEngine(); print(engine.get_status()). Exit code 0.",
+      "status": "RESOLVED"
+    },
+    {
+      "id": "P0-1B",
+      "defect": "Image engine status method signature crash (TypeError)",
+      "root_cause": "backend/local_image_engine.py defined 'def get_status() -> Dict[str, Any]:' missing the 'self' instance parameter. Invoking engine.get_status() raised TypeError: OmniLocalImageEngine.get_status() takes 0 positional arguments but 1 was given, causing HTTP 500 on GET /api/ai/image/engine/status.",
+      "remediation": "Corrected signature to 'def get_status(self) -> Dict[str, Any]:'. Verified all telemetry fields ('engine', 'status', 'hardware.device', 'hardware.ram_gb') are returned.",
+      "verification": "Direct Python execution and live HTTP request to GET /api/ai/image/engine/status returned HTTP 200 OK with valid JSON schema. Added automated regression test test_image_engine_status_endpoint.",
+      "status": "RESOLVED"
+    },
+    {
+      "id": "P0-1C",
+      "defect": "Groq provider model routing regression (HTTP 404)",
+      "root_cause": "PROVIDER_DEFAULTS['groq'] was configured with an inaccessible/retired model 'llama-3.3-70b-versatile', resulting in HTTP 404 from the Groq API.",
+      "remediation": "Configured PROVIDER_DEFAULTS['groq'] = 'openai/gpt-oss-20b' (verified active on Groq account). Hardened Gemini stream fallback to prevent cross-provider model ID leakage.",
+      "verification": "Live prompt test against Groq returned 200 OK with direct completion text 'ALPHA_OK' (no fallback, no 404). Added automated regression test test_groq_default_model_configuration.",
+      "status": "RESOLVED"
+    },
+    {
+      "id": "P0-1D",
+      "defect": "Production JWT fail-open and demo account auto-creation",
+      "root_cause": "JWT_SECRET defaulted to known dev fallback 'omniverseos-dev-do-not-use-in-prod' even in production. Demo credentials demo@omniverse.io were unconditionally seeded into the database on startup.",
+      "remediation": "Implemented fail-closed startup in backend/core/auth.py: in production, startup raises RuntimeError if JWT_SECRET is unset, matches dev fallbacks, or is under 32 characters. Gated demo account seeding in server.py lifespan behind SEED_DEMO_ACCOUNT=true.",
+      "verification": "Automated regression test test_production_jwt_fail_closed verified subprocess aborts with FATAL SECURITY ERROR when APP_ENV=production and insecure JWT_SECRET is supplied.",
+      "status": "RESOLVED"
+    },
+    {
+      "id": "P0-1E",
+      "defect": "Silent MongoDB mock fallback in production",
+      "root_cause": "backend/core/database.py silently initialized mongomock_motor in-memory client if MongoDB was unreachable, concealing database outages and risking ephemeral data loss.",
+      "remediation": "Hardened backend/core/database.py and backend/server.py lifespan: when IS_PRODUCTION is true, startup pings the MongoDB cluster and immediately aborts if unreachable. In-memory mongomock_motor is restricted strictly to development/test environments with explicit warning logs.",
+      "verification": "Production verification confirmed client.admin.command('ping') is enforced during startup lifecycle. Database state distinction between process liveness and persistent storage verified.",
+      "status": "RESOLVED"
+    }
+  ],
+  "phase_2_security": {
+    "cors": "Hardened in backend/server.py: regex wildcard with credentials disabled in production mode. Restricted to trusted production domains.",
+    "secret_hygiene": "Verified no API keys, tokens, or private secrets in tracked files or Git commits. .gitignore comprehensively covers all .env files."
+  },
+  "phase_3_synthetic_cleanup": {
+    "audit_script": "scripts/run_evidence_reconciliation_audit.cjs",
+    "modifications": "Removed synthetic padding loop that artificially incremented control count to 142. Accurately labeled dual input engine checks as structural checks. Updated multi-model proofs to reflect genuine provider status without masked Cerebras failures."
+  }
+}

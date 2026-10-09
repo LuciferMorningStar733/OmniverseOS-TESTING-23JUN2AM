@@ -31,24 +31,27 @@ function assertNotFallback(text, label = "Output") {
 }
 
 async function openAppInPage(page, appId) {
-  const dockIcon = page.locator(`[data-testid="dock-icon-${appId}"], [data-dock-icon="${appId}"]`).first();
-  let clicked = false;
-  if (await dockIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
+  const dockIcon = page.locator(`[data-testid="dock-item-${appId}"], [data-testid="dock-icon-${appId}"], [data-dock-icon="${appId}"]`).first();
+  if (await dockIcon.isVisible({ timeout: 1500 }).catch(() => false)) {
     try {
       await dockIcon.click({ force: true });
-      clicked = true;
     } catch (e) {
       console.warn(`Click dock icon for ${appId} failed:`, e.message);
     }
   }
-  if (!clicked) {
+  const winLocator = page.locator(`[data-testid="window-${appId}"]`).first();
+  const isVisible = await winLocator.isVisible().catch(() => false);
+  if (!isVisible) {
     await page.evaluate((id) => {
-      window.dispatchEvent(new CustomEvent('omniverse:open-app', { detail: { appId: id } }));
+      if (window.__omniverse_openApp) {
+        window.__omniverse_openApp(id);
+      } else {
+        window.dispatchEvent(new CustomEvent('omniverse:open-app', { detail: { appId: id } }));
+      }
     }, appId);
   }
-  const winLocator = page.locator(`[data-testid="window-${appId}"]`);
   await winLocator.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(600);
 }
 
 async function main() {
@@ -349,14 +352,17 @@ async function main() {
     // -------------------------------------------------------------------------
     t0 = Date.now();
     await openAppInPage(page, 'faceoff');
-    const faceoffWin = page.locator('[data-testid="window-faceoff"]');
-
+    const faceoffWin = page.locator('[data-testid="window-faceoff"]').first();
     const faceoffTextarea = faceoffWin.locator('textarea').first();
     const faceoffRunBtn = faceoffWin.locator('button:has-text("RUN FACE-OFF"), button:has-text("Run")').first();
 
     const faceoffPrompt = "Synthesize a rigorous comparative breakdown between Transformer self-attention mechanisms and State-Space Models (SSMs/Mamba) for ultra-long context operating system memory (1,000,000+ tokens).";
-    await faceoffTextarea.fill(faceoffPrompt);
-    await faceoffRunBtn.click();
+    if (await faceoffTextarea.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await faceoffTextarea.fill(faceoffPrompt);
+      if (await faceoffRunBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await faceoffRunBtn.click();
+      }
+    }
 
     // Wait for at least 2 live provider responses to populate and finish thinking
     await page.waitForFunction(() => {

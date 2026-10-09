@@ -75,7 +75,7 @@ class OmniLocalImageEngine:
             self.status = "NOT_INSTALLED"
             self.installed = False
 
-    def get_status() -> Dict[str, Any]:
+    def get_status(self) -> Dict[str, Any]:
         """Return engine status, hardware telemetry, and installation requirements."""
         return {
             "engine": "OmniLocalImageEngine v2.0",

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "origin": "failed-assert",
+  "expected": "declared consequence",
+  "observed": "not settled: last activity (dom.attr) 61ms ago, need 500ms quiet",
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "testid",
+        "value": "auth-submit-button"
+      },
+      "action": "click"
+    }
+  ],
+  "id": "1791569228132-auth-submit-button-98bc232a",
+  "createdAt": 1791569228132,
+  "seen": 1,
+  "lastSeenAt": 1791569228132
+}
