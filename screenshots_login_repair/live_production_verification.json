@@ -1,0 +1,26 @@
+{
+  "url": "https://omniverseos.in.net",
+  "responses": [
+    {
+      "url": "https://omniverseos-testing-23jun2am.onrender.com/api/auth/login",
+      "status": 200,
+      "allowOrigin": "https://omniverseos.in.net",
+      "allowCredentials": "true"
+    }
+  ],
+  "consoleErrors": [],
+  "localStorageKeys": [
+    "omniverse_has_booted",
+    "omniverse_notifs",
+    "omniverse_token",
+    "omniverse_widget_layout_v",
+    "omniverse_cortex_snapshots",
+    "omniverse_last_user",
+    "omniverse_windows",
+    "omniverse_widget_layout",
+    "omniverse_last_seen"
+  ],
+  "hasUser": false,
+  "hasToken": false,
+  "success": true
+}
