@@ -13,6 +13,7 @@ const APPS_TO_TEST = [
   { id: "calendar",      name: "Calendar",        category: "productivity" },
   { id: "clipboard",     name: "Clipboard",       category: "productivity" },
   { id: "music",         name: "Music",           category: "media" },
+  { id: "photos",        name: "Photos",          category: "media" },
   { id: "videos",        name: "Videos",          category: "media" },
   { id: "watchlist",     name: "Watchlist",       category: "media" },
   { id: "files",         name: "Files",           category: "system" },

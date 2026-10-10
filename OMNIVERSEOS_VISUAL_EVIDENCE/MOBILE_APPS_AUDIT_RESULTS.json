@@ -1,0 +1,157 @@
+[
+  {
+    "appId": "dashboard",
+    "status": "PASS",
+    "screenshot": "APP_dashboard_mobile_390x844.png"
+  },
+  {
+    "appId": "chat",
+    "status": "PASS",
+    "screenshot": "APP_chat_mobile_390x844.png"
+  },
+  {
+    "appId": "image",
+    "status": "PASS",
+    "screenshot": "APP_image_mobile_390x844.png"
+  },
+  {
+    "appId": "voice",
+    "status": "PASS",
+    "screenshot": "APP_voice_mobile_390x844.png"
+  },
+  {
+    "appId": "memory",
+    "status": "PASS",
+    "screenshot": "APP_memory_mobile_390x844.png"
+  },
+  {
+    "appId": "projects",
+    "status": "PASS",
+    "screenshot": "APP_projects_mobile_390x844.png"
+  },
+  {
+    "appId": "timeline",
+    "status": "PASS",
+    "screenshot": "APP_timeline_mobile_390x844.png"
+  },
+  {
+    "appId": "notes",
+    "status": "PASS",
+    "screenshot": "APP_notes_mobile_390x844.png"
+  },
+  {
+    "appId": "tasks",
+    "status": "PASS",
+    "screenshot": "APP_tasks_mobile_390x844.png"
+  },
+  {
+    "appId": "calendar",
+    "status": "PASS",
+    "screenshot": "APP_calendar_mobile_390x844.png"
+  },
+  {
+    "appId": "clipboard",
+    "status": "PASS",
+    "screenshot": "APP_clipboard_mobile_390x844.png"
+  },
+  {
+    "appId": "music",
+    "status": "PASS",
+    "screenshot": "APP_music_mobile_390x844.png"
+  },
+  {
+    "appId": "photos",
+    "status": "PASS",
+    "screenshot": "APP_photos_mobile_390x844.png"
+  },
+  {
+    "appId": "videos",
+    "status": "PASS",
+    "screenshot": "APP_videos_mobile_390x844.png"
+  },
+  {
+    "appId": "watchlist",
+    "status": "PASS",
+    "screenshot": "APP_watchlist_mobile_390x844.png"
+  },
+  {
+    "appId": "files",
+    "status": "PASS",
+    "screenshot": "APP_files_mobile_390x844.png"
+  },
+  {
+    "appId": "code",
+    "status": "PASS",
+    "screenshot": "APP_code_mobile_390x844.png"
+  },
+  {
+    "appId": "browser",
+    "status": "PASS",
+    "screenshot": "APP_browser_mobile_390x844.png"
+  },
+  {
+    "appId": "settings",
+    "status": "PASS",
+    "screenshot": "APP_settings_mobile_390x844.png"
+  },
+  {
+    "appId": "finance",
+    "status": "PASS",
+    "screenshot": "APP_finance_mobile_390x844.png"
+  },
+  {
+    "appId": "analytics",
+    "status": "PASS",
+    "screenshot": "APP_analytics_mobile_390x844.png"
+  },
+  {
+    "appId": "nebula",
+    "status": "PASS",
+    "screenshot": "APP_nebula_mobile_390x844.png"
+  },
+  {
+    "appId": "swarm",
+    "status": "PASS",
+    "screenshot": "APP_swarm_mobile_390x844.png"
+  },
+  {
+    "appId": "faceoff",
+    "status": "PASS",
+    "screenshot": "APP_faceoff_mobile_390x844.png"
+  },
+  {
+    "appId": "adversary",
+    "status": "PASS",
+    "screenshot": "APP_adversary_mobile_390x844.png"
+  },
+  {
+    "appId": "warroom",
+    "status": "PASS",
+    "screenshot": "APP_warroom_mobile_390x844.png"
+  },
+  {
+    "appId": "deadreckoning",
+    "status": "PASS",
+    "screenshot": "APP_deadreckoning_mobile_390x844.png"
+  },
+  {
+    "appId": "matrix",
+    "status": "PASS",
+    "screenshot": "APP_matrix_mobile_390x844.png"
+  },
+  {
+    "appId": "mirror",
+    "status": "PASS",
+    "screenshot": "APP_mirror_mobile_390x844.png"
+  },
+  {
+    "appId": "zero",
+    "status": "PASS",
+    "screenshot": "APP_zero_mobile_390x844.png"
+  },
+  {
+    "appId": "blackbox",
+    "status": "PASS",
+    "screenshot": "APP_blackbox_mobile_390x844.png"
+  }
+]

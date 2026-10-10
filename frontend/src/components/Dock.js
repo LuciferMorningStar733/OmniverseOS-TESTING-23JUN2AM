@@ -776,7 +776,11 @@ function DesktopDock({ isTablet }) {
 /* ── Export ─────────────────────────────────────────────────────────────────── */
 export default function Dock() {
   const { isMobile, isTablet } = useBreakpoint();
-  // Phones and tablets both use the mobile dock (fullscreen app shell)
   const isTouch = isMobile || isTablet;
-  return isTouch ? <MobileDock /> : <DesktopDock isTablet={false} />;
+  // On mobile/tablet touch devices, MobileHomeScreen renders its dedicated One UI Smart Dock.
+  // Suppressing MobileDock here prevents the duplicate dock collision (MOB-002).
+  if (isTouch) {
+    return null;
+  }
+  return <DesktopDock isTablet={false} />;
 }

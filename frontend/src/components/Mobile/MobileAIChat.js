@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 const COMPLEX_PROMPTS = [
@@ -77,7 +78,7 @@ export default function MobileAIChat({ onClose, initialPrompt = "" }) {
     setIsStreaming(true);
 
     const token = localStorage.getItem("omniverse_token") || "";
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
 
     abortControllerRef.current = new AbortController();
 
@@ -177,7 +178,7 @@ export default function MobileAIChat({ onClose, initialPrompt = "" }) {
     }
   };
 
-  return (
+  const chatModal = (
     <motion.div
       initial={{ opacity: 0, y: "100%" }}
       animate={{ opacity: 1, y: 0 }}
@@ -186,7 +187,7 @@ export default function MobileAIChat({ onClose, initialPrompt = "" }) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 250,
+        zIndex: 9999,
         background: "radial-gradient(ellipse at 50% 0%, #0c1228 0%, #030408 100%)",
         color: "#fff",
         display: "flex",
@@ -198,7 +199,7 @@ export default function MobileAIChat({ onClose, initialPrompt = "" }) {
       {/* ── Top Bar / Header ─────────────────────────────────────────────── */}
       <div
         style={{
-          padding: "16px 18px 12px",
+          padding: "max(14px, env(safe-area-inset-top, 14px)) 18px 12px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -452,7 +453,7 @@ export default function MobileAIChat({ onClose, initialPrompt = "" }) {
       <form
         onSubmit={handleSend}
         style={{
-          padding: "10px 16px 18px",
+          padding: "10px 16px max(18px, env(safe-area-inset-bottom, 18px))",
           background: "rgba(6, 9, 20, 0.95)",
           borderTop: "1px solid rgba(255, 255, 255, 0.08)",
           display: "flex",
@@ -528,4 +529,6 @@ export default function MobileAIChat({ onClose, initialPrompt = "" }) {
       </form>
     </motion.div>
   );
+
+  return typeof document !== "undefined" ? createPortal(chatModal, document.body) : chatModal;
 }

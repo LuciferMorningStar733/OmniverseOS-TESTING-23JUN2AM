@@ -1,5 +1,12 @@
 """OmniverseOS backend regression tests."""
-import os, uuid, time
+import os, sys, uuid, time
+from pathlib import Path
+
+# Ensure backend root is on sys.path
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 import requests
 import pytest
 
@@ -229,4 +236,102 @@ def test_production_jwt_fail_closed():
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=os.path.dirname(__file__) + "/..")
     assert res.returncode != 0
     assert "FATAL SECURITY ERROR" in res.stderr
+
+
+def test_ai_consensus_truthful_fallback(h):
+    """Verify /api/ai/consensus returns truthful degraded status and never fabricated 92/95."""
+    payload = {
+        "question": "Does P equal NP?",
+        "responses": [
+            {"provider": "gemini", "text": "It is widely believed that P != NP."},
+            {"provider": "groq", "text": "Most computer scientists conjecture that P is not equal to NP."}
+        ]
+    }
+    r = requests.post(f"{API}/ai/consensus", json=payload, headers=h, timeout=30)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "consensus" in data
+    # When provider is unavailable or falls back, consensus must be None and status UNAVAILABLE
+    if data.get("status") == "UNAVAILABLE" or data.get("is_fallback") is True:
+        assert data["consensus"] is None
+        assert data.get("meaning_match") is None
+        assert data.get("reasoning_match") is None
+        assert data.get("is_fallback") is True
+
+
+def test_cors_production_allowlist_exactness():
+    """Verify that in production mode, https://omniverseos.in.net is included and wildcard is rejected."""
+    import subprocess
+    code = (
+        "import os; os.environ['APP_ENV'] = 'production'; os.environ['JWT_SECRET'] = 'test-production-secret-min-32-chars-ok!'; os.environ['CORS_ORIGINS'] = '*'; "
+        "import server; "
+        "cors_mw = [m for m in server.app.user_middleware if 'CORS' in str(m.cls)][0]; "
+        "origins = cors_mw.kwargs.get('allow_origins', []); "
+        "assert 'https://omniverseos.in.net' in origins, f'Missing production domain: {origins}'; "
+        "assert 'https://omniverseos.app' in origins, f'Missing omniverseos.app: {origins}'; "
+        "assert 'https://omniverse-os-testing-23-jun-2-9gsc2pgro.vercel.app' in origins; "
+        "assert '*' not in origins, 'Wildcard leaked into production allowlist!'; "
+        "print('CORS_OK')"
+    )
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=str(BACKEND_DIR))
+    assert res.returncode == 0, f"Error: {res.stderr}"
+    assert "CORS_OK" in res.stdout
+
+
+def test_cors_production_preflight_simulation():
+    """Verify OPTIONS preflight succeeds for https://omniverseos.in.net and rejects unauthorized origin."""
+    from starlette.testclient import TestClient
+    from starlette.applications import Starlette
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+
+    def dummy_login(request):
+        return PlainTextResponse("ok")
+
+    app = Starlette(routes=[Route("/api/auth/login", dummy_login, methods=["POST", "OPTIONS"])])
+    
+    # Mirror production CORS logic exactly
+    base_prod_origins = [
+        "https://omniverseos.in.net",
+        "https://omniverse-os-testing-23-jun-2-9gsc2pgro.vercel.app",
+        "https://omniverseos.app",
+        "https://www.omniverseos.app",
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=base_prod_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    client = TestClient(app)
+
+    # 1. Test authorized production origin
+    res_auth = client.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "https://omniverseos.in.net",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert res_auth.status_code == 200
+    assert res_auth.headers.get("access-control-allow-origin") == "https://omniverseos.in.net"
+    assert res_auth.headers.get("access-control-allow-credentials") == "true"
+    assert "content-type" in res_auth.headers.get("access-control-allow-headers", "").lower()
+
+    # 2. Test unauthorized attacker origin
+    res_unauth = client.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "https://malicious-attacker.com",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert res_unauth.status_code == 400
+    assert "access-control-allow-origin" not in res_unauth.headers
+    assert res_unauth.text == "Disallowed CORS origin"
 

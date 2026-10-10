@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { APPS } from "../lib/apps";
 
@@ -83,7 +84,8 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation",
           userSelect: "none",
-          minWidth: 64,
+          minWidth: 0,
+          width: "100%",
           willChange: "transform",
         }}
       >
@@ -122,7 +124,10 @@ function AppDrawerIcon({ app, onPress, delay = 0 }) {
           color: "rgba(255,255,255,0.72)",
           textAlign: "center",
           lineHeight: 1.2,
-          maxWidth: 66,
+          maxWidth: "100%",
+          width: "100%",
+          paddingLeft: 2,
+          paddingRight: 2,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -429,7 +434,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
     return APPS;
   }, [search, activeGroup]);
 
-  return (
+  const drawerContent = (
     <>
       <style>{DRAWER_CSS}</style>
 
@@ -438,7 +443,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         ref={backdropRef}
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, zIndex: 90,
+          position: "fixed", inset: 0, zIndex: 9998,
           background: "rgba(0,0,0,0.55)",
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
@@ -459,7 +464,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
         style={{
           position: "fixed",
           left: 0, right: 0, bottom: 0,
-          zIndex: 91,
+          zIndex: 9999,
           height: "88vh",
           borderRadius: "28px 28px 0 0",
           background: "rgba(4, 6, 14, 0.97)",
@@ -643,6 +648,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
           <AnimatePresence mode="wait">
             {filteredApps.length > 0 ? (
               <motion.div
+                data-testid="app-library-grid"
                 key={search + activeGroup}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -650,7 +656,7 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
                 transition={{ duration: 0.10 }}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gridTemplateColumns: typeof window !== "undefined" && window.innerWidth < 350 ? "repeat(3, 1fr)" : "repeat(4, 1fr)",
                   gap: "2px 0",
                   willChange: "contents",
                 }}
@@ -700,4 +706,6 @@ export default function MobileAppDrawer({ onClose, onOpenApp }) {
       </div>
     </>
   );
+
+  return typeof document !== "undefined" ? createPortal(drawerContent, document.body) : drawerContent;
 }

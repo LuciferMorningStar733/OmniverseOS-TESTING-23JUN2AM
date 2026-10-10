@@ -4,7 +4,7 @@
 // modules, so the connect cannot live there. The pairing token arrives through
 // REACT_APP_RETICLE_TOKEN because REACT_APP_* is the only thing CRA inlines
 // into browser code.
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_RETICLE_ENABLED === 'true') {
   void import('@reticlehq/react').then((sdk) => {
     // On its own line: CRA boilerplate prettier caps lines at 80.
     const { reticle, install, registerCapabilities } = sdk;

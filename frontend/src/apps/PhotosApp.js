@@ -196,8 +196,8 @@ export default function PhotosApp() {
 
   return (
     <div className="flex h-full w-full bg-[#f6f6f7] text-[#1c1c1e] font-sans overflow-hidden select-none" data-testid="photos-app">
-      {/* ── macOS Light Glass Sidebar ── */}
-      <div className="w-56 bg-[#eef0f3]/90 border-r border-[#d1d5db] flex flex-col p-3 flex-shrink-0 backdrop-blur-md">
+      {/* ── macOS Light Glass Sidebar (Desktop / Tablet) ── */}
+      <div className="hidden md:flex w-56 bg-[#eef0f3]/90 border-r border-[#d1d5db] flex-col p-3 flex-shrink-0 backdrop-blur-md">
         <div className="flex items-center justify-between mb-3 px-2">
           <div>
             <div className="font-bold text-sm text-[#111827]">Photos Library</div>
@@ -241,24 +241,43 @@ export default function PhotosApp() {
 
       {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white">
+        {/* Mobile Horizontal Category Selector */}
+        <div className="flex md:hidden overflow-x-auto gap-1.5 p-2 bg-[#eef0f3] border-b border-[#d1d5db] flex-shrink-0">
+          {SIDEBAR_ITEMS.map((item) => {
+            const active = selectedSidebar === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelectedSidebar(item.id)}
+                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap flex items-center gap-1.5 font-medium transition-colors ${
+                  active ? "bg-[#007aff] text-white shadow-sm" : "bg-white/80 text-[#374151] border border-slate-200"
+                }`}
+              >
+                <i className={`fa-solid ${item.icon} text-[10px]`} style={{ color: active ? "#ffffff" : item.color }} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Top Control Bar */}
         <div className="h-11 border-b border-[#e5e7eb] px-4 flex items-center justify-between bg-[#f9fafb]">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-800">
+          <div className="flex items-center gap-2 truncate mr-2">
+            <h2 className="text-sm font-bold text-slate-800 truncate">
               {SIDEBAR_ITEMS.find((s) => s.id === selectedSidebar)?.label || "Photos"}
             </h2>
-            <span className="text-xs text-slate-400 font-mono">({filteredPhotos.length} items)</span>
+            <span className="text-xs text-slate-400 font-mono flex-shrink-0">({filteredPhotos.length})</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <div className="relative">
               <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs" />
               <input
                 type="text"
-                placeholder="Search location, title..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1 bg-white border border-[#d1d5db] rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#007aff] w-48 shadow-sm"
+                className="pl-8 pr-3 py-1 bg-white border border-[#d1d5db] rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#007aff] w-28 sm:w-48 shadow-sm"
               />
             </div>
           </div>

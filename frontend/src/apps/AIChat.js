@@ -128,7 +128,7 @@ async function computeSemanticConsensus(panels, question) {
       return Math.round((sum / (n - 1)) * 100);
     });
     const overall = Math.round(scores.reduce((a, b) => a + b, 0) / n);
-    return { consensus: overall, meaning_match: overall, reasoning_match: overall, evidence_match: overall, style_similarity: overall, summary: 'Semantic analysis unavailable.', scores, overall };
+    return { consensus: null, status: 'UNAVAILABLE', is_fallback: true, meaning_match: null, reasoning_match: null, evidence_match: null, style_similarity: null, summary: 'Semantic consensus unavailable.', scores, overall };
   }
 }
 
@@ -243,12 +243,13 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
           </div>
         </div>
 {agreement && (() => {
+          const isUnavailable = agreement.status === 'UNAVAILABLE' || (agreement.consensus == null && agreement.overall == null);
           const cs = agreement.consensus != null ? agreement.consensus : agreement.overall;
           const mm = agreement.meaning_match != null ? agreement.meaning_match : cs;
           const rm = agreement.reasoning_match != null ? agreement.reasoning_match : cs;
           const em = agreement.evidence_match != null ? agreement.evidence_match : cs;
           const ss = agreement.style_similarity != null ? agreement.style_similarity : cs;
-          const csColor = cs >= 70 ? '#39FF14' : cs >= 40 ? '#F59E0B' : '#FF4444';
+          const csColor = isUnavailable ? '#F59E0B' : cs >= 70 ? '#39FF14' : cs >= 40 ? '#F59E0B' : '#FF4444';
           const summary = agreement.summary || '';
           const uniqueInsights = agreement.unique_insights || [];
           const divergentClaims = agreement.divergent_claims || [];
@@ -259,16 +260,18 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <i className='fa-solid fa-brain' style={{ fontSize: 10, color: csColor }} />
                   <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Consensus</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: csColor, fontFamily: "'JetBrains Mono',monospace" }}>{cs}%</span>
+                  <span style={{ fontSize: isUnavailable ? 11 : 15, fontWeight: 800, color: csColor, fontFamily: "'JetBrains Mono',monospace" }}>{isUnavailable ? 'UNAVAILABLE' : `${cs}%`}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {[['Meaning', mm, '#00F0FF'], ['Reasoning', rm, '#CF9EFF'], ['Evidence', em, '#39FF14'], ['Style', ss, 'rgba(255,255,255,0.3)']].map(([label, val, col]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono',monospace" }}>{label}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: col, fontFamily: "'JetBrains Mono',monospace" }}>{val}%</span>
-                    </div>
-                  ))}
-                </div>
+                {!isUnavailable && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {[['Meaning', mm, '#00F0FF'], ['Reasoning', rm, '#CF9EFF'], ['Evidence', em, '#39FF14'], ['Style', ss, 'rgba(255,255,255,0.3)']].map(([label, val, col]) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.35)', fontFamily: "'JetBrains Mono',monospace" }}>{label}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: col, fontFamily: "'JetBrains Mono',monospace" }}>{val != null ? `${val}%` : 'N/A'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {/* Row 2: Consensus summary */}
               {summary ? (
@@ -304,7 +307,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
         {panels && panels.map((panel, idx) => {
           const _pm = agreement?.per_model;
           const agScore = _pm
-            ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30)
+            ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus != null ? agreement.consensus : null) : _pm[idx]?.stance === 'partial' ? 65 : 30)
             : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
           return (
@@ -364,7 +367,7 @@ const DebateGrid = React.memo(function DebateGrid({ panels, agreement, prompt, s
       {/* ── Desktop 2×2 grid + Final Verdict — hidden on mobile via CSS ── */}
       <div className="debate-desktop-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr auto", minHeight: 520, overflow: "visible" }}>
         {panels.map((panel, idx) => {
-          const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus || 95) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
+          const _pm = agreement?.per_model; const agScore = _pm ? (_pm[idx]?.stance === 'agree' ? (agreement.consensus != null ? agreement.consensus : null) : _pm[idx]?.stance === 'partial' ? 65 : 30) : agreement?.scores?.[idx];
           const scoreColor = agScore == null ? panel.color : agScore >= 70 ? "#39FF14" : agScore >= 50 ? "#F59E0B" : "#FF4444";
           const isLeft = idx % 2 === 0;
           const isTop  = idx < 2;

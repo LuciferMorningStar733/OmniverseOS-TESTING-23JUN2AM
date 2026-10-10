@@ -50,8 +50,8 @@ export default function FileManager() {
 
   return (
     <div className="flex h-full w-full bg-[#f8fafc] text-[#1e293b] font-sans overflow-hidden select-none" data-testid="files-app">
-      {/* ── macOS Finder Sidebar ── */}
-      <div className="w-56 bg-[#ebedf0]/90 border-r border-[#cbd5e1] flex flex-col p-3 flex-shrink-0 backdrop-blur-md">
+      {/* ── macOS Finder Sidebar (Desktop / Tablet) ── */}
+      <div className="hidden md:flex w-56 bg-[#ebedf0]/90 border-r border-[#cbd5e1] flex-col p-3 flex-shrink-0 backdrop-blur-md">
         <div className="flex items-center justify-between mb-2 px-2">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8]">
             Workspace Locations
@@ -87,14 +87,33 @@ export default function FileManager() {
 
       {/* ── Main List Area ── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white">
+        {/* Mobile Horizontal Location Selector */}
+        <div className="flex md:hidden overflow-x-auto gap-1.5 p-2 bg-[#ebedf0] border-b border-[#cbd5e1] flex-shrink-0">
+          {WORKSPACE_FAVORITES.map((fav) => {
+            const active = activeFav === fav.id;
+            return (
+              <button
+                key={fav.id}
+                onClick={() => setActiveFav(fav.id)}
+                className={`px-2.5 py-1 rounded-full text-xs whitespace-nowrap flex items-center gap-1.5 font-medium transition-colors ${
+                  active ? "bg-[#3b82f6] text-white shadow-sm" : "bg-white/80 text-[#334155] border border-slate-200"
+                }`}
+              >
+                <i className={`fa-solid ${fav.icon} text-[10px]`} />
+                <span>{fav.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Toolbar & Search */}
         <div className="h-10 border-b border-[#e2e8f0] px-3 flex items-center justify-between bg-[#f8fafc]">
-          <div className="flex items-center gap-2 text-slate-500 text-xs font-mono">
-            <i className="fa-solid fa-folder-open text-[#3b82f6]" />
-            <span className="font-bold text-slate-700">c:\Users\mabdu\OmniverseOS-TESTING-23JUN2AM</span>
+          <div className="flex items-center gap-2 text-slate-500 text-xs font-mono truncate mr-2">
+            <i className="fa-solid fa-folder-open text-[#3b82f6] flex-shrink-0" />
+            <span className="font-bold text-slate-700 truncate">c:\Users\mabdu\OmniverseOS</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="relative flex items-center">
               <i className="fa-solid fa-magnifying-glass absolute left-2.5 text-slate-400 text-xs" />
               <input
@@ -102,7 +121,7 @@ export default function FileManager() {
                 placeholder="Filter files..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-7 pr-3 py-1 bg-white border border-[#cbd5e1] rounded-md text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#3b82f6] w-48"
+                className="pl-7 pr-3 py-1 bg-white border border-[#cbd5e1] rounded-md text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#3b82f6] w-28 sm:w-48"
               />
             </div>
           </div>
@@ -110,13 +129,13 @@ export default function FileManager() {
 
         {/* Column Headers */}
         <div className="grid grid-cols-12 px-4 py-1.5 border-b border-[#e2e8f0] bg-[#f1f5f9] text-[11px] font-semibold text-[#64748b]">
-          <div className="col-span-5 flex items-center gap-1">
+          <div className="col-span-8 md:col-span-5 flex items-center gap-1">
             <span>File Name</span>
             <i className="fa-solid fa-chevron-down text-[9px]" />
           </div>
-          <div className="col-span-3">Date Modified</div>
-          <div className="col-span-2">Size</div>
-          <div className="col-span-2">Kind</div>
+          <div className="hidden md:block md:col-span-3">Date Modified</div>
+          <div className="col-span-4 md:col-span-2 text-right md:text-left">Size</div>
+          <div className="hidden md:block md:col-span-2">Kind</div>
         </div>
 
         {/* Table Rows */}
@@ -129,26 +148,29 @@ export default function FileManager() {
                 selectedFile?.id === row.id ? "bg-[#eff6ff] font-semibold border-l-2 border-[#3b82f6]" : "hover:bg-slate-50"
               }`}
             >
-              <div className="col-span-5 flex items-center gap-2 truncate font-medium">
+              <div className="col-span-8 md:col-span-5 flex items-center gap-2 truncate font-medium">
                 <i className={`fa-solid ${
                   row.kind === "Directory" ? "fa-folder text-[#3b82f6]" : 
                   row.kind.includes("PDF") ? "fa-file-pdf text-red-500" :
                   row.kind.includes("Code") || row.kind.includes("JSON") ? "fa-file-code text-emerald-500" :
                   "fa-file text-slate-500"
-                } text-sm`} />
-                <span className="truncate">{row.name}</span>
+                } text-sm flex-shrink-0`} />
+                <div className="truncate">
+                  <div className="truncate">{row.name}</div>
+                  <div className="text-[10px] text-slate-400 md:hidden font-mono">{row.kind} · {row.date}</div>
+                </div>
               </div>
-              <div className="col-span-3 text-slate-500 text-[11px] font-mono">{row.date}</div>
-              <div className="col-span-2 text-slate-500 text-[11px] font-mono">{row.size}</div>
-              <div className="col-span-2 text-slate-500 text-[11px]">{row.kind}</div>
+              <div className="hidden md:block md:col-span-3 text-slate-500 text-[11px] font-mono">{row.date}</div>
+              <div className="col-span-4 md:col-span-2 text-slate-500 text-[11px] font-mono text-right md:text-left">{row.size}</div>
+              <div className="hidden md:block md:col-span-2 text-slate-500 text-[11px]">{row.kind}</div>
             </div>
           ))}
         </div>
 
         {/* Footer Status Bar */}
-        <div className="h-7 border-t border-[#e2e8f0] px-4 flex items-center justify-between bg-[#f8fafc] text-[11px] text-[#64748b] font-mono">
-          <span>{filteredRows.length} items cataloged</span>
-          <span>Workspace Integrity: 100% Verified</span>
+        <div className="h-7 border-t border-[#e2e8f0] px-4 flex items-center justify-between gap-2 overflow-hidden bg-[#f8fafc] text-[10px] sm:text-[11px] text-[#64748b] font-mono">
+          <span className="truncate">{filteredRows.length} items cataloged</span>
+          <span className="truncate">Integrity: 100% Verified</span>
         </div>
       </div>
     </div>

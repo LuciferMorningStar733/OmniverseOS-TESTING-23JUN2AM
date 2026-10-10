@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
  * - Floating rounded pill bar with One UI blue accent glow
  * - Tactile active state with quick squircle actions
  */
-export default function CortexPill({ onOpenApp, onQuerySubmit }) {
+export default function CortexPill({ onOpenApp, onQuerySubmit, embedded = false }) {
   const [active, setActive] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -55,9 +55,15 @@ export default function CortexPill({ onOpenApp, onQuerySubmit }) {
 
   return (
     <div
-      style={{
+      style={embedded ? {
+        position: "relative",
+        width: "100%",
+        maxWidth: 420,
+        pointerEvents: "auto",
+        fontFamily: "'Outfit', sans-serif",
+      } : {
         position: "fixed",
-        bottom: "max(18px, env(safe-area-inset-bottom, 18px))",
+        bottom: "calc(82px + env(safe-area-inset-bottom, 12px))",
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 120,

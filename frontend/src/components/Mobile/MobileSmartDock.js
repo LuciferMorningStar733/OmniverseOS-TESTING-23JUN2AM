@@ -90,6 +90,7 @@ export default function MobileSmartDock({ onOpenApp, onOpenDrawer }) {
 
       {/* App Drawer Launcher */}
       <motion.div
+        data-testid="app-drawer-trigger"
         whileTap={{ scale: 0.86 }}
         onClick={onOpenDrawer}
         style={{

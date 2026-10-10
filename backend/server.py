@@ -2867,16 +2867,16 @@ class ConsensusRequest(BaseModel):
 
 @api.post("/ai/consensus")
 async def analyze_consensus(req: ConsensusRequest, user=Depends(get_current_user)):
-    """Semantic consensus analysis using Gemini as AI judge."""
-    if not gemini_client:
-        raise HTTPException(503, "Gemini not configured")
+    """Semantic consensus analysis using multi-provider AI judge."""
     if len(req.responses) < 2:
         raise HTTPException(400, "Need at least 2 responses")
 
     # Build structured input for the AI judge
     responses_block = ""
     for r in req.responses:
-        responses_block += f"\n\n[{r['provider']}]:\n{r['content']}"
+        p_name = r.get("provider", "Model") if isinstance(r, dict) else getattr(r, "provider", "Model")
+        p_text = (r.get("content") or r.get("text", "")) if isinstance(r, dict) else (getattr(r, "content", None) or getattr(r, "text", ""))
+        responses_block += f"\n\n[{p_name}]:\n{p_text}"
 
     judge_prompt = f"""You are an impartial semantic evaluator analyzing AI responses.
 
@@ -2929,19 +2929,21 @@ Rules:
         return data
     except Exception as e:
         logger.error(f"Consensus analysis failed: {e}")
-        # High reliability semantic fallback calculation
+        # Truthful degradation: Never fabricate multi-model agreement scores when AI evaluator is unavailable
         return {
-            "consensus": 92,
-            "meaning_match": 95,
-            "reasoning_match": 90,
-            "evidence_match": 88,
-            "style_similarity": 65,
-            "summary": "Both models independently confirm high semantic agreement on core factual parameters.",
+            "consensus": None,
+            "status": "UNAVAILABLE",
+            "is_fallback": True,
+            "meaning_match": None,
+            "reasoning_match": None,
+            "evidence_match": None,
+            "style_similarity": None,
+            "summary": "AI consensus evaluation unavailable. Multi-model semantic analysis could not be computed.",
             "per_model": [
-                {"provider": r.get("provider", "model"), "final_answer": "Consistent factual confirmation", "stance": "agree", "unique_insight": ""}
+                {"provider": r.get("provider", "model"), "final_answer": "Analysis unavailable", "stance": "unverified", "unique_insight": ""}
                 for r in req.responses
             ],
-            "agreement_matrix": {req.responses[0]["provider"]: {req.responses[1]["provider"]: 92}},
+            "agreement_matrix": {},
             "divergent_claims": [],
             "unique_insights": []
         }
@@ -2955,17 +2957,20 @@ app.include_router(api)
 app.include_router(agents_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
 
-_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
 if IS_PRODUCTION:
     # Production security: explicitly disallow regex wildcard with credentials
-    if not _cors_env or _cors_env == "*":
-        prod_origins = [
-            "https://omniverse-os-testing-23-jun-2-9gsc2pgro.vercel.app",
-            "https://omniverseos.app",
-            "https://www.omniverseos.app",
-        ]
+    base_prod_origins = [
+        "https://omniverseos.in.net",
+        "https://omniverse-os-testing-23-jun-2-9gsc2pgro.vercel.app",
+        "https://omniverseos.app",
+        "https://www.omniverseos.app",
+    ]
+    if _cors_env and _cors_env != "*":
+        env_origins = [o.strip() for o in _cors_env.split(",") if o.strip() and o.strip() != "*"]
+        prod_origins = list(dict.fromkeys(base_prod_origins + env_origins))
     else:
-        prod_origins = [o.strip() for o in _cors_env.split(",") if o.strip() and o.strip() != "*"]
+        prod_origins = base_prod_origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=prod_origins,
@@ -2975,7 +2980,7 @@ if IS_PRODUCTION:
     )
 else:
     # Development mode: permit localhost and configured development origins
-    if _cors_env == "*":
+    if not _cors_env or _cors_env == "*":
         app.add_middleware(
             CORSMiddleware,
             allow_origin_regex=".*",

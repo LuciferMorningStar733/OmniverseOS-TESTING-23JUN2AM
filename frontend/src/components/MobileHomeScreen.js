@@ -98,7 +98,7 @@ export default function MobileHomeScreen({ onOpenApp }) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        padding: "env(safe-area-inset-top, 12px) 0 max(80px, env(safe-area-inset-bottom, 80px)) 0",
+        padding: "calc(68px + env(safe-area-inset-top, 0px)) 0 max(170px, env(safe-area-inset-bottom, 170px)) 0",
         overflowY: "auto",
         WebkitOverflowScrolling: "touch",
         zIndex: 10,
@@ -107,29 +107,32 @@ export default function MobileHomeScreen({ onOpenApp }) {
       data-testid="mobile-home-screen"
     >
       {/* ── ONE UI TOP VIEWING AREA (Reachability Header) ────────────────────── */}
-      <div style={{ padding: "16px 22px 0 22px" }}>
-        {/* Top Status Bar & Quick Actions */}
+      <div style={{ padding: "0 20px 10px 20px" }}>
+        {/* Status Chip & Telemetry */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "4px 10px",
+            borderRadius: 14,
+            background: "rgba(62, 123, 250, 0.12)",
+            border: "1px solid rgba(62, 123, 250, 0.28)",
+          }}>
             <motion.div
               animate={{ scale: [1, 1.25, 1], opacity: [0.75, 1, 0.75] }}
               transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
               style={{
-                width: 9,
-                height: 9,
+                width: 7,
+                height: 7,
                 borderRadius: "50%",
                 background: "#3E7BFA",
-                boxShadow: "0 0 12px #3E7BFA",
+                boxShadow: "0 0 10px #3E7BFA",
               }}
             />
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#4D8DFF", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#4D8DFF", letterSpacing: "0.1em", textTransform: "uppercase" }}>
               One UI · Cortex Core
             </span>
-          </div>
-
-          {/* Center: Live Time */}
-          <div style={{ fontSize: 11, fontFamily: "monospace", color: "#fff", fontWeight: 700, letterSpacing: "0.08em" }}>
-            {timeStr.slice(0, 5) || "12:00"}
           </div>
 
           {/* Right: Quantum Telemetry & Battery */}
@@ -244,13 +247,31 @@ export default function MobileHomeScreen({ onOpenApp }) {
       {/* ── ONE UI INTELLIGENCE STACKS & CARDS ──────────────────────────────── */}
       <MobileIntelligenceStacks onOpenApp={onOpenApp} />
 
-      {/* ── ONE UI BOTTOM INTERACTION ZONE (Smart Dock & Action Surface) ─────── */}
-      <div style={{ padding: "12px 14px 0 14px" }}>
-        <MobileSmartDock onOpenApp={onOpenApp} onOpenDrawer={() => setDrawerOpen(true)} />
+      {/* ── ONE UI BOTTOM INTERACTION ZONE (Dock & Cortex Pill) ─────── */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "0 14px max(10px, env(safe-area-inset-bottom, 10px)) 14px",
+          background: "linear-gradient(to top, rgba(3, 4, 7, 0.96) 0%, rgba(3, 4, 7, 0.82) 75%, transparent 100%)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          pointerEvents: "none",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 420, pointerEvents: "auto", marginBottom: 8 }}>
+          <CortexPill embedded onOpenApp={onOpenApp} onQuerySubmit={() => setChatOpen(true)} />
+        </div>
+        <div style={{ width: "100%", maxWidth: 420, pointerEvents: "auto" }}>
+          <MobileSmartDock onOpenApp={onOpenApp} onOpenDrawer={() => setDrawerOpen(true)} />
+        </div>
       </div>
-
-      {/* ── ONE UI FLOATING CORTEX PILL ────────────────────────────────────── */}
-      <CortexPill onOpenApp={onOpenApp} onQuerySubmit={() => setChatOpen(true)} />
 
       {/* ── APP DRAWER MODAL (120HZ COMPOSITOR) ───────────────────────── */}
       <AnimatePresence>

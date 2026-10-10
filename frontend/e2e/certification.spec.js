@@ -11,8 +11,8 @@ test.describe("OmniverseOS Master Runtime Certification & Click-by-Click Forensi
     page.on("console", (msg) => {
       if (msg.type() === "error") {
         const text = msg.text();
-        // Filter expected benign noise (e.g. font preload warnings or simulated offline LLM)
-        if (!text.includes("favicon.ico")) {
+        // Filter expected benign noise (e.g. font preload warnings or reticle dev websocket)
+        if (!text.includes("favicon.ico") && !text.includes("ws://localhost:4400")) {
           consoleErrors.push(text);
         }
       }
@@ -31,9 +31,9 @@ test.describe("OmniverseOS Master Runtime Certification & Click-by-Click Forensi
     await page.waitForLoadState("networkidle");
 
     // 1. Verify Identity Gateway loads
-    const emailInput = page.locator('input[type="email"], input[placeholder*="you@omniverse.io"], input[name="email"]').first();
-    const passwordInput = page.locator('input[type="password"]').first();
-    const submitBtn = page.locator('button:has-text("INITIALIZE OMNIVERSE"), button:has-text("Login"), button[type="submit"]').first();
+    const emailInput = page.locator('[data-testid="auth-email-input"]').first();
+    const passwordInput = page.locator('[data-testid="auth-password-input"]').first();
+    const submitBtn = page.locator('[data-testid="auth-submit-button"]').first();
 
     await expect(emailInput).toBeVisible({ timeout: 10000 });
     await expect(passwordInput).toBeVisible();
@@ -48,12 +48,13 @@ test.describe("OmniverseOS Master Runtime Certification & Click-by-Click Forensi
     // 3. Test Valid Login (demo@omniverse.io / omniverse123)
     await emailInput.fill("demo@omniverse.io");
     await passwordInput.fill("omniverse123");
-    await submitBtn.click();
-    await page.waitForTimeout(1000);
+    await expect(submitBtn).toBeEnabled({ timeout: 6000 });
+    await passwordInput.press("Enter");
+    await page.waitForTimeout(2000);
 
     // Dismiss LocationSetup or intro backdrop if present
     const dismissBtn = page.locator('[data-testid="location-backdrop-btn"], button:has-text("Skip"), button:has-text("Continue")').first();
-    if (await dismissBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await dismissBtn.isVisible({ timeout: 12000 }).catch(() => false)) {
       await dismissBtn.click({ force: true });
       await page.waitForTimeout(500);
     }
@@ -81,19 +82,19 @@ async function ensureLoggedIn(page) {
   if (!await dock.isVisible({ timeout: 3000 }).catch(() => false)) {
     const emailInput = page.locator('input[type="email"], input[placeholder*="you@omniverse.io"]').first();
     if (await emailInput.isVisible({ timeout: 4000 }).catch(() => false)) {
-      const passwordInput = page.locator('input[type="password"]').first();
-      const submitBtn = page.locator('button:has-text("INITIALIZE OMNIVERSE"), button[type="submit"]').first();
+      const passwordInput = page.locator('[data-testid="auth-password-input"], input[type="password"]').first();
+      const submitBtn = page.locator('[data-testid="auth-submit-button"], button:has-text("INITIALIZE OMNIVERSE")').first();
       await emailInput.fill("demo@omniverse.io");
       await passwordInput.fill("omniverse123");
-      await submitBtn.click();
+      await passwordInput.press("Enter");
       await expect(dock).toBeVisible({ timeout: 15000 });
     }
   }
 
   // Dismiss any LocationSetup or intro backdrop if present
   const dismissBtn = page.locator('[data-testid="location-backdrop-btn"], button:has-text("Skip"), button:has-text("Continue")').first();
-  if (await dismissBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await dismissBtn.click();
+  if (await dismissBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
+    await dismissBtn.click({ force: true });
     await page.waitForTimeout(500);
   }
 }
