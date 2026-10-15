@@ -720,6 +720,10 @@ export const memoryApi = {
   relevant: (query, limit = 6) =>
     api.post('/memories/relevant', { query, limit }).then(r => r.data).catch(() => []),
 
+  /** Alias for backward compatibility */
+  getRelevant: (query, limit = 6) =>
+    api.post('/memories/relevant', { query, limit }).then(r => r.data).catch(() => []),
+
   /** Fire-and-forget: extract and auto-save memorable facts after an AI response */
   extract: (user_message, assistant_response) =>
     api.post('/memories/extract', { user_message, assistant_response })

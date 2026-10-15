@@ -44,8 +44,9 @@ export default function NeuralMatrix() {
         { source: "cortex_core", target: "system_telemetry", similarity: 0.99 },
       ];
 
-      if (memoriesRes.status === "fulfilled" && Array.isArray(memoriesRes.value?.memories)) {
-        const mems = memoriesRes.value.memories;
+      const rawMems = memoriesRes.status === "fulfilled" ? memoriesRes.value : null;
+      const mems = Array.isArray(rawMems) ? rawMems : Array.isArray(rawMems?.memories) ? rawMems.memories : [];
+      if (mems.length > 0) {
         mems.forEach((m, idx) => {
           const angle = (Math.PI * 2 * idx) / mems.length;
           const dist = 220 + (idx % 3) * 40;

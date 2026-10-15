@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import DemoBadge from "../components/DemoBadge";
+import { aiApi } from "../lib/api";
 
 const SERVERS = [
   { id: "omni", name: "OmniVerse", channels: ["general", "ai-talk", "design"] },
@@ -28,11 +29,46 @@ export default function DiscordApp() {
   const [channel, setChannel] = useState("general");
   const [messages, setMessages] = useState(initial);
   const [input, setInput] = useState("");
+  const [isBotTyping, setIsBotTyping] = useState(false);
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMessages((m) => ({ ...m, [channel]: [...(m[channel] || []), { user: "You", text: input, color: "#00F0FF" }] }));
+  const send = async () => {
+    const text = input.trim();
+    if (!text) return;
     setInput("");
+    setMessages((m) => ({
+      ...m,
+      [channel]: [...(m[channel] || []), { user: "You", text, color: "#00F0FF" }]
+    }));
+
+    setIsBotTyping(true);
+    try {
+      let reply = "";
+      await aiApi.chatStreamResilient(
+        {
+          session_id: `discord-${server}-${channel}`,
+          message: text,
+          model: "gemini-2.5-flash",
+          provider: "gemini",
+          system: `You are Cortex participating in a multi-user cyberpunk Discord channel (#${channel} in server ${server}). Respond naturally, witty, concisely (1-3 sentences max).`,
+        },
+        (delta) => { reply += delta; },
+        null,
+        new AbortController().signal
+      );
+      if (reply) {
+        setMessages((m) => ({
+          ...m,
+          [channel]: [...(m[channel] || []), { user: "Cortex", text: reply.trim(), color: "#00F0FF" }]
+        }));
+      }
+    } catch {
+      setMessages((m) => ({
+        ...m,
+        [channel]: [...(m[channel] || []), { user: "Cortex", text: "Neural signal acknowledged on the mesh.", color: "#00F0FF" }]
+      }));
+    } finally {
+      setIsBotTyping(false);
+    }
   };
 
   const channels = SERVERS.find((s) => s.id === server).channels;
@@ -68,6 +104,12 @@ export default function DiscordApp() {
               </div>
             </div>
           ))}
+          {isBotTyping && (
+            <div className="flex items-center gap-2 text-xs text-[#00F0FF] font-mono pl-12 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-[#00F0FF]" />
+              Cortex is typing...
+            </div>
+          )}
         </div>
         <div className="p-3 border-t border-white/10 flex gap-2">
           <input data-testid="discord-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={`Message #${channel}`} className="input-cyber flex-1" />

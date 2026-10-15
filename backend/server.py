@@ -1772,7 +1772,7 @@ async def auto_title_session(session_id: str, user=Depends(get_current_user)):
     content = first_msg.get("content", "")[:300]
     try:
         raw_title = await ai_service.generate_once(
-            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
             f"Generate a short 3-6 word title for this conversation. Only output the title, nothing else. Message: {content}",
             "You generate short chat titles. Max 6 words. No quotes. No punctuation at end. Just the title.",
             max_tokens=20,

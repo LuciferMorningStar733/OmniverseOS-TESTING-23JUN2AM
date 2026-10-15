@@ -821,6 +821,7 @@ class ProviderManager(AIProvider):
 
         # If model belongs to Gemini (e.g. "gemini-2.5-flash", "gemini-2.5-pro")
         if "gemini" in model.lower() and self._gemini_client:
+            actual_model = "gemini-2.5-flash" if "lite" in model.lower() else model
             try:
                 config_kwargs: dict = {}
                 if system:
@@ -828,7 +829,7 @@ class ProviderManager(AIProvider):
                 if max_tokens:
                     config_kwargs["max_output_tokens"] = max_tokens
                 resp = await self._gemini_client.aio.models.generate_content(
-                    model=model,
+                    model=actual_model,
                     contents=message,
                     config=genai_types.GenerateContentConfig(**config_kwargs),
                 )

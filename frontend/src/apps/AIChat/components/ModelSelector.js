@@ -3,16 +3,16 @@ import { motion } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
 
 export const MODEL_OPTIONS = [
-  { value: "gemini|gemini-2.5-flash",      label: "Gemini 2.5 Flash",      badge: "FAST"    },
-  { value: "gemini|gemini-2.5-pro",        label: "Gemini 2.5 Pro",        badge: "SMART"   },
-  { value: "gemini|gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", badge: "LITE"    },
-  { value: "deepseek|deepseek-chat",       label: "DeepSeek V3",           badge: "V3"      },
+  { value: "gemini|gemini-2.5-flash",          label: "Gemini 2.5 Flash",      badge: "FAST"    },
+  { value: "gemini|gemini-2.5-pro",            label: "Gemini 2.5 Pro",        badge: "SMART"   },
+  { value: "groq|llama-3.3-70b-versatile",     label: "Groq LLaMA 3.3",        badge: "GROQ"    },
+  { value: "deepseek|deepseek-chat",           label: "DeepSeek V3",           badge: "V3"      },
 ];
 
 const BADGE_COLORS = {
   FAST:  { bg: "rgba(0,240,255,0.12)",  border: "rgba(0,240,255,0.35)",  text: "#00F0FF"  },
   SMART: { bg: "rgba(207,158,255,0.12)",border: "rgba(207,158,255,0.35)",text: "#CF9EFF"  },
-  LITE:  { bg: "rgba(57,255,20,0.10)",  border: "rgba(57,255,20,0.35)",  text: "#39FF14"  },
+  GROQ:  { bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.35)", text: "#F59E0B"  },
   V3:    { bg: "rgba(255,160,0,0.12)",  border: "rgba(255,160,0,0.35)",  text: "#FFA000"  },
 };
 

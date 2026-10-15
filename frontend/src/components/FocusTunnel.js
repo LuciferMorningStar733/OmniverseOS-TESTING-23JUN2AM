@@ -367,7 +367,7 @@ export default function FocusTunnel({ active, onActivate, onDeactivate }) {
               `Do NOT be generic. Reference the topic. Keep it under 80 words.`
             ),
             provider: "gemini",
-            model: "gemini-2.5-flash-lite",
+            model: "gemini-2.5-flash",
           },
           (chunk) => { reflection += chunk; setSummary(reflection); },
           null,
