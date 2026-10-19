@@ -1,0 +1,38 @@
+{
+  "test_id": "matrix_TEST_A_PURPOSE",
+  "app_id": "matrix",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Analyze multi-model semantic consensus between two independent analytical summaries.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 8,
+  "response": {
+    "consensus": null,
+    "status": "UNAVAILABLE",
+    "is_fallback": true,
+    "meaning_match": null,
+    "reasoning_match": null,
+    "evidence_match": null,
+    "style_similarity": null,
+    "summary": "AI consensus evaluation unavailable. Multi-model semantic analysis could not be computed.",
+    "per_model": [
+      {
+        "provider": "gemini",
+        "final_answer": "Analysis unavailable",
+        "stance": "unverified",
+        "unique_insight": ""
+      },
+      {
+        "provider": "deepseek",
+        "final_answer": "Analysis unavailable",
+        "stance": "unverified",
+        "unique_insight": ""
+      }
+    ],
+    "agreement_matrix": {},
+    "divergent_claims": [],
+    "unique_insights": []
+  },
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:32.147686+00:00"
+}

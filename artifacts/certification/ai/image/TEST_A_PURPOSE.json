@@ -1,0 +1,15 @@
+{
+  "test_id": "image_TEST_A_PURPOSE",
+  "app_id": "image",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "A cyberpunk holographic user interface with neon cyan HUD rings and volumetric floating widgets.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 262,
+  "response": {
+    "generation_id": "b05f33a4-ea48-4327-ba1a-9def8be95006",
+    "status": "queued"
+  },
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:28.976874+00:00"
+}

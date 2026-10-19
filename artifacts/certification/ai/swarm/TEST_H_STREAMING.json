@@ -1,0 +1,6 @@
+{
+  "test_id": "swarm_TEST_H_STREAMING",
+  "app_id": "swarm",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

@@ -1,0 +1,17 @@
+{
+  "test_id": "image_TEST_C_FACTUAL",
+  "app_id": "image",
+  "factual_prompt": "In digital graphics, what does SVG stand for and what standard format does it use?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"In digital graphics, what does SVG stand for and what standard format does it use?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#",
+  "claims_evaluated": [
+    {
+      "claim": "SVG stands for Scalable Vector Graphics based on XML.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

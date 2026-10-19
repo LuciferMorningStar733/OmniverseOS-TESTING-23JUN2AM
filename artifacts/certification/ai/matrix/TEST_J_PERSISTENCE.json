@@ -1,0 +1,7 @@
+{
+  "test_id": "matrix_TEST_J_PERSISTENCE",
+  "app_id": "matrix",
+  "type": "PERSISTENCE_AND_HISTORY",
+  "storage_target": "MongoDB / LocalStorage",
+  "verdict": "PASSED"
+}

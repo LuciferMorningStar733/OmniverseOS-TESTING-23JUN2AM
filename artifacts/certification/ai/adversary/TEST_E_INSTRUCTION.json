@@ -1,0 +1,7 @@
+{
+  "test_id": "adversary_TEST_E_INSTRUCTION",
+  "app_id": "adversary",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Produce 3 explicit attack vectors. Classify severity for each.",
+  "verdict": "PASSED"
+}

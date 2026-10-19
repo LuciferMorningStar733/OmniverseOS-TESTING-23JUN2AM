@@ -1,0 +1,11 @@
+{
+  "test_id": "blackbox_TEST_F_BOUNDARY",
+  "app_id": "blackbox",
+  "type": "INPUT_BOUNDARY",
+  "tested_conditions": [
+    "empty",
+    "unicode",
+    "long_input_3000ch"
+  ],
+  "verdict": "PASSED"
+}

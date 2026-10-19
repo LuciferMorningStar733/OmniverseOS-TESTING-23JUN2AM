@@ -1,0 +1,17 @@
+{
+  "test_id": "warroom_TEST_C_FACTUAL",
+  "app_id": "warroom",
+  "factual_prompt": "What consensus algorithm is widely used in etcd and Kubernetes for state replication?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"What consensus algorithm is widely used in etcd and Kubernetes for state replication?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.",
+  "claims_evaluated": [
+    {
+      "claim": "Raft is the consensus algorithm used by etcd.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

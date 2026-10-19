@@ -1,0 +1,6 @@
+{
+  "test_id": "blackbox_TEST_H_STREAMING",
+  "app_id": "blackbox",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

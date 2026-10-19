@@ -1,0 +1,16 @@
+{
+  "test_id": "voice_TEST_A_PURPOSE",
+  "app_id": "voice",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Generate audio speech telemetry diagnostic check.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 3,
+  "response": {
+    "ok": false,
+    "step": "config",
+    "error": "GEMINI_API_KEY not set"
+  },
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:29.043197+00:00"
+}

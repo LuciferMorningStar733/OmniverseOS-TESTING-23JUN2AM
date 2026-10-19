@@ -1,0 +1,7 @@
+{
+  "test_id": "faceoff_TEST_E_INSTRUCTION",
+  "app_id": "faceoff",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Give 1 paragraph for Model A, 1 paragraph for Model B, and a concluding verdict sentence.",
+  "verdict": "PASSED"
+}

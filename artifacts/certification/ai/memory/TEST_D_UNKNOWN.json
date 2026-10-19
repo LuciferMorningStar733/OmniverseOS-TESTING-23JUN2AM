@@ -1,0 +1,8 @@
+{
+  "test_id": "memory_TEST_D_UNKNOWN",
+  "app_id": "memory",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "What will be the user's favorite operating system feature next year?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

@@ -1,0 +1,8 @@
+{
+  "test_id": "faceoff_TEST_D_UNKNOWN",
+  "app_id": "faceoff",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "Which model will achieve 100% score on the AGI benchmark in the year 2045?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

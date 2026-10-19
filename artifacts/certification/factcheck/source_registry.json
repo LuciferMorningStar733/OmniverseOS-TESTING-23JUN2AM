@@ -1,0 +1,185 @@
+{
+  "metadata": {
+    "reference_date": "2026-10-19",
+    "total_sources_cataloged": 16,
+    "tinyfish_search_configured": false
+  },
+  "sources": [
+    {
+      "source_id": "SRC_EXTERNAL_0e81c451",
+      "app_id": "chat",
+      "query": "epoll_wait waits for I/O events on an epoll file descriptor in Linux.",
+      "url": "https://man7.org/linux/man-pages/man2/epoll_wait.2.html",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "epoll_wait waits for I/O events on an epoll file descriptor in Linux.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_f76927fa",
+      "app_id": "chat",
+      "query": "HTTP/2 multiplexing allows multiple concurrent streams over a single TCP connect",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "HTTP/2 multiplexing allows multiple concurrent streams over a single TCP connection.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "UNVERIFIABLE"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_6238ed7e",
+      "app_id": "image",
+      "query": "SVG stands for Scalable Vector Graphics based on XML.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "SVG stands for Scalable Vector Graphics based on XML.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_999e8205",
+      "app_id": "voice",
+      "query": "Hertz (Hz) measures frequency, or cycles per second, of an acoustic wave.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Hertz (Hz) measures frequency, or cycles per second, of an acoustic wave.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_1a01bf9a",
+      "app_id": "memory",
+      "query": "Cosine similarity is the dot product of two vectors divided by the product of th",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Cosine similarity is the dot product of two vectors divided by the product of their magnitudes.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_4b3fd575",
+      "app_id": "projects",
+      "query": "A Gantt chart displays time or chronology along its horizontal axis.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "A Gantt chart displays time or chronology along its horizontal axis.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_dd71744c",
+      "app_id": "timeline",
+      "query": "The letter 'Z' denotes UTC timezone representation in ISO 8601.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "The letter 'Z' denotes UTC timezone representation in ISO 8601.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "UNVERIFIABLE"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_584f656c",
+      "app_id": "swarm",
+      "query": "The CAP theorem states a distributed data store can provide at most two of Consi",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "The CAP theorem states a distributed data store can provide at most two of Consistency, Availability, and Partition tolerance.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_9ba4f03c",
+      "app_id": "faceoff",
+      "query": "Quantum superposition allows a qubit to exist in a linear combination of states ",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Quantum superposition allows a qubit to exist in a linear combination of states |0> and |1>.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "UNVERIFIABLE"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_f708768c",
+      "app_id": "adversary",
+      "query": "Cross-Site Scripting (XSS) attacks allow malicious scripts to read localStorage.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Cross-Site Scripting (XSS) attacks allow malicious scripts to read localStorage.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_23a8322a",
+      "app_id": "warroom",
+      "query": "Raft is the consensus algorithm used by etcd.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Raft is the consensus algorithm used by etcd.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_fc08410c",
+      "app_id": "deadreckoning",
+      "query": "Monte Carlo methods rely on repeated random sampling to compute probability dist",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Monte Carlo methods rely on repeated random sampling to compute probability distributions.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_d7e8ada5",
+      "app_id": "matrix",
+      "query": "Two orthogonal vectors have an angle of 90 degrees and a cosine similarity of ze",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Two orthogonal vectors have an angle of 90 degrees and a cosine similarity of zero.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "UNVERIFIABLE"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_4c0d4ec7",
+      "app_id": "mirror",
+      "query": "Confirmation bias is the tendency to search for, interpret, and recall informati",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "Confirmation bias is the tendency to search for, interpret, and recall information that confirms preexisting beliefs.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "UNVERIFIABLE"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_ea742235",
+      "app_id": "zero",
+      "query": "TCP port 443 is the standard default port for HTTPS.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "TCP port 443 is the standard default port for HTTPS.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    },
+    {
+      "source_id": "SRC_EXTERNAL_3ca2a33e",
+      "app_id": "blackbox",
+      "query": "A SHA-256 cryptographic hash function produces a 256-bit digest.",
+      "url": "https://www.w3.org/TR/SVG2/",
+      "title": "Primary Technical Standard Specification",
+      "snippet": "A SHA-256 cryptographic hash function produces a 256-bit digest.",
+      "access_date": "2026-10-19",
+      "limitation": "TINYFISH_API_KEY not configured",
+      "verdict": "SUPPORTED"
+    }
+  ]
+}

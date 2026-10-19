@@ -1,0 +1,7 @@
+{
+  "test_id": "timeline_TEST_J_PERSISTENCE",
+  "app_id": "timeline",
+  "type": "PERSISTENCE_AND_HISTORY",
+  "storage_target": "MongoDB / LocalStorage",
+  "verdict": "PASSED"
+}

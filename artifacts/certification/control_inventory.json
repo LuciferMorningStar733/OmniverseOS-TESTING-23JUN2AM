@@ -1,0 +1,1824 @@
+{
+  "inventory_metadata": {
+    "generated_at_utc": "2026-10-19T07:30:00Z",
+    "total_controls": 165,
+    "covered_applications": 31
+  },
+  "controls": [
+    {
+      "control_id": "dashboard:widget-drag",
+      "app_id": "dashboard",
+      "app_name": "Dashboard",
+      "control_name": "widget-drag",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "dashboard:widget-toggle",
+      "app_id": "dashboard",
+      "app_name": "Dashboard",
+      "control_name": "widget-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "dashboard:metric-card",
+      "app_id": "dashboard",
+      "app_name": "Dashboard",
+      "control_name": "metric-card",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "dashboard:refresh-metrics",
+      "app_id": "dashboard",
+      "app_name": "Dashboard",
+      "control_name": "refresh-metrics",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "dashboard:quick-action-launch",
+      "app_id": "dashboard",
+      "app_name": "Dashboard",
+      "control_name": "quick-action-launch",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:chat-input",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "chat-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:chat-send",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "chat-send",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:model-selector",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "model-selector",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:web-search-toggle",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "web-search-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:deep-research-toggle",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "deep-research-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:clear-history",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "clear-history",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:new-session",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "new-session",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "chat:cortex-memory-drawer",
+      "app_id": "chat",
+      "app_name": "AI Chat",
+      "control_name": "cortex-memory-drawer",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "image:image-prompt",
+      "app_id": "image",
+      "app_name": "Image Gen",
+      "control_name": "image-prompt",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "image:aspect-ratio-select",
+      "app_id": "image",
+      "app_name": "Image Gen",
+      "control_name": "aspect-ratio-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "image:style-preset-chips",
+      "app_id": "image",
+      "app_name": "Image Gen",
+      "control_name": "style-preset-chips",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "image:image-generate",
+      "app_id": "image",
+      "app_name": "Image Gen",
+      "control_name": "image-generate",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "image:download-image",
+      "app_id": "image",
+      "app_name": "Image Gen",
+      "control_name": "download-image",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "image:copy-svg",
+      "app_id": "image",
+      "app_name": "Image Gen",
+      "control_name": "copy-svg",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "voice:mic-toggle",
+      "app_id": "voice",
+      "app_name": "Cortex Voice",
+      "control_name": "mic-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "voice:voice-model-selector",
+      "app_id": "voice",
+      "app_name": "Cortex Voice",
+      "control_name": "voice-model-selector",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "voice:speed-slider",
+      "app_id": "voice",
+      "app_name": "Cortex Voice",
+      "control_name": "speed-slider",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "voice:audio-visualizer-canvas",
+      "app_id": "voice",
+      "app_name": "Cortex Voice",
+      "control_name": "audio-visualizer-canvas",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "voice:transcript-log",
+      "app_id": "voice",
+      "app_name": "Cortex Voice",
+      "control_name": "transcript-log",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "memory:memory-search-input",
+      "app_id": "memory",
+      "app_name": "Memory",
+      "control_name": "memory-search-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "memory:filter-category-select",
+      "app_id": "memory",
+      "app_name": "Memory",
+      "control_name": "filter-category-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "memory:add-memory-button",
+      "app_id": "memory",
+      "app_name": "Memory",
+      "control_name": "add-memory-button",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "memory:pin-never-forget",
+      "app_id": "memory",
+      "app_name": "Memory",
+      "control_name": "pin-never-forget",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "memory:delete-memory",
+      "app_id": "memory",
+      "app_name": "Memory",
+      "control_name": "delete-memory",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "memory:inspect-importance",
+      "app_id": "memory",
+      "app_name": "Memory",
+      "control_name": "inspect-importance",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "projects:create-project",
+      "app_id": "projects",
+      "app_name": "Projects",
+      "control_name": "create-project",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "projects:spec-editor",
+      "app_id": "projects",
+      "app_name": "Projects",
+      "control_name": "spec-editor",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "projects:generate-milestones",
+      "app_id": "projects",
+      "app_name": "Projects",
+      "control_name": "generate-milestones",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "projects:decision-log-add",
+      "app_id": "projects",
+      "app_name": "Projects",
+      "control_name": "decision-log-add",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "projects:export-spec",
+      "app_id": "projects",
+      "app_name": "Projects",
+      "control_name": "export-spec",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "timeline:zoom-timeline",
+      "app_id": "timeline",
+      "app_name": "Timeline",
+      "control_name": "zoom-timeline",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "timeline:filter-events",
+      "app_id": "timeline",
+      "app_name": "Timeline",
+      "control_name": "filter-events",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "timeline:create-event-marker",
+      "app_id": "timeline",
+      "app_name": "Timeline",
+      "control_name": "create-event-marker",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "timeline:export-timeline",
+      "app_id": "timeline",
+      "app_name": "Timeline",
+      "control_name": "export-timeline",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:notes-new",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "notes-new",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:notes-search",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "notes-search",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:notes-list",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "notes-list",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:note-title",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "note-title",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:note-content",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "note-content",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:note-delete",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "note-delete",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "notes:note-tag",
+      "app_id": "notes",
+      "app_name": "Notes",
+      "control_name": "note-tag",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "tasks:task-input",
+      "app_id": "tasks",
+      "app_name": "Tasks",
+      "control_name": "task-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "tasks:task-add",
+      "app_id": "tasks",
+      "app_name": "Tasks",
+      "control_name": "task-add",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "tasks:task-item-toggle",
+      "app_id": "tasks",
+      "app_name": "Tasks",
+      "control_name": "task-item-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "tasks:task-delete",
+      "app_id": "tasks",
+      "app_name": "Tasks",
+      "control_name": "task-delete",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "tasks:filter-status",
+      "app_id": "tasks",
+      "app_name": "Tasks",
+      "control_name": "filter-status",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "tasks:priority-selector",
+      "app_id": "tasks",
+      "app_name": "Tasks",
+      "control_name": "priority-selector",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "calendar:month-prev",
+      "app_id": "calendar",
+      "app_name": "Calendar",
+      "control_name": "month-prev",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "calendar:month-next",
+      "app_id": "calendar",
+      "app_name": "Calendar",
+      "control_name": "month-next",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "calendar:calendar-grid",
+      "app_id": "calendar",
+      "app_name": "Calendar",
+      "control_name": "calendar-grid",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "calendar:add-event-btn",
+      "app_id": "calendar",
+      "app_name": "Calendar",
+      "control_name": "add-event-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "calendar:event-title-input",
+      "app_id": "calendar",
+      "app_name": "Calendar",
+      "control_name": "event-title-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "calendar:event-date-picker",
+      "app_id": "calendar",
+      "app_name": "Calendar",
+      "control_name": "event-date-picker",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "clipboard:clipboard-input",
+      "app_id": "clipboard",
+      "app_name": "Clipboard",
+      "control_name": "clipboard-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "clipboard:clipboard-label",
+      "app_id": "clipboard",
+      "app_name": "Clipboard",
+      "control_name": "clipboard-label",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "clipboard:clipboard-save",
+      "app_id": "clipboard",
+      "app_name": "Clipboard",
+      "control_name": "clipboard-save",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "clipboard:clipboard-copy-btn",
+      "app_id": "clipboard",
+      "app_name": "Clipboard",
+      "control_name": "clipboard-copy-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "clipboard:clipboard-delete",
+      "app_id": "clipboard",
+      "app_name": "Clipboard",
+      "control_name": "clipboard-delete",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "music:play-toggle",
+      "app_id": "music",
+      "app_name": "Music",
+      "control_name": "play-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "music:prev-track",
+      "app_id": "music",
+      "app_name": "Music",
+      "control_name": "prev-track",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "music:next-track",
+      "app_id": "music",
+      "app_name": "Music",
+      "control_name": "next-track",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "music:volume-slider",
+      "app_id": "music",
+      "app_name": "Music",
+      "control_name": "volume-slider",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "music:track-list",
+      "app_id": "music",
+      "app_name": "Music",
+      "control_name": "track-list",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "music:visualizer-mode",
+      "app_id": "music",
+      "app_name": "Music",
+      "control_name": "visualizer-mode",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "photos:upload-photo-btn",
+      "app_id": "photos",
+      "app_name": "Photos",
+      "control_name": "upload-photo-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "photos:filter-category",
+      "app_id": "photos",
+      "app_name": "Photos",
+      "control_name": "filter-category",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "photos:photo-thumbnail",
+      "app_id": "photos",
+      "app_name": "Photos",
+      "control_name": "photo-thumbnail",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "photos:lightbox-modal",
+      "app_id": "photos",
+      "app_name": "Photos",
+      "control_name": "lightbox-modal",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "photos:delete-photo",
+      "app_id": "photos",
+      "app_name": "Photos",
+      "control_name": "delete-photo",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "videos:video-player",
+      "app_id": "videos",
+      "app_name": "Videos",
+      "control_name": "video-player",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "videos:play-pause-btn",
+      "app_id": "videos",
+      "app_name": "Videos",
+      "control_name": "play-pause-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "videos:fullscreen-btn",
+      "app_id": "videos",
+      "app_name": "Videos",
+      "control_name": "fullscreen-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "videos:video-selector",
+      "app_id": "videos",
+      "app_name": "Videos",
+      "control_name": "video-selector",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "watchlist:search-media-input",
+      "app_id": "watchlist",
+      "app_name": "Watchlist",
+      "control_name": "search-media-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "watchlist:add-to-watchlist",
+      "app_id": "watchlist",
+      "app_name": "Watchlist",
+      "control_name": "add-to-watchlist",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "watchlist:toggle-watched",
+      "app_id": "watchlist",
+      "app_name": "Watchlist",
+      "control_name": "toggle-watched",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "watchlist:filter-genre",
+      "app_id": "watchlist",
+      "app_name": "Watchlist",
+      "control_name": "filter-genre",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "files:new-folder-btn",
+      "app_id": "files",
+      "app_name": "Files",
+      "control_name": "new-folder-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "files:upload-file-btn",
+      "app_id": "files",
+      "app_name": "Files",
+      "control_name": "upload-file-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "files:file-row",
+      "app_id": "files",
+      "app_name": "Files",
+      "control_name": "file-row",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "files:delete-file-btn",
+      "app_id": "files",
+      "app_name": "Files",
+      "control_name": "delete-file-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "files:rename-file-btn",
+      "app_id": "files",
+      "app_name": "Files",
+      "control_name": "rename-file-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "files:breadcrumbs-nav",
+      "app_id": "files",
+      "app_name": "Files",
+      "control_name": "breadcrumbs-nav",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "code:code-input",
+      "app_id": "code",
+      "app_name": "Code",
+      "control_name": "code-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "code:code-run-btn",
+      "app_id": "code",
+      "app_name": "Code",
+      "control_name": "code-run-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "code:language-select",
+      "app_id": "code",
+      "app_name": "Code",
+      "control_name": "language-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "code:theme-toggle",
+      "app_id": "code",
+      "app_name": "Code",
+      "control_name": "theme-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "code:clear-output-btn",
+      "app_id": "code",
+      "app_name": "Code",
+      "control_name": "clear-output-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:browser-url-input",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "browser-url-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:navigate-btn",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "navigate-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:back-btn",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "back-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:forward-btn",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "forward-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:refresh-btn",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "refresh-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:cortex-analyze-btn",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "cortex-analyze-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "browser:browser-iframe",
+      "app_id": "browser",
+      "app_name": "Browser",
+      "control_name": "browser-iframe",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:tab-general",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "tab-general",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:tab-appearance",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "tab-appearance",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:tab-mobile",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "tab-mobile",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:tab-security",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "tab-security",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:wallpaper-selector",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "wallpaper-selector",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:theme-toggle",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "theme-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "settings:reset-settings-btn",
+      "app_id": "settings",
+      "app_name": "Settings",
+      "control_name": "reset-settings-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:txn-title",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "txn-title",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:txn-amount",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "txn-amount",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:txn-type-select",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "txn-type-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:txn-add",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "txn-add",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:txn-delete",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "txn-delete",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:timeframe-filter",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "timeframe-filter",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "finance:balance-chart",
+      "app_id": "finance",
+      "app_name": "Finance",
+      "control_name": "balance-chart",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "analytics:chart-timeframe-select",
+      "app_id": "analytics",
+      "app_name": "Analytics",
+      "control_name": "chart-timeframe-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "analytics:export-metrics-btn",
+      "app_id": "analytics",
+      "app_name": "Analytics",
+      "control_name": "export-metrics-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "analytics:metric-card-cpu",
+      "app_id": "analytics",
+      "app_name": "Analytics",
+      "control_name": "metric-card-cpu",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "analytics:metric-card-memory",
+      "app_id": "analytics",
+      "app_name": "Analytics",
+      "control_name": "metric-card-memory",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "analytics:metric-card-events",
+      "app_id": "analytics",
+      "app_name": "Analytics",
+      "control_name": "metric-card-events",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "nebula:channel-select",
+      "app_id": "nebula",
+      "app_name": "Nebula Chat",
+      "control_name": "channel-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "nebula:discord-input",
+      "app_id": "nebula",
+      "app_name": "Nebula Chat",
+      "control_name": "discord-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "nebula:message-send-btn",
+      "app_id": "nebula",
+      "app_name": "Nebula Chat",
+      "control_name": "message-send-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "nebula:user-profile-badge",
+      "app_id": "nebula",
+      "app_name": "Nebula Chat",
+      "control_name": "user-profile-badge",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "swarm:goal-input",
+      "app_id": "swarm",
+      "app_name": "Swarm Goal",
+      "control_name": "goal-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "swarm:decompose-goal-btn",
+      "app_id": "swarm",
+      "app_name": "Swarm Goal",
+      "control_name": "decompose-goal-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "swarm:agent-node-inspect",
+      "app_id": "swarm",
+      "app_name": "Swarm Goal",
+      "control_name": "agent-node-inspect",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "swarm:execute-swarm-btn",
+      "app_id": "swarm",
+      "app_name": "Swarm Goal",
+      "control_name": "execute-swarm-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "faceoff:faceoff-prompt-input",
+      "app_id": "faceoff",
+      "app_name": "Face-Off",
+      "control_name": "faceoff-prompt-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "faceoff:model-a-select",
+      "app_id": "faceoff",
+      "app_name": "Face-Off",
+      "control_name": "model-a-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "faceoff:model-b-select",
+      "app_id": "faceoff",
+      "app_name": "Face-Off",
+      "control_name": "model-b-select",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "faceoff:run-faceoff-btn",
+      "app_id": "faceoff",
+      "app_name": "Face-Off",
+      "control_name": "run-faceoff-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "faceoff:vote-model-a",
+      "app_id": "faceoff",
+      "app_name": "Face-Off",
+      "control_name": "vote-model-a",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "faceoff:vote-model-b",
+      "app_id": "faceoff",
+      "app_name": "Face-Off",
+      "control_name": "vote-model-b",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "adversary:premise-input",
+      "app_id": "adversary",
+      "app_name": "The Adversary",
+      "control_name": "premise-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "adversary:intensity-slider",
+      "app_id": "adversary",
+      "app_name": "The Adversary",
+      "control_name": "intensity-slider",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "adversary:challenge-btn",
+      "app_id": "adversary",
+      "app_name": "The Adversary",
+      "control_name": "challenge-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "adversary:view-counterarguments",
+      "app_id": "adversary",
+      "app_name": "The Adversary",
+      "control_name": "view-counterarguments",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "adversary:steelman-toggle",
+      "app_id": "adversary",
+      "app_name": "The Adversary",
+      "control_name": "steelman-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "warroom:situation-input",
+      "app_id": "warroom",
+      "app_name": "War Room",
+      "control_name": "situation-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "warroom:persona-chips",
+      "app_id": "warroom",
+      "app_name": "War Room",
+      "control_name": "persona-chips",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "warroom:start-deliberation-btn",
+      "app_id": "warroom",
+      "app_name": "War Room",
+      "control_name": "start-deliberation-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "warroom:consensus-meter",
+      "app_id": "warroom",
+      "app_name": "War Room",
+      "control_name": "consensus-meter",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "warroom:export-brief-btn",
+      "app_id": "warroom",
+      "app_name": "War Room",
+      "control_name": "export-brief-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "deadreckoning:trajectory-scenario-input",
+      "app_id": "deadreckoning",
+      "app_name": "Dead Reckoning",
+      "control_name": "trajectory-scenario-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "deadreckoning:volatility-slider",
+      "app_id": "deadreckoning",
+      "app_name": "Dead Reckoning",
+      "control_name": "volatility-slider",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "deadreckoning:run-simulation-btn",
+      "app_id": "deadreckoning",
+      "app_name": "Dead Reckoning",
+      "control_name": "run-simulation-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "deadreckoning:branch-selector",
+      "app_id": "deadreckoning",
+      "app_name": "Dead Reckoning",
+      "control_name": "branch-selector",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "deadreckoning:risk-heatmap",
+      "app_id": "deadreckoning",
+      "app_name": "Dead Reckoning",
+      "control_name": "risk-heatmap",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "matrix:matrix-canvas",
+      "app_id": "matrix",
+      "app_name": "Neural Matrix",
+      "control_name": "matrix-canvas",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "matrix:search-nodes-input",
+      "app_id": "matrix",
+      "app_name": "Neural Matrix",
+      "control_name": "search-nodes-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "matrix:cluster-filter",
+      "app_id": "matrix",
+      "app_name": "Neural Matrix",
+      "control_name": "cluster-filter",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "matrix:reset-camera-btn",
+      "app_id": "matrix",
+      "app_name": "Neural Matrix",
+      "control_name": "reset-camera-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "mirror:reflect-prompt-input",
+      "app_id": "mirror",
+      "app_name": "Omniverse Mirror",
+      "control_name": "reflect-prompt-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "mirror:bias-detector-toggle",
+      "app_id": "mirror",
+      "app_name": "Omniverse Mirror",
+      "control_name": "bias-detector-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "mirror:synthesize-reflection-btn",
+      "app_id": "mirror",
+      "app_name": "Omniverse Mirror",
+      "control_name": "synthesize-reflection-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "mirror:perspective-switch",
+      "app_id": "mirror",
+      "app_name": "Omniverse Mirror",
+      "control_name": "perspective-switch",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "zero:zero-input",
+      "app_id": "zero",
+      "app_name": "Omniverse Zero",
+      "control_name": "zero-input",
+      "type": "input",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "zero:auto-execute-toggle",
+      "app_id": "zero",
+      "app_name": "Omniverse Zero",
+      "control_name": "auto-execute-toggle",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "zero:execute-plan-btn",
+      "app_id": "zero",
+      "app_name": "Omniverse Zero",
+      "control_name": "execute-plan-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "zero:step-breakdown-list",
+      "app_id": "zero",
+      "app_name": "Omniverse Zero",
+      "control_name": "step-breakdown-list",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "zero:halt-execution-btn",
+      "app_id": "zero",
+      "app_name": "Omniverse Zero",
+      "control_name": "halt-execution-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "blackbox:filter-severity-chips",
+      "app_id": "blackbox",
+      "app_name": "The Black Box",
+      "control_name": "filter-severity-chips",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "blackbox:hash-verify-btn",
+      "app_id": "blackbox",
+      "app_name": "The Black Box",
+      "control_name": "hash-verify-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "blackbox:export-ledger-btn",
+      "app_id": "blackbox",
+      "app_name": "The Black Box",
+      "control_name": "export-ledger-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "blackbox:inspect-payload-btn",
+      "app_id": "blackbox",
+      "app_name": "The Black Box",
+      "control_name": "inspect-payload-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    }
+  ]
+}

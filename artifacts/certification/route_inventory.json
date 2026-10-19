@@ -1,0 +1,122 @@
+{
+  "inventory_metadata": {
+    "generated_at_utc": "2026-10-19T07:30:00Z",
+    "total_mapped_routes": 19
+  },
+  "routes": [
+    {
+      "path": "/",
+      "type": "frontend_root",
+      "access": "public",
+      "description": "Spatial gateway / authentication screen or Desktop workspace depending on session"
+    },
+    {
+      "path": "/api/health",
+      "type": "backend_health",
+      "access": "public",
+      "description": "Uvicorn service health check"
+    },
+    {
+      "path": "/api/auth/login",
+      "type": "backend_auth",
+      "access": "public",
+      "description": "JWT authentication endpoint"
+    },
+    {
+      "path": "/api/auth/signup",
+      "type": "backend_auth",
+      "access": "public",
+      "description": "User registration endpoint"
+    },
+    {
+      "path": "/api/auth/me",
+      "type": "backend_auth",
+      "access": "protected",
+      "description": "Current authenticated user profile"
+    },
+    {
+      "path": "/api/ai/chat/stream",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "SSE streaming AI completion endpoint"
+    },
+    {
+      "path": "/api/ai/chat",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Synchronous AI chat endpoint"
+    },
+    {
+      "path": "/api/ai/sessions",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "List and manage conversation sessions"
+    },
+    {
+      "path": "/api/ai/image/generate",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Image generation job creation"
+    },
+    {
+      "path": "/api/ai/adversary",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Adversarial deliberation analysis"
+    },
+    {
+      "path": "/api/ai/warroom",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Multi-agent executive deliberation"
+    },
+    {
+      "path": "/api/ai/deadreckoning",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Probabilistic trajectory risk analysis"
+    },
+    {
+      "path": "/api/ai/faceoff",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Comparative multi-model evaluation"
+    },
+    {
+      "path": "/api/ai/consensus",
+      "type": "backend_ai",
+      "access": "protected",
+      "description": "Multi-model semantic consensus judge"
+    },
+    {
+      "path": "/api/notes",
+      "type": "backend_crud",
+      "access": "protected",
+      "description": "Notes CRUD endpoint"
+    },
+    {
+      "path": "/api/tasks",
+      "type": "backend_crud",
+      "access": "protected",
+      "description": "Tasks CRUD endpoint"
+    },
+    {
+      "path": "/api/events",
+      "type": "backend_crud",
+      "access": "protected",
+      "description": "Calendar events CRUD endpoint"
+    },
+    {
+      "path": "/api/files",
+      "type": "backend_crud",
+      "access": "protected",
+      "description": "Virtual file manager storage"
+    },
+    {
+      "path": "/api/transactions",
+      "type": "backend_crud",
+      "access": "protected",
+      "description": "Finance transactions ledger"
+    }
+  ]
+}

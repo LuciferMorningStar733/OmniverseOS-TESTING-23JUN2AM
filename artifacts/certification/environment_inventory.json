@@ -1,0 +1,94 @@
+{
+  "inventory_metadata": {
+    "generated_at_utc": "2026-10-19T07:26:00Z",
+    "phase": "PHASE_0_ESTABLISH_ENVIRONMENT",
+    "auditor": "Antigravity Engineering Authority (Google DeepMind)"
+  },
+  "system": {
+    "os": "Windows (win32)",
+    "node_version": "v24.18.0",
+    "npm_version": "11.16.0",
+    "python_version": "3.12.10",
+    "playwright_version": "1.64.1",
+    "shell": "powershell"
+  },
+  "git_repository": {
+    "repository_root": "c:\\Users\\gamin\\Desktop\\OmniverseOS-TESTING-23JUN2AM-main\\OmniverseOS-TESTING-23JUN2AM-main",
+    "current_branch": "sprint/operation-phoenix",
+    "tracking_branch": "origin/main",
+    "head_commit": "325ed4a3e00bcac75493183845f9fedf0fcbefbe",
+    "working_tree_clean": true,
+    "remote_origin": "https://github.com/LuciferMorningStar733/OmniverseOS-TESTING-23JUN2AM.git"
+  },
+  "runtime_environments": {
+    "local": {
+      "frontend_url": "http://localhost:3000",
+      "backend_url": "http://localhost:8001",
+      "backend_port": 8001,
+      "frontend_port": 3000,
+      "active_backend_task": "a30456dd-8ee2-4bbb-8463-e0e6daddf944/task-2659",
+      "backend_pid": 36888,
+      "frontend_pid": 21864
+    },
+    "production": {
+      "frontend_url": "https://omniverseos.in.net",
+      "backend_url": "https://omniverseos-testing-23jun2am.onrender.com",
+      "provider_frontend": "Vercel Edge Network",
+      "provider_backend": "Render Web Services (Python 3.12 Uvicorn Container)",
+      "dns_status": {
+        "omniverseos.in.net": "RESOLVED_HTTP_200",
+        "www.omniverseos.in.net": "NXDOMAIN"
+      }
+    }
+  },
+  "architecture": {
+    "frontend": {
+      "framework": "React 18.2.0 (SPA)",
+      "build_tool": "Craco (@craco/craco)",
+      "styling": "TailwindCSS + Modular CSS (wallpapers, glassmorphism, responsive OneUI drawer)",
+      "state_management": "React Context / Hooks + LocalStorage session persistence",
+      "navigation": "Desktop multi-window manager + Mobile OneUI app drawer + Adaptive Dock"
+    },
+    "backend": {
+      "framework": "FastAPI 0.115+",
+      "server": "Uvicorn",
+      "database_driver": "Motor (asyncio MongoDB) with mongomock_motor local fallback",
+      "authentication": "JWT (HS256) bearer tokens with bcrypt salted hashes",
+      "total_registered_routes": 66,
+      "cors_policy": "Strict production allowlist (omniverseos.in.net) + safe dev regex fallback"
+    },
+    "ai_intelligence_layer": {
+      "primary_client": "Google GenAI SDK (google.genai)",
+      "providers_registry": "backend/providers.py & backend/ai_service.py",
+      "web_search_engine": "TinyFish Search API adapter (backend/web_service.py)",
+      "speech_engine": "Gemini TTS + Fish Audio TTS (backend/server.py)",
+      "structured_extraction": "Pydantic v2 schemas (backend/structured_ai.py)",
+      "vector_layer": "In-process cosine vector service (backend/core/vector_service.py)"
+    },
+    "reticle_integration": {
+      "package": "@reticlehq/react v2.14.0",
+      "entrypoint": "frontend/src/reticle-dev.js",
+      "status": "Installed; dev bridge gated behind REACT_APP_RETICLE_ENABLED to prevent UI overlay obscuration during mobile audits",
+      "registered_capabilities": 58
+    }
+  },
+  "credential_registry_by_variable_name": [
+    "GEMINI_API_KEY",
+    "EMERGENT_LLM_KEY",
+    "TINYFISH_API_KEY",
+    "MONGO_URL",
+    "DB_NAME",
+    "JWT_SECRET",
+    "CORS_ORIGINS",
+    "REACT_APP_RETICLE_TOKEN",
+    "REACT_APP_RETICLE_PROJECT_ID",
+    "REACT_APP_BACKEND_URL"
+  ],
+  "testing_capabilities": {
+    "browser_automation": "Playwright Chromium Headless/Headed",
+    "unit_integration_backend": "pytest 9.1.1 + pytest-asyncio",
+    "frontend_build_validator": "craco build",
+    "pdf_certification_engine": "Playwright Chromium print-to-pdf",
+    "reticle_testids": 58
+  }
+}

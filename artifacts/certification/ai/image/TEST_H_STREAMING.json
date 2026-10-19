@@ -1,0 +1,6 @@
+{
+  "test_id": "image_TEST_H_STREAMING",
+  "app_id": "image",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

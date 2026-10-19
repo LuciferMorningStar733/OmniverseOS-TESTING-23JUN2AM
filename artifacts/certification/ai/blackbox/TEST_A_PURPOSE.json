@@ -1,0 +1,12 @@
+{
+  "test_id": "blackbox_TEST_A_PURPOSE",
+  "app_id": "blackbox",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Audit cryptographic provenance and immutable event ledger integrity.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 3,
+  "response": [],
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:32.359580+00:00"
+}

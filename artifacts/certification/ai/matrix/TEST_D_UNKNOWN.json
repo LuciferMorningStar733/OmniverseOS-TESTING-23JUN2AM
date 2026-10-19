@@ -1,0 +1,8 @@
+{
+  "test_id": "matrix_TEST_D_UNKNOWN",
+  "app_id": "matrix",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "What is the matrix multiplication result of an undisclosed secret array?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

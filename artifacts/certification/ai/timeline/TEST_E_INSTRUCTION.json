@@ -1,0 +1,7 @@
+{
+  "test_id": "timeline_TEST_E_INSTRUCTION",
+  "app_id": "timeline",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Output 2 timeline milestones in ISO 8601 UTC format.",
+  "verdict": "PASSED"
+}

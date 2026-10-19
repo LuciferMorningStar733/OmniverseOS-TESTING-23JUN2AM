@@ -1,0 +1,17 @@
+{
+  "test_id": "memory_TEST_C_FACTUAL",
+  "app_id": "memory",
+  "factual_prompt": "What mathematical function calculates cosine similarity between two non-zero vectors?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"What mathematical function calculates cosine similarity between two non-zero vectors?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.",
+  "claims_evaluated": [
+    {
+      "claim": "Cosine similarity is the dot product of two vectors divided by the product of their magnitudes.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

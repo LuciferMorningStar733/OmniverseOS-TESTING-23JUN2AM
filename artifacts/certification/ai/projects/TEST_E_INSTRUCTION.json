@@ -1,0 +1,7 @@
+{
+  "test_id": "projects_TEST_E_INSTRUCTION",
+  "app_id": "projects",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Provide 3 milestones with Target Date, Deliverable, and Owner.",
+  "verdict": "PASSED"
+}

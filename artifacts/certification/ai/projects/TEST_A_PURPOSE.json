@@ -1,0 +1,12 @@
+{
+  "test_id": "projects_TEST_A_PURPOSE",
+  "app_id": "projects",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Generate architectural milestone schedule for a zero-trust spatial OS deployment.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 4,
+  "response": [],
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:29.173710+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "test_id": "deadreckoning_TEST_G_ERROR_RECOVERY",
+  "app_id": "deadreckoning",
+  "type": "ERROR_AND_RECOVERY",
+  "injected_fault": "Malformed non-JSON body payload",
+  "observed_http": 422,
+  "safe_recovery": true,
+  "verdict": "PASSED"
+}

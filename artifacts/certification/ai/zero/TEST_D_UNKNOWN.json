@@ -1,0 +1,8 @@
+{
+  "test_id": "zero_TEST_D_UNKNOWN",
+  "app_id": "zero",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "What password will a user choose on another server tomorrow?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

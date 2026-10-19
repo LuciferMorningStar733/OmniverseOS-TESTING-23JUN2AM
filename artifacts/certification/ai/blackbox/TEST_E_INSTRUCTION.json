@@ -1,0 +1,7 @@
+{
+  "test_id": "blackbox_TEST_E_INSTRUCTION",
+  "app_id": "blackbox",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Explain how hash chains guarantee tamper evidence in 2 sentences.",
+  "verdict": "PASSED"
+}

@@ -1,0 +1,7 @@
+{
+  "test_id": "zero_TEST_E_INSTRUCTION",
+  "app_id": "zero",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Step 1: Inspect DNS. Step 2: Establish TLS handshake. Step 3: Validate cert chain.",
+  "verdict": "PASSED"
+}

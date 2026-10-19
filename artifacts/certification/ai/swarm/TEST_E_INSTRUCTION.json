@@ -1,0 +1,7 @@
+{
+  "test_id": "swarm_TEST_E_INSTRUCTION",
+  "app_id": "swarm",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Format each sub-goal with: Agent Name, Goal, Success Metric.",
+  "verdict": "PASSED"
+}

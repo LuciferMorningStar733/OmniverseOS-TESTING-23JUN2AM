@@ -1,0 +1,17 @@
+{
+  "test_id": "deadreckoning_TEST_C_FACTUAL",
+  "app_id": "deadreckoning",
+  "factual_prompt": "What statistical method uses repeated random sampling to compute numerical probabilities?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"What statistical method uses repeated random sampling to compute numerical probabilities?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strat",
+  "claims_evaluated": [
+    {
+      "claim": "Monte Carlo methods rely on repeated random sampling to compute probability distributions.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

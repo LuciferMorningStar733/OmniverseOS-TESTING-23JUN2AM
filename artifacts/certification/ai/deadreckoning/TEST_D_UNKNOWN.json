@@ -1,0 +1,8 @@
+{
+  "test_id": "deadreckoning_TEST_D_UNKNOWN",
+  "app_id": "deadreckoning",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "What exact roll of a 100-sided die will occur on my desk in 10 minutes?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

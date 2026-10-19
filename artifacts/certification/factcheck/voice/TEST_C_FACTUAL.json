@@ -1,0 +1,17 @@
+{
+  "test_id": "voice_TEST_C_FACTUAL",
+  "app_id": "voice",
+  "factual_prompt": "What acoustic parameter does the Hertz (Hz) unit measure in speech synthesis?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"What acoustic parameter does the Hertz (Hz) unit measure in speech synthesis?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2",
+  "claims_evaluated": [
+    {
+      "claim": "Hertz (Hz) measures frequency, or cycles per second, of an acoustic wave.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

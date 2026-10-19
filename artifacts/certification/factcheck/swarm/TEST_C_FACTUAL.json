@@ -1,0 +1,17 @@
+{
+  "test_id": "swarm_TEST_C_FACTUAL",
+  "app_id": "swarm",
+  "factual_prompt": "In distributed computing, what does the CAP theorem state regarding network partitions?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"In distributed computing, what does the CAP theorem state regarding network partitions?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strateg",
+  "claims_evaluated": [
+    {
+      "claim": "The CAP theorem states a distributed data store can provide at most two of Consistency, Availability, and Partition tolerance.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

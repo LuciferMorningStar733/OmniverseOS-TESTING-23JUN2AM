@@ -1,0 +1,7 @@
+{
+  "test_id": "chat_TEST_E_INSTRUCTION",
+  "app_id": "chat",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "List exactly 3 benefits of HTTP/2 multiplexing. Format as a numbered list with bold titles.",
+  "verdict": "PASSED"
+}

@@ -1,0 +1,11 @@
+{
+  "test_id": "mirror_TEST_F_BOUNDARY",
+  "app_id": "mirror",
+  "type": "INPUT_BOUNDARY",
+  "tested_conditions": [
+    "empty",
+    "unicode",
+    "long_input_3000ch"
+  ],
+  "verdict": "PASSED"
+}

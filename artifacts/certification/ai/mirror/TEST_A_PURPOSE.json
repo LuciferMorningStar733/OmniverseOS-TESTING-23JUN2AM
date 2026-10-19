@@ -1,0 +1,38 @@
+{
+  "test_id": "mirror_TEST_A_PURPOSE",
+  "app_id": "mirror",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Reflect on confirmation bias in automated algorithmic decision-making systems.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 5,
+  "response": {
+    "consensus": null,
+    "status": "UNAVAILABLE",
+    "is_fallback": true,
+    "meaning_match": null,
+    "reasoning_match": null,
+    "evidence_match": null,
+    "style_similarity": null,
+    "summary": "AI consensus evaluation unavailable. Multi-model semantic analysis could not be computed.",
+    "per_model": [
+      {
+        "provider": "gemini",
+        "final_answer": "Analysis unavailable",
+        "stance": "unverified",
+        "unique_insight": ""
+      },
+      {
+        "provider": "deepseek",
+        "final_answer": "Analysis unavailable",
+        "stance": "unverified",
+        "unique_insight": ""
+      }
+    ],
+    "agreement_matrix": {},
+    "divergent_claims": [],
+    "unique_insights": []
+  },
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:32.222413+00:00"
+}

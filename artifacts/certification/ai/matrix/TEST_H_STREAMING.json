@@ -1,0 +1,6 @@
+{
+  "test_id": "matrix_TEST_H_STREAMING",
+  "app_id": "matrix",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

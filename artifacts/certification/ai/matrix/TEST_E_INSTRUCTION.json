@@ -1,0 +1,7 @@
+{
+  "test_id": "matrix_TEST_E_INSTRUCTION",
+  "app_id": "matrix",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Provide semantic agreement score between 0 and 100.",
+  "verdict": "PASSED"
+}

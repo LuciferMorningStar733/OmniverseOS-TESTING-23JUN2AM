@@ -1,0 +1,8 @@
+{
+  "test_id": "warroom_TEST_D_UNKNOWN",
+  "app_id": "warroom",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "Who will be the CEO of Apple in 2075?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

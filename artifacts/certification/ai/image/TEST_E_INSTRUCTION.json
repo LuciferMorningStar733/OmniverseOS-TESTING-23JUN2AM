@@ -1,0 +1,7 @@
+{
+  "test_id": "image_TEST_E_INSTRUCTION",
+  "app_id": "image",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Generate prompt: Generate an icon of a shield with a lock. Output format: JSON with prompt, width: 512, height: 512.",
+  "verdict": "PASSED"
+}

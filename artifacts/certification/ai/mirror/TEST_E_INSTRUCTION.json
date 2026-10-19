@@ -1,0 +1,7 @@
+{
+  "test_id": "mirror_TEST_E_INSTRUCTION",
+  "app_id": "mirror",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Identify the primary bias and 2 mitigation strategies.",
+  "verdict": "PASSED"
+}

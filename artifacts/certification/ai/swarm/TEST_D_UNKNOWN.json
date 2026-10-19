@@ -1,0 +1,8 @@
+{
+  "test_id": "swarm_TEST_D_UNKNOWN",
+  "app_id": "swarm",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "Which agent will decide to resign from the swarm tomorrow?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

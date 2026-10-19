@@ -1,0 +1,6 @@
+{
+  "test_id": "memory_TEST_H_STREAMING",
+  "app_id": "memory",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

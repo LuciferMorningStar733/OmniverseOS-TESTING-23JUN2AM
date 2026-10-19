@@ -1,0 +1,7 @@
+{
+  "test_id": "voice_TEST_E_INSTRUCTION",
+  "app_id": "voice",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Synthesize speech test tone report in exactly 2 short sentences.",
+  "verdict": "PASSED"
+}

@@ -1,0 +1,6 @@
+{
+  "test_id": "chat_TEST_H_STREAMING",
+  "app_id": "chat",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "PASSED"
+}

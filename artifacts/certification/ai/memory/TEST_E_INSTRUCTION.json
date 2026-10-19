@@ -1,0 +1,7 @@
+{
+  "test_id": "memory_TEST_E_INSTRUCTION",
+  "app_id": "memory",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Summarize vector indexing principles in 3 bullet points using active voice.",
+  "verdict": "PASSED"
+}

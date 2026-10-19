@@ -1,0 +1,8 @@
+{
+  "test_id": "blackbox_TEST_I_WORKSPACE_CONTEXT",
+  "app_id": "blackbox",
+  "type": "WORKSPACE_CONTEXT_ISOLATION",
+  "workspace_user": "demo@omniverse.io",
+  "cross_tenant_leakage": false,
+  "verdict": "PASSED"
+}

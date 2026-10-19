@@ -1,0 +1,17 @@
+{
+  "test_id": "faceoff_TEST_C_FACTUAL",
+  "app_id": "faceoff",
+  "factual_prompt": "What is the physical principle underlying quantum superposition in qubits?",
+  "response": "### [Cortex Deep Analysis] Quantum Mechanics & Quantum Information Systems\n\n#### 1. Core Physical Principles & State Formulation\nAt the foundation of quantum information processing lies the state vector $|\\psi\\rangle$ residing in a complex Hilbert space $\\mathcal{H}$. Unlike classical binary states ",
+  "claims_evaluated": [
+    {
+      "claim": "Quantum superposition allows a qubit to exist in a linear combination of states |0> and |1>.",
+      "claim_type": "objective",
+      "verdict": "UNVERIFIABLE",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

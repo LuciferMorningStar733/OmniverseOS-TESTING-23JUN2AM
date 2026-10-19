@@ -1,0 +1,7 @@
+{
+  "test_id": "warroom_TEST_J_PERSISTENCE",
+  "app_id": "warroom",
+  "type": "PERSISTENCE_AND_HISTORY",
+  "storage_target": "MongoDB / LocalStorage",
+  "verdict": "PASSED"
+}

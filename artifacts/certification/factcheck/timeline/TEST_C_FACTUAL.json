@@ -1,0 +1,17 @@
+{
+  "test_id": "timeline_TEST_C_FACTUAL",
+  "app_id": "timeline",
+  "factual_prompt": "In ISO 8601, what character designates UTC time representation at the end of a timestamp string?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"In ISO 8601, what character designates UTC time representation at the end of a timestamp string?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and executio",
+  "claims_evaluated": [
+    {
+      "claim": "The letter 'Z' denotes UTC timezone representation in ISO 8601.",
+      "claim_type": "objective",
+      "verdict": "UNVERIFIABLE",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

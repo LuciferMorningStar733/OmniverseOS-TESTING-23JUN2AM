@@ -1,0 +1,25 @@
+{
+  "test_id": "chat_TEST_C_FACTUAL",
+  "app_id": "chat",
+  "factual_prompt": "What is the primary function of the Linux system call epoll_wait?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"What is the primary function of the Linux system call epoll_wait?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2. Core Found",
+  "claims_evaluated": [
+    {
+      "claim": "epoll_wait waits for I/O events on an epoll file descriptor in Linux.",
+      "claim_type": "objective",
+      "verdict": "SUPPORTED",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://man7.org/linux/man-pages/man2/epoll_wait.2.html",
+      "source_title": "Primary Technical Standard Specification"
+    },
+    {
+      "claim": "HTTP/2 multiplexing allows multiple concurrent streams over a single TCP connection.",
+      "claim_type": "objective",
+      "verdict": "UNVERIFIABLE",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

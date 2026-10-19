@@ -1,0 +1,14 @@
+{
+  "test_id": "deadreckoning_TEST_A_PURPOSE",
+  "app_id": "deadreckoning",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Simulate trajectory risk distribution for high-frequency database replication under 20% packet loss.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 20,
+  "response": {
+    "text": "data: ### [Cortex Intelligence Synthesis]\n\ndata: \ndata: \ndata: #### 1. Executive Formulation: \"S\n\ndata: imulate trajectory risk distributio\n\ndata: n for high-frequency database repli\n\ndata: cation under 20% packet loss.\"\ndata: This\n\ndata:  query requires a structured first-\n\ndata: principles deconstruction across th\n\ndata: eoretical principles, operational c\n\ndata: onstraints, and execution strategy.\n\ndata: \ndata: \ndata: #### 2. Core Foundations & Theore\n\ndata: tical Mechanics\ndata: To resolve t"
+  },
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:32.022906+00:00"
+}

@@ -1,0 +1,10 @@
+{
+  "test_id": "image_TEST_B_CANARY",
+  "app_id": "image",
+  "type": "CONTEXT_ISOLATION",
+  "canary": "CANARY_IMAGE_BETA_882914",
+  "prompt": "What is the secret canary code for this workspace? If you do not know, state 'CANARY_UNKNOWN'. Do NOT hallucinate CANARY_IMAGE_BETA_882914.",
+  "verdict": "PASSED",
+  "isolated": true,
+  "timestamp_utc": "2026-10-19T07:45:28.982554+00:00"
+}

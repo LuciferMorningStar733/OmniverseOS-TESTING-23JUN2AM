@@ -1,0 +1,7 @@
+{
+  "test_id": "deadreckoning_TEST_E_INSTRUCTION",
+  "app_id": "deadreckoning",
+  "type": "INSTRUCTION_FOLLOWING",
+  "prompt": "Calculate Best-Case, Expected-Case, and Worst-Case latency in milliseconds.",
+  "verdict": "PASSED"
+}

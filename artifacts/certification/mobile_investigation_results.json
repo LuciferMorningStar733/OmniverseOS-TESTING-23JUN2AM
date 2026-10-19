@@ -1,0 +1,321 @@
+{
+  "viewports_tested": [
+    {
+      "name": "narrow_320x568",
+      "width": 320,
+      "height": 568
+    },
+    {
+      "name": "standard_375x812",
+      "width": 375,
+      "height": 812
+    },
+    {
+      "name": "modern_390x844",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "name": "large_430x932",
+      "width": 430,
+      "height": 932
+    },
+    {
+      "name": "tablet_768x1024",
+      "width": 768,
+      "height": 1024
+    }
+  ],
+  "app_mobile_audit": [
+    {
+      "id": "dashboard",
+      "name": "Dashboard",
+      "screenshot": "artifacts\\screenshots\\mobile\\dashboard\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "chat",
+      "name": "AI Chat",
+      "screenshot": "artifacts\\screenshots\\mobile\\chat\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "image",
+      "name": "Image Gen",
+      "screenshot": "artifacts\\screenshots\\mobile\\image\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "voice",
+      "name": "Cortex Voice",
+      "screenshot": "artifacts\\screenshots\\mobile\\voice\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "screenshot": "artifacts\\screenshots\\mobile\\memory\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "projects",
+      "name": "Projects",
+      "screenshot": "artifacts\\screenshots\\mobile\\projects\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "timeline",
+      "name": "Timeline",
+      "screenshot": "artifacts\\screenshots\\mobile\\timeline\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "notes",
+      "name": "Notes",
+      "screenshot": "artifacts\\screenshots\\mobile\\notes\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "tasks",
+      "name": "Tasks",
+      "screenshot": "artifacts\\screenshots\\mobile\\tasks\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "calendar",
+      "name": "Calendar",
+      "screenshot": "artifacts\\screenshots\\mobile\\calendar\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "clipboard",
+      "name": "Clipboard",
+      "screenshot": "artifacts\\screenshots\\mobile\\clipboard\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "music",
+      "name": "Music",
+      "screenshot": "artifacts\\screenshots\\mobile\\music\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "photos",
+      "name": "Photos",
+      "screenshot": "artifacts\\screenshots\\mobile\\photos\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "videos",
+      "name": "Videos",
+      "screenshot": "artifacts\\screenshots\\mobile\\videos\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "watchlist",
+      "name": "Watchlist",
+      "screenshot": "artifacts\\screenshots\\mobile\\watchlist\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "files",
+      "name": "Files",
+      "screenshot": "artifacts\\screenshots\\mobile\\files\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "code",
+      "name": "Code",
+      "screenshot": "artifacts\\screenshots\\mobile\\code\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "browser",
+      "name": "Browser",
+      "screenshot": "artifacts\\screenshots\\mobile\\browser\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "screenshot": "artifacts\\screenshots\\mobile\\settings\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "screenshot": "artifacts\\screenshots\\mobile\\finance\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "analytics",
+      "name": "Analytics",
+      "screenshot": "artifacts\\screenshots\\mobile\\analytics\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "nebula",
+      "name": "Nebula Chat",
+      "screenshot": "artifacts\\screenshots\\mobile\\nebula\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "swarm",
+      "name": "Swarm Goal",
+      "screenshot": "artifacts\\screenshots\\mobile\\swarm\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "faceoff",
+      "name": "Face-Off",
+      "screenshot": "artifacts\\screenshots\\mobile\\faceoff\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "adversary",
+      "name": "The Adversary",
+      "screenshot": "artifacts\\screenshots\\mobile\\adversary\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "warroom",
+      "name": "War Room",
+      "screenshot": "artifacts\\screenshots\\mobile\\warroom\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "deadreckoning",
+      "name": "Dead Reckoning",
+      "screenshot": "artifacts\\screenshots\\mobile\\deadreckoning\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "matrix",
+      "name": "Neural Matrix",
+      "screenshot": "artifacts\\screenshots\\mobile\\matrix\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "mirror",
+      "name": "Omniverse Mirror",
+      "screenshot": "artifacts\\screenshots\\mobile\\mirror\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "zero",
+      "name": "Omniverse Zero",
+      "screenshot": "artifacts\\screenshots\\mobile\\zero\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
+      "id": "blackbox",
+      "name": "The Black Box",
+      "screenshot": "artifacts\\screenshots\\mobile\\blackbox\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    }
+  ],
+  "multi_viewport_home_screenshots": [
+    {
+      "viewport": "narrow_320x568",
+      "width": 320,
+      "height": 568,
+      "horizontal_overflow": false,
+      "screenshot": "artifacts\\screenshots\\mobile\\VIEWPORT_narrow_320x568.png"
+    },
+    {
+      "viewport": "standard_375x812",
+      "width": 375,
+      "height": 812,
+      "horizontal_overflow": false,
+      "screenshot": "artifacts\\screenshots\\mobile\\VIEWPORT_standard_375x812.png"
+    },
+    {
+      "viewport": "modern_390x844",
+      "width": 390,
+      "height": 844,
+      "horizontal_overflow": false,
+      "screenshot": "artifacts\\screenshots\\mobile\\VIEWPORT_modern_390x844.png"
+    },
+    {
+      "viewport": "large_430x932",
+      "width": 430,
+      "height": 932,
+      "horizontal_overflow": false,
+      "screenshot": "artifacts\\screenshots\\mobile\\VIEWPORT_large_430x932.png"
+    },
+    {
+      "viewport": "tablet_768x1024",
+      "width": 768,
+      "height": 1024,
+      "horizontal_overflow": false,
+      "screenshot": "artifacts\\screenshots\\mobile\\VIEWPORT_tablet_768x1024.png"
+    }
+  ],
+  "keyboard_test": {
+    "tested": true,
+    "input_functional": true,
+    "screenshot": "artifacts\\screenshots\\mobile\\KEYBOARD_chat_input_active.png"
+  }
+}

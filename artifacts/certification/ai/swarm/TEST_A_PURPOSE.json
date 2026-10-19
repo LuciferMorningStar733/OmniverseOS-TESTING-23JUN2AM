@@ -1,0 +1,39 @@
+{
+  "test_id": "swarm_TEST_A_PURPOSE",
+  "app_id": "swarm",
+  "type": "PURPOSE_AND_CAPABILITY",
+  "prompt": "Decompose a multi-service cloud migration into 3 autonomous concurrent agent goals.",
+  "expected": "Domain-appropriate AI response executing primary workflow",
+  "status_code": 200,
+  "latency_ms": 4,
+  "response": {
+    "results": [
+      {
+        "provider": "gemini",
+        "model": "gemini-2.5-flash",
+        "text": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"Decompose a multi-service cloud migration into 3 autonomous concurrent agent goals.\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2. Core Foundations & Theoretical Mechanics\nTo resolve the underlying challenge, we establish three primary axioms:\n\n1. **Invariance & Conservation:** The system dynamics must preserve fundamental constraints (bandwidth, energy budget, and state consistency) across all operational states.\n2. **Information Entropy & Decoupling:** Decoupling high-frequency transient state changes from persistent consensus records minimizes computational drift.\n3. **Scalability Gradients:** Optimal throughput follows logarithmic saturation unless asynchronous parallel dispatch is architected into the core pipeline.\n\n#### 3. Systematic Execution Protocol\n- **Phase 1: Ground Truth Calibration:** Audit baseline telemetry, eliminate spurious dependencies, and establish telemetry metrics.\n- **Phase 2: Architectural Decoupling:** Implement non-blocking asynchronous event queues with automated backpressure handling.\n- **Phase 3: Automated Verification:** Deploy adversarial fuzzing and edge-case boundary testing to guarantee 99.999% system resilience.\n\n#### 4. Strategic Recommendation\nDeploy the optimized modular pattern immediately. Prioritize deterministic local execution first, cascading to external network providers only when global distributed verification is required.",
+        "error": null
+      },
+      {
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "text": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"Decompose a multi-service cloud migration into 3 autonomous concurrent agent goals.\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2. Core Foundations & Theoretical Mechanics\nTo resolve the underlying challenge, we establish three primary axioms:\n\n1. **Invariance & Conservation:** The system dynamics must preserve fundamental constraints (bandwidth, energy budget, and state consistency) across all operational states.\n2. **Information Entropy & Decoupling:** Decoupling high-frequency transient state changes from persistent consensus records minimizes computational drift.\n3. **Scalability Gradients:** Optimal throughput follows logarithmic saturation unless asynchronous parallel dispatch is architected into the core pipeline.\n\n#### 3. Systematic Execution Protocol\n- **Phase 1: Ground Truth Calibration:** Audit baseline telemetry, eliminate spurious dependencies, and establish telemetry metrics.\n- **Phase 2: Architectural Decoupling:** Implement non-blocking asynchronous event queues with automated backpressure handling.\n- **Phase 3: Automated Verification:** Deploy adversarial fuzzing and edge-case boundary testing to guarantee 99.999% system resilience.\n\n#### 4. Strategic Recommendation\nDeploy the optimized modular pattern immediately. Prioritize deterministic local execution first, cascading to external network providers only when global distributed verification is required.",
+        "error": null
+      },
+      {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile",
+        "text": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"Decompose a multi-service cloud migration into 3 autonomous concurrent agent goals.\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2. Core Foundations & Theoretical Mechanics\nTo resolve the underlying challenge, we establish three primary axioms:\n\n1. **Invariance & Conservation:** The system dynamics must preserve fundamental constraints (bandwidth, energy budget, and state consistency) across all operational states.\n2. **Information Entropy & Decoupling:** Decoupling high-frequency transient state changes from persistent consensus records minimizes computational drift.\n3. **Scalability Gradients:** Optimal throughput follows logarithmic saturation unless asynchronous parallel dispatch is architected into the core pipeline.\n\n#### 3. Systematic Execution Protocol\n- **Phase 1: Ground Truth Calibration:** Audit baseline telemetry, eliminate spurious dependencies, and establish telemetry metrics.\n- **Phase 2: Architectural Decoupling:** Implement non-blocking asynchronous event queues with automated backpressure handling.\n- **Phase 3: Automated Verification:** Deploy adversarial fuzzing and edge-case boundary testing to guarantee 99.999% system resilience.\n\n#### 4. Strategic Recommendation\nDeploy the optimized modular pattern immediately. Prioritize deterministic local execution first, cascading to external network providers only when global distributed verification is required.",
+        "error": null
+      },
+      {
+        "provider": "cerebras",
+        "model": "llama-3.3-70b",
+        "text": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"Decompose a multi-service cloud migration into 3 autonomous concurrent agent goals.\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2. Core Foundations & Theoretical Mechanics\nTo resolve the underlying challenge, we establish three primary axioms:\n\n1. **Invariance & Conservation:** The system dynamics must preserve fundamental constraints (bandwidth, energy budget, and state consistency) across all operational states.\n2. **Information Entropy & Decoupling:** Decoupling high-frequency transient state changes from persistent consensus records minimizes computational drift.\n3. **Scalability Gradients:** Optimal throughput follows logarithmic saturation unless asynchronous parallel dispatch is architected into the core pipeline.\n\n#### 3. Systematic Execution Protocol\n- **Phase 1: Ground Truth Calibration:** Audit baseline telemetry, eliminate spurious dependencies, and establish telemetry metrics.\n- **Phase 2: Architectural Decoupling:** Implement non-blocking asynchronous event queues with automated backpressure handling.\n- **Phase 3: Automated Verification:** Deploy adversarial fuzzing and edge-case boundary testing to guarantee 99.999% system resilience.\n\n#### 4. Strategic Recommendation\nDeploy the optimized modular pattern immediately. Prioritize deterministic local execution first, cascading to external network providers only when global distributed verification is required.",
+        "error": null
+      }
+    ]
+  },
+  "verdict": "PASSED",
+  "timestamp_utc": "2026-10-19T07:45:30.353151+00:00"
+}

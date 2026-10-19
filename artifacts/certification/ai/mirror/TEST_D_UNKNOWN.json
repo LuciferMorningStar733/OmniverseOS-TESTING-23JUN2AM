@@ -1,0 +1,8 @@
+{
+  "test_id": "mirror_TEST_D_UNKNOWN",
+  "app_id": "mirror",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "What secret thought did the user have this morning before logging in?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

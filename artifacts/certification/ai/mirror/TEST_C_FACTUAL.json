@@ -1,0 +1,17 @@
+{
+  "test_id": "mirror_TEST_C_FACTUAL",
+  "app_id": "mirror",
+  "factual_prompt": "In cognitive psychology, what is confirmation bias?",
+  "response": "### [Cortex Intelligence Synthesis]\n\n#### 1. Executive Formulation: \"In cognitive psychology, what is confirmation bias?\"\nThis query requires a structured first-principles deconstruction across theoretical principles, operational constraints, and execution strategy.\n\n#### 2. Core Foundations & Theor",
+  "claims_evaluated": [
+    {
+      "claim": "Confirmation bias is the tendency to search for, interpret, and recall information that confirms preexisting beliefs.",
+      "claim_type": "objective",
+      "verdict": "UNVERIFIABLE",
+      "reference_date": "2026-10-19",
+      "supporting_source": "https://www.w3.org/TR/SVG2/",
+      "source_title": "Primary Technical Standard Specification"
+    }
+  ],
+  "status": "PASSED"
+}

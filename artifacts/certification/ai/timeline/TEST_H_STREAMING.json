@@ -1,0 +1,6 @@
+{
+  "test_id": "timeline_TEST_H_STREAMING",
+  "app_id": "timeline",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

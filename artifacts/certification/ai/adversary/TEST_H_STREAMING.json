@@ -1,0 +1,6 @@
+{
+  "test_id": "adversary_TEST_H_STREAMING",
+  "app_id": "adversary",
+  "type": "STREAMING_AND_COMPLETION",
+  "verdict": "NOT_APPLICABLE"
+}

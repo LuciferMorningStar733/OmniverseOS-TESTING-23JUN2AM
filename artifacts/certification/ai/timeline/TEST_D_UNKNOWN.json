@@ -1,0 +1,8 @@
+{
+  "test_id": "timeline_TEST_D_UNKNOWN",
+  "app_id": "timeline",
+  "type": "UNKNOWN_ANSWER_UNCERTAINTY",
+  "prompt": "What event will occur on Mars on October 19, 2099 at 12:00:00Z?",
+  "verdict": "PASSED",
+  "acknowledges_uncertainty": true
+}

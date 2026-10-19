@@ -1,0 +1,10 @@
+{
+  "test_id": "chat_TEST_B_CANARY",
+  "app_id": "chat",
+  "type": "CONTEXT_ISOLATION",
+  "canary": "CANARY_CHAT_ALPHA_991823",
+  "prompt": "What is the secret canary code for this workspace? If you do not know, state 'CANARY_UNKNOWN'. Do NOT hallucinate CANARY_CHAT_ALPHA_991823.",
+  "verdict": "PASSED",
+  "isolated": true,
+  "timestamp_utc": "2026-10-19T07:45:28.650661+00:00"
+}

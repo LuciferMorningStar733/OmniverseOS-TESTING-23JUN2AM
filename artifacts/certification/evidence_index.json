@@ -1,0 +1,16 @@
+{
+  "evidence_index_metadata": {
+    "title": "OmniverseOS 2.0 Certification Evidence Index",
+    "updated_at_utc": "2026-10-19T07:50:00Z",
+    "commit_hash": "325ed4a",
+    "total_evidence_entries": 42
+  },
+  "categories": {
+    "desktop_screenshots": "artifacts/screenshots/desktop/ (62 screenshots across 31 apps)",
+    "mobile_screenshots": "artifacts/screenshots/mobile/ (36 screenshots across 5 viewports & 31 apps)",
+    "ai_test_records": "artifacts/certification/ai/ (150 JSON records across 15 AI engines)",
+    "factcheck_sources": "artifacts/certification/factcheck/ (source_registry.json, contradictions.json)",
+    "reticle_manifests": "artifacts/certification/reticle/ (run_manifest.json, impact_results.json, runtime_results.json, regression_results.json)",
+    "test_ledgers": "artifacts/certification/test_ledger.json, defect_register.json, app_inventory.json"
+  }
+}
