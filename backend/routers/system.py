@@ -1,6 +1,6 @@
 import time
 from fastapi import APIRouter
-from core.database import db, now_iso
+from core.database import db, now_iso, IS_MOCK_DB, IS_PRODUCTION
 from rate_limiter import rate_limiter
 from ai_service import ai_service
 
@@ -42,6 +42,10 @@ async def get_system_health():
         "timestamp": now_iso(),
         "database": {
             "status": db_status,
+            "engine": "mongomock_motor (in-memory)" if IS_MOCK_DB else "MongoDB (durable)",
+            "is_mock": IS_MOCK_DB,
+            "is_production": IS_PRODUCTION,
+            "survives_restart": not IS_MOCK_DB,
             "latency_ms": db_latency_ms,
             "collections": {
                 "notes": notes_count,

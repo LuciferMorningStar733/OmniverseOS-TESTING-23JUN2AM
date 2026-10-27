@@ -14,5 +14,8 @@ def test_system_health_endpoint():
     data = response.json()
     assert "status" in data
     assert "database" in data
+    assert "engine" in data["database"]
+    assert "is_mock" in data["database"]
+    assert "survives_restart" in data["database"]
     assert "rate_limiter" in data
     assert "ai_providers" in data

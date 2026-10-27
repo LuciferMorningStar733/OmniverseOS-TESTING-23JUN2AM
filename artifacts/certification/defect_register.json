@@ -1,15 +1,14 @@
 {
   "register_metadata": {
-    "title": "OmniverseOS 2.0 Master Zero-Trust Defect Register",
-    "initiated_at_utc": "2026-10-19T07:27:00Z",
-    "version": "2.0.0-rc1",
-    "last_updated_utc": "2026-10-19T07:50:00Z",
-    "total_defects_logged": 4,
+    "title": "OmniverseOS 2.0 Reconciled Master Defect Register",
+    "version": "2.0.0-rc2-reconciled",
+    "last_updated_utc": "2026-10-27T08:35:00Z",
+    "total_defects_logged": 6,
     "p0_count": 0,
     "p1_count": 1,
-    "p2_count": 2,
+    "p2_count": 4,
     "p3_count": 1,
-    "resolved_count": 4,
+    "resolved_count": 6,
     "unresolved_count": 0
   },
   "defects": [
@@ -18,11 +17,11 @@
       "severity": "P3",
       "title": "Orphaned Application SystemHealth.js Missing from Launcher Registry",
       "component": "frontend/src/apps/SystemHealth.js",
-      "description": "SystemHealth component and its unit test exist in source code, but SystemHealth is not registered in frontend/src/lib/apps.js.",
+      "description": "SystemHealth component and its unit test existed in source code, but SystemHealth was not registered in frontend/src/lib/apps.js, appMeta.js, or appNames.js.",
       "reproduction_steps": "Inspect frontend/src/lib/apps.js vs filesystem in frontend/src/apps/.",
-      "root_cause": "Component was retained as a diagnostic subsystem without an exposed desktop dock icon.",
+      "root_cause": "Component was retained as a diagnostic subsystem without an exposed desktop dock entry.",
       "status": "RESOLVED",
-      "resolution_summary": "Documented in App Inventory. Component verified operational via Jest tests. No UI crash.",
+      "resolution_summary": "Registered systemhealth into frontend/src/lib/apps.js, appMeta.js, and appNames.js. Verified in all 32 app desktop and mobile tests with 100% pass.",
       "regression_verified": true
     },
     {
@@ -58,7 +57,31 @@
       "reproduction_steps": "Open mobile viewports (320px to 430px) and inspect dock/app layouts.",
       "root_cause": "Desktop-oriented margin and flex layouts were squeezing in viewports < 480px.",
       "status": "RESOLVED",
-      "resolution_summary": "Operation Phoenix mobile responsive fixes MOB-001 through MOB-006 implemented and verified across 5 viewports (320px, 375px, 390px, 430px, 768px) with zero horizontal overflow.",
+      "resolution_summary": "Window layer bottom padding configured to 52px; verified across 5 viewports (320px, 375px, 390px, 430px, 768px) with zero horizontal overflow.",
+      "regression_verified": true
+    },
+    {
+      "defect_id": "DEF-005",
+      "severity": "P2",
+      "title": "Playwright Locator Race on Unmounting Framer Motion Window Elements",
+      "component": "frontend/src/components/Window.js & test automation scripts",
+      "description": "When windows closed, Framer Motion exit animation left lingering DOM nodes with opacity 0; .first() selectors resolved to dying nodes and timed out on click/fill.",
+      "reproduction_steps": "Quickly close and reopen an app in Playwright, targeting .first() locator.",
+      "root_cause": "Framer Motion AnimatePresence retains unmounting elements in DOM during transition.",
+      "status": "RESOLVED",
+      "resolution_summary": "Updated test automation selectors to target .last() mounted element and use { force: true } where needed. Verified 24/24 E2E forensic tests passed.",
+      "regression_verified": true
+    },
+    {
+      "defect_id": "DEF-006",
+      "severity": "P2",
+      "title": "Health Endpoint Masked In-Memory mongomock as Connected Database",
+      "component": "backend/routers/system.py",
+      "description": "The /api/system/health endpoint reported database 'connected' without disclosing whether the underlying client was ephemeral mongomock_motor or durable MongoDB.",
+      "reproduction_steps": "Call /api/system/health when MongoDB is offline on port 27017.",
+      "root_cause": "Endpoint did not expose engine type, is_mock boolean, or survives_restart property.",
+      "status": "RESOLVED",
+      "resolution_summary": "Updated backend/routers/system.py to return engine, is_mock, is_production, and survives_restart. Added regression assertions in backend/tests/test_system_health.py.",
       "regression_verified": true
     }
   ]
