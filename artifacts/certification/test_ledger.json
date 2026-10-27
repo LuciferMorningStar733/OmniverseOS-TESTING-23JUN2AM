@@ -655,6 +655,17 @@
       "details": "Zero horizontal overflow (overflow: false), zero runtime crash."
     },
     {
+      "test_id": "MOBILE_APP_SYSTEMHEALTH",
+      "category": "MOBILE_APP_AUDIT",
+      "target": "System Health",
+      "environment": "Mobile Viewport (390x844)",
+      "status": "PASSED",
+      "evidence": [
+        "artifacts\\screenshots\\mobile\\systemhealth\\mobile_390x844.png"
+      ],
+      "details": "Zero horizontal overflow (overflow: false), zero runtime crash."
+    },
+    {
       "test_id": "MOBILE_APP_FINANCE",
       "category": "MOBILE_APP_AUDIT",
       "target": "Finance",

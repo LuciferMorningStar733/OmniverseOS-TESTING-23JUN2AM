@@ -30,6 +30,7 @@ const APPS = [
   { id: "code", name: "Code" },
   { id: "browser", name: "Browser" },
   { id: "settings", name: "Settings" },
+  { id: "systemhealth", name: "System Health" },
   { id: "finance", name: "Finance" },
   { id: "analytics", name: "Analytics" },
   { id: "nebula", name: "Nebula Chat" },
@@ -180,9 +181,9 @@ async function runMobileInvestigation() {
   });
   await page.waitForTimeout(1000);
 
-  const chatInput = page.locator('[data-testid="ai-chat-input"] textarea, [data-testid="ai-chat-input"] input, textarea, input[placeholder*="Ask" i]').first();
+  const chatInput = page.locator('[data-testid="ai-chat-input"] input, [data-testid="chat-input"]').last();
   if (await chatInput.isVisible()) {
-    await chatInput.click();
+    await chatInput.click({ force: true });
     await chatInput.fill('Mobile keyboard input verification test.');
     const keyboardOpenImg = path.join(SCREENSHOTS_DIR, 'KEYBOARD_chat_input_active.png');
     await page.screenshot({ path: keyboardOpenImg });

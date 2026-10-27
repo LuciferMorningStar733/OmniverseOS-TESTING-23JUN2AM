@@ -511,65 +511,80 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
     return (
       <>
         <div
-          className="absolute left-0 right-0 top-0 z-40 flex items-center gap-2"
+          className="absolute left-0 right-0 top-0 z-40 flex items-center justify-between"
           style={{
-            background: "rgba(6, 8, 14, 0.82)",
-            backdropFilter: "blur(32px) saturate(200%)",
-            WebkitBackdropFilter: "blur(32px) saturate(200%)",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            background: "#000000",
+            borderBottom: "1px solid rgba(255,255,255,0.14)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
             height: 60,
-            paddingLeft: 10,
-            paddingRight: 10,
+            paddingLeft: 14,
+            paddingRight: 14,
             paddingTop: "env(safe-area-inset-top, 0px)",
+            boxSizing: "border-box",
+            fontFamily: "'Segoe UI', 'Outfit', sans-serif",
           }}
           data-testid="topbar"
         >
-          {/* Logo icon */}
-          <div
-            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#00F0FF,#FF003C)" }}
-          >
-            <i className="fa-solid fa-infinity text-black text-xs" />
+          {/* Windows Phone Metro Brand Header */}
+          <div className="flex items-center gap-3">
+            <div
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+              style={{ background: "#0078D7", borderRadius: 2 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#ffffff">
+                <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.801" />
+              </svg>
+            </div>
+
+            <div className="flex flex-col justify-center">
+              <span style={{
+                fontSize: 14,
+                fontFamily: "'Segoe UI', 'Outfit', sans-serif",
+                fontWeight: 700,
+                color: "#ffffff",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                lineHeight: 1,
+              }}>
+                OmniverseOS
+              </span>
+              <span style={{
+                fontSize: 9.5,
+                fontFamily: "'Segoe UI', 'Outfit', sans-serif",
+                fontWeight: 600,
+                color: "#00A4EF",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginTop: 3,
+              }}>
+                Cortex Metro Edition
+              </span>
+            </div>
           </div>
 
-          {/* OS name — minimal, no duplicate search */}
-          <div className="flex-1 flex flex-col justify-center" style={{ paddingLeft: 6 }}>
-            <span style={{
-              fontSize: 13,
-              fontFamily: "'Outfit', sans-serif",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.82)",
-              letterSpacing: "-0.01em",
-              lineHeight: 1,
-            }}>
-              OmniverseOS
-            </span>
-            <span style={{
-              fontSize: 9.5,
-              fontFamily: "'Outfit', sans-serif",
-              fontWeight: 400,
-              color: "rgba(0,240,255,0.55)",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              marginTop: 2,
-            }}>
-              Cortex Active
-            </span>
-          </div>
+          {/* Right Action Icons (Notifications & Search) */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="w-9 h-9 flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 2 }}
+              aria-label="Search"
+            >
+              <i className="fa-solid fa-magnifying-glass text-slate-200 text-xs" />
+            </button>
 
-          {/* Notification bell */}
-          <button
-            onClick={() => setNotifOpen(true)}
-            className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
-            aria-label="Notifications"
-          >
-            <i className="fa-solid fa-bell text-slate-300 text-sm" />
-            {unread > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF003C]" />
-            )}
-          </button>
+            <button
+              onClick={() => setNotifOpen(true)}
+              className="relative w-9 h-9 flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 2 }}
+              aria-label="Notifications"
+            >
+              <i className="fa-solid fa-bell text-slate-200 text-xs" />
+              {unread > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-[#E51400]" style={{ borderRadius: 1 }} />
+              )}
+            </button>
+          </div>
         </div>
         <AnimatePresence>
           {showLogoutConfirm && <LogoutConfirmDialog onConfirm={handleLogoutConfirm} onCancel={handleLogoutCancel} />}

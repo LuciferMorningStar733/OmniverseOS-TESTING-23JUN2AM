@@ -5,7 +5,7 @@
   "prompt": "Deliberate executive consensus on handling an unexpected data cluster network partition.",
   "expected": "Domain-appropriate AI response executing primary workflow",
   "status_code": 200,
-  "latency_ms": 623,
+  "latency_ms": 687,
   "response": {
     "agents": [
       {
@@ -56,5 +56,5 @@
     ]
   },
   "verdict": "PASSED",
-  "timestamp_utc": "2026-10-19T07:45:31.210086+00:00"
+  "timestamp_utc": "2026-10-27T07:31:02.779176+00:00"
 }

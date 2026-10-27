@@ -180,6 +180,14 @@
       "status": "PASSED"
     },
     {
+      "id": "systemhealth",
+      "name": "System Health",
+      "screenshot": "artifacts\\screenshots\\mobile\\systemhealth\\mobile_390x844.png",
+      "horizontal_overflow": false,
+      "crashed": false,
+      "status": "PASSED"
+    },
+    {
       "id": "finance",
       "name": "Finance",
       "screenshot": "artifacts\\screenshots\\mobile\\finance\\mobile_390x844.png",
@@ -312,10 +320,5 @@
       "horizontal_overflow": false,
       "screenshot": "artifacts\\screenshots\\mobile\\VIEWPORT_tablet_768x1024.png"
     }
-  ],
-  "keyboard_test": {
-    "tested": true,
-    "input_functional": true,
-    "screenshot": "artifacts\\screenshots\\mobile\\KEYBOARD_chat_input_active.png"
-  }
+  ]
 }

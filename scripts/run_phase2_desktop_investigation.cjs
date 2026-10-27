@@ -30,6 +30,7 @@ const APPS = [
   { id: "code", name: "Code" },
   { id: "browser", name: "Browser" },
   { id: "settings", name: "Settings" },
+  { id: "systemhealth", name: "System Health" },
   { id: "finance", name: "Finance" },
   { id: "analytics", name: "Analytics" },
   { id: "nebula", name: "Nebula Chat" },

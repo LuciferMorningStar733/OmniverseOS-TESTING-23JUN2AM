@@ -25,6 +25,8 @@ import { getWallpaper } from "../lib/wallpapers";
 import WallpaperFX from "./WallpaperFX";
 import WidgetCanvas from "../widgets/WidgetCanvas";
 import MobileHomeScreen from "./MobileHomeScreen";
+import WindowsPhoneNavBar from "./Mobile/WindowsPhoneNavBar";
+import WindowsPhoneTaskSwitcher from "./Mobile/WindowsPhoneTaskSwitcher";
 import MorningBriefing from "./MorningBriefing";
 import { shouldRunNightAgent, stampLastSeen } from "../lib/nightAgent";
 import CortexInterrupts from "./CortexInterrupts";
@@ -158,6 +160,7 @@ function Desktop() {
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
   const [stageManagerActive, setStageManagerActive] = useState(false);
+  const [mobileTaskSwitcherOpen, setMobileTaskSwitcherOpen] = useState(false);
   const idleTimer = useRef(null);
   const [showWelcome, setShowWelcome] = useState(true);
 
@@ -577,6 +580,26 @@ function Desktop() {
         </div>
       )}
       <Dock />
+      {/* ── Windows Phone Soft Navigation Bar (active on mobile/touch when apps are open) ── */}
+      {isTouch && openWindows.length > 0 && (
+        <WindowsPhoneNavBar
+          activePivot="start"
+          onNavigateToStart={() => {
+            openWindows.forEach((w) => minimize(w.id));
+          }}
+          onOpenSearch={() => setPaletteOpen(true)}
+          onToggleTaskSwitcher={() => setMobileTaskSwitcherOpen((v) => !v)}
+          hasOpenWindows={true}
+        />
+      )}
+      {/* ── Windows Phone Multitasking Task Switcher ── */}
+      {isTouch && (
+        <WindowsPhoneTaskSwitcher
+          isOpen={mobileTaskSwitcherOpen}
+          onClose={() => setMobileTaskSwitcherOpen(false)}
+          onOpenApp={handleOpenApp}
+        />
+      )}
       <CommandPalette />
       <NotificationCenter />
       <ControlCenter isOpen={controlCenterOpen} onClose={() => setControlCenterOpen(false)} />

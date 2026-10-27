@@ -5,7 +5,7 @@
   "prompt": "Compare two language model explanations of quantum annealing vs gate-based quantum computing.",
   "expected": "Domain-appropriate AI response executing primary workflow",
   "status_code": 200,
-  "latency_ms": 11,
+  "latency_ms": 9,
   "response": {
     "results": [
       {
@@ -35,5 +35,5 @@
     ]
   },
   "verdict": "PASSED",
-  "timestamp_utc": "2026-10-19T07:45:30.435314+00:00"
+  "timestamp_utc": "2026-10-27T07:31:01.827782+00:00"
 }

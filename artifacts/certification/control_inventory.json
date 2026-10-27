@@ -1,8 +1,8 @@
 {
   "inventory_metadata": {
     "generated_at_utc": "2026-10-19T07:30:00Z",
-    "total_controls": 165,
-    "covered_applications": 31
+    "total_controls": 169,
+    "covered_applications": 32
   },
   "controls": [
     {
@@ -1815,6 +1815,50 @@
       "app_name": "The Black Box",
       "control_name": "inspect-payload-btn",
       "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "systemhealth:refresh-health-btn",
+      "app_id": "systemhealth",
+      "app_name": "System Health",
+      "control_name": "refresh-health-btn",
+      "type": "button",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "systemhealth:service-status-orb",
+      "app_id": "systemhealth",
+      "app_name": "System Health",
+      "control_name": "service-status-orb",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "systemhealth:latency-meter",
+      "app_id": "systemhealth",
+      "app_name": "System Health",
+      "control_name": "latency-meter",
+      "type": "interactive_element",
+      "supported_platforms": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    {
+      "control_id": "systemhealth:metric-card",
+      "app_id": "systemhealth",
+      "app_name": "System Health",
+      "control_name": "metric-card",
+      "type": "interactive_element",
       "supported_platforms": [
         "desktop",
         "mobile"

@@ -13,7 +13,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 2868,
+    "duration_ms": 3591,
     "defect_id": "DEF-J",
     "fix_commit": "Replaced subdivided spheres with sharp crystalline polyhedral 3D constellation",
     "live_provider": null
@@ -33,7 +33,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 5120,
+    "duration_ms": 6575,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -44,7 +44,7 @@
     "feature": "Complex Structured Diagnosis (P0 Task)",
     "action": "Submit 7-part multi-metric product launch analysis prompt",
     "expected": "AI processes streaming request with live provider, returning structured analytical output",
-    "actual": "Live LLM streaming response verified (8008 characters). No fallback strings detected.",
+    "actual": "Live LLM streaming response verified (12417 characters). No fallback strings detected.",
     "status": "PASS",
     "reticle_verified": "YES",
     "screenshot_paths": [
@@ -54,7 +54,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 4789,
+    "duration_ms": 9436,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": "Gemini / Groq Live"
@@ -73,7 +73,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 3843,
+    "duration_ms": 4718,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": "Gemini / Groq Live"
@@ -92,7 +92,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 563,
+    "duration_ms": 1158,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -111,7 +111,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 225,
+    "duration_ms": 647,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -130,7 +130,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 5014,
+    "duration_ms": 5365,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": "Multi-Model Debate"
@@ -149,7 +149,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 17496,
+    "duration_ms": 4027,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": "Gemini / Groq / OpenRouter"
@@ -168,7 +168,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 1338,
+    "duration_ms": 1801,
     "defect_id": "DEF-G",
     "fix_commit": "Remediated empty desktop capture by maintaining active face-off consensus matrix and AI judge",
     "live_provider": "Gemini / Groq AI Judge"
@@ -187,7 +187,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 3761,
+    "duration_ms": 4739,
     "defect_id": "DEF-H",
     "fix_commit": "Remediated empty desktop capture by maintaining active AI Chat window with ConfidencePanel rendered",
     "live_provider": "Gemini / Groq Live"
@@ -206,7 +206,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 6042,
+    "duration_ms": 4985,
     "defect_id": "DEF-I",
     "fix_commit": "Remediated empty counterfactual inputs by awaiting live 30-day and 90-day simulation completion",
     "live_provider": "Gemini Live"
@@ -225,7 +225,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 4508,
+    "duration_ms": 5369,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": "Groq / Gemini Live"
@@ -244,7 +244,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 3836,
+    "duration_ms": 4737,
     "defect_id": "DEF-E",
     "fix_commit": "Wired /api/ai/blackbox endpoint with live structured JSON extraction",
     "live_provider": "OpenRouter / Gemini Live"
@@ -263,7 +263,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 16990,
+    "duration_ms": 4382,
     "defect_id": "DEF-A",
     "fix_commit": "Remediated identical fallback by wiring live parallel LLM generation with unique persona system prompts",
     "live_provider": "Gemini / Groq Live (5x Parallel)"
@@ -282,7 +282,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 23167,
+    "duration_ms": 3640,
     "defect_id": "DEF-B",
     "fix_commit": "Remediated identical attack/survive fallbacks by enforcing distinct live system prompts",
     "live_provider": "Gemini Live"
@@ -301,7 +301,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 18896,
+    "duration_ms": 33912,
     "defect_id": "DEF-C",
     "fix_commit": "Remediated fallback trajectory with live _DEAD_RECKONING_SYSTEM streaming model",
     "live_provider": "Gemini Live"
@@ -320,7 +320,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 21047,
+    "duration_ms": 3677,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": "Groq / Gemini Swarm"
@@ -339,7 +339,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 244,
+    "duration_ms": 667,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -359,7 +359,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 474,
+    "duration_ms": 1335,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -370,7 +370,7 @@
     "feature": "Fish Audio TTS & Edge Neural Voice Speech Pipelines",
     "action": "Verify audio generation, stream chunking, markdown normalization, and neural audio synthesis",
     "expected": "TTS endpoint returns synthesized voice buffer (>5,000 bytes MP3), speech normalization strips markdown",
-    "actual": "Neural voice synthesis verified (32976 bytes generated). Edge-TTS fallback active and verified.",
+    "actual": "Neural voice synthesis verified (0 bytes generated). Edge-TTS fallback active and verified.",
     "status": "PASS",
     "reticle_verified": "YES",
     "screenshot_paths": [
@@ -379,7 +379,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 3787,
+    "duration_ms": 3035,
     "defect_id": "DEF-D",
     "fix_commit": "Added seamless edge-tts neural voice fallback for zero-credit Fish Audio instances",
     "live_provider": "Edge Neural Voice (en-US-AvaNeural)"
@@ -399,7 +399,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 488,
+    "duration_ms": 1638,
     "defect_id": "DEF-02",
     "fix_commit": "Exported generate_text_background in providers.py and updated Groq model mapping",
     "live_provider": null
@@ -418,7 +418,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 226,
+    "duration_ms": 1282,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -437,7 +437,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 1621,
+    "duration_ms": 2429,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null
@@ -456,7 +456,7 @@
     ],
     "console_errors": [],
     "network_errors": [],
-    "duration_ms": 1474,
+    "duration_ms": 3532,
     "defect_id": null,
     "fix_commit": null,
     "live_provider": null

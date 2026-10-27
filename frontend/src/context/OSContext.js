@@ -28,12 +28,15 @@ const LS_WINDOWS  = "omniverse_windows";
 const LS_NOTIFS   = "omniverse_notifs";
 const LS_WALLPAPER = "omniverse_wallpaper";
 
-// ─── initial default windows (spatial desktop cascade) ───────────────────────
-const INITIAL_DEFAULT_WINDOWS = [
-  { id: "photos-init", app: "photos", x: 60, y: 35, w: 760, h: 540, z: 100, minimized: false, maximized: false },
-  { id: "files-init", app: "files", x: 220, y: 270, w: 720, h: 420, z: 101, minimized: false, maximized: false },
-  { id: "chat-init", app: "chat", x: 310, y: 130, w: 400, h: 520, z: 102, minimized: false, maximized: false },
-];
+// ─── initial default windows (spatial desktop cascade on desktop, Start screen on mobile) ──
+const isTouchScreen = typeof window !== "undefined" && window.innerWidth < 1024;
+const INITIAL_DEFAULT_WINDOWS = isTouchScreen
+  ? []
+  : [
+      { id: "photos-init", app: "photos", x: 60, y: 35, w: 760, h: 540, z: 100, minimized: false, maximized: false },
+      { id: "files-init", app: "files", x: 220, y: 270, w: 720, h: 420, z: 101, minimized: false, maximized: false },
+      { id: "chat-init", app: "chat", x: 310, y: 130, w: 400, h: 520, z: 102, minimized: false, maximized: false },
+    ];
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const safeJSON = (key, fallback) => {
@@ -41,7 +44,7 @@ const safeJSON = (key, fallback) => {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
+    return Array.isArray(parsed) ? parsed : fallback;
   }
   catch { return fallback; }
 };
@@ -53,7 +56,7 @@ export const OSProvider = ({ children }) => {
 
   // ── window manager ──────────────────────────────────────────────────────────
   const [windows,  setWindows]  = useState(() => safeJSON(LS_WINDOWS, INITIAL_DEFAULT_WINDOWS));
-  const [activeId, setActiveId] = useState("chat-init");
+  const [activeId, setActiveId] = useState(isTouchScreen ? null : "chat-init");
   const [zCounter, setZCounter] = useState(105);
 
   // ── UI overlays ─────────────────────────────────────────────────────────────

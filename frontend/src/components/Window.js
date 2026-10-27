@@ -159,86 +159,70 @@ const MacOSTrafficLights = memo(function MacOSTrafficLights({
   );
 });
 
-/* ── Mobile native header ────────────────────────────────────────────────── */
+/* ── Mobile Windows Phone native header ──────────────────────────────────── */
 const MobileHeader = memo(function MobileHeader({ app, onClose }) {
   return (
     <div
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       style={{
-        height: 54, minHeight: 54,
+        height: 52, minHeight: 52,
         display: "flex", alignItems: "center",
-        padding: "0 4px",
-        borderBottom: "1px solid rgba(255,255,255,0.10)",
-        background: "rgba(5,5,14,0.80)",
+        justifyContent: "space-between",
+        padding: "0 12px",
+        borderBottom: `2px solid ${app.color || "#0078D7"}`,
+        background: "#000000",
         position: "relative", flexShrink: 0, zIndex: 10,
+        boxSizing: "border-box",
+        fontFamily: "'Segoe UI', 'Outfit', sans-serif",
       }}
     >
       <button
         onClick={onClose}
         style={{
-          display: "flex", alignItems: "center", gap: 4,
-          height: 52, paddingLeft: 4, paddingRight: 8,
-          background: "transparent", border: "none", cursor: "pointer",
-          color: "#00F0FF", zIndex: 2,
+          display: "flex", alignItems: "center", gap: 8,
+          height: 48, background: "transparent", border: "none", cursor: "pointer",
+          color: "#ffffff", zIndex: 2,
           WebkitTapHighlightColor: "transparent",
           touchAction: "manipulation", flexShrink: 0,
-          transition: "opacity var(--transition-fast)",
         }}
       >
-        <i className="fa-solid fa-chevron-left" style={{ fontSize: 18 }} />
-        <span style={{ fontSize: 14, fontFamily: "'Outfit', sans-serif", fontWeight: 500 }}>Back</span>
-      </button>
-
-      <div style={{
-        position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 8, pointerEvents: "none",
-      }}>
-        <i
-          className={`fa-solid ${app.icon}`}
-          style={{ color: app.color, fontSize: 14, filter: `drop-shadow(0 0 6px ${app.color})` }}
-        />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
         <span style={{
-          fontSize: 15, fontWeight: 700,
-          fontFamily: "'Outfit', sans-serif",
-          color: "#ffffff", letterSpacing: "0.01em",
-          maxWidth: "52vw",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          fontSize: 16,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          color: "#ffffff",
+          fontFamily: "'Segoe UI', 'Outfit', sans-serif",
         }}>
           {app.name}
         </span>
-      </div>
-
-      <button
-        onClick={onClose}
-        aria-label="Close"
-        style={{
-          width: 44, height: 44,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(255,255,255,0.055)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 12,
-          cursor: "pointer",
-          color: "rgba(255,255,255,0.48)", zIndex: 2,
-          marginLeft: "auto",
-          WebkitTapHighlightColor: "transparent",
-          touchAction: "manipulation", flexShrink: 0,
-          transition: "background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast)",
-        }}
-        onPointerEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255,50,80,0.16)";
-          e.currentTarget.style.borderColor = "rgba(255,50,80,0.35)";
-          e.currentTarget.style.color = "#FF6080";
-        }}
-        onPointerLeave={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.055)";
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)";
-          e.currentTarget.style.color = "rgba(255,255,255,0.48)";
-        }}
-      >
-        <i className="fa-solid fa-xmark" style={{ fontSize: 13 }} />
       </button>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <i
+          className={`fa-solid ${app.icon}`}
+          style={{ color: app.color || "#0078D7", fontSize: 16 }}
+        />
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            width: 36, height: 36,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(255,255,255,0.08)",
+            border: "none", borderRadius: 2,
+            cursor: "pointer", color: "rgba(255,255,255,0.8)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <i className="fa-solid fa-xmark" style={{ fontSize: 14 }} />
+        </button>
+      </div>
     </div>
   );
 });
@@ -426,7 +410,7 @@ export default function Window({ win, children }) {
 
   /* ── Geometry (declared BEFORE any early return so it's safe for hooks) ── */
   const topPad    = isMobile ? 60 : isTablet ? 48 : 56;
-  const bottomPad = isTouch ? 0 : 96;
+  const bottomPad = isTouch ? 50 : 96;
 
   /* ── LIQUID DRAG hooks — declared unconditionally at the top level of
      the component, BEFORE any early return (win.minimized / isTouch).

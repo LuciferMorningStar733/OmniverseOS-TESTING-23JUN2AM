@@ -5,7 +5,7 @@
   "prompt": "Reflect on confirmation bias in automated algorithmic decision-making systems.",
   "expected": "Domain-appropriate AI response executing primary workflow",
   "status_code": 200,
-  "latency_ms": 5,
+  "latency_ms": 9,
   "response": {
     "consensus": null,
     "status": "UNAVAILABLE",
@@ -34,5 +34,5 @@
     "unique_insights": []
   },
   "verdict": "PASSED",
-  "timestamp_utc": "2026-10-19T07:45:32.222413+00:00"
+  "timestamp_utc": "2026-10-27T07:31:03.780902+00:00"
 }

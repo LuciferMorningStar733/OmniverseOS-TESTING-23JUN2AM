@@ -50,6 +50,7 @@ export const APPS = [
   { id: "code",       name: "Code",         icon: "fa-code",           color: "#39FF14", Component: lazyWithRetry(() => import("../apps/CodeEditor")),    group: "system" },
   { id: "browser",    name: "Browser",      icon: "fa-globe",          color: "#60A5FA", Component: lazyWithRetry(() => import("../apps/Browser")),       group: "system" },
   { id: "settings",   name: "Settings",     icon: "fa-gear",           color: "#94A3B8", Component: lazyWithRetry(() => import("../apps/Settings")),      group: "system" },
+  { id: "systemhealth", name: "System Health", icon: "fa-heart-pulse", color: "#39FF14", Component: lazyWithRetry(() => import("../apps/SystemHealth")), group: "system" },
 
   // ─── Data ──────────────────────────────────────────────────────────────
   { id: "finance",    name: "Finance",      icon: "fa-chart-line",     color: "#39FF14", Component: lazyWithRetry(() => import("../apps/Finance")),       group: "data" },

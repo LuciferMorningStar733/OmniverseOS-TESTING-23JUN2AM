@@ -31,25 +31,15 @@ function assertNotFallback(text, label = "Output") {
 }
 
 async function openAppInPage(page, appId) {
-  const dockIcon = page.locator(`[data-testid="dock-item-${appId}"], [data-testid="dock-icon-${appId}"], [data-dock-icon="${appId}"]`).first();
-  if (await dockIcon.isVisible({ timeout: 1500 }).catch(() => false)) {
-    try {
-      await dockIcon.click({ force: true });
-    } catch (e) {
-      console.warn(`Click dock icon for ${appId} failed:`, e.message);
+  // Always dispatch open-app event to ensure window is created, restored from minimized, and focused
+  await page.evaluate((id) => {
+    if (window.__omniverse_openApp) {
+      window.__omniverse_openApp(id);
+    } else {
+      window.dispatchEvent(new CustomEvent('omniverse:open-app', { detail: { appId: id } }));
     }
-  }
-  const winLocator = page.locator(`[data-testid="window-${appId}"]`).first();
-  const isVisible = await winLocator.isVisible().catch(() => false);
-  if (!isVisible) {
-    await page.evaluate((id) => {
-      if (window.__omniverse_openApp) {
-        window.__omniverse_openApp(id);
-      } else {
-        window.dispatchEvent(new CustomEvent('omniverse:open-app', { detail: { appId: id } }));
-      }
-    }, appId);
-  }
+  }, appId);
+  const winLocator = page.locator(`[data-testid="window-${appId}"]`).last();
   await winLocator.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(600);
 }
@@ -441,9 +431,9 @@ async function main() {
     t0 = Date.now();
     // Open AI Chat to inspect ConfidencePanel (DEF-H remediation)
     await openAppInPage(page, 'chat');
-    const chatWinConf = page.locator('[data-testid="window-chat"]');
+    const chatWinConf = page.locator('[data-testid="window-chat"]').last();
 
-    const confInput = chatWinConf.locator('[data-testid="chat-input"]').first();
+    const confInput = chatWinConf.locator('[data-testid="chat-input"]').last();
     await confInput.fill("State the exact speed of light and explain why it is constant.");
     await confInput.press('Enter');
 

@@ -5,10 +5,10 @@
   "prompt": "Stress-test the thesis: Storing plain JWT tokens in localStorage with zero CSRF protection is completely secure.",
   "expected": "Domain-appropriate AI response executing primary workflow",
   "status_code": 200,
-  "latency_ms": 21,
+  "latency_ms": 28,
   "response": {
     "text": "data: ### [Adversary Inquest] Deconstruct\n\ndata: ion of: \"Destroy this idea:\ndata: \ndata: Stress\n\ndata: -test the thesis: Storing plain JWT\n\ndata:  tokens in localStorage with zero C\n\ndata: SRF \"\ndata: \ndata: **1. Fatal Market Delusion &\n\ndata:  Demand Vacuum:**\ndata: The core premise \n\ndata: assumes latent demand where none ex\n\ndata: ists in reality. Customers already \n\ndata: have entrenched switching costs and\n\ndata:  zero marginal incentive to abandon\n\ndata:  incumbent workflows for an unprov"
   },
   "verdict": "PASSED",
-  "timestamp_utc": "2026-10-19T07:45:30.513707+00:00"
+  "timestamp_utc": "2026-10-27T07:31:01.941746+00:00"
 }

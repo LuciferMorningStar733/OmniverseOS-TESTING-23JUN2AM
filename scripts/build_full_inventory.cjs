@@ -506,17 +506,26 @@ const appsMeta = [
     dependencies: ["analytics"],
     mobileLayout: "Audit event log with cryptographic hash badges and detail bottom sheet",
     desktopLayout: "Forensic security ledger with hash chain verification and detailed payload viewer"
+  },
+  {
+    id: "systemhealth",
+    name: "System Health",
+    group: "system",
+    icon: "fa-heart-pulse",
+    color: "#39FF14",
+    file: "SystemHealth.js",
+    isAI: false,
+    backendEndpoints: ["/api/system/health"],
+    persistence: "None (real-time telemetry polling)",
+    controls: ["refresh-health-btn", "service-status-orb", "latency-meter", "metric-card"],
+    dependencies: ["SystemHealth"],
+    mobileLayout: "Single-column health metric stream with live ping orbs",
+    desktopLayout: "Multi-card glassmorphic system status monitor with live telemetry"
   }
 ];
 
-// Documented exclusions / unregistered applications found in src/apps
-const unregisteredApps = [
-  {
-    id: "system-health",
-    file: "SystemHealth.js",
-    reason: "Component exists in frontend/src/apps/SystemHealth.js with full unit tests in src/__tests__/SystemHealth.test.js, but is omitted from APPS registry in src/lib/apps.js. Classified as UNREGISTERED_ORPHANED_APP."
-  }
-];
+// Documented exclusions / unregistered applications (DEF-001 resolved)
+const unregisteredApps = [];
 
 // Write app_inventory.json
 const appInventory = {
