@@ -3,12 +3,12 @@
     "title": "OmniverseOS 2.0 Reconciled Master Defect Register",
     "version": "2.0.0-rc2-reconciled",
     "last_updated_utc": "2026-10-27T08:35:00Z",
-    "total_defects_logged": 6,
+    "total_defects_logged": 7,
     "p0_count": 0,
-    "p1_count": 1,
+    "p1_count": 2,
     "p2_count": 4,
     "p3_count": 1,
-    "resolved_count": 6,
+    "resolved_count": 7,
     "unresolved_count": 0
   },
   "defects": [
@@ -82,6 +82,18 @@
       "root_cause": "Endpoint did not expose engine type, is_mock boolean, or survives_restart property.",
       "status": "RESOLVED",
       "resolution_summary": "Updated backend/routers/system.py to return engine, is_mock, is_production, and survives_restart. Added regression assertions in backend/tests/test_system_health.py.",
+      "regression_verified": true
+    },
+    {
+      "defect_id": "DEF-007",
+      "severity": "P1",
+      "title": "Motor AsyncIOMotorDatabase Truth Value Testing Crashes Image Worker in Production",
+      "component": "backend/local_image_engine.py line 208",
+      "description": "In _process_generation_job, 'if db:' evaluated the truth value of the database object. In real MongoDB production with Motor, AsyncIOMotorDatabase disallows __bool__ and raises NotImplementedError: Database objects do not implement truth value testing or bool(). Please compare with None instead: database is not None.",
+      "reproduction_steps": "Trigger POST /api/ai/image/generate in production connected to real MongoDB and poll generation job.",
+      "root_cause": "Used Python truth value testing 'if db:' instead of identity comparison 'if db is not None:'.",
+      "status": "RESOLVED",
+      "resolution_summary": "Replaced 'if db:' with 'if db is not None:' in backend/local_image_engine.py. Added regression test backend/tests/test_image_engine.py simulating Motor database truth value testing restrictions.",
       "regression_verified": true
     }
   ]

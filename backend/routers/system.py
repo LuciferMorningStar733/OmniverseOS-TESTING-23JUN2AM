@@ -1,3 +1,4 @@
+import os
 import time
 from fastapi import APIRouter
 from core.database import db, now_iso, IS_MOCK_DB, IS_PRODUCTION
@@ -37,8 +38,12 @@ async def get_system_health():
     except Exception:
         provider_stats = {"gemini": {"status": "available", "available": True}}
 
+    git_commit_sha = os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("VERCEL_GIT_COMMIT_SHA") or "c16301f"
+
     return {
         "status": "healthy" if db_status == "connected" else "degraded",
+        "version": "2.0.0",
+        "git_commit": git_commit_sha,
         "timestamp": now_iso(),
         "database": {
             "status": db_status,

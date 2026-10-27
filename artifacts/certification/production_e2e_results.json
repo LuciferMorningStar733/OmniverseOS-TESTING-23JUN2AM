@@ -1,0 +1,37 @@
+{
+  "frontend_reachability": {
+    "status": "PASS",
+    "code": 200
+  },
+  "cors_preflight": {
+    "status": "PASS",
+    "allow_origin": "https://omniverseos.in.net"
+  },
+  "system_health": {
+    "status": "PASS",
+    "engine": "MongoDB (durable)",
+    "is_mock": false,
+    "latency_ms": 234.89,
+    "git_commit": "c16301f"
+  },
+  "authentication": {
+    "status": "PASS",
+    "token_type": "JWT Bearer"
+  },
+  "user_profile": {
+    "status": "PASS",
+    "email": "demo@omniverse.io"
+  },
+  "notes_crud": {
+    "status": "PASS",
+    "lifecycle": "Create -> Read -> Update -> Delete"
+  },
+  "tasks_crud": {
+    "status": "PASS",
+    "lifecycle": "Create -> Delete"
+  },
+  "ai_inference": {
+    "status": "PASS",
+    "response_length": 8
+  }
+}

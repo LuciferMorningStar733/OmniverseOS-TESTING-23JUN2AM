@@ -13,6 +13,8 @@ def test_system_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert "status" in data
+    assert "version" in data
+    assert "git_commit" in data
     assert "database" in data
     assert "engine" in data["database"]
     assert "is_mock" in data["database"]

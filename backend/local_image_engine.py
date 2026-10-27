@@ -205,7 +205,7 @@ class OmniLocalImageEngine:
             job["provider"] = provider_used
 
             # Save to persistent database
-            if db:
+            if db is not None:
                 await db.ai_images.insert_one({
                     "id": job_id,
                     "user_id": user_id,
