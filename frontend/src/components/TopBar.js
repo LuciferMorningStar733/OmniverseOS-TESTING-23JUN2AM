@@ -6,6 +6,7 @@ import { getApp } from "../lib/apps";
 import { AnimatePresence, motion } from "framer-motion";
 import DynamicIsland from "./DynamicIsland";
 import IntelligencePresence from "./IntelligencePresence";
+import { getSoundsEnabled, toggleSoundsEnabled, playClick, playGlassTap } from "../lib/soundEngine";
 
 /* ─── Per-app context menus ─────────────────────────────────────────────────
    Each entry: { label, items: [{ label, shortcut?, action? }] }
@@ -494,6 +495,21 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
   const { isMobile, isTablet } = useBreakpoint();
   const [avatarMenuOpen,   setAvatarMenuOpen]   = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => getSoundsEnabled());
+
+  useEffect(() => {
+    const handleSoundToggle = (e) => {
+      setSoundOn(e?.detail?.enabled ?? getSoundsEnabled());
+    };
+    window.addEventListener("omniverse:sound-toggle", handleSoundToggle);
+    return () => window.removeEventListener("omniverse:sound-toggle", handleSoundToggle);
+  }, []);
+
+  const handleToggleSound = () => {
+    const next = toggleSoundsEnabled();
+    setSoundOn(next);
+    if (next) playGlassTap();
+  };
 
   const handleLogoutRequest = () => setShowLogoutConfirm(true);
   const handleLogoutConfirm = () => { setShowLogoutConfirm(false); logout(); };
@@ -772,6 +788,30 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
 
       {/* Right cluster */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+
+        {/* Sound FX Quick Toggle */}
+        <motion.button
+          onClick={handleToggleSound}
+          title={soundOn ? "Tactile Audio FX: Active" : "Tactile Audio FX: Muted"}
+          aria-label={soundOn ? "Mute sounds" : "Unmute sounds"}
+          whileTap={{ scale: 0.88 }}
+          style={{
+            background: soundOn ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.04)",
+            border: `1px solid ${soundOn ? "rgba(0,240,255,0.30)" : "rgba(255,255,255,0.08)"}`,
+            borderRadius: 7, width: 28, height: 28,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            transition: "all var(--transition-fast)",
+            boxShadow: soundOn ? "0 0 10px rgba(0,240,255,0.15)" : "none",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = soundOn ? "rgba(0,240,255,0.22)" : "rgba(255,255,255,0.08)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = soundOn ? "rgba(0,240,255,0.10)" : "rgba(255,255,255,0.04)"; }}
+        >
+          <i
+            className={`fa-solid ${soundOn ? "fa-volume-high" : "fa-volume-xmark"}`}
+            style={{ color: soundOn ? "#00F0FF" : "#64748b", fontSize: 11 }}
+          />
+        </motion.button>
 
         {/* Control Center Toggle */}
         <motion.button

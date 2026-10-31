@@ -3,8 +3,10 @@ import "./App.css";
 import { OSProvider, useOS } from "./context/OSContext";
 import { WidgetManagerProvider } from "./widgets/WidgetManagerContext";
 import { BrightnessProvider } from "./context/BrightnessContext";
+import BrightnessOverlay, { BrightnessFilter } from "./components/BrightnessOverlay";
 import AuthScreen from "./components/AuthScreen";
 import Desktop from "./components/Desktop";
+import OmniClickEffect from "./components/OmniClickEffect";
 import { Toaster } from "sonner";
 
 const Shell = () => {
@@ -27,6 +29,7 @@ function App() {
       <OSProvider>
         <BrightnessProvider>
           <WidgetManagerProvider>
+            <OmniClickEffect />
             <Shell />
             <Toaster
               theme="dark"

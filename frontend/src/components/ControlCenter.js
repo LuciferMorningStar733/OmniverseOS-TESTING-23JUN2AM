@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { useBrightnessContext } from "../context/BrightnessContext";
@@ -17,6 +17,12 @@ export default function ControlCenter({ isOpen, onClose }) {
   const { brightness, setBrightness } = useBrightnessContext();
   const [soundPrefs, setSoundPrefs] = useState(() => getAllSoundPrefs());
   const [activeFocus, setActiveFocus] = useState("normal");
+
+  useEffect(() => {
+    const sync = (e) => setSoundPrefs((p) => ({ ...p, master: e.detail.enabled }));
+    window.addEventListener("omniverse:sound-toggle", sync);
+    return () => window.removeEventListener("omniverse:sound-toggle", sync);
+  }, []);
 
   const toggleMasterSound = () => {
     const next = !soundPrefs.master;

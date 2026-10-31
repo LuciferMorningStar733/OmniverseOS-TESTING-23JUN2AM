@@ -51,7 +51,17 @@ function can(cat) {
 // ── Public getters/setters ────────────────────────────────────────────────────
 
 export function getSoundsEnabled()       { return get(K.master); }
-export function setSoundsEnabled(on)     { set(K.master, on); }
+export function setSoundsEnabled(on)     {
+  set(K.master, on);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("omniverse:sound-toggle", { detail: { enabled: on } }));
+  }
+}
+export function toggleSoundsEnabled() {
+  const next = !getSoundsEnabled();
+  setSoundsEnabled(next);
+  return next;
+}
 
 export function getSoundCategory(cat)    { return get(K[cat]); }
 export function setSoundCategory(cat, on){ set(K[cat], on); }
@@ -129,8 +139,61 @@ export function playClick() {
   if (!can("clicks")) return;
   const c = getCtx(); if (!c) return;
   const t = c.currentTime;
-  osc({ type: "square", freq: 1400, freqEnd: 700, start: t, end: t + 0.045, gain: 0.055, gainEnd: 0.001 });
-  noise({ start: t, end: t + 0.025, gain: 0.03, gainEnd: 0.001, filterFreq: 3000 });
+  // 2026 Spatial Glass Click: tactile high-frequency attack + rounded body
+  osc({ type: "sine", freq: 1850, freqEnd: 620, start: t, end: t + 0.038, gain: 0.045, gainEnd: 0.001 });
+  noise({ start: t, end: t + 0.018, gain: 0.02, gainEnd: 0.001, filterFreq: 3800 });
+}
+
+export function playGlassTap() {
+  if (!can("clicks")) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+  // Ethereal crystalline ping for pill switches, tabs and chips
+  osc({ type: "sine", freq: 2200, freqEnd: 2800, start: t, end: t + 0.04, gain: 0.03, gainEnd: 0.001 });
+  osc({ type: "sine", freq: 3520, freqEnd: 4400, start: t + 0.005, end: t + 0.035, gain: 0.015, gainEnd: 0.001 });
+}
+
+export function playSwitch() {
+  if (!can("clicks")) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+  // Snappy relay snap for toggles
+  osc({ type: "square", freq: 950, freqEnd: 1600, start: t, end: t + 0.028, gain: 0.035, gainEnd: 0.001 });
+  osc({ type: "sine", freq: 1600, freqEnd: 2400, start: t + 0.014, end: t + 0.042, gain: 0.025, gainEnd: 0.001 });
+}
+
+export function playSnap() {
+  if (!can("clicks")) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+  // Magnetic window docking / snapping click
+  osc({ type: "triangle", freq: 520, freqEnd: 1200, start: t, end: t + 0.045, gain: 0.05, gainEnd: 0.001 });
+  noise({ start: t, end: t + 0.02, gain: 0.025, gainEnd: 0.001, filterFreq: 2400 });
+}
+
+export function playPop() {
+  if (!can("clicks")) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+  // Micro pop for badges, tooltips, menus
+  osc({ type: "sine", freq: 340, freqEnd: 680, start: t, end: t + 0.04, gain: 0.04, gainEnd: 0.001 });
+}
+
+export function playKeyTick() {
+  if (!can("clicks")) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+  // Sub-perceptual mechanical keystroke tick
+  noise({ start: t, end: t + 0.012, gain: 0.018, gainEnd: 0.001, filterFreq: 4200 });
+}
+
+export function playSwoosh() {
+  if (!can("clicks")) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+  // Airy gentle whoosh for window minimize / restore
+  noise({ start: t, end: t + 0.12, gain: 0.025, gainEnd: 0.001, filterFreq: 1100 });
+  osc({ type: "sine", freq: 400, freqEnd: 180, start: t, end: t + 0.10, gain: 0.02, gainEnd: 0.001 });
 }
 
 export function playHover() {
@@ -221,4 +284,26 @@ export function playAmbientTick() {
   const t = c.currentTime;
   // Very subtle — a gentle neural heartbeat
   osc({ type: "sine", freq: 200, freqEnd: 180, start: t, end: t + 0.08, gain: 0.008, gainEnd: 0.001 });
+}
+
+// ── Event Bus for Declarative Sound Triggers ─────────────────────────────────
+if (typeof window !== "undefined") {
+  window.addEventListener("omniverse:play-sound", (e) => {
+    const sound = e?.detail?.sound;
+    switch (sound) {
+      case "click":      playClick(); break;
+      case "glass":      playGlassTap(); break;
+      case "switch":     playSwitch(); break;
+      case "snap":       playSnap(); break;
+      case "pop":        playPop(); break;
+      case "keytick":    playKeyTick(); break;
+      case "swoosh":     playSwoosh(); break;
+      case "windowOpen": playWindowOpen(); break;
+      case "windowClose":playWindowClose(); break;
+      case "minimize":   playMinimize(); break;
+      case "notif":      playNotification(); break;
+      case "error":      playError(); break;
+      default:           playClick(); break;
+    }
+  });
 }

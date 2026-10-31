@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { getApp } from "../lib/apps";
+import { playKeyTick, playWindowOpen } from "../lib/soundEngine";
 
 const SPOTLIGHT_APPS = [
   { id: "chat", name: "AIChat Assistant", icon: "fa-wand-magic-sparkles", color: "#00F0FF", category: "AI Tools" },
@@ -51,12 +52,15 @@ export default function SpotlightSearch({ isOpen, onClose }) {
   const handleKeyDown = (e) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      playKeyTick();
       setSelectedIndex((prev) => (prev + 1) % (filtered.length || 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      playKeyTick();
       setSelectedIndex((prev) => (prev - 1 + filtered.length) % (filtered.length || 1));
     } else if (e.key === "Enter" && filtered[selectedIndex]) {
       e.preventDefault();
+      playWindowOpen();
       openApp(filtered[selectedIndex].id);
       onClose();
     } else if (e.key === "Escape") {

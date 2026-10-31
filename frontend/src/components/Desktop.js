@@ -508,6 +508,8 @@ function Desktop() {
       </AnimatePresence>
       {/* 2099 Living Omniverse Field */}
       <OmniverseField activeAppId={windows.find((w) => w.id === activeId)?.app} />
+      {/* 2026 Ambient Neural Particles */}
+      {isDesktop && <AmbientParticles />}
       {/* Desktop Icon Grid */}
       {isDesktop && <DesktopIcons />}
       <motion.div

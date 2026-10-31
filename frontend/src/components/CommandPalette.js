@@ -7,6 +7,7 @@ import { getRecentUrls, getTimeline } from "../lib/activityTimeline";
 import { listSnapshots, getAutoSnapshot } from "../lib/workspaceSnapshot";
 import { memGet } from "../lib/memoryEngine";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
+import { playKeyTick, playWindowOpen } from "../lib/soundEngine";
 
 /**
  * Universal Command Palette — Ctrl+K
@@ -393,9 +394,9 @@ export default function CommandPalette() {
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') { setPaletteOpen(false); return; }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(s => Math.min(results.length - 1, s + 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(s => Math.max(0, s - 1)); }
-    else if (e.key === 'Enter') { e.preventDefault(); activate(results[selected]); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); playKeyTick(); setSelected(s => Math.min(results.length - 1, s + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); playKeyTick(); setSelected(s => Math.max(0, s - 1)); }
+    else if (e.key === 'Enter') { e.preventDefault(); playWindowOpen(); activate(results[selected]); }
   }, [results, selected, activate, setPaletteOpen]);
 
   // Scroll selected item into view on keyboard navigation

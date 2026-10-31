@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useAnimate } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
-import { playClick } from "../lib/soundEngine";
+import { playClick, playGlassTap, playWindowOpen } from "../lib/soundEngine";
 // Keep in sync with PINNED_APP_IDS in MobileHomeScreen.js
 const PINNED_APP_IDS = ["voice", "browser", "files", "settings"];
 
@@ -579,7 +579,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
   const translateY = scale > 1 ? -(scale - 1) * 28 : 0;
 
   const handleClick = useCallback(async () => {
-    playClick();
+    if (open) { playClick(); } else { playWindowOpen(); }
     // macOS Launchpad-matched bounce: compress → overshoot → settle
     await animateScope(scope.current, {
       scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
@@ -590,7 +590,7 @@ const DesktopDockIcon = memo(function DesktopDockIcon({
       times: [0, 0.12, 0.38, 0.56, 0.74, 0.88, 1],
     });
     openApp(app.id);
-  }, [animateScope, scope, openApp, app.id]);
+  }, [animateScope, scope, openApp, app.id, open]);
 
   const handleMouseEnter = useCallback(() => {
     setTooltipVisible(true);
@@ -765,6 +765,10 @@ function DesktopDock({ isTablet }) {
         <button
           className="w-10 h-10 rounded-[11px] flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
           title="Trash"
+          onClick={() => {
+            playGlassTap();
+            openApp("files");
+          }}
         >
           <i className="fa-solid fa-trash-can text-lg" />
         </button>

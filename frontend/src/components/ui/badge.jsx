@@ -4,17 +4,19 @@ import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+          "border-cyan-400/30 bg-cyan-500/10 text-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.15)]",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-white/10 bg-white/[0.06] text-slate-200 backdrop-blur-md",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
+          "border-red-500/30 bg-red-500/15 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.2)]",
+        outline: "border-white/20 text-slate-200 bg-transparent",
+        cyber: "border-[#00F0FF]/50 bg-[#00F0FF]/15 text-[#00F0FF] font-mono shadow-[0_0_12px_rgba(0,240,255,0.25)]",
+        neon: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-[0_0_10px_rgba(57,255,20,0.2)]",
       },
     },
     defaultVariants: {

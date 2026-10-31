@@ -5,6 +5,7 @@ import { useOS } from "../context/OSContext";
 import { getApp } from "../lib/apps";
 import ErrorBoundary from "./ErrorBoundary";
 import { useBreakpoint } from "../hooks/useBreakpoint";
+import { playWindowClose, playMinimize, playGlassTap, playSnap } from "../lib/soundEngine";
 
 /* ── Design tokens ────────────────────────────────────────────────────────── */
 const SHADOW_ACTIVE = (c) =>
@@ -84,7 +85,7 @@ const MacOSTrafficLights = memo(function MacOSTrafficLights({
       {/* Close button - Red */}
       <button
         data-testid={`window-close-${win.app}`}
-        onClick={(e) => { e.stopPropagation(); handleClose(); }}
+        onClick={(e) => { e.stopPropagation(); playWindowClose(); handleClose(); }}
         aria-label="Close window"
         title="Close"
         style={{
@@ -109,7 +110,7 @@ const MacOSTrafficLights = memo(function MacOSTrafficLights({
       {/* Minimize button - Yellow */}
       <button
         data-testid={`window-min-${win.app}`}
-        onClick={(e) => { e.stopPropagation(); handleMinimize(); }}
+        onClick={(e) => { e.stopPropagation(); playMinimize(); handleMinimize(); }}
         aria-label="Minimize window"
         title="Minimize"
         style={{
@@ -134,7 +135,7 @@ const MacOSTrafficLights = memo(function MacOSTrafficLights({
       {/* Maximize button - Green */}
       <button
         data-testid={`window-max-${win.app}`}
-        onClick={(e) => { e.stopPropagation(); handleMaximize(); }}
+        onClick={(e) => { e.stopPropagation(); playGlassTap(); handleMaximize(); }}
         aria-label="Maximize window"
         title={win.maximized ? "Restore" : "Maximize"}
         style={{
@@ -482,6 +483,7 @@ export default function Window({ win, children }) {
     const pending = s.pendingSnap;
     dragRef.current = null;
     if (pending) {
+      playSnap();
       setIsDragging(false);
       setSnapTarget(null);
       if (nodeRef.current) {
