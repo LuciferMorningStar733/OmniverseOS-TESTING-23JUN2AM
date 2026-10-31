@@ -25,24 +25,34 @@ Scope: attached Cortex Agentic Execution Engine specification. Status: partial i
 
 Commands executed locally:
 
-- `CI=true npm run test:ci -- --runInBand`: 21 suites / 94 tests passed on the final implementation.
+- `CI=true npm run test:ci -- --runInBand`: 22 suites / 99 tests passed on the final implementation.
 - New execution tests cover intent routing, filename traversal/duplicates, absent entry, missing dependencies, bridge timeout/cancellation, save/readback orchestration, retry exhaustion, unsaved-buffer preservation, and failed save readback. Provider/API/editor mocks are used; these are not live provider or gameplay tests.
 - `CI=false GENERATE_SOURCEMAP=false npm run build`: compiled successfully; final build rerun recorded in PR.
 - `npx @reticlehq/server status`: no daemon, not signed in, repository not linked, no registered agent connection. No Reticle verdict exists.
+
+## Follow-up fixes (1 November)
+
+- Added an authenticated `/api/execution/tasks` checkpoint API. Tasks carry a structured browser-project plan, redacted intent, stage history, attempt budget, project reference and optimistic revision counter. Reads and writes require account ownership. Client checkpoints explicitly cannot claim independently verified success.
+- Added 30-day TTL retention and expiry checks. Production durability follows the real MongoDB database; development mock storage is explicitly disclosed as ephemeral.
+- Browser tasks can be resumed with `resume task <task UUID>`. Saved project references are reopened without new provider generation. This is checkpoint-based resume, not continuation of a suspended JavaScript process.
+- Added a typed tool registry with input/output schemas, permission checks, risk metadata, cancellation, timeouts, call budgets and execution observations. Registered inspect/preview/list/create capabilities only; no shell, deployment or destructive tool is exposed.
+- Added an overall three-minute task deadline and abortable file transports. Provider context and visible failures redact common credential patterns. Redaction is best effort, not a guarantee of detecting every secret format.
+- Added 8 backend API tests (ownership, authentication, redaction, expiry, stale revision, attempt reset, project scope and save/resume) and registry/resume frontend tests. Backend tests passed with FastAPI 0.110.1, Motor 3.3.1, PyMongo 4.6.3 and HTTPX 0.27.2 using an isolated mock database. No production backend tests were run.
+- `npx @reticlehq/server gate` exited 2 with `pass:false`, coverage `0/0`, `no_flows`. This is an explicit missing verification result, not a pass.
 
 ## Outstanding specification requirements
 
 | Requirement | Current result |
 | --- | --- |
 | Flappy Bird real gameplay acceptance | NOT RUN; no live provider/gameplay or desktop/mobile browser verdict |
-| General centralized typed tool registry, permissions and approvals | Not implemented; narrow Code bridge only |
+| General centralized typed tool registry, permissions and approvals | Registry implemented for four safe Code/workspace tools; general approvals and other app integrations remain missing |
 | App close/focus/state verification | Existing actions remain outside new executor |
 | Generic workspace/document/research/multi-app/system tasks | Not implemented by this executor |
-| Durable task traces, retention, ownership, interruption resume | Trace returned in memory only; no resumable task service |
+| Durable task traces, retention, ownership, interruption resume | Account-owned checkpoints, 30-day retention and saved-project resume implemented; full action/result journal and suspended-process recovery remain missing |
 | Independent functionality validation | Missing; preview load and short error observation do not prove gameplay |
 | CPU/memory/process quotas | Missing for iframe projects; sandbox is not a process/resource isolation guarantee |
-| Secret detection in existing source sent to provider | Missing; selected editor context uses existing configured AI provider |
-| Whole-task timeout and abortable Files API transport | Missing; API calls retain existing Axios timeout and cannot undo an in-flight save |
+| Secret detection in existing source sent to provider | Common credentials redacted; exhaustive secret detection is not guaranteed |
+| Whole-task timeout and abortable Files API transport | Three-minute deadline and cancellation implemented; an already committed server save cannot be rolled back by abort |
 | Full 15-workflow benchmark suite and metrics | Not implemented; execution unit tests are only a starting point |
 
-The preview cannot certify itself. Generated code may suppress errors or misbehave after the observation window. No errors in that window is not proof of correct execution. Do not merge or deploy as full-spec completion. Next implementation gates are independent browser gameplay checks, a server-owned task/tool service with account-scoped durable traces and budgets, and resource-isolated execution.
+The preview cannot certify itself. Generated code may suppress errors or misbehave after the observation window. No errors in that window is not proof of correct execution. Do not merge or deploy as full-spec completion. Next implementation gates are independent browser gameplay checks, full account-scoped action/result journaling, general app tool integrations, and resource-isolated execution.

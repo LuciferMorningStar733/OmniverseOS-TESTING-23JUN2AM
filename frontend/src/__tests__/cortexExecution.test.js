@@ -1,9 +1,14 @@
 /** @jest-environment jsdom */
 import { isCodeTask, parseProject, previewDocument, requestCode, executeCodeTask } from '../lib/cortexExecution';
-import { aiApi, crud } from '../lib/api';
-jest.mock('../lib/api', () => ({ aiApi: { chatStreamResilient: jest.fn() }, crud: jest.fn(), getPreferredProvider: () => 'auto', getAuthToken: () => 'test-account' }));
+import { aiApi, crud, api } from '../lib/api';
+jest.mock('../lib/api', () => ({ aiApi: { chatStreamResilient: jest.fn() }, crud: jest.fn(), getPreferredProvider: () => 'auto', getAuthToken: () => 'test-account', api: { post: jest.fn(), get: jest.fn(), patch: jest.fn() } }));
 beforeAll(() => { Object.defineProperty(global, 'crypto', { value: { randomUUID: () => Math.random().toString(36) }, configurable: true }); });
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  api.post.mockImplementation(async (path, data) => ({ data: path === '/files' ? await crud('files').create(data) : { revision: 0, attempt: 0, project: null } }));
+  api.get.mockImplementation(async path => ({ data: path === '/files' ? await crud('files').list() : { revision: 0, attempt: 1, project: null } }));
+  api.patch.mockImplementation(async (_, body) => ({ data: { ...body, revision: body.revision + 1 } }));
+});
 test('execution intent takes priority over opening; explanations remain chat', () => {
   expect(isCodeTask('Open Code and build Flappy Bird game')).toBe(true);
   expect(isCodeTask('Open Code and start building me a Flappy Bird game')).toBe(true);
@@ -79,4 +84,23 @@ test('cannot report saved output when readback is missing', async () => {
   try {
     await expect(executeCodeTask('Build a game', { openApp: jest.fn() })).rejects.toThrow('Save verification failed');
   } finally { window.removeEventListener('cortex:code:request', handler); }
+});
+test('resume reopens saved files without another model call', async () => {
+  api.get.mockImplementation(async path => ({ data: path.startsWith('/execution/')
+    ? { revision: 2, attempt: 1, project: 'cortex-project-existing-0', intent: 'Build game' } : [] }));
+  const file = { id: 'file1', name: 'index.html', content: '<h1>Saved</h1>', parent: 'cortex-project-existing-0' };
+  const handler = e => window.dispatchEvent(new CustomEvent('cortex:code:result', { detail: {
+    id: e.detail.id, result: e.detail.action === 'inspect' ? { files: [file] } : { errors: [] },
+  } }));
+  window.addEventListener('cortex:code:request', handler);
+  try {
+    const result = await executeCodeTask('resume task existing', { openApp: jest.fn(), resumeTaskId: 'existing' });
+    expect(result.status).toBe('needs_verification');
+    expect(aiApi.chatStreamResilient).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  } finally { window.removeEventListener('cortex:code:request', handler); }
+});
+test('redacts common credentials before provider context or error display', () => {
+  const { redactSecrets } = require('../lib/cortexExecution');
+  expect(redactSecrets('token=abc password="hello" Bearer test.jwt.token')).not.toMatch(/abc|hello|test.jwt.token/);
 });

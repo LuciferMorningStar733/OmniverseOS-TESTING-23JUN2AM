@@ -1155,7 +1155,7 @@ export default function AIChat() {
       return;
     }
 
-    if (isCodeTask(text)) {
+    if (isCodeTask(text) || /^resume task [0-9a-f-]{36}$/i.test(text)) {
       abortRef.current?.abort();
       abortRef.current = ctrl;
       setInput('');
@@ -1168,7 +1168,7 @@ export default function AIChat() {
         setMessages(prev => prev.map(m => m.role === 'assistant' && m.ts === taskTs ? { ...m, content, pending } : m));
       };
       try {
-        const result = await executeCodeTask(text, { openApp, signal: ctrl.signal, onProgress: update });
+        const result = await executeCodeTask(text, { openApp, signal: ctrl.signal, onProgress: update, resumeTaskId: /^resume task /i.test(text) ? text.slice(12).trim() : undefined });
         update(result.content, false);
       } catch (error) {
         update(error.name === 'AbortError' ? 'Execution cancelled. Saved files were preserved.' : `Execution blocked: ${error.message}. No verified completion is claimed.`, false);
