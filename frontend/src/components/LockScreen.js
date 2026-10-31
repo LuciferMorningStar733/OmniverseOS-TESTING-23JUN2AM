@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useOS } from "../context/OSContext";
+import { playClick, playWindowOpen } from "../lib/soundEngine";
 
 const SWIPE_THRESHOLD = -70;
 
@@ -28,6 +29,7 @@ export default function LockScreen({ onUnlock }) {
 
   /* Click anywhere to unlock (desktop fallback — no swipe on mouse devices) */
   const handleClick = useCallback(() => {
+    playWindowOpen();
     animate(y, -window.innerHeight, {
       type: "tween", duration: 0.28, ease: "easeIn",
       onComplete: onUnlock,
@@ -36,6 +38,7 @@ export default function LockScreen({ onUnlock }) {
 
   function handleDragEnd(_, info) {
     if (info.offset.y < SWIPE_THRESHOLD || info.velocity.y < -600) {
+      playWindowOpen();
       animate(y, -window.innerHeight, {
         type: "tween", duration: 0.28, ease: "easeIn",
         onComplete: onUnlock,

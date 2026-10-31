@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { playWindowOpen } from "../../lib/soundEngine";
 
 /**
  * WindowsPhoneTile
@@ -88,21 +89,25 @@ export default function WindowsPhoneTile({
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onClick={() => onClick && onClick(app?.id)}
+        onClick={() => {
+          playWindowOpen();
+          onClick && onClick(app?.id);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
+            playWindowOpen();
             onClick && onClick(app?.id);
           }
         }}
         style={{
           width: "100%",
           height: isSmall ? 52 : isWide ? 116 : 116,
-          background: displayColor,
-          borderRadius: 2, // Iconic Windows Phone sharp rectangular tile with subtle 2px rounding
+          background: `linear-gradient(135deg, ${displayColor} 0%, ${displayColor}dd 100%)`,
+          borderRadius: 14,
           position: "relative",
           cursor: "pointer",
           overflow: "hidden",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.14)",
+          boxShadow: `0 8px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.32), inset 0 0 0 1px rgba(255,255,255,0.12), 0 0 20px ${displayColor}33`,
           transform: `perspective(800px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${tilt.scale})`,
           transition: "transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease",
           transformStyle: "preserve-3d",

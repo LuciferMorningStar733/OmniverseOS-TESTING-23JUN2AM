@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { useOS } from "../../context/OSContext";
+import { playClick } from "../../lib/soundEngine";
 
 export default function WindowsPhoneNavBar({
   activePivot,
@@ -26,6 +27,7 @@ export default function WindowsPhoneNavBar({
       longPressTimer.current = null;
 
       // Normal Back click
+      playClick();
       if (hasOpenWindows && activeId) {
         closeWindow(activeId);
       } else if (activePivot === "all-apps") {
@@ -36,6 +38,7 @@ export default function WindowsPhoneNavBar({
 
   // Handle Windows Start Button
   const handleStartClick = () => {
+    playClick();
     // Minimize active windows to return to Start screen
     if (hasOpenWindows) {
       openWindows.forEach((w) => minimize(w.id));
@@ -52,8 +55,11 @@ export default function WindowsPhoneNavBar({
         right: 0,
         height: "calc(50px + env(safe-area-inset-bottom, 0px))",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        background: "#000000", // Pitch Black AMOLED
-        borderTop: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(8, 10, 18, 0.94)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        borderTop: "1px solid rgba(255,255,255,0.14)",
+        boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-around",
@@ -113,7 +119,7 @@ export default function WindowsPhoneNavBar({
 
       {/* 3. SEARCH BUTTON (🔍) */}
       <button
-        onClick={onOpenSearch}
+        onClick={() => { playClick(); onOpenSearch(); }}
         aria-label="Search"
         style={{
           background: "transparent",

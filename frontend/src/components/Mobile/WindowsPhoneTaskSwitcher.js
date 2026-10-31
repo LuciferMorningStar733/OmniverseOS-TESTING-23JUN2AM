@@ -2,6 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOS } from "../../context/OSContext";
 import { getApp } from "../../lib/apps";
+import { playClick, playWindowClose } from "../../lib/soundEngine";
 
 export default function WindowsPhoneTaskSwitcher({ isOpen, onClose, onOpenApp }) {
   const { openWindows, activeId, closeWindow, focusWindow } = useOS();
@@ -77,6 +78,7 @@ export default function WindowsPhoneTaskSwitcher({ isOpen, onClose, onOpenApp })
                   key={win.id}
                   whileTap={{ scale: 0.96 }}
                   onClick={() => {
+                    playClick();
                     focusWindow(win.id);
                     onClose();
                   }}
@@ -86,12 +88,12 @@ export default function WindowsPhoneTaskSwitcher({ isOpen, onClose, onOpenApp })
                     flexShrink: 0,
                     background: "#0c0e18",
                     border: `2px solid ${isActive ? "#00A4EF" : "rgba(255,255,255,0.18)"}`,
-                    borderRadius: 3,
+                    borderRadius: 16,
                     display: "flex",
                     flexDirection: "column",
                     overflow: "hidden",
                     cursor: "pointer",
-                    boxShadow: "0 8px 30px rgba(0,0,0,0.7)",
+                    boxShadow: isActive ? "0 16px 48px rgba(0,164,239,0.3), 0 8px 30px rgba(0,0,0,0.8)" : "0 8px 30px rgba(0,0,0,0.7)",
                     position: "relative",
                   }}
                 >
@@ -116,6 +118,7 @@ export default function WindowsPhoneTaskSwitcher({ isOpen, onClose, onOpenApp })
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        playWindowClose();
                         closeWindow(win.id);
                       }}
                       style={{

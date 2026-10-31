@@ -92,23 +92,25 @@ export default function WindowsPhoneLiveTiles({ onOpenApp, onNavigateToAppList, 
         <button
           onClick={onNavigateToAppList}
           style={{
-            background: "transparent",
-            border: "none",
-            color: "rgba(255,255,255,0.65)",
-            fontSize: 15,
-            fontWeight: 400,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 20,
+            color: "rgba(255,255,255,0.85)",
+            fontSize: 12,
+            fontWeight: 600,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: 6,
-            padding: "6px 8px",
+            padding: "5px 12px",
             fontFamily: "'Segoe UI', 'Outfit', sans-serif",
             textTransform: "lowercase",
             WebkitTapHighlightColor: "transparent",
+            backdropFilter: "blur(12px)",
           }}
         >
           <span>all apps</span>
-          <i className="fa-solid fa-arrow-right" style={{ fontSize: 13, color: "#00A4EF" }} />
+          <i className="fa-solid fa-arrow-right" style={{ fontSize: 10, color: "#00F0FF" }} />
         </button>
       </div>
 

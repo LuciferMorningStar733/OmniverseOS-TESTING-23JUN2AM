@@ -171,15 +171,18 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
         display: "flex", alignItems: "center",
         justifyContent: "space-between",
         padding: "0 12px",
-        borderBottom: `2px solid ${app.color || "#0078D7"}`,
-        background: "#000000",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
+        background: "rgba(10, 12, 22, 0.94)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
         position: "relative", flexShrink: 0, zIndex: 10,
         boxSizing: "border-box",
         fontFamily: "'Segoe UI', 'Outfit', sans-serif",
       }}
     >
       <button
-        onClick={onClose}
+        onClick={() => { playWindowClose(); onClose(); }}
         style={{
           display: "flex", alignItems: "center", gap: 8,
           height: 48, background: "transparent", border: "none", cursor: "pointer",
@@ -210,7 +213,7 @@ const MobileHeader = memo(function MobileHeader({ app, onClose }) {
           style={{ color: app.color || "#0078D7", fontSize: 16 }}
         />
         <button
-          onClick={onClose}
+          onClick={() => { playWindowClose(); onClose(); }}
           aria-label="Close"
           style={{
             width: 36, height: 36,

@@ -529,7 +529,9 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
         <div
           className="absolute left-0 right-0 top-0 z-40 flex items-center justify-between"
           style={{
-            background: "#000000",
+            background: "rgba(8, 10, 18, 0.92)",
+            backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
             borderBottom: "1px solid rgba(255,255,255,0.14)",
             boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
             height: 60,
@@ -578,12 +580,25 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             </div>
           </div>
 
-          {/* Right Action Icons (Notifications & Search) */}
+          {/* Right Action Icons (Sound, Search, Notifications) */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleToggleSound}
+              className="w-9 h-9 flex items-center justify-center"
+              style={{
+                background: soundOn ? "rgba(0,240,255,0.12)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${soundOn ? "rgba(0,240,255,0.30)" : "rgba(255,255,255,0.10)"}`,
+                borderRadius: 10,
+              }}
+              aria-label={soundOn ? "Mute sounds" : "Unmute sounds"}
+            >
+              <i className={`fa-solid ${soundOn ? "fa-volume-high" : "fa-volume-xmark"}`} style={{ color: soundOn ? "#00F0FF" : "#64748b", fontSize: 12 }} />
+            </button>
+
             <button
               onClick={() => setPaletteOpen(true)}
               className="w-9 h-9 flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 2 }}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10 }}
               aria-label="Search"
             >
               <i className="fa-solid fa-magnifying-glass text-slate-200 text-xs" />
@@ -592,12 +607,12 @@ export default function TopBar({ onOpenMissionControl, onOpenBrightness }) {
             <button
               onClick={() => setNotifOpen(true)}
               className="relative w-9 h-9 flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 2 }}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 10 }}
               aria-label="Notifications"
             >
               <i className="fa-solid fa-bell text-slate-200 text-xs" />
               {unread > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#E51400]" style={{ borderRadius: 1 }} />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF003C] rounded-full shadow-[0_0_6px_#FF003C]" />
               )}
             </button>
           </div>
