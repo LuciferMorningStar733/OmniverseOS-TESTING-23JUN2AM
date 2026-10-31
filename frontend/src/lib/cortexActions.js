@@ -423,8 +423,9 @@ export async function executeActions(actions, osContext = {}) {
 
         // ── Open app ────────────────────────────────────────────────────────
         case "open_app":
-          if (openApp) openApp(action.appId);
-          results.push({ action, success: true });
+          if (!openApp) throw new Error("Window manager unavailable");
+          openApp(action.appId);
+          results.push({ action, success: true, verification: "requested" });
           break;
 
         // ── Open URL in browser app ──────────────────────────────────────

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { aiApi } from "../lib/api";
+import { previewDocument, executeCodeTask } from "../lib/cortexExecution";
+import { crud } from "../lib/api";
 
 /* ── CyberSelect — fixed Radix UI (no invalid render props) ─────────────── */
 function CyberSelect({ value, onValueChange, options, placeholder, small }) {
@@ -200,12 +201,89 @@ export default function CodeEditor() {
   const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef(null);
   const workerRef = useRef(null);
+  const agentAbortRef = useRef(null);
   const timeoutRef = useRef(null);
+
+  const [files, setFiles] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [projectFiles, setProjectFiles] = useState([]);
+  const previewRef = useRef(null);
+  const pendingPreview = useRef(null);
+  const editorState = useRef({ code, lang });
+  editorState.current = { code, lang };
+
+  const showPreview = useCallback((project, signal) => new Promise((resolve, reject) => {
+    if (pendingPreview.current) pendingPreview.current.finish(new Error('Preview replaced'));
+    const document = previewDocument(project);
+    const errors = [];
+    let settle;
+    const abort = () => finish(new DOMException('Task cancelled', 'AbortError'));
+    const finish = (error) => {
+      clearTimeout(deadline); clearTimeout(settle);
+      window.removeEventListener('message', observe);
+      signal?.removeEventListener('abort', abort);
+      pendingPreview.current = null;
+      if (error) { setPreview(null); reject(error); }
+      else resolve({ errors, status: 'loaded_unverified' });
+    };
+    const observe = e => {
+      if (e.source === previewRef.current?.contentWindow && typeof e.data?.cortexPreviewError === 'string')
+        errors.push(e.data.cortexPreviewError.slice(0, 1000));
+    };
+    const deadline = setTimeout(() => finish(new Error('Preview load timed out')), 8000);
+    pendingPreview.current = { finish, loaded: () => { clearTimeout(settle); settle = setTimeout(() => finish(), 1200); } };
+    window.addEventListener('message', observe);
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) return abort();
+    setPreview({ document, id: crypto.randomUUID() });
+  }), []);
+
+  useEffect(() => {
+    let mounted = true;
+    crud('files').list().then(items => { if (mounted) setFiles(items); }).catch(() => {});
+    const handle = async e => {
+      const { id, action, payload, signal } = e.detail;
+      try {
+        let result;
+        if (action === 'inspect') result = { files: await crud('files').list(), editor: editorState.current };
+        else if (action === 'preview') {
+          if (signal?.aborted) throw new DOMException('Task cancelled', 'AbortError');
+          setFiles(await crud('files').list());
+          setProjectFiles(payload.files);
+          setLang('html');
+          setCode(payload.files.find(f => f.name === 'index.html').content);
+          result = await showPreview(payload.files, signal);
+        } else throw new Error('Unsupported Code action');
+        window.dispatchEvent(new CustomEvent('cortex:code:result', { detail: { id, result } }));
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('cortex:code:result', { detail: { id, error: error.message } }));
+      }
+    };
+    window.addEventListener('cortex:code:request', handle);
+    return () => {
+      mounted = false;
+      window.removeEventListener('cortex:code:request', handle);
+      pendingPreview.current?.finish(new Error('Code closed'));
+    };
+  }, [showPreview]);
+
+  const saveFile = async () => {
+    try {
+      const state = editorState.current;
+      const name = `draft-${Date.now()}.${state.lang === 'html' ? 'html' : state.lang === 'javascript' ? 'js' : 'txt'}`;
+      const file = await crud('files').create({ name, content: state.code, parent: 'code-workspace', type: 'file', size: state.code.length });
+      const stored = await crud('files').list();
+      if (!stored.some(f => f.id === file.id && f.content === state.code)) throw new Error('Saved file could not be read back');
+      setFiles(stored);
+      setOutput([{ type: 'info', text: `Saved ${name}` }]);
+    } catch (error) { setOutput([{ type: 'error', text: error.message }]); }
+  };
 
   const activeLang = LANGS.find(l=>l.value===lang);
 
   useEffect(() => {
     return () => {
+      agentAbortRef.current?.abort();
       if (workerRef.current) workerRef.current.terminate();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
@@ -218,6 +296,10 @@ export default function CodeEditor() {
   }, []);
 
   const run = useCallback(() => {
+    if (lang === 'html') {
+      showPreview([{ name: 'index.html', content: code }, ...projectFiles.filter(f => f.name !== 'index.html')]).catch(error => setOutput([{ type: 'error', text: error.message }]));
+      return;
+    }
     if (lang !== "javascript") {
       setOutput([{ type:"info", text:`Live execution is JS-only. Showing ${activeLang?.label||lang} syntax preview.` }]);
       return;
@@ -318,39 +400,24 @@ export default function CodeEditor() {
     }, 5000);
 
     worker.postMessage(code);
-  }, [code, lang, activeLang]);
+  }, [code, lang, activeLang, showPreview, projectFiles]);
 
   const askCortex = useCallback(async () => {
     const prompt = aiPrompt.trim();
     if (!prompt || aiLoading) return;
     setAiLoading(true);
     setAiPrompt("");
-    setCode("// Cortex is writing your code…");
-    const abortCtrl = new AbortController();
-    let streamed = "";
+    const ctrl = new AbortController();
+    agentAbortRef.current = ctrl;
     try {
-      await aiApi.chatStreamResilient(
-        {
-          session_id: "code-agent",
-          message: prompt,
-          model: "gemini-2.5-flash",
-          preferred_provider: "gemini",
-          mode: "chat",
-          history: [],
-          system: "You are Cortex, an expert developer. Output ONLY raw executable JavaScript code based on the user's request. No markdown, no HTML, no code fences, no explanations — just the raw code.",
-        },
-        (delta) => {
-          streamed += delta;
-          setCode(streamed);
-        },
-        null,
-        abortCtrl.signal,
-      );
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        setOutput([{ type: "error", text: `Cortex Code Agent: ${err.message}` }]);
-        setCode("");
-      }
+      const result = await executeCodeTask(prompt, {
+        openApp: () => {}, // This editor is already mounted; bridge still verifies it.
+        signal: ctrl.signal,
+        onProgress: text => setOutput([{ type: 'info', text }]),
+      });
+      setOutput([{ type: 'info', text: result.content }]);
+    } catch (error) {
+      setOutput([{ type: 'error', text: error.message }]);
     } finally {
       setAiLoading(false);
     }
@@ -373,6 +440,22 @@ export default function CodeEditor() {
   return (
     <div className="flex flex-col h-full text-white" data-testid="code-app">
 
+      <div className="flex gap-2 px-3 py-2">
+        <button onClick={saveFile} className="neon-btn">Save copy</button>
+        <select aria-label="Open saved code file" defaultValue="" onChange={e => {
+          const file = files.find(f => f.id === e.target.value);
+          if (file) { setProjectFiles(files.filter(f => f.parent === file.parent)); setCode(file.content || ''); setLang(file.name.endsWith('.html') ? 'html' : file.name.endsWith('.css') ? 'css' : file.name.endsWith('.json') ? 'json' : 'javascript'); }
+        }} className="bg-slate-900 text-white min-w-0">
+          <option value="">Open saved file…</option>
+          {files.filter(f => /\.(html|js|css|json|txt)$/.test(f.name)).map(f => <option key={f.id} value={f.id}>{f.parent}/{f.name}</option>)}
+        </select>
+      </div>
+      {preview && <div className="h-80 shrink-0 flex flex-col">
+        <div>Isolated preview · gameplay unverified <button onClick={() => { pendingPreview.current?.finish(new Error('Preview stopped')); setPreview(null); }}>Stop preview</button></div>
+        <iframe key={preview.id} ref={previewRef} title="Code project preview" data-testid="code-preview"
+          sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={preview.document}
+          onLoad={() => pendingPreview.current?.loaded()} className="w-full flex-1 bg-white" />
+      </div>}
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0 gap-2 flex-wrap"
         style={{ borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
@@ -474,6 +557,7 @@ export default function CodeEditor() {
         </div>
       </div>
 
+      {aiLoading && <button onClick={() => agentAbortRef.current?.abort()}>Cancel Code task</button>}
       {/* AI Code Agent bar */}
       <div className="flex-shrink-0 px-3 pb-3 pt-2" style={{ borderTop: "1px solid rgba(0,240,255,0.08)" }}>
         <div className="flex items-center gap-2">
