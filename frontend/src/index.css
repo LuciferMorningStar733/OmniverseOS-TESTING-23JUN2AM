@@ -1308,8 +1308,8 @@ html { font-size: clamp(14px, 1.4vw + 0.4vh, 17px); }
     gap: 12px !important;
   }
   [data-testid^="dock-item-"] {
-    width: 80px !important;
-    height: 88px !important;
+    width: 80px;
+    height: 88px;
   }
 }
 
@@ -1338,17 +1338,17 @@ html { font-size: clamp(14px, 1.4vw + 0.4vh, 17px); }
 
 /* ── CSS containment for layout-stable components ────────────── */
 [data-testid^="window-"] {
-  contain: layout style;
+  contain: layout style; overflow: visible;
   will-change: transform, opacity;
 }
 
 [data-testid="dock-root"] {
-  contain: layout style;
+  contain: layout style; overflow: visible;
   will-change: transform;
 }
 
 [data-testid="topbar"] {
-  contain: layout style;
+  contain: layout style; overflow: visible;
 }
 
 /* ── Compositor layers for heavy animated surfaces ────────────── */

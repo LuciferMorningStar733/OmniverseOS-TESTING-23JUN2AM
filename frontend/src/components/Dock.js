@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo, memo } from "react";
-import { motion, AnimatePresence, useAnimate } from "framer-motion";
+import { motion, AnimatePresence, useAnimate, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useOS } from "../context/OSContext";
 import { APPS } from "../lib/apps";
 import { useBreakpoint } from "../hooks/useBreakpoint";
@@ -497,57 +497,57 @@ function MobileDock() {
 }
 
 /* ── Desktop dock icon ─────────────────────────────────────────────────────── */
-const DockTooltip = memo(function DockTooltip({ name, visible }) {
+const DockTooltip = memo(function DockTooltip({ name, visible, offsetY }) {
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 6, scale: 0.80 }}
+          initial={{ opacity: 0, y: 6, scale: 0.88 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 6, scale: 0.80 }}
-          transition={{ type: "spring", stiffness: 480, damping: 24, mass: 0.2 }}
+          exit={{ opacity: 0, y: 4, scale: 0.88 }}
+          transition={{ type: "spring", stiffness: 450, damping: 26, mass: 0.2 }}
           style={{
             position: "absolute",
-            bottom: "calc(100% + 12px)",
-            left: "50%", x: "-50%",
-            background: "rgba(8,10,18,0.92)",
-            border: "1px solid rgba(255,255,255,0.12)",
+            bottom: "calc(100% + 14px)",
+            left: "50%",
+            x: "-50%",
+            y: offsetY,
+            background: "rgba(12, 16, 28, 0.92)",
+            backdropFilter: "blur(20px) saturate(190%)",
+            WebkitBackdropFilter: "blur(20px) saturate(190%)",
+            border: "1px solid rgba(255, 255, 255, 0.16)",
             borderRadius: 8,
-            padding: "4px 10px",
-            fontSize: 11,
-            fontFamily: "'Outfit', 'JetBrains Mono', sans-serif",
+            padding: "4px 11px",
+            fontSize: 12,
+            fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
             fontWeight: 600,
-            color: "rgba(255,255,255,0.88)",
+            letterSpacing: "0.01em",
+            color: "#ffffff",
             whiteSpace: "nowrap",
             pointerEvents: "none",
             zIndex: 100,
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            boxShadow: "0 10px 28px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.25)",
           }}
         >
           {name}
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderTop: "5px solid rgba(12, 16, 28, 0.92)",
+            }}
+          />
         </motion.div>
       )}
     </AnimatePresence>
   );
 });
-
-/* Cosine bell-curve proximity scale helper */
-function useScale(index, hoverIndex) {
-  return useMemo(() => {
-    if (hoverIndex === null) return 1;
-    // Respect prefers-reduced-motion
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      return 1;
-    }
-    const dist = Math.abs(index - hoverIndex);
-    const radius = 2.5; // continuous cosine bell radius over ~2.5 slots
-    if (dist >= radius) return 1;
-    const cosineFactor = (1 + Math.cos((Math.PI * dist) / radius)) / 2;
-    return 1 + 0.55 * cosineFactor; // Smooth bell curve: 1.55 peak, ~1.35 neighbors, 1.0 distant
-  }, [index, hoverIndex]);
-}
 
 const getAppGradient = (app) => {
   switch (app.group) {
@@ -571,207 +571,351 @@ const getAppGradient = (app) => {
 };
 
 const DesktopDockIcon = memo(function DesktopDockIcon({
-  app, index, hoverIndex, isActive, open, onHover, onLeave, openApp,
+  app, mouseX, isActive, open, openApp,
 }) {
+  const iconRef = useRef(null);
   const [scope, animateScope] = useAnimate();
-  const [tooltipVisible, setTooltipVisible] = useState(false);
-  const scale = useScale(index, hoverIndex);
-  const translateY = scale > 1 ? -(scale - 1) * 28 : 0;
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Proximity distance from icon center to cursor position
+  const distance = useTransform(mouseX, (val) => {
+    const bounds = iconRef.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
+    return val - (bounds.x + bounds.width / 2);
+  });
+
+  // Smooth proximity magnification wave
+  const scaleSync = useTransform(distance, [-140, 0, 140], [1, 1.55, 1]);
+  const scale = useSpring(scaleSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  // Width expansion so neighboring icons gracefully part
+  const widthSync = useTransform(distance, [-140, 0, 140], [52, 74, 52]);
+  const width = useSpring(widthSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  // Lift upward from dock shelf
+  const translateYSync = useTransform(distance, [-140, 0, 140], [0, -14, 0]);
+  const translateY = useSpring(translateYSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  // Floating tooltip offset: lifts dynamically with icon magnification
+  const tooltipYSync = useTransform(distance, [-140, 0, 140], [0, -20, 0]);
+  const tooltipY = useSpring(tooltipYSync, { mass: 0.1, stiffness: 380, damping: 24 });
 
   const handleClick = useCallback(async () => {
     if (open) { playClick(); } else { playWindowOpen(); }
-    // macOS Launchpad-matched bounce: compress → overshoot → settle
-    await animateScope(scope.current, {
-      scale: [1, 0.78, 1.32, 0.93, 1.07, 0.98, 1],
-      y:     [0,  6,   -10,  3,   -3,   1,    0],
-    }, {
-      duration: 0.52,
-      ease: "easeOut",
-      times: [0, 0.12, 0.38, 0.56, 0.74, 0.88, 1],
-    });
+    if (scope.current) {
+      animateScope(scope.current, {
+        scale: [1, 0.78, 1.25, 0.94, 1.05, 1],
+        y:     [0,  4,   -8,   2,   -1,   0],
+      }, {
+        duration: 0.44,
+        ease: "easeOut",
+        times: [0, 0.15, 0.45, 0.70, 0.88, 1],
+      });
+    }
     openApp(app.id);
   }, [animateScope, scope, openApp, app.id, open]);
 
-  const handleMouseEnter = useCallback(() => {
-    setTooltipVisible(true);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setTooltipVisible(false);
-  }, []);
-
-  /* Per-app glow ring color */
+  /* Per-app glow ring style */
   const ringStyle = useMemo(() => ({
     boxShadow: `0 0 0 1.5px ${app.color}77, 0 0 20px ${app.color}45, 0 0 40px ${app.color}20`,
   }), [app.color]);
 
   return (
-    <motion.button
-      ref={scope}
-      data-testid={`dock-item-${app.id}`}
-      data-dock-icon={app.id}
-      aria-label={`Open ${app.name}`}
-      aria-current={isActive ? "page" : undefined}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
-      animate={{ scale, y: translateY }}
-      transition={{ type: "spring", stiffness: 440, damping: 22, mass: 0.22 }}
-      className="group relative flex-shrink-0"
-      style={{
-        width: 44, height: 44,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 12,
-        background: "transparent",
-        transformOrigin: "bottom center",
-        cursor: "pointer", border: "none", outline: "none", padding: 0,
-        willChange: "transform",
-      }}
+    <motion.div
+      ref={iconRef}
+      style={{ width, height: 50 }}
+      className="relative flex flex-col items-center justify-end flex-shrink-0"
     >
-      {/* Active glow ring */}
-      <AnimatePresence>
-        {isActive && (
-          <motion.div
-            layoutId={`active-ring-${app.id}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 rounded-[12px]"
-            style={ringStyle}
-          />
-        )}
-      </AnimatePresence>
+      <DockTooltip name={app.name} visible={isHovered} offsetY={tooltipY} />
 
-      {/* Squircle Badge Container */}
-      <div
-        className="w-10 h-10 rounded-[11px] flex items-center justify-center relative shadow-md"
+      <motion.button
+        data-testid={`dock-item-${app.id}`}
+        data-dock-icon={app.id}
+        aria-label={`Open ${app.name}`}
+        aria-current={isActive ? "page" : undefined}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={handleClick}
         style={{
-          background: getAppGradient(app),
-          boxShadow: isActive
-            ? `0 0 16px ${app.color}90, inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.4)`
-            : "inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.3), 0 4px 10px rgba(0,0,0,0.45)",
-          border: "1px solid rgba(255,255,255,0.2)",
-          transition: "box-shadow 0.22s ease",
+          width: 50,
+          height: 50,
+          scale,
+          y: translateY,
+          transformOrigin: "bottom center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "transparent",
+          cursor: "pointer",
+          border: "none",
+          outline: "none",
+          padding: 0,
+          willChange: "transform",
+          position: "relative",
         }}
       >
-        <i
-          className={`fa-solid ${app.icon} text-lg text-white`}
-          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
-        />
-      </div>
+        {/* Active glow ring */}
+        <AnimatePresence>
+          {isActive && (
+            <motion.div
+              layoutId={`active-ring-${app.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 rounded-[14px]"
+              style={ringStyle}
+            />
+          )}
+        </AnimatePresence>
 
-      {/* Running indicator — pill for active focused app, dot for background running app */}
-      {open && (
-        <motion.span
-          layoutId={`running-dot-${app.id}`}
-          className="absolute rounded-full"
+        {/* Squircle Badge Container with click bounce ref */}
+        <motion.div
+          ref={scope}
+          className="w-11 h-11 rounded-[13px] flex items-center justify-center relative shadow-md"
           style={{
-            bottom: -6, left: "50%", x: "-50%",
-            width: isActive ? 16 : 4,
-            height: 4,
-            borderRadius: 2,
-            background: isActive ? app.color : "rgba(0,240,255,0.85)",
+            background: getAppGradient(app),
             boxShadow: isActive
-              ? `0 0 10px ${app.color}FF, 0 0 20px ${app.color}66`
-              : "0 0 6px rgba(0,240,255,0.6)",
-            transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
+              ? `0 0 16px ${app.color}90, inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.4)`
+              : "inset 0 1px 1px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.45)",
+            border: "1px solid rgba(255,255,255,0.22)",
+            transition: "box-shadow 0.22s ease",
           }}
-        />
-      )}
+        >
+          <i
+            className={`fa-solid ${app.icon} text-lg text-white`}
+            style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
+          />
+        </motion.div>
 
-      <DockTooltip name={app.name} visible={tooltipVisible} />
-    </motion.button>
+        {/* Running indicator — pill for active focused app, dot for background running app */}
+        {open && (
+          <motion.span
+            layoutId={`running-dot-${app.id}`}
+            className="absolute rounded-full"
+            style={{
+              bottom: -5,
+              left: "50%",
+              x: "-50%",
+              width: isActive ? 16 : 4,
+              height: 4,
+              borderRadius: 2,
+              background: isActive ? app.color : "rgba(0,240,255,0.85)",
+              boxShadow: isActive
+                ? `0 0 10px ${app.color}FF, 0 0 20px ${app.color}66`
+                : "0 0 6px rgba(0,240,255,0.6)",
+              transition: "width 0.36s cubic-bezier(0.34,1.56,0.64,1), background 0.22s ease, box-shadow 0.22s ease",
+            }}
+          />
+        )}
+      </motion.button>
+    </motion.div>
   );
 });
 
+/* ── Trash dock icon with magnification & tooltip ──────────────────────────── */
+const TrashDockIcon = memo(function TrashDockIcon({ mouseX, openApp }) {
+  const iconRef = useRef(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [scope, animateScope] = useAnimate();
+
+  const distance = useTransform(mouseX, (val) => {
+    const bounds = iconRef.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
+    return val - (bounds.x + bounds.width / 2);
+  });
+
+  const scaleSync = useTransform(distance, [-140, 0, 140], [1, 1.55, 1]);
+  const scale = useSpring(scaleSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  const widthSync = useTransform(distance, [-140, 0, 140], [52, 74, 52]);
+  const width = useSpring(widthSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  const translateYSync = useTransform(distance, [-140, 0, 140], [0, -14, 0]);
+  const translateY = useSpring(translateYSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  const tooltipYSync = useTransform(distance, [-140, 0, 140], [0, -20, 0]);
+  const tooltipY = useSpring(tooltipYSync, { mass: 0.1, stiffness: 380, damping: 24 });
+
+  const handleClick = useCallback(async () => {
+    playGlassTap();
+    if (scope.current) {
+      animateScope(scope.current, {
+        scale: [1, 0.78, 1.25, 0.94, 1.05, 1],
+        y:     [0,  4,   -8,   2,   -1,   0],
+      }, {
+        duration: 0.44,
+        ease: "easeOut",
+        times: [0, 0.15, 0.45, 0.70, 0.88, 1],
+      });
+    }
+    openApp("files");
+  }, [animateScope, scope, openApp]);
+
+  return (
+    <motion.div
+      ref={iconRef}
+      style={{ width, height: 50 }}
+      className="relative flex flex-col items-center justify-end flex-shrink-0"
+    >
+      <DockTooltip name="Trash" visible={isHovered} offsetY={tooltipY} />
+
+      <motion.button
+        data-testid="dock-trash"
+        aria-label="Trash"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={handleClick}
+        style={{
+          width: 50,
+          height: 50,
+          scale,
+          y: translateY,
+          transformOrigin: "bottom center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "transparent",
+          cursor: "pointer",
+          border: "none",
+          outline: "none",
+          padding: 0,
+          willChange: "transform",
+          position: "relative",
+        }}
+      >
+        <motion.div
+          ref={scope}
+          className="w-11 h-11 rounded-[13px] flex items-center justify-center relative shadow-md transition-all duration-200"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%)",
+            border: "1px solid rgba(255,255,255,0.22)",
+            boxShadow: isHovered
+              ? "0 4px 16px rgba(255,255,255,0.25), inset 0 1px 1px rgba(255,255,255,0.4)"
+              : "0 4px 12px rgba(0,0,0,0.40), inset 0 1px 1px rgba(255,255,255,0.2)",
+          }}
+        >
+          <i
+            className="fa-solid fa-trash-can text-lg text-slate-200"
+            style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
+          />
+        </motion.div>
+      </motion.button>
+    </motion.div>
+  );
+});
+
+// Core 7 macOS-style pinned apps for OmniverseOS (capped strictly at 8 max with running apps)
+const CORE_PINNED_APP_IDS = [
+  "dashboard", // System dashboard & Mission Control
+  "browser",   // Web Browser
+  "chat",      // AI Assistant (flagship)
+  "voice",     // Cortex Voice AI
+  "files",     // File Manager
+  "code",      // Code Studio
+  "settings",  // System Settings
+];
+
 function DesktopDock({ isTablet }) {
   const { openApp, windows, activeId } = useOS();
-  const [hoverIndex, setHoverIndex] = useState(null);
+  const mouseX = useMotionValue(Infinity);
   const dockRef = useRef(null);
 
-  const handleMouseMove = useCallback((e) => {
-    if (!dockRef.current) return;
-    const rect = dockRef.current.getBoundingClientRect();
-    const paddingLeft = 14;
-    const itemWidth = 44 + (isTablet ? 4 : 6);
-    const relativeX = e.clientX - rect.left - paddingLeft;
-    const floatIdx = relativeX / itemWidth;
-    setHoverIndex(floatIdx);
-  }, [isTablet]);
+  // Maintain strictly 7-8 apps maximum:
+  // Core 7 pinned apps + 1 running unpinned app (or notes if no unpinned apps are running)
+  const appStates = useMemo(() => {
+    const runningAppIds = [];
+    windows.forEach((w) => {
+      if (w.app && !runningAppIds.includes(w.app)) {
+        runningAppIds.push(w.app);
+      }
+    });
 
-  const onLeave = useCallback(() => setHoverIndex(null), []);
+    const runningUnpinned = runningAppIds.filter((id) => !CORE_PINNED_APP_IDS.includes(id));
 
-  const appStates = useMemo(() => APPS.map((app) => {
-    const win      = windows.find((w) => w.app === app.id);
-    const open     = Boolean(win);
-    const isActive = open && win?.id === activeId;
-    return { app, open, isActive };
-  }), [windows, activeId]);
+    const displayIds = [...CORE_PINNED_APP_IDS];
+
+    if (runningUnpinned.length === 0) {
+      // Default 8-app layout: insert notes before settings
+      displayIds.splice(6, 0, "notes");
+    } else {
+      // Running unpinned apps: insert up to 8 max total apps
+      const extraSlots = 8 - displayIds.length;
+      const toAdd = runningUnpinned.slice(0, extraSlots);
+      displayIds.splice(displayIds.length - 1, 0, ...toAdd);
+    }
+
+    // Strict cap at 8 apps maximum
+    const finalIds = displayIds.slice(0, 8);
+
+    return finalIds.map((id) => {
+      const app = APPS.find((a) => a.id === id);
+      if (!app) return null;
+      const win = windows.find((w) => w.app === id);
+      const open = Boolean(win);
+      const isActive = open && win?.id === activeId;
+      return { app, open, isActive };
+    }).filter(Boolean);
+  }, [windows, activeId]);
 
   return (
     <motion.div
       initial={{ y: 120, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.25, type: "spring", damping: 24, stiffness: 240 }}
-      className="absolute left-0 right-0 bottom-4 z-40 flex justify-center pointer-events-none"
+      className="absolute left-0 right-0 bottom-3 z-40 flex justify-center pointer-events-none"
       data-testid="dock-root"
+      style={{ overflow: "visible" }}
     >
       <div
         ref={dockRef}
         data-testid="adaptive-dock"
-        className={`pointer-events-auto flex items-end ${isTablet ? "gap-1" : "gap-1.5"} px-3.5 py-2.5 rounded-2xl relative overflow-hidden`}
+        onMouseMove={(e) => mouseX.set(e.pageX)}
+        onMouseLeave={() => mouseX.set(Infinity)}
+        className="pointer-events-auto flex items-end gap-1.5 px-3 py-2 rounded-2xl relative"
         style={{
+          overflow: "visible", // CRITICAL: Allows magnification and tooltips above the dock shelf
           background: "rgba(10, 14, 26, 0.72)",
           backdropFilter: "blur(56px) saturate(240%)",
           WebkitBackdropFilter: "blur(56px) saturate(240%)",
           border: "1px solid rgba(255, 255, 255, 0.18)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.80), inset 0 1.5px 0 rgba(255,255,255,0.28), 0 0 0 1px rgba(0,240,255,0.12), inset 0 -1px 2px rgba(0,0,0,0.50)",
+          boxShadow: "0 28px 72px rgba(0,0,0,0.80), inset 0 1.5px 0 rgba(255,255,255,0.28), 0 0 0 1px rgba(0,240,255,0.12), inset 0 -1px 2px rgba(0,0,0,0.50)",
           maxWidth: "calc(100vw - 24px)",
         }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={onLeave}
       >
-        {/* Optical Liquid Glass Reflective Sheen Layer */}
-        {hoverIndex !== null && (
+        {/* Optical Liquid Glass Ambient Sheen Layer */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "inherit",
+            overflow: "hidden",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        >
           <div
             style={{
               position: "absolute",
-              top: 0, bottom: 0,
-              left: `${Math.max(0, Math.min(100, (hoverIndex / APPS.length) * 100))}%`,
-              width: 120,
-              transform: "translateX(-50%)",
-              background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.22) 0%, rgba(0,240,255,0.08) 45%, transparent 70%)",
-              pointerEvents: "none",
-              transition: "left 0.1s ease-out",
+              inset: 0,
+              background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 60%)",
             }}
           />
-        )}
-        {appStates.map(({ app, open, isActive }, i) => (
+        </div>
+
+        {appStates.map(({ app, open, isActive }) => (
           <DesktopDockIcon
             key={app.id}
             app={app}
-            index={i}
-            hoverIndex={hoverIndex}
+            mouseX={mouseX}
             isActive={isActive}
             open={open}
-            onHover={setHoverIndex}
-            onLeave={onLeave}
             openApp={openApp}
           />
         ))}
 
-        {/* Vertical Separator Line & Trash Icon */}
-        <div className="w-px h-6 bg-white/20 mx-1 flex-shrink-0" />
-        <button
-          className="w-10 h-10 rounded-[11px] flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
-          title="Trash"
-          onClick={() => {
-            playGlassTap();
-            openApp("files");
-          }}
-        >
-          <i className="fa-solid fa-trash-can text-lg" />
-        </button>
+        {/* Vertical Separator Line between Apps and Trash */}
+        <div className="w-px h-7 bg-white/20 mx-1 flex-shrink-0 self-center z-10" />
+
+        {/* Trash Icon */}
+        <TrashDockIcon mouseX={mouseX} openApp={openApp} />
       </div>
     </motion.div>
   );
