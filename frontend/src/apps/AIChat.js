@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { aiApi, memoryApi, MODEL_LABELS, PROVIDER_LABELS, getPreferredProvider } from "../lib/api";
+import { isCodeTask, executeCodeTask } from "../lib/cortexExecution";
 import { parseActions, executeActions, buildActionSummary } from "../lib/cortexActions";
 import { parseCmdTags, executeCmdCommands } from "../lib/cmdTagParser";
 import { buildCortexSystemPrompt } from "../lib/cortexContext";
@@ -1151,6 +1152,29 @@ export default function AIChat() {
           setDebatePanels((prev) => prev ? prev.map((p, i) => i === idx ? { ...p, streaming: false, done: true, error: true } : p) : prev);
         });
       });
+      return;
+    }
+
+    if (isCodeTask(text) || /^resume task [0-9a-f-]{36}$/i.test(text)) {
+      abortRef.current?.abort();
+      abortRef.current = ctrl;
+      setInput('');
+      setStreaming(true);
+      const taskTs = Date.now();
+      setMessages(prev => [...prev, { role: 'user', content: text, ts: taskTs },
+        { role: 'assistant', content: 'Inspecting Code workspace…', pending: true, ts: taskTs }]);
+      const update = (content, pending = true) => {
+        if (!mountedRef.current || abortRef.current !== ctrl) return;
+        setMessages(prev => prev.map(m => m.role === 'assistant' && m.ts === taskTs ? { ...m, content, pending } : m));
+      };
+      try {
+        const result = await executeCodeTask(text, { openApp, signal: ctrl.signal, onProgress: update, resumeTaskId: /^resume task /i.test(text) ? text.slice(12).trim() : undefined });
+        update(result.content, false);
+      } catch (error) {
+        update(error.name === 'AbortError' ? 'Execution cancelled. Saved files were preserved.' : `Execution blocked: ${error.message}. No verified completion is claimed.`, false);
+      } finally {
+        if (mountedRef.current && abortRef.current === ctrl) setStreaming(false);
+      }
       return;
     }
 

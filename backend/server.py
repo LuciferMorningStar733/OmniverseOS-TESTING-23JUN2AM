@@ -2952,10 +2952,12 @@ Rules:
 
 from routers.agents import router as agents_router
 from routers.system import router as system_router
+from routers.execution import router as execution_router
 
 app.include_router(api)
 app.include_router(agents_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
+app.include_router(execution_router, prefix="/api")
 
 _cors_env = os.environ.get("CORS_ORIGINS", "").strip()
 if IS_PRODUCTION:
